@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Spec 8.2: invite-only NIPDEC accounts via single-use, time-limited links.
+ * Spec 8.2: invite-only vendor user accounts via single-use, time-limited links.
  * Only a hash of the token is stored.
  */
 return new class extends Migration

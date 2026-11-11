@@ -42,28 +42,30 @@
 
 This document specifies a web application for the **Ministry of Health (MOH)** that digitises the procurement of medication (drugs), through the **NIPDEC Non-Objection Request** process. NIPDEC is an external **vendor**. It submits a request to the Ministry for a non-objection. The request passes through the Chief Medical Officer's (CMO) Office, technical reviewers, cost and budgeting, the Legal Unit and the Permanent Secretary (PS) before a non-objection letter is issued to the vendor.
 
-The application is owned and operated by the Ministry. NIPDEC is an outside party with limited, case-scoped access.
+The application is owned and operated by the Ministry. Vendors are outside parties with limited, case-scoped access.
+
+**Vendors are data.** Each vendor is a row in `organisations` with type `VENDOR` (the Ministry is the single row of type `MOH`). NIPDEC is the vendor that uses this process today, but no vendor name, id or prefix is hard-coded anywhere in the application.
 
 Today the process runs on email and hardcopy. This gives no real-time visibility of where a file is, no measurement of how long each stage takes, and no central audit trail.
 
 ### 1.2 In scope
 
-- Submission of non-objection requests by NIPDEC, with supporting documents.
+- Submission of non-objection requests by a vendor, with supporting documents.
 - Routing of each request through the six-party approval chain.
 - Parallel technical and funding review, and enforcement of the pre-file gate.
 - Query handling between parties (technical, legal, PS-technical, PS-legal) under defined routing rules.
 - Tracking of the physical hardcopy that must accompany each digital submission.
 - File-number generation, non-objection letter generation, and letter verification.
 - Notifications, audit logging, reporting, and role-specific dashboards.
-- Authentication for MOH staff and for external NIPDEC users.
+- Authentication for MOH staff and for external vendor users.
 
 ### 1.3 Out of scope (initial release)
 
 - General-purpose chat or messaging outside a case.
 - Digital signatures that replace the signed hardcopy letter (see 13.6).
-- Federation with a NIPDEC identity provider.
+- Federation with a vendor identity provider.
 - Integration with procurement, finance or tendering systems.
-- Access for vendors other than NIPDEC (NIPDEC only, for now). The data model keeps room for other vendors.
+- Onboarding additional vendors at launch. Because vendors are data (`organisations.type = VENDOR`), adding one later is configuration, not a code change.
 
 ---
 
@@ -126,7 +128,7 @@ The process diagram has one main process and three query sub-processes, all in s
 | Hardcopy is mandatory | **[Decided]** Confirmed by the business | Hardcopy receipt is a hard gate, not an advisory flag |
 | Public-facing deployment | **[Decided]** | Hardening is part of Phase 1 |
 | MOH staff have existing accounts | **[Decided]** | Staff use SSO; no local staff passwords |
-| NIPDEC identity setup unknown | **[Decided]** | Local, invite-only accounts; no federation yet |
+| Vendor identity setup unknown | **[Decided]** | Local, invite-only accounts; no federation yet |
 | No existing SLAs | **[Decided]** | Collect timestamps; set SLAs after 4-6 weeks of data |
 | Team stack | Existing MOH practice | Laravel, Inertia.js, React |
 
@@ -138,11 +140,11 @@ The process diagram has one main process and three query sub-processes, all in s
 
 | Actor | Organisation | Responsibility in the system |
 |---|---|---|
-| **NIPDEC Applicant** | NIPDEC (external vendor) | Submit requests, upload documents, answer queries, track status, download the final letter |
-| **NIPDEC Admin** (Phase 4) | NIPDEC (external vendor) | Manage NIPDEC's own users |
+| **Vendor Applicant** (`vendor_applicant`) | Vendor organisation (external) | Submit requests, upload documents, answer queries, track status, download the final letter |
+| **Vendor Admin** (Phase 4) | Vendor organisation (external) | Manage their own organisation's users |
 | **CMO Registry Clerk** | MOH | Log intake, confirm hardcopy receipt, route cases |
 | **CMO** | MOH | Central coordinator: forwards cases and queries, assembles the file, issues the letter |
-| **Technocrat** (DID/CFDD) | MOH | Technical review, queries to NIPDEC, favourable consideration |
+| **Technocrat** (DID/CFDD) | MOH | Technical review, queries to the vendor, favourable consideration |
 | **CAB Officer** | MOH | Confirm funding availability |
 | **Legal Officer** | MOH | Review file, contractual confirmation, legal queries |
 | **PS / PS Office** | MOH | Grant or withhold non-objection, raise queries |
@@ -170,7 +172,7 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 
 | ID | Requirement | Priority |
 |---|---|---|
-| FR-01 | An NIPDEC Applicant can create a draft request, attach documents, and submit it | M |
+| FR-01 | A Vendor Applicant can create a draft request, attach documents, and submit it | M |
 | FR-02 | The system assigns a unique case reference on submission | M |
 | FR-03 | The system generates a submission cover sheet (PDF) with the case reference and a QR code | M |
 | FR-04 | Registry or CMO can mark the hardcopy as received, by QR scan or manual entry, recording who and when | M |
@@ -186,7 +188,7 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-11 | Every case shows its current stage and current holder | M |
-| FR-12 | Staff see the full movement timeline; NIPDEC sees a simplified status | M |
+| FR-12 | Staff see the full movement timeline; vendor users see a simplified status | M |
 | FR-13 | Each user has an inbox of cases awaiting their action | M |
 
 ### 5.3 Queries and messaging
@@ -197,8 +199,8 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 | FR-15 | Routing follows the configurable routing table (7.2) | M |
 | FR-16 | Where a route requires the CMO, the CMO must forward the message before the recipient sees it | M |
 | FR-17 | Query threads are scoped to a case; there is no free-form chat | M |
-| FR-18 | Each message and document is flagged internal or external; NIPDEC never sees internal items | M |
-| FR-19 | The CMO is notified of direct Technocrat–NIPDEC queries and can read them | M |
+| FR-18 | Each message and document is flagged internal or external; vendor users never see internal items | M |
+| FR-19 | The CMO is notified of direct Technocrat–vendor queries and can read them | M |
 
 ### 5.4 Notifications
 
@@ -240,7 +242,7 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 
 | Status | Meaning | Holder |
 |---|---|---|
-| `DRAFT` | NIPDEC is preparing the request | NIPDEC |
+| `DRAFT` | The vendor is preparing the request | Vendor |
 | `SUBMITTED` | Submitted digitally; awaiting CMO intake | CMO Registry |
 | `CMO_INTAKE` | CMO has the case and is preparing to forward | CMO |
 | `IN_REVIEW` | Technical review, funding check and hardcopy receipt in progress | Technocrat / CAB / Registry |
@@ -249,7 +251,7 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 | `WITH_LEGAL` | Legal reviewing; contractual confirmation pending | Legal |
 | `WITH_PS` | PS deciding on non-objection | PS |
 | `NON_OBJECTION_GRANTED` | PS granted; file returned to CMO | CMO |
-| `LETTER_ISSUED` | Letter sent to NIPDEC | CMO |
+| `LETTER_ISSUED` | Letter sent to the vendor | CMO |
 | `CLOSED` | Complete | none |
 | `RETURNED_TO_CMO` | Rejected or raised by Legal/PS; awaiting CMO routing | CMO |
 | `WITHDRAWN` | Withdrawn (terminal) | none |
@@ -260,7 +262,7 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT
-    DRAFT --> SUBMITTED: NIPDEC submits
+    DRAFT --> SUBMITTED: Vendor submits
     SUBMITTED --> CMO_INTAKE: Registry/CMO logs intake
     CMO_INTAKE --> IN_REVIEW: CMO forwards to Technocrats and CAB
     IN_REVIEW --> READY_FOR_FILE: Gate passed (3 conditions)
@@ -301,9 +303,9 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 
 | # | From | To | Allowed roles | Guard / conditions | Audit reason required |
 |---|---|---|---|---|---|
-| T1 | `DRAFT` | `SUBMITTED` | NIPDEC Applicant (own org) | Required documents present and scanned clean | No |
-| T2 | `SUBMITTED` | `CMO_INTAKE` | CMO Registry, CMO | Intake logged | No |
-| T3 | `CMO_INTAKE` | `IN_REVIEW` | CMO | Creates Technocrat and CAB assignments; tracks set to `pending` | No |
+| T1 | `DRAFT` | `SUBMITTED` | Vendor Applicant (own org) | Required documents present and scanned clean | No |
+| T2 | `SUBMITTED` | `CMO_INTAKE` | CMO Registry, CMO (`case.intake`) | Intake logged | No |
+| T3 | `CMO_INTAKE` | `IN_REVIEW` | CMO (`case.route_to_review`) | Creates Technocrat and CAB assignments; tracks set to `pending` | No |
 | T4 | `IN_REVIEW` | `READY_FOR_FILE` | System (automatic) or CMO | **Gate: all three tracks complete** | No |
 | T5 | `READY_FOR_FILE` | `FILE_PREPARED` | CMO | File number generated | No |
 | T6 | `FILE_PREPARED` | `WITH_LEGAL` | CMO | File assembled | No |
@@ -315,7 +317,7 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 | T12 | `RETURNED_TO_CMO` | `WITH_LEGAL` | CMO | Technocrat answer received and forwarded to Legal | No |
 | T13 | `NON_OBJECTION_GRANTED` | `LETTER_ISSUED` | CMO | Letter generated | No |
 | T14 | `LETTER_ISSUED` | `CLOSED` | CMO | Hardcopy dispatch confirmed | No |
-| T15 | `DRAFT`, `SUBMITTED`, `IN_REVIEW` | `WITHDRAWN` | NIPDEC Applicant (until intake), CMO | None **[Assumption]** | **Yes** |
+| T15 | `DRAFT`, `SUBMITTED`, `IN_REVIEW` | `WITHDRAWN` | Vendor Applicant (until intake), CMO | None **[Assumption]** | **Yes** |
 | T16 | `WITH_PS`, `RETURNED_TO_CMO` | `REJECTED_FINAL` | CMO (on PS instruction) | **Rule TBC (Q3)** | **Yes** |
 
 > **Assumption A1.** After a PS query is answered, the case returns to `WITH_PS`. This path needs a transition (T17: `RETURNED_TO_CMO → WITH_PS`, CMO) that the current diagram implies but does not show. Confirm in Q2/Q3.
@@ -360,7 +362,7 @@ All status changes in the application must call this service. No controller upda
 
 | Type | Raised by | Concerns |
 |---|---|---|
-| `TECHNICAL` | Technocrat | Technical aspects of NIPDEC's application |
+| `TECHNICAL` | Technocrat | Technical aspects of the vendor's application |
 | `LEGAL` | Legal Officer | Contractual issue found in review |
 | `PS_TECHNICAL` | PS | Technical issue behind a PS decision |
 | `PS_LEGAL` | PS | Legal-related issue behind a PS decision |
@@ -371,8 +373,8 @@ Routing is stored in a `query_routes` table and read by code, so the business ca
 
 | Raised by | Goes to | Mode | CMO's role |
 |---|---|---|---|
-| Technocrat | NIPDEC | **Direct** | Notified; read-only watcher |
-| NIPDEC (reply) | Technocrat | **Direct** | Notified |
+| Technocrat | Vendor | **Direct** | Notified; read-only watcher |
+| Vendor (reply) | Technocrat | **Direct** | Notified |
 | Legal | Technocrat | **Via CMO** | Must forward |
 | Technocrat (reply to Legal) | Legal | **Via CMO** | Must forward **[Assumption]** |
 | PS (legal-related) | Legal | **Via CMO** | Must forward |
@@ -396,7 +398,7 @@ The message goes straight to the recipient. The CMO is notified and has read acc
 
 ### 7.6 Visibility
 
-Every query message and attachment has `visibility = internal | external`. NIPDEC users only ever receive `external` items. Messages from Legal, PS and the CMO are `internal` by default; only messages the CMO or Technocrat explicitly address to NIPDEC are `external`. This is the most common leak in systems like this, so it has dedicated tests (section 16).
+Every query message and attachment has `visibility = internal | external`. Vendor users only ever receive `external` items. Messages from Legal, PS and the CMO are `internal` by default; only messages the CMO or Technocrat explicitly address to the vendor are `external`. This is the most common leak in systems like this, so it has dedicated tests (section 16).
 
 ---
 
@@ -404,18 +406,18 @@ Every query message and attachment has `visibility = internal | external`. NIPDE
 
 ### 8.1 Two identity paths in one application **[Decided]**
 
-| | MOH staff | NIPDEC users |
+| | MOH staff | Vendor users |
 |---|---|---|
 | Account source | Existing MOH directory (SAML2 or LDAP) | Local accounts in the application |
 | Creation | Provisioned on first SSO login, role assigned by Admin | **Invite-only**, created by Admin or CMO; no self-registration |
 | Password | None stored locally | Strong policy, hashed (Argon2id or bcrypt) |
 | MFA | Required; at minimum when outside the Ministry network | **Mandatory** TOTP plus recovery codes |
 | Guard | `staff` | `external` |
-| Organisation | MOH | Tied to one NIPDEC organisation record |
+| Organisation | MOH | Tied to one `organisations` row of type `VENDOR` |
 
 The staff authentication driver hides the protocol (SAML2 or LDAP) behind one interface, so the application does not care which the Ministry's directory uses (Q1).
 
-### 8.2 Account lifecycle (NIPDEC)
+### 8.2 Account lifecycle (vendor users)
 
 1. Admin or CMO creates the invite (email, organisation, role).
 2. The user receives a single-use, time-limited link.
@@ -431,7 +433,7 @@ The staff authentication driver hides the protocol (SAML2 or LDAP) behind one in
 | 2. Role | What job do you do? | `spatie/laravel-permission` roles |
 | 3. Permission | What actions can that job perform? | Permissions such as `query.forward`, `letter.generate` |
 | 4. Policy | Can you do this **on this case, now**? | Laravel `CasePolicy`: permission + status + assignment/org |
-| 5. Visibility | Which parts can you see? | `visibility` flag; simplified timeline for NIPDEC |
+| 5. Visibility | Which parts can you see? | `visibility` flag; simplified timeline for vendor users |
 
 Layers 1-3 are static and seeded. Layers 4-5 are where most access bugs appear and carry the most tests.
 
@@ -439,15 +441,16 @@ Layers 1-3 are static and seeded. Layers 4-5 are where most access bugs appear a
 
 ✔ = allowed (still subject to stage and assignment policy). **own** = only for their own organisation or assigned cases.
 
-| Permission | NIPDEC | CMO Registry | CMO | Technocrat | CAB | Legal | PS Office | Admin | Auditor |
+| Permission | Vendor | CMO Registry | CMO | Technocrat | CAB | Legal | PS Office | Admin | Auditor |
 |---|---|---|---|---|---|---|---|---|---|
 | Submit / resubmit request | own | | | | | | | | |
 | Upload documents | own | ✔ | ✔ | ✔ | | ✔ | | | |
 | Confirm hardcopy received | | ✔ | ✔ | | | | | | |
-| Intake and route to review | | | ✔ | | | | | | |
+| Log intake (`case.intake`) | | ✔ | ✔ | | | | | | |
+| Route to review (`case.route_to_review`) | | | ✔ | | | | | | |
 | Give technical consideration | | | | ✔ | | | | | |
 | Confirm funding | | | | | ✔ | | | | |
-| Raise query to NIPDEC | | | | ✔ | | | | | |
+| Raise query to vendor | | | | ✔ | | | | | |
 | Forward queries (via CMO) | | | ✔ | | | | | | |
 | Prepare file (HE:8/2/50) | | | ✔ | | | | | | |
 | Contractual confirmation | | | | | | ✔ | | | |
@@ -457,7 +460,7 @@ Layers 1-3 are static and seeded. Layers 4-5 are where most access bugs appear a
 | View audit log | | | ✔ | | | | | ✔ | ✔ |
 | Manage users and roles | | | | | | | | ✔ | |
 | Configure routes and templates | | | | | | | | ✔ | |
-| Reassign / delegate | | | ✔ | | | | | ✔ | |
+| Reassign (`assignment.reassign`) / delegate | | | ✔ | | | | | ✔ | |
 
 This is a starting draft; the CMO's Office will change cells.
 
@@ -473,7 +476,7 @@ This is a starting draft; the CMO's Office will change cells.
 - **Check permissions, never role names**, in server code: `$user->can('query.forward', $case)`.
 - Policies check **permission + case status + current holder or assignment**. Example: Legal can act only when the status is `WITH_LEGAL`.
 - **Scope by assignment:** a role grants the *ability*, `case_assignments` grants *access to that case*. The CMO sees every case. (Whether all Technocrats see all cases, or only their unit's, is open: Q7.)
-- **External isolation:** NIPDEC users get a global scope on `org_id`, and cases use ULIDs, so cross-organisation access is impossible by construction and by ID guessing.
+- **External isolation:** vendor users get a global scope on `org_id`, and cases use ULIDs, so cross-organisation access is impossible by construction and by ID guessing.
 - Front-end permission flags (shared through Inertia props) only show or hide UI. **Every endpoint authorises independently.**
 
 ```php
@@ -518,7 +521,7 @@ erDiagram
 
 | Table | Key columns | Notes |
 |---|---|---|
-| `organisations` | `id`, `name`, `type` (`MOH` / `NIPDEC`) | NIPDEC is a row, so other vendors can be added later |
+| `organisations` | `id`, `name`, `type` (`MOH` / `VENDOR`) | Vendors are data: each vendor is a row of type `VENDOR`; no vendor is hard-coded |
 | `users` | `id`, `org_id`, `user_type`, `auth_source` (`sso` / `local`), `mfa_enabled`, `status` | Spatie roles attach here |
 | `delegations` | `id`, `from_user_id`, `to_user_id`, `role`, `starts_at`, `ends_at`, `created_by` | Acting officers |
 | `cases` | `id` (ULID), `reference_no`, `file_no`, `org_id`, `category` (`pharm` / `non_pharm`), `status`, `current_holder_role`, `technical_track`, `funding_track`, `hardcopy_received_at`, `hardcopy_received_by`, timestamps | Core entity |
@@ -543,7 +546,7 @@ erDiagram
 
 ### 9.4 Reference numbers
 
-- `reference_no`: system-generated at submission (for example `NIP-2026-0142`: prefix, year, running sequence). The exact format is for the CMO's Office to confirm.
+- `reference_no`: system-generated at submission (for example `NOR-2026-0142`: configurable prefix, year, running sequence; the prefix is never derived from a vendor name). The exact format is for the CMO's Office to confirm.
 - `file_no`: the HE:8/2/50-style reference generated when the file is prepared. Whether this is a fixed series with a running number or entered manually today is open (Q5). Generate it in a transaction with a locked counter to avoid duplicates.
 
 ---
@@ -565,7 +568,7 @@ The list of required documents per category is a business input not yet supplied
 
 ### 10.1 Hardcopy cover sheet
 
-On submission the system generates a **cover sheet PDF** containing the case reference and a QR code. NIPDEC prints it and attaches it to the hardcopy. Registry scans the QR, which opens the case and marks `hardcopy_received_at`. This links the physical file to the digital case without manual matching.
+On submission the system generates a **cover sheet PDF** containing the case reference and a QR code. The vendor prints it and attaches it to the hardcopy. Registry scans the QR, which opens the case and marks `hardcopy_received_at`. This links the physical file to the digital case without manual matching.
 
 ---
 
@@ -582,19 +585,19 @@ On submission the system generates a **cover sheet PDF** containing the case ref
 |---|---|---|
 | Case submitted | CMO Registry, CMO | In-app, email |
 | Case assigned to you | Assignee | In-app, email |
-| Hardcopy received | CMO, NIPDEC applicant | In-app, email |
+| Hardcopy received | CMO, vendor applicant | In-app, email |
 | Query raised | Recipient (or CMO if via CMO) | In-app, email |
 | **Forward required** | CMO | In-app, email |
 | Query answered | Raiser, CMO | In-app, email |
 | Gate passed | CMO | In-app |
 | Returned to CMO | CMO | In-app, email |
 | Non-objection granted | CMO | In-app, email |
-| Letter issued | NIPDEC applicant | Email, in-app |
+| Letter issued | Vendor applicant | Email, in-app |
 | Case aging past threshold (Phase 3) | Holder, CMO | In-app, email |
 
 ### 11.3 Rules
 
-- Notifications to NIPDEC contain **no internal content**. They state that something needs attention and link to the portal; they never quote internal messages.
+- Notifications to vendor users contain **no internal content**. They state that something needs attention and link to the portal; they never quote internal messages.
 - Email sends are queued and retried; failures are logged and visible to Admin.
 - Per-user preferences are a later enhancement.
 
@@ -614,7 +617,7 @@ The CMO is the router and gatekeeper, so the dashboard is an **action-first inbo
 | B | Pipeline by stage | Counts per status; click for filtered list | 1-2 |
 | C | Gate tracker | Per In Review case: ticks for Technical, Funding, Hardcopy, plus owner of the blocker | 1-2 |
 | KPI | KPI strip | Awaiting me, aging, open queries, letters pending, average turnaround | 1-2 |
-| D | Query monitor | Open queries by type and holder, age, last activity; read-only watchlist of direct Technocrat–NIPDEC queries | 2 |
+| D | Query monitor | Open queries by type and holder, age, last activity; read-only watchlist of direct Technocrat–vendor queries | 2 |
 | E | Stuck and aging cases | Grouped by current holder; configurable thresholds; **Nudge** button (logged) | 2-3 |
 | F | Workload by officer | Open cases per officer; link to reassign/delegate | 3 |
 | G | Outbound letters | Awaiting generation, issued, hardcopy dispatched | 3 |
@@ -644,14 +647,14 @@ The system is public-facing, so these controls are Phase 1 scope.
 
 ### 13.2 Authentication and sessions
 
-- Mandatory MFA for NIPDEC users; MFA for staff at least when outside the Ministry network.
+- Mandatory MFA for vendor users; MFA for staff at least when outside the Ministry network.
 - Account lockout, login rate limiting, session timeout, re-verify MFA for sensitive admin actions.
 - Separate guards and route groups for staff and external users.
 
 ### 13.3 Authorisation and isolation
 
 - Server-side policy checks on every endpoint.
-- Global `org_id` scope for NIPDEC users plus ULIDs.
+- Global `org_id` scope for vendor users plus ULIDs.
 - Policy tests for every role × status × action (section 16).
 
 ### 13.4 Audit logging
@@ -706,7 +709,7 @@ The system is public-facing, so these controls are Phase 1 scope.
 
 ```mermaid
 flowchart LR
-    NIPDEC[NIPDEC users] --> WAF[Reverse proxy / WAF]
+    VENDOR[Vendor users] --> WAF[Reverse proxy / WAF]
     STAFF[MOH staff] --> WAF
     WAF --> APP[Laravel app: Inertia + React]
     APP --> WF[Case / workflow engine]
@@ -749,7 +752,7 @@ Targets below are **proposed starting points**, not agreed service levels.
 |---|---|
 | Availability | Business-hours availability prioritised; maintenance windows outside working hours |
 | Performance | Dashboard and list pages respond in under 2 seconds for the expected case volume; uploads handled asynchronously |
-| Scalability | Designed for the volume of NIPDEC requests; volume to be confirmed (Q12) |
+| Scalability | Designed for the volume of vendor requests; volume to be confirmed (Q12) |
 | Auditability | 100% of status changes and permission changes logged |
 | Accessibility | Keyboard-operable, labelled controls, sufficient contrast (target WCAG 2.1 AA) |
 | Browser support | Current versions of Chrome, Edge, Firefox; responsive down to phone width |
@@ -768,8 +771,8 @@ Targets below are **proposed starting points**, not agreed service levels.
 | Transition tests | Every row of the transitions table, and every illegal transition | Feature tests on `CaseTransitionService` |
 | Gate tests | Each missing-condition combination blocks T4 | Exhaustive 2³ combinations |
 | Routing tests | Each row of `query_routes`; via-CMO message invisible until forwarded | Feature tests |
-| Visibility tests | NIPDEC never receives `internal` messages, documents, or notification content | Feature tests on every read path |
-| Isolation tests | NIPDEC user A cannot read org B's case by ID, list, search or download | Feature tests |
+| Visibility tests | Vendor users never receive `internal` messages, documents, or notification content | Feature tests on every read path |
+| Isolation tests | A vendor user in org A cannot read org B's case by ID, list, search or download | Feature tests |
 | Auth tests | MFA required, lockout, invite expiry, disabled-account session revocation | Feature tests |
 | Upload tests | Type/size limits, unscanned files hidden, infected files rejected | Feature tests with the EICAR test file |
 | Delegation tests | Expiry, scope, audit attribution | Feature tests with time travel |
@@ -789,7 +792,7 @@ Targets below are **proposed starting points**, not agreed service levels.
 | **1: Core and hardening (MVP)** | Auth and MFA, orgs/users/roles, case submission, documents with scanning, state machine skeleton with audit log, case timeline, email notifications, WAF/rate limiting/hardening basics, CMO action queue, pipeline, gate tracker, KPI strip | Replaces email for the happy path, safe to expose |
 | **2: Queries and gates** | Query loops (Technical, Legal, PS), routing table, via-CMO forwarding, gate validation, in-app notifications, hardcopy QR cover sheet and receipt, query monitor | Covers all four diagram tabs |
 | **3: Control** | SLA timers and escalation (from collected baselines), delegation, role dashboards, stuck cases and Nudge, workload, letter generation with verification, reports and export | Management visibility |
-| **4: Production hardening** | Penetration test fixes, retention policy, backup and restore drills, NIPDEC org admin | Production-ready |
+| **4: Production hardening** | Penetration test fixes, retention policy, backup and restore drills, vendor org admin | Production-ready |
 
 > Security hardening is in Phase 1, not Phase 4, because the system is public-facing. Phase 4 covers verification and operational maturity.
 
@@ -808,7 +811,7 @@ Targets below are **proposed starting points**, not agreed service levels.
 5. Submission flow: draft, documents, required-document checklist, submit.
 6. Document upload with private storage, signed URLs, ClamAV job.
 7. Audit log with restricted database privileges.
-8. Case timeline view (staff full, NIPDEC simplified).
+8. Case timeline view (staff full, vendor simplified).
 9. Email notifications via queue.
 10. CMO dashboard: action queue, pipeline, gate tracker, KPIs.
 11. WAF, rate limiting, security headers, session policy.
@@ -828,7 +831,7 @@ No SLAs exist. After 4-6 weeks of live timestamps, review per-stage durations an
 |---|---|---|---|
 | Q1 | Is the staff directory AD/Entra (SAML2/OIDC possible) or LDAP only? | MOH ICT | Choice of auth driver only |
 | Q2 | When Technocrats answer a Legal or PS query, does the answer return via CMO? (Assumed yes.) | CMO's Office | Routes and transitions T11/T12/T17 |
-| Q3 | Can a PS rejection end the case (`REJECTED_FINAL`), or does it always loop to the CMO team? Is NIPDEC notified of a final rejection, and can it resubmit? | CMO's Office, PS | T16, resubmission path |
+| Q3 | Can a PS rejection end the case (`REJECTED_FINAL`), or does it always loop to the CMO team? Is the vendor notified of a final rejection, and can it resubmit? | CMO's Office, PS | T16, resubmission path |
 | Q4 | Who can mark hardcopy received: Registry only, or any CMO staff? | CMO's Office | Permission `hardcopy.confirm` |
 | Q5 | Is the HE:8/2/50 file number a fixed series with running number, or entered manually? | CMO's Office | Number generator |
 | Q6 | How many NIPDEC users, and does NIPDEC have an IT team or identity provider? | NIPDEC | Account model, future federation |
@@ -840,7 +843,7 @@ No SLAs exist. After 4-6 weeks of live timestamps, review per-stage durations an
 | Q12 | Expected volume of cases per month? | CMO's Office | Capacity, aggregate design |
 | Q13 | Can Technocrats see CAB funding details or only confirmed/not confirmed? Does Legal see the whole case or only the prepared file? | CMO's Office | Visibility rules |
 | Q14 | Is there an urgent or emergency procurement path that should jump the queue? Are cases prioritised by value? | CMO's Office | Priority field |
-| Q15 | Who may reassign a case when an officer is away: CMO only, or unit heads too? | CMO's Office | Permission `case.reassign` |
+| Q15 | Who may reassign a case when an officer is away: CMO only, or unit heads too? | CMO's Office | Permission `assignment.reassign` |
 | Q16 | Does the CMO personally work the queue, or does a registry clerk or deputy? | CMO's Office | Default dashboard view |
 | Q17 | Hosting: MOH-hosted (IIS/Windows Server) or cloud? Is the system reachable from the public internet directly or through a managed gateway? | MOH ICT | Deployment, scanner, queues |
 | Q18 | The source diagram says "Pharm and non-Pharm" supplies. Is this system for drugs only, or does it also cover non-pharmaceutical medical supplies? | CMO's Office | Category field, required documents (Q9), reporting |
@@ -854,7 +857,7 @@ No SLAs exist. After 4-6 weeks of live timestamps, review per-stage durations an
 | Digitising a poor process locks it in | Medium | High | Future-state session before freezing the state machine |
 | Public exposure attracts attacks | Medium | High | Phase 1 hardening, WAF, MFA, pen test before go-live |
 | Hardcopy and digital copy mismatch | Medium | Medium | QR cover sheet; hardcopy gate |
-| Internal content leaked to NIPDEC | Low | High | Visibility flag on every item; dedicated tests; sanitised notifications |
+| Internal content leaked to a vendor | Low | High | Visibility flag on every item; dedicated tests; sanitised notifications |
 | User adoption: staff keep using email | Medium | High | Role dashboards; CMO sponsorship; run parallel with email for a defined period |
 | Single developer capacity | Medium | Medium | Small shippable phases; strict scope control |
 
@@ -864,7 +867,8 @@ No SLAs exist. After 4-6 weeks of live timestamps, review per-stage durations an
 
 | Term | Meaning |
 |---|---|
-| **NIPDEC** | The external vendor submitting non-objection requests to the Ministry of Health |
+| **NIPDEC** | The vendor that submits non-objection requests to the Ministry today. In the system it is ordinary data: one `organisations` row of type `VENDOR` |
+| **Vendor** | An external organisation (`organisations.type = VENDOR`) whose users submit requests; vendors are data, never hard-coded |
 | **Non-objection** | The Ministry's formal clearance for a procurement to proceed |
 | **CMO** | Chief Medical Officer; the Office of the CMO is the central coordinator |
 | **Technocrats (DID / CFDD)** | MOH technical reviewers |

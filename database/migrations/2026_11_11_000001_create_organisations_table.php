@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Spec 9.2: organisations. NIPDEC is a row so other vendors can be added later.
+ * Spec 9.2: organisations. Vendors are data: rows of type VENDOR, never hard-coded.
  */
 return new class extends Migration
 {
@@ -15,7 +15,7 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->string('name')->unique();
             $table->string('short_name', 50)->nullable();
-            $table->string('type', 20)->index();            // MOH | NIPDEC (OrganisationType enum)
+            $table->string('type', 20)->index();            // MOH | VENDOR (App\Enums\OrganisationType)
             $table->string('email')->nullable();
             $table->string('phone', 50)->nullable();
             $table->text('address')->nullable();

@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('cases', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->string('reference_no', 30)->nullable();   // assigned on submission (NIP-2026-0142)
+            $table->string('reference_no', 30)->nullable();   // assigned on submission (e.g. NOR-2026-0142; prefix is config)
             $table->string('file_no', 50)->nullable();        // assigned at T5 (HE:8/2/50-style)
             $table->foreignUlid('org_id')->constrained('organisations');
             $table->foreignId('created_by')->constrained('users');

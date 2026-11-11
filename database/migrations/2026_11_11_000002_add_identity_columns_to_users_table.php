@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Spec 8.1-8.2, 9.2: two identity paths (SSO staff, local invite-only NIPDEC users),
+ * Spec 8.1-8.2, 9.2: two identity paths (SSO staff, local invite-only vendor users),
  * Fortify TOTP columns, lockout and account status.
  */
 return new class extends Migration

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Spec 7.3-7.6: case-scoped messages. Via-CMO messages stay hidden from the
- * recipient until forwarded_at is set. NIPDEC only ever sees visibility = external.
+ * recipient until forwarded_at is set. Vendor users only ever see visibility = external.
  */
 return new class extends Migration
 {
