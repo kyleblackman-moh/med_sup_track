@@ -34,4 +34,10 @@ class Organisation extends Model
     {
         return $this->hasMany(User::class, 'org_id');
     }
+
+    /** Filtered by VisibleToUserScope like every other case query. */
+    public function cases(): HasMany
+    {
+        return $this->hasMany(ProcurementCase::class, 'org_id');
+    }
 }

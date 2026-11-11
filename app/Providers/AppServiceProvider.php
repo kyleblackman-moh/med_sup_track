@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\ProcurementCase;
+use App\Policies\CasePolicy;
 use App\Support\AuthEventAuditor;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -29,5 +32,8 @@ class AppServiceProvider extends ServiceProvider
         // Audit auth events. Registered here once; see AuthEventAuditor for why it
         // is not in app/Listeners.
         Event::subscribe(AuthEventAuditor::class);
+
+        // Named CasePolicy, not ProcurementCasePolicy, so auto-discovery would miss it.
+        Gate::policy(ProcurementCase::class, CasePolicy::class);
     }
 }
