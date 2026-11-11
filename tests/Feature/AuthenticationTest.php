@@ -174,15 +174,20 @@ it('shows the identical error for an unknown email and a wrong password', functi
         ->and($unknownEmail)->toBe(__('auth.failed'));
 });
 
-it('fires the Failed event on a bad login and Lockout when the account locks', function () {
+it('fires Failed on each bad login; Lockout only when the rate limiter trips', function () {
     Event::fake([Failed::class, Lockout::class]);
     $user = authUser();
 
+    // 5 attempts: the account locks, but the rate limiter (5/min) has not tripped.
     foreach (range(1, AuthenticateUser::MAX_ATTEMPTS) as $ignored) {
         attemptLogin($user->email, 'Wrong-Password-123');
     }
 
     Event::assertDispatchedTimes(Failed::class, AuthenticateUser::MAX_ATTEMPTS);
+    Event::assertNotDispatched(Lockout::class);
+
+    // 6th attempt in the same minute is throttled.
+    attemptLogin($user->email, 'Wrong-Password-123')->assertStatus(429);
     Event::assertDispatchedTimes(Lockout::class, 1);
 });
 

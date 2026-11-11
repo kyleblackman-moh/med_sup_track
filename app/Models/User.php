@@ -21,6 +21,17 @@ class User extends Authenticatable
     public const STATUS_DISABLED = 'disabled';
 
     /**
+     * Model-level defaults, so a user saved without these never falls back to
+     * the database default for user_type ('external', from an early migration).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'user_type' => 'staff',
+        'status' => 'active',
+    ];
+
+    /**
      * The attributes that are mass assignable.
      *
      * Identity, status and lockout columns are deliberately not mass assignable.
