@@ -6,6 +6,15 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
+/**
+ * Shared Inertia props.
+ *
+ * SERVER-SIDE-FIRST (spec 15.4): `auth.can` is the user's permission names and is
+ * the ONLY thing React may use to decide what to show or hide. React must never
+ * check role names, user_type or anything else to make access decisions, and
+ * hiding a control is not security: every endpoint authorises independently on
+ * the server. Role names and models are deliberately not sent to the browser.
+ */
 class HandleInertiaRequests extends Middleware
 {
     /**
@@ -38,12 +47,22 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        $user = $request->user();
+
         return array_merge(parent::share($request), [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'user_type' => $user->user_type,
+                ] : null,
+                'can' => $user
+                    ? $user->getAllPermissions()->pluck('name')->sort()->values()->all()
+                    : [],
             ],
         ]);
     }

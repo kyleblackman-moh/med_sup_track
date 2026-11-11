@@ -115,11 +115,17 @@ it('is idempotent when the seeders run twice', function () {
         ->and($before['permissions'])->toBe(count(PermissionName::cases()));
 });
 
-it('seeds the Ministry of Health and no vendor', function () {
+// Tests run against the shared dev database (in a rolled-back transaction), which
+// may already hold other organisations, so assert what the seeder itself does.
+it('seeds exactly one Ministry of Health and no vendor', function () {
+    $vendorsBefore = Organisation::where('type', OrganisationType::Vendor)->count();
+
     $this->seed(OrganisationSeeder::class);
 
-    expect(Organisation::count())->toBe(1)
-        ->and(Organisation::first()->name)->toBe('Ministry of Health')
-        ->and(Organisation::first()->type)->toBe(OrganisationType::Moh)
-        ->and(Organisation::where('type', OrganisationType::Vendor)->count())->toBe(0);
+    $moh = Organisation::where('name', 'Ministry of Health')->get();
+
+    expect($moh)->toHaveCount(1)
+        ->and($moh->first()->type)->toBe(OrganisationType::Moh)
+        ->and($moh->first()->active)->toBeTrue()
+        ->and(Organisation::where('type', OrganisationType::Vendor)->count())->toBe($vendorsBefore);
 });

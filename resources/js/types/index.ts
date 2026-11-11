@@ -1,7 +1,12 @@
 import { LucideIcon } from 'lucide-react';
 
+/**
+ * Shared by HandleInertiaRequests. Use `can` (permission names) for show/hide only;
+ * never check roles or user_type in React. The server authorises every request.
+ */
 export interface Auth {
     user: User;
+    can: string[];
 }
 
 export interface BreadcrumbItem {
@@ -28,13 +33,12 @@ export interface SharedData {
     [key: string]: unknown;
 }
 
+// Exactly what the server shares; nothing else is sent to the browser.
 export interface User {
     id: number;
     name: string;
     email: string;
+    user_type: string;
     avatar?: string;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    email_verified_at?: string | null;
 }

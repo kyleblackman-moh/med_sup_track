@@ -3,12 +3,13 @@
 namespace Tests\Feature\Settings;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     public function test_profile_page_is_displayed()
     {
@@ -29,7 +30,7 @@ class ProfileUpdateTest extends TestCase
             ->actingAs($user)
             ->patch('/settings/profile', [
                 'name' => 'Test User',
-                'email' => 'test@example.com',
+                'email' => $newEmail = 'profile-'.strtolower((string) Str::ulid()).'@example.test',
             ]);
 
         $response
@@ -39,7 +40,7 @@ class ProfileUpdateTest extends TestCase
         $user->refresh();
 
         $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
+        $this->assertSame($newEmail, $user->email);
         $this->assertNull($user->email_verified_at);
     }
 

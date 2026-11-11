@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'home' => '/home',
+    'home' => '/dashboard',
 
     /*
     |--------------------------------------------------------------------------
@@ -162,8 +162,10 @@ return [
     */
 
     'features' => [
-        Features::registration(),
-        Features::resetPasswords(),
+        // No self-registration: every account is created by an admin.
+        // resetPasswords() stays off here because the starter kit's own reset
+        // routes (routes/auth.php) still serve password reset, and Fortify's
+        // "password.update" route name would collide with settings/password.
         // Features::emailVerification(),
         Features::updateProfileInformation(),
         Features::updatePasswords(),

@@ -3,17 +3,27 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserType;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, Notifiable;
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_DISABLED = 'disabled';
 
     /**
      * The attributes that are mass assignable.
+     *
+     * Identity, status and lockout columns are deliberately not mass assignable.
      *
      * @var list<string>
      */
@@ -31,10 +41,15 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
      * Get the attributes that should be cast.
+     *
+     * user_type is compared as a string rather than cast to UserType, because
+     * rows created before UserType existed may hold other values.
      *
      * @return array<string, string>
      */
@@ -43,6 +58,29 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
+    }
+
+    public function organisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class, 'org_id');
+    }
+
+    public function isVendor(): bool
+    {
+        return $this->user_type === UserType::Vendor->value;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->locked_until !== null && $this->locked_until->isFuture();
     }
 }
