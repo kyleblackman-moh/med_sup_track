@@ -1,15 +1,16 @@
 import { COMMENTS_FIELD, REQUISITION_GROUPS, SECTIONS, displayValue } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusBadge } from '@/components/requests/status-badge';
+import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type RequestDetail, type Section } from '@/types/requests';
+import { type DocumentGroup, type RequestDetail, type Section } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
 
 const SECTION_ORDER: Section[] = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
-export default function Show({ case: detail }: { case: RequestDetail }) {
+export default function Show({ case: detail, documents }: { case: RequestDetail; documents: DocumentGroup[] }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         { title: detail.reference_no ?? 'Draft', href: route('requests.show', detail.id) },
@@ -113,6 +114,8 @@ export default function Show({ case: detail }: { case: RequestDetail }) {
                         </section>
                     );
                 })}
+
+                <SupportingDocuments caseId={detail.id} groups={documents} readOnly />
             </div>
         </AppLayout>
     );

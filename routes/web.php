@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,6 +30,26 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
     });
+
+// Request documents. {document} is bound through the case (scopeBindings), so a
+// document of another case is 404; hidden cases and documents are 404 as well.
+Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
+    ->controller(DocumentController::class)
+    ->group(function () {
+        Route::scopeBindings()->group(function () {
+            Route::post('requests/{procurementCase}/documents', 'store')
+                ->middleware('throttle:20,1')->name('requests.documents.store');
+            Route::post('requests/{procurementCase}/documents/{document}/withdraw', 'withdraw')
+                ->middleware('throttle:30,1')->name('requests.documents.withdraw');
+        });
+
+        Route::get('documents/{document}/download', 'download')
+            ->middleware('throttle:60,1')->name('documents.download');
+    });
+
+// The short-lived signed link issued by documents.download.
+Route::get('documents/{document}/file', [DocumentController::class, 'file'])
+    ->middleware(['auth', 'signed'])->name('documents.file');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

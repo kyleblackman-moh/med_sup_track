@@ -3,13 +3,17 @@
 namespace App\Submissions;
 
 use App\Enums\ProcurementCategory;
+use App\Enums\ScanStatus;
 use App\Enums\TechnicalStatus;
 use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\Document;
 use App\Models\ProcurementCase;
+use App\Models\ProcurementType;
+use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
 use Illuminate\Support\Collection;
 
@@ -63,7 +67,40 @@ final class SubmissionReadiness
             $this->warning('stock_expiries', 'Stock is on hand but no expiry dates are listed.');
         }
 
-        return new ReadinessReport($this->errors, $this->warnings, ['required_documents']);
+        $this->checkDocuments($type, $caseId);
+
+        return new ReadinessReport($this->errors, $this->warnings, []);
+    }
+
+    /**
+     * Each required purpose needs at least one CURRENT, CLEAN document (slice 8c).
+     * Counts every current document on the case, whoever uploaded it.
+     */
+    private function checkDocuments(ProcurementType $type, string $caseId): void
+    {
+        $statuses = Document::withoutGlobalScopes()->current()
+            ->where('case_id', $caseId)
+            ->get(['purpose', 'scan_status'])
+            ->groupBy(fn (Document $d) => $d->purpose->value)
+            ->map(fn ($docs) => $docs->pluck('scan_status')->all());
+
+        $required = ProcurementTypeDocument::where('procurement_type_id', $type->getKey())
+            ->where('is_required', true)->orderBy('sort_order')->get();
+
+        foreach ($required as $requirement) {
+            $purpose = $requirement->purpose->value;
+            $found = $statuses->get($purpose, []);
+
+            if (in_array(ScanStatus::CLEAN, $found, true)) {
+                continue;
+            }
+
+            $this->error("documents.{$purpose}", match (true) {
+                $found === [] => "Required document missing: {$requirement->label}",
+                in_array(ScanStatus::PENDING, $found, true) => "{$requirement->label} is still being scanned",
+                default => "{$requirement->label} failed the security check; upload a replacement",
+            });
+        }
     }
 
     private function checkRequisition(CaseRequisition $r, ProcurementCategory $category, ProcurementTypeProfile $profile): void

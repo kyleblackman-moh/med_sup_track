@@ -134,6 +134,11 @@ class ProcurementCase extends Model
         return $this->hasMany(CasePurchaseOrder::class, 'case_id')->orderBy('sort_order')->orderBy('id');
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class, 'case_id');
+    }
+
     public function stockExpiries(): HasMany
     {
         return $this->hasMany(CaseStockExpiry::class, 'case_id')->orderBy('expiry_date')->orderBy('id');

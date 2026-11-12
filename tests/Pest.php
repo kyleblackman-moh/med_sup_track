@@ -5,6 +5,7 @@ use Tests\TestCase;
 
 require_once __DIR__.'/Support/CaseHelpers.php';
 require_once __DIR__.'/Support/RequisitionPayloads.php';
+require_once __DIR__.'/Support/DocumentFiles.php';
 
 /*
 |--------------------------------------------------------------------------

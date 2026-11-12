@@ -9,6 +9,7 @@ use App\Models\ProcurementCase;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -21,6 +22,8 @@ beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(ProcurementTypeSeeder::class);
+    // Slice 8c: required documents count towards readiness; makeDocument() writes to this disk.
+    Storage::fake('documents');
 });
 
 afterEach(function () {
@@ -202,6 +205,7 @@ it('rejects an inactive or unknown procurement type and creates nothing', functi
 
 it('renders the edit page with case, readiness, config and can', function () {
     [$case, $vendor] = vendorDraft('TENDER_EXCESS', tenderExcessPayload());
+    attachRequiredDocuments($case);
 
     $response = $this->actingAs($vendor)->get("/requests/{$case->id}/edit")->assertOk();
 
@@ -214,7 +218,7 @@ it('renders the edit page with case, readiness, config and can', function () {
         ->has('case.purchase_orders', 1)
         ->has('case.stock_expiries', 0)
         ->where('readiness.is_ready', true)
-        ->where('readiness.pending', ['required_documents'])
+        ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('config.allowed_sections', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'])
         ->where('config.required_sections', ['quotations', 'tender_awards', 'purchase_orders'])
         ->where('config.is_pharm', true)
@@ -415,13 +419,14 @@ it('shows readiness errors for an empty draft and none for a complete one', func
 
     $this->actingAs($vendor)->get("/requests/{$empty->id}/edit")->assertInertia(fn (Assert $page) => $page
         ->where('readiness.is_ready', false)
-        ->where('readiness.pending', ['required_documents'])
+        ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
             'requisition.vendor_reference', 'requisition.item_description', 'requisition.quantity_requested',
-            'requisition.tender_outcome', 'quotations', 'quotations.recommended',
+            'requisition.tender_outcome', 'quotations', 'quotations.recommended', 'documents.original_rfq',
         ])->diff(collect($errors)->pluck('key'))->isEmpty()));
 
     [$complete, $owner] = vendorDraft(payload: nonPharmPayload());
+    attachRequiredDocuments($complete);
     $this->actingAs($owner)->get("/requests/{$complete->id}/edit")->assertInertia(fn (Assert $page) => $page
         ->where('readiness.is_ready', true)
         ->where('readiness.errors', []));

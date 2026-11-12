@@ -18,4 +18,16 @@ enum AuditAction: string
     case CaseTransitioned = 'case.transitioned';
     case CaseCreated = 'case.created';
     case CaseDraftSaved = 'case.draft_saved';
+
+    // Documents
+    case DocumentValidationRejected = 'document.validation_rejected';
+    case DocumentUploadReceived = 'document.upload_received';
+    case DocumentSuperseded = 'document.superseded';
+    case DocumentScanClean = 'document.scan_clean';
+    case DocumentReleased = 'document.released';
+    case DocumentScanInfected = 'document.scan_infected';
+    case DocumentScanError = 'document.scan_error';
+    case DocumentRescanQueued = 'document.rescan_queued';
+    case DocumentWithdrawn = 'document.withdrawn';
+    case DocumentDownloaded = 'document.downloaded';
 }

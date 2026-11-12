@@ -7,6 +7,7 @@ use App\Enums\Permission;
 use App\Http\Resources\Requests\FormConfig;
 use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
+use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -86,6 +87,7 @@ class RequestController extends Controller
 
         return Inertia::render('requests/show', [
             'case' => $this->detail($request, $procurementCase),
+            'documents' => RequestDocuments::for($procurementCase, $request->user()),
         ]);
     }
 
@@ -102,7 +104,8 @@ class RequestController extends Controller
         return Inertia::render('requests/edit', [
             'case' => $this->detail($request, $procurementCase),
             'readiness' => (new ReadinessResource($readiness->evaluate($procurementCase)))->resolve($request),
-            'config' => FormConfig::for($procurementCase->procurementType),
+            'config' => [...FormConfig::for($procurementCase->procurementType), 'uploads' => RequestDocuments::uploadRules()],
+            'documents' => RequestDocuments::for($procurementCase, $request->user()),
             'can' => $this->can($request, ['edit' => true]),
         ]);
     }

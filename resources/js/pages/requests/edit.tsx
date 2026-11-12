@@ -4,17 +4,19 @@ import { FlashMessages } from '@/components/requests/flash-messages';
 import { ReadinessPanel } from '@/components/requests/readiness-panel';
 import { SectionTable, type EditableRow } from '@/components/requests/section-table';
 import { StatusBadge } from '@/components/requests/status-badge';
+import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type FormConfig, type Readiness, type RequestDetail, type Section } from '@/types/requests';
+import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type Section, type UploadRules } from '@/types/requests';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 interface Props {
     case: RequestDetail;
     readiness: Readiness;
-    config: FormConfig;
+    config: FormConfig & { uploads: UploadRules };
+    documents: DocumentGroup[];
     can: { edit: boolean };
 }
 
@@ -52,7 +54,7 @@ function initialData(detail: RequestDetail, config: FormConfig): FormData {
     return { requisition, ...sections };
 }
 
-export default function Edit({ case: detail, readiness, config }: Props) {
+export default function Edit({ case: detail, readiness, config, documents }: Props) {
     const allowed = config.allowed_sections;
     const { data, setData, put, processing, transform, ...form } = useForm<FormData>(initialData(detail, config));
     const errors = form.errors as Record<string, string>;
@@ -124,52 +126,57 @@ export default function Edit({ case: detail, readiness, config }: Props) {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-                    <form onSubmit={submit} className="space-y-8" noValidate>
-                        {REQUISITION_GROUPS.map((group) => {
-                            const fields = group.fields.filter((f) => !f.pharmOnly || config.is_pharm);
+                    <div className="space-y-8">
+                        <form onSubmit={submit} className="space-y-8" noValidate>
+                            {REQUISITION_GROUPS.map((group) => {
+                                const fields = group.fields.filter((f) => !f.pharmOnly || config.is_pharm);
 
-                            return (
-                                <section key={group.title} aria-labelledby={fieldId(`group.${group.title}`)} className="space-y-4">
-                                    <h2 id={fieldId(`group.${group.title}`)} className="text-lg font-semibold">
-                                        {group.title}
-                                    </h2>
-                                    <div className="grid gap-4 sm:grid-cols-2">{fields.map(requisitionInput)}</div>
-                                </section>
-                            );
-                        })}
+                                return (
+                                    <section key={group.title} aria-labelledby={fieldId(`group.${group.title}`)} className="space-y-4">
+                                        <h2 id={fieldId(`group.${group.title}`)} className="text-lg font-semibold">
+                                            {group.title}
+                                        </h2>
+                                        <div className="grid gap-4 sm:grid-cols-2">{fields.map(requisitionInput)}</div>
+                                    </section>
+                                );
+                            })}
 
-                        {allowed.map((section) => (
-                            <SectionTable
-                                key={section}
-                                section={section}
-                                def={SECTIONS[section]}
-                                rows={data[section]}
-                                savedRows={detail[section]}
-                                totals={detail.totals[section]}
-                                required={config.required_sections.includes(section)}
-                                cap={config.row_caps[section]}
-                                config={config}
-                                errors={errors}
-                                onChange={(rows) => setData(section, rows)}
-                            />
-                        ))}
+                            {allowed.map((section) => (
+                                <SectionTable
+                                    key={section}
+                                    section={section}
+                                    def={SECTIONS[section]}
+                                    rows={data[section]}
+                                    savedRows={detail[section]}
+                                    totals={detail.totals[section]}
+                                    required={config.required_sections.includes(section)}
+                                    cap={config.row_caps[section]}
+                                    config={config}
+                                    errors={errors}
+                                    onChange={(rows) => setData(section, rows)}
+                                />
+                            ))}
 
-                        <section aria-labelledby="comments-heading" className="space-y-4">
-                            <h2 id="comments-heading" className="text-lg font-semibold">
-                                Comments
-                            </h2>
-                            {requisitionInput(COMMENTS_FIELD)}
-                        </section>
+                            <section aria-labelledby="comments-heading" className="space-y-4">
+                                <h2 id="comments-heading" className="text-lg font-semibold">
+                                    Comments
+                                </h2>
+                                {requisitionInput(COMMENTS_FIELD)}
+                            </section>
 
-                        <div className="flex items-center gap-4 border-t pt-4">
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Saving…' : 'Save draft'}
-                            </Button>
-                            <Link href={route('requests.show', detail.id)} className="text-sm underline">
-                                View request
-                            </Link>
-                        </div>
-                    </form>
+                            <div className="flex items-center gap-4 border-t pt-4">
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Saving…' : 'Save draft'}
+                                </Button>
+                                <Link href={route('requests.show', detail.id)} className="text-sm underline">
+                                    View request
+                                </Link>
+                            </div>
+                        </form>
+
+                        {/* Outside the draft form: uploads are separate requests. */}
+                        <SupportingDocuments caseId={detail.id} groups={documents} rules={config.uploads} />
+                    </div>
 
                     <aside className="space-y-4">
                         <ReadinessPanel readiness={readiness} />

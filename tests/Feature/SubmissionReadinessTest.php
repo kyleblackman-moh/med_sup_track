@@ -7,6 +7,7 @@ use App\Submissions\SubmissionReadiness;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\PermissionRegistrar;
 
 // Slice 8a: SubmissionReadiness. Drafts are built through CreateDraftCase and
@@ -16,6 +17,8 @@ beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(ProcurementTypeSeeder::class);
+    // Slice 8c: required documents count towards readiness; makeDocument() writes to this disk.
+    Storage::fake('documents');
 });
 
 afterEach(function () {
@@ -31,6 +34,8 @@ function readinessOf(string $code, array $payload, ?Closure $mutate = null): Rea
 
     [$case, $vendor] = newDraft($code);
     saveDraft($case, $vendor, $payload);
+    // Slice 8c: the request-content tests assume the required documents are in place.
+    attachRequiredDocuments($case);
 
     return app(SubmissionReadiness::class)->evaluate($case);
 }
@@ -51,7 +56,7 @@ it('reports the complete fixtures as ready with no warnings', function (string $
     expect($report->errors)->toBe([])
         ->and($report->warnings)->toBe([])
         ->and($report->isReady())->toBeTrue()
-        ->and($report->pending)->toBe(['required_documents']);
+        ->and($report->pending)->toBe([]); // slice 8c: documents are now evaluated
 })->with([
     'AD_HOC_NON_PHARM' => ['AD_HOC_NON_PHARM', fn () => nonPharmPayload()],
     'AD_HOC_PHARM' => ['AD_HOC_PHARM', fn () => pharmPayload()],
@@ -275,6 +280,7 @@ it('does not warn about expiries for PHARM stock when expiry rows exist', functi
 it('warns (informational) about a staff-set technical status', function () {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, nonPharmPayload());
+    attachRequiredDocuments($case);
     CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->where('sort_order', 1)->firstOrFail()
         ->forceFill(['technical_status' => TechnicalStatus::TECHNICALLY_REJECTED])->save();
 

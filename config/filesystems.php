@@ -37,6 +37,16 @@ return [
             'throw' => false,
         ],
 
+        // Uploaded case documents (slice 8c). Private: no URL, never served directly;
+        // files are streamed only by DocumentController after the checks.
+        'documents' => [
+            'driver' => 'local',
+            'root' => env('DOCUMENTS_ROOT', storage_path('app/private/documents')),
+            'serve' => false,
+            'throw' => true,
+            'visibility' => 'private',
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

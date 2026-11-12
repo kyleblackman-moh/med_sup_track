@@ -57,6 +57,30 @@ export interface FormConfig {
     options: Record<'need_classification' | 'tender_outcome' | 'rfq_audience' | 'previous_price_maintained', OptionList>;
 }
 
+export interface RequestDocument {
+    id: string;
+    display_name: string;
+    size_bytes: number;
+    uploaded_at: string | null;
+    version: number;
+    status_label: 'Scanning' | 'Ready' | 'Rejected';
+    can_download: boolean;
+    can_replace: boolean;
+    can_withdraw: boolean;
+}
+
+export interface DocumentGroup {
+    purpose: string;
+    label: string;
+    is_required: boolean;
+    documents: RequestDocument[];
+}
+
+export interface UploadRules {
+    extensions: string[];
+    max_size_kb: number;
+}
+
 export interface Flash {
     success: string | null;
     error: string | null;
