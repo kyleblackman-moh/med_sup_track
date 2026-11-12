@@ -8,6 +8,7 @@
 
 use App\Enums\CaseStatus;
 use App\Enums\OrganisationType;
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\UserType;
 use App\Models\CaseAssignment;
@@ -100,4 +101,93 @@ function assign(ProcurementCase $case, Role|string $role, ?User $user = null, bo
     ])->save();
 
     return $assignment;
+}
+
+// ---------------------------------------------------------------------------
+// Slice 6 visibility fixture, shared by the case and child-table visibility tests.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fixture from the slice brief:
+ *   A = org X SUBMITTED, active pool assignment for cmo_registry
+ *   B = org X IN_REVIEW, active assignment to technocrat T1
+ *   C = org Y IN_REVIEW, completed assignment to T1, active assignment to cab_officer C1
+ *   D = org Y WITH_LEGAL, active assignment to legal_officer L1
+ *   E = org X CLOSED, completed assignment to T1
+ *   F = org Y DRAFT, no assignments
+ */
+function visibilityFixture(): array
+{
+    $x = vendorOrg();
+    $y = vendorOrg();
+
+    $vendorWithViewAll = vendorUser($x);
+    $vendorWithViewAll->givePermissionTo(Permission::CaseViewAll->value);
+
+    $actors = [
+        'cmo' => caseUser(Role::Cmo),
+        'ps_office' => caseUser(Role::PsOffice),
+        'vendor_x' => vendorUser($x),
+        'vendor_y' => vendorUser($y),
+        't1' => caseUser(Role::Technocrat),
+        't2' => caseUser(Role::Technocrat),
+        'c1' => caseUser(Role::CabOfficer),
+        'l1' => caseUser(Role::LegalOfficer),
+        'registry' => caseUser(Role::CmoRegistry),
+        'system_admin' => caseUser(Role::SystemAdmin),
+        'auditor' => caseUser(Role::Auditor),
+        'vendor_no_org' => vendorUser(null),
+        'vendor_with_view_all' => $vendorWithViewAll,
+        'guest' => null,
+    ];
+
+    $cases = [
+        'A' => makeCase(['org_id' => $x->id, 'status' => CaseStatus::SUBMITTED]),
+        'B' => makeCase(['org_id' => $x->id, 'status' => CaseStatus::IN_REVIEW]),
+        'C' => makeCase(['org_id' => $y->id, 'status' => CaseStatus::IN_REVIEW]),
+        'D' => makeCase(['org_id' => $y->id, 'status' => CaseStatus::WITH_LEGAL]),
+        'E' => makeCase(['org_id' => $x->id, 'status' => CaseStatus::CLOSED]),
+        'F' => makeCase(['org_id' => $y->id, 'status' => CaseStatus::DRAFT]),
+    ];
+
+    assign($cases['A'], Role::CmoRegistry);
+    assign($cases['B'], Role::Technocrat, $actors['t1']);
+    assign($cases['C'], Role::Technocrat, $actors['t1'], completed: true);
+    assign($cases['C'], Role::CabOfficer, $actors['c1']);
+    assign($cases['D'], Role::LegalOfficer, $actors['l1']);
+    assign($cases['E'], Role::Technocrat, $actors['t1'], completed: true);
+
+    return ['x' => $x, 'y' => $y, 'actors' => $actors, 'cases' => $cases];
+}
+
+const EXPECTED_VISIBLE = [
+    'cmo' => ['A', 'B', 'C', 'D', 'E', 'F'],
+    'ps_office' => ['A', 'B', 'C', 'D', 'E', 'F'],
+    'vendor_x' => ['A', 'B', 'E'],
+    'vendor_y' => ['C', 'D', 'F'],
+    't1' => ['B', 'C', 'E'],
+    't2' => [],
+    'c1' => ['C'],
+    'l1' => ['D'],
+    'registry' => ['A'],
+    'system_admin' => [],
+    'auditor' => [],
+    'vendor_no_org' => [],
+    'vendor_with_view_all' => ['A', 'B', 'E'],
+    'guest' => [],
+];
+
+function actAs(?User $user): void
+{
+    if ($user) {
+        test()->actingAs($user);
+    } else {
+        auth()->guard('web')->logout();
+    }
+}
+
+/** Fixture ids, so rows outside this test never affect the result. */
+function fixtureIds(array $fixture): array
+{
+    return collect($fixture['cases'])->map->id->values()->all();
 }

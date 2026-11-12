@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Enums\CaseStatus;
 use App\Enums\TrackStatus;
 use App\Models\Scopes\VisibleToUserScope;
+use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 /**
@@ -110,5 +112,51 @@ class ProcurementCase extends Model
     public function transitions(): HasMany
     {
         return $this->hasMany(CaseTransition::class, 'case_id')->orderBy('created_at')->orderBy('id');
+    }
+
+    public function requisition(): HasOne
+    {
+        return $this->hasOne(CaseRequisition::class, 'case_id');
+    }
+
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(CaseQuotation::class, 'case_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function tenderAwards(): HasMany
+    {
+        return $this->hasMany(CaseTenderAward::class, 'case_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(CasePurchaseOrder::class, 'case_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function stockExpiries(): HasMany
+    {
+        return $this->hasMany(CaseStockExpiry::class, 'case_id')->orderBy('expiry_date')->orderBy('id');
+    }
+
+    /**
+     * Each award's share of the total awarded quantity, as a 2-decimal percentage
+     * string keyed by award id. Empty when there are no awards or they sum to zero.
+     * Computed from the awards the current user can see (VisibleViaCaseScope).
+     *
+     * @return array<int, string>
+     */
+    public function tenderAwardPercentages(): array
+    {
+        $awards = $this->tenderAwards;
+        $sum = $awards->reduce(fn (string $carry, CaseTenderAward $a) => Decimal::add($carry, $a->quantity_awarded), '0');
+
+        if (Decimal::compare($sum, '0') <= 0) {
+            return [];
+        }
+
+        return $awards->mapWithKeys(fn (CaseTenderAward $a) => [
+            $a->id => Decimal::round2(Decimal::div(Decimal::mul($a->quantity_awarded, '100'), $sum)),
+        ])->all();
     }
 }

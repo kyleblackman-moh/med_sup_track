@@ -25,6 +25,11 @@ class ProcurementType extends Model
         ];
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ProcurementTypeDocument::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function cases(): HasMany
     {
         return $this->hasMany(ProcurementCase::class, 'procurement_type_id');

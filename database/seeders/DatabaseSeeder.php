@@ -14,7 +14,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // Reference data: every environment.
             RolesAndPermissionsSeeder::class,
+            ProcurementTypeSeeder::class,
             OrganisationSeeder::class,
         ]);
 
