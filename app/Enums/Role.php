@@ -32,6 +32,7 @@ enum Role: string
         return match ($this) {
             self::VendorApplicant => [
                 P::CaseSubmit, P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
+                P::CaseWithdraw,
             ],
             self::CmoRegistry => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::HardcopyConfirm,
@@ -41,7 +42,7 @@ enum Role: string
                 P::CaseViewAll, P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
                 P::HardcopyConfirm, P::CaseIntake, P::CaseRouteToReview, P::QueryForward,
                 P::FilePrepare, P::LetterIssue, P::CaseHistoryView, P::VendorUserInvite,
-                P::AssignmentReassign, P::DelegationManage,
+                P::AssignmentReassign, P::DelegationManage, P::CaseWithdraw, P::CaseRejectFinal,
             ],
             self::Technocrat => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,

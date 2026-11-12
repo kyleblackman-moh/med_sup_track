@@ -13,4 +13,7 @@ enum AuditAction: string
     case RateLimited = 'auth.rate_limited';
     case Logout = 'auth.logout';
     case PasswordReset = 'auth.password.reset';
+
+    // Case workflow
+    case CaseTransitioned = 'case.transitioned';
 }

@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\CaseStatus;
+use App\Enums\TrackStatus;
 use App\Models\Scopes\VisibleToUserScope;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 /**
  * One non-objection request (spec 9.2, table "cases").
@@ -35,15 +37,51 @@ class ProcurementCase extends Model
         'procurement_type_id',
     ];
 
+    /** Depth of nested allowStatusWrite() blocks; status writes are allowed while > 0. */
+    private static int $statusWriteDepth = 0;
+
     protected static function booted(): void
     {
         static::addGlobalScope(new VisibleToUserScope);
+
+        // Only CaseTransitionService may change status or current_holder_role, and
+        // it does so inside allowStatusWrite(). The initial insert is not blocked.
+        //
+        // NOTE: raw query-builder updates (DB::table('cases')->update(...)) bypass
+        // model events, so they are not caught here. Slice 7 does not close that.
+        static::updating(function (self $case) {
+            if (self::$statusWriteDepth === 0 && $case->isDirty(['status', 'current_holder_role'])) {
+                throw new LogicException('Case status and holder change only through CaseTransitionService.');
+            }
+        });
+    }
+
+    /**
+     * Runs $callback with status writes allowed. Re-entrant: nested calls keep the
+     * permission until the outermost block ends, and it is restored on exceptions.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public static function allowStatusWrite(callable $callback): mixed
+    {
+        self::$statusWriteDepth++;
+
+        try {
+            return $callback();
+        } finally {
+            self::$statusWriteDepth--;
+        }
     }
 
     protected function casts(): array
     {
         return [
             'status' => CaseStatus::class,
+            'technical_track' => TrackStatus::class,
+            'funding_track' => TrackStatus::class,
             'hardcopy_received_at' => 'datetime',
             'technical_completed_at' => 'datetime',
             'funding_completed_at' => 'datetime',

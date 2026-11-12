@@ -12,12 +12,13 @@ use Spatie\Permission\Models\Role;
 
 /** The expected matrix, written out independently of App\Enums\Role::permissions(). */
 const EXPECTED_ROLE_PERMISSIONS = [
-    'vendor_applicant' => ['case.submit', 'case.view_assigned', 'document.upload', 'document.download'],
+    'vendor_applicant' => ['case.submit', 'case.view_assigned', 'document.upload', 'document.download', 'case.withdraw'],
     'cmo_registry' => ['case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm', 'case.intake'],
     'cmo' => [
         'case.view_all', 'case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm',
         'case.intake', 'case.route_to_review', 'query.forward', 'file.prepare', 'letter.issue',
         'case.history.view', 'vendor_user.invite', 'assignment.reassign', 'delegation.manage',
+        'case.withdraw', 'case.reject_final',
     ],
     'technocrat' => ['case.view_assigned', 'document.upload', 'document.download', 'technical.consider', 'query.raise_to_vendor'],
     'cab_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'funding.confirm'],
