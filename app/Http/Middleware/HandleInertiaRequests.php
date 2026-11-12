@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Permission;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -63,6 +64,14 @@ class HandleInertiaRequests extends Middleware
                 'can' => $user
                     ? $user->getAllPermissions()->pluck('name')->sort()->values()->all()
                     : [],
+            ],
+            // Feature flags for navigation (show/hide only; routes authorise).
+            'can' => [
+                'requests' => $user?->can(Permission::CaseSubmit->value) ?? false,
+            ],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
             ],
         ]);
     }

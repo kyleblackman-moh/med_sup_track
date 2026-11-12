@@ -8,4 +8,13 @@ enum NeedClassification: string
     case VITAL = 'VITAL';
     case ESSENTIAL = 'ESSENTIAL';
     case OTHER = 'OTHER';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::VITAL => 'Vital',
+            self::ESSENTIAL => 'Essential',
+            self::OTHER => 'Other',
+        };
+    }
 }
