@@ -115,3 +115,20 @@ function saveDraft(ProcurementCase $case, User $vendor, array $payload): Procure
 
     return app(SaveRequisition::class)->handle($case, $vendor, $data);
 }
+
+/**
+ * A draft that is ready to submit (slice 8d): complete request content plus a
+ * CLEAN document for every required purpose. Needs Storage::fake('documents').
+ */
+function readyDraft(string $code = 'AD_HOC_NON_PHARM', ?User $vendor = null): array
+{
+    [$case, $vendor] = newDraft($code, $vendor);
+    saveDraft($case, $vendor, match ($code) {
+        'AD_HOC_PHARM' => pharmPayload(),
+        'TENDER_EXCESS' => tenderExcessPayload(),
+        default => nonPharmPayload(),
+    });
+    attachRequiredDocuments($case);
+
+    return [$case->fresh() ?? ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor];
+}

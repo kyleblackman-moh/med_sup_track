@@ -3,6 +3,7 @@
 use App\Enums\Permission;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\SubmitRequestController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -29,6 +30,9 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
+        Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
+        Route::post('{procurementCase}/submit', SubmitRequestController::class)
+            ->middleware('throttle:10,1')->name('submit');
     });
 
 // Request documents. {document} is bound through the case (scopeBindings), so a

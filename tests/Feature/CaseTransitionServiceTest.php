@@ -15,10 +15,13 @@ use App\Workflow\Exceptions\ReasonRequired;
 use App\Workflow\Exceptions\StaleTransition;
 use App\Workflow\TransitionRule;
 use App\Workflow\TransitionRules;
+use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\PermissionRegistrar;
@@ -29,6 +32,9 @@ use Spatie\Permission\PermissionRegistrar;
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
+    // Slice 8d: the T1 case is a ready draft (procurement types and clean documents).
+    $this->seed(ProcurementTypeSeeder::class);
+    Storage::fake('documents');
     Event::fake([CaseTransitioned::class]);
 });
 
@@ -66,7 +72,7 @@ const EXPECTED_HOLDERS = [
 ];
 
 const EXPECTED_PENDING_GUARDS = [
-    'T1' => ['required_documents'],
+    'T1' => [], // slice 8d: replaced by the real guard
     'T2' => [],
     'T3' => ['assignments_created'],
     'T4' => [],
@@ -114,6 +120,15 @@ function gatePassed(): array
 /** A case sitting in the rule's first from-status, with the gate satisfied for T4. */
 function caseFor(TransitionRule $rule, array $attributes = []): ProcurementCase
 {
+    // Slice 8d: T1 is guarded (clean readiness and a reference number), so its
+    // case is a ready draft with a reference, as SubmitCase would prepare it.
+    if ($rule->code === 'T1' && $attributes === []) {
+        [$case] = readyDraft();
+        DB::table('cases')->where('id', $case->id)->update(['reference_no' => 'NR-1999-'.Str::upper(Str::random(6))]);
+
+        return ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
+    }
+
     return makeCase([
         'status' => $rule->from[0],
         ...($rule->code === 'T4' ? gatePassed() : []),

@@ -1,16 +1,24 @@
 import { COMMENTS_FIELD, REQUISITION_GROUPS, SECTIONS, displayValue } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusBadge } from '@/components/requests/status-badge';
+import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type DocumentGroup, type RequestDetail, type Section } from '@/types/requests';
+import { type DocumentGroup, type Readiness, type RequestDetail, type Section } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
 
 const SECTION_ORDER: Section[] = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
-export default function Show({ case: detail, documents }: { case: RequestDetail; documents: DocumentGroup[] }) {
+interface Props {
+    case: RequestDetail;
+    documents: DocumentGroup[];
+    readiness: Readiness | null;
+    can: { submit: boolean };
+}
+
+export default function Show({ case: detail, documents, readiness, can }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         { title: detail.reference_no ?? 'Draft', href: route('requests.show', detail.id) },
@@ -35,10 +43,17 @@ export default function Show({ case: detail, documents }: { case: RequestDetail;
                                 <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
                             </Button>
                         )}
+                        {detail.reference_no && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={route('requests.receipt', detail.id)}>Receipt</Link>
+                            </Button>
+                        )}
                     </div>
                 </header>
 
                 <FlashMessages />
+
+                {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
                 {[...REQUISITION_GROUPS, { title: 'Comments', fields: [COMMENTS_FIELD] }].map((group) => {
                     const fields = group.fields.filter((f) => !f.pharmOnly || detail.procurement_type.category === 'PHARM');

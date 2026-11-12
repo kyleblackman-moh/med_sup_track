@@ -97,7 +97,7 @@ final class SubmissionReadiness
 
             $this->error("documents.{$purpose}", match (true) {
                 $found === [] => "Required document missing: {$requirement->label}",
-                in_array(ScanStatus::PENDING, $found, true) => "{$requirement->label} is still being scanned",
+                in_array(ScanStatus::PENDING, $found, true) => "{$requirement->label} is still being virus-checked. Try again in a moment.",
                 default => "{$requirement->label} failed the security check; upload a replacement",
             });
         }

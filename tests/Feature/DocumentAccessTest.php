@@ -241,7 +241,7 @@ it('reports each required document by state', function () {
         ->and(documentErrors($case)['documents.original_rfq'])->toBe("Required document missing: {$label}");
 
     $document = makeDocument($case, 'original_rfq', ['scan_status' => ScanStatus::PENDING, 'released_at' => null]);
-    expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} is still being scanned");
+    expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} is still being virus-checked. Try again in a moment."); // wording changed in slice 8d
 
     DB::table('documents')->where('id', $document->id)->update(['scan_status' => 'INFECTED']);
     expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} failed the security check; upload a replacement");
@@ -261,7 +261,7 @@ it('does not count withdrawn or superseded documents', function () {
     makeDocument($case, 'supplier_quotations', ['version' => 2, 'supersedes_id' => $old->id, 'scan_status' => ScanStatus::PENDING]);
 
     expect(documentErrors($case)['documents.original_rfq'])->toStartWith('Required document missing')
-        ->and(documentErrors($case)['documents.supplier_quotations'])->toEndWith('is still being scanned');
+        ->and(documentErrors($case)['documents.supplier_quotations'])->toEndWith('is still being virus-checked. Try again in a moment.');
 });
 
 it('is ready with the complete fixture and six clean required documents', function () {

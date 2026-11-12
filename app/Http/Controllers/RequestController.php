@@ -8,6 +8,7 @@ use App\Http\Resources\Requests\FormConfig;
 use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
+use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -81,13 +82,33 @@ class RequestController extends Controller
         return to_route('requests.edit', $case);
     }
 
-    public function show(Request $request, ProcurementCase $procurementCase): Response
+    public function show(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response
     {
         Gate::authorize('view', $procurementCase);
+
+        $isDraft = $procurementCase->status === CaseStatus::DRAFT;
+        $report = $isDraft ? $readiness->evaluate($procurementCase) : null;
 
         return Inertia::render('requests/show', [
             'case' => $this->detail($request, $procurementCase),
             'documents' => RequestDocuments::for($procurementCase, $request->user()),
+            // Drafts only: the reasons a submit would be refused right now.
+            'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
+            'can' => $this->can($request, [
+                'submit' => $isDraft && $report->isReady()
+                    && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
+            ]),
+        ]);
+    }
+
+    /** Printable submission receipt. Drafts have none (404). */
+    public function receipt(ProcurementCase $procurementCase): Response
+    {
+        Gate::authorize('view', $procurementCase);
+        abort_if($procurementCase->status === CaseStatus::DRAFT, 404);
+
+        return Inertia::render('requests/receipt', [
+            'receipt' => RequestReceipt::for($procurementCase),
         ]);
     }
 

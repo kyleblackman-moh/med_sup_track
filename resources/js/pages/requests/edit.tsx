@@ -169,7 +169,7 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                                     {processing ? 'Saving…' : 'Save draft'}
                                 </Button>
                                 <Link href={route('requests.show', detail.id)} className="text-sm underline">
-                                    View request
+                                    Review and submit
                                 </Link>
                             </div>
                         </form>

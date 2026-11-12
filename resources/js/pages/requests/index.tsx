@@ -82,7 +82,7 @@ export default function Index({ requests, can }: Props) {
                                         <td className="px-4 py-2">
                                             {request.item_description ?? <span className="text-muted-foreground">Not described yet</span>}
                                         </td>
-                                        <td className="px-4 py-2">{request.reference_no ?? 'Draft'}</td>
+                                        <td className="px-4 py-2">{request.reference_no ?? ''}</td>
                                         <td className="px-4 py-2">{formatDate(request.updated_at)}</td>
                                         <td className="px-4 py-2 text-right">
                                             {request.can.edit ? (

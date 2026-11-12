@@ -18,6 +18,8 @@ enum AuditAction: string
     case CaseTransitioned = 'case.transitioned';
     case CaseCreated = 'case.created';
     case CaseDraftSaved = 'case.draft_saved';
+    case CaseReferenceAssigned = 'case.reference_assigned';
+    case CaseAssignedToPool = 'case.assigned_to_pool';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

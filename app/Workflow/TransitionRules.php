@@ -7,8 +7,10 @@ use App\Enums\Permission as P;
 use App\Enums\TrackStatus;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Submissions\SubmissionReadiness;
 use App\Workflow\Exceptions\GateNotPassed;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The transitions table (spec 6.5), all rules in one list.
@@ -43,8 +45,9 @@ final class TransitionRules
     private static function build(): array
     {
         return [
+            // Reached only through App\Submissions\SubmitCase, which allocates the reference first.
             new TransitionRule('T1', [S::DRAFT], S::SUBMITTED, P::CaseSubmit->value,
-                holderRole: 'cmo_registry', pendingGuards: ['required_documents']),
+                holderRole: 'cmo_registry', guard: self::submitGuard(...)),
 
             new TransitionRule('T2', [S::SUBMITTED], S::CMO_INTAKE, P::CaseIntake->value,
                 holderRole: 'cmo'),
@@ -101,6 +104,27 @@ final class TransitionRules
             new TransitionRule('T17', [S::RETURNED_TO_CMO], S::WITH_PS, P::QueryForward->value,
                 holderRole: 'ps_office', pendingGuards: ['query_answered_and_forwarded']),
         ];
+    }
+
+    /**
+     * T1: the request content and required documents pass SubmissionReadiness,
+     * and a reference number has been allocated.
+     */
+    private static function submitGuard(ProcurementCase $case, User $actor): void
+    {
+        $missing = [];
+
+        if (blank(DB::table('cases')->where('id', $case->getKey())->value('reference_no'))) {
+            $missing[] = 'reference_no';
+        }
+
+        foreach (app(SubmissionReadiness::class)->evaluate($case)->errors as $error) {
+            $missing[] = $error['key'];
+        }
+
+        if ($missing !== []) {
+            throw new GateNotPassed($missing);
+        }
     }
 
     /** T4: technical favourable, funding confirmed and hardcopy received. */
