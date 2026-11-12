@@ -16,4 +16,6 @@ enum AuditAction: string
 
     // Case workflow
     case CaseTransitioned = 'case.transitioned';
+    case CaseCreated = 'case.created';
+    case CaseDraftSaved = 'case.draft_saved';
 }

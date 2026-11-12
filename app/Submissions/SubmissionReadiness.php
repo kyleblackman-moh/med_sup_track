@@ -1,0 +1,193 @@
+<?php
+
+namespace App\Submissions;
+
+use App\Enums\ProcurementCategory;
+use App\Enums\TechnicalStatus;
+use App\Models\CasePurchaseOrder;
+use App\Models\CaseQuotation;
+use App\Models\CaseRequisition;
+use App\Models\CaseStockExpiry;
+use App\Models\CaseTenderAward;
+use App\Models\ProcurementCase;
+use App\Support\Decimal;
+use Illuminate\Support\Collection;
+
+/**
+ * Is a draft complete enough to submit? Read-only.
+ *
+ * Reads the case's rows without the visibility scopes: the CALLER must already
+ * have authorised access to $case. Decimal comparisons are exact (bcmath).
+ *
+ * Draft rules; confirm with the CMO's office (Q22, Q24).
+ */
+final class SubmissionReadiness
+{
+    private const LOCAL_TIMEZONE = 'America/Port_of_Spain';
+
+    private array $errors = [];
+
+    private array $warnings = [];
+
+    public function evaluate(ProcurementCase $case): ReadinessReport
+    {
+        $this->errors = [];
+        $this->warnings = [];
+
+        $type = $case->procurementType()->firstOrFail();
+        $profile = ProcurementTypeProfile::for($type);
+        $caseId = $case->getKey();
+
+        $requisition = CaseRequisition::withoutGlobalScopes()->where('case_id', $caseId)->first() ?? new CaseRequisition;
+        $rows = [
+            'quotations' => $this->rows(CaseQuotation::class, $caseId),
+            'tender_awards' => $this->rows(CaseTenderAward::class, $caseId),
+            'purchase_orders' => $this->rows(CasePurchaseOrder::class, $caseId),
+            'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->get(),
+        ];
+
+        $this->checkRequisition($requisition, $type->category, $profile);
+
+        foreach ($profile->requiredSections as $section) {
+            if ($rows[$section]->isEmpty()) {
+                $this->error($section, 'Add at least one row.');
+            }
+        }
+
+        $this->checkQuotations($rows['quotations'], $requisition);
+
+        if ($type->category === ProcurementCategory::PHARM
+            && ($stock = $requisition->stockOnHand()) !== null
+            && Decimal::compare($stock, '0') > 0
+            && $rows['stock_expiries']->isEmpty()) {
+            $this->warning('stock_expiries', 'Stock is on hand but no expiry dates are listed.');
+        }
+
+        return new ReadinessReport($this->errors, $this->warnings, ['required_documents']);
+    }
+
+    private function checkRequisition(CaseRequisition $r, ProcurementCategory $category, ProcurementTypeProfile $profile): void
+    {
+        foreach ([
+            'vendor_reference' => 'Enter your reference.',
+            'request_date' => 'Enter the request date.',
+            'need_classification' => 'Choose a need classification.',
+            'item_description' => 'Describe the item.',
+            'unit_of_measure' => 'Enter the unit of measure.',
+        ] as $field => $message) {
+            $this->requirePresent($r, $field, $message);
+        }
+
+        $this->requirePositive($r, 'quantity_requested', 'Enter a quantity greater than zero.');
+        $this->requirePositive($r, 'average_monthly_consumption', 'Enter an average monthly consumption greater than zero.');
+
+        foreach (['central_stores_stock' => 'central stores', 'rha_stock' => 'RHA'] as $field => $label) {
+            if ($r->{$field} === null) {
+                $this->error("requisition.{$field}", "Enter the {$label} stock (0 if none).");
+            }
+        }
+
+        if ($category === ProcurementCategory::PHARM) {
+            $this->requirePresent($r, 'din', 'Enter the DIN.');
+        }
+
+        if ($profile->isAdHoc()) {
+            $this->requirePresent($r, 'rfq_date', 'Enter the RFQ date.');
+            $this->requirePresent($r, 'rfq_audience', 'Choose who received the RFQ.');
+        }
+
+        if ($profile->code === 'AD_HOC_NON_PHARM') {
+            $this->requirePresent($r, 'tender_outcome', 'Choose the tender outcome.');
+        }
+
+        foreach ([
+            'purpose' => 'No purpose given.',
+            'urgency_explanation' => 'No urgency explanation given.',
+            'tender_reference' => 'No tender reference given.',
+            'stock_verified_on' => 'No stock verification date given.',
+        ] as $field => $message) {
+            if ($this->blank($r->{$field})) {
+                $this->warning("requisition.{$field}", $message);
+            }
+        }
+    }
+
+    private function checkQuotations(Collection $quotations, CaseRequisition $requisition): void
+    {
+        $today = now(self::LOCAL_TIMEZONE)->toDateString();
+        $hasRecommendation = false;
+        $recommendedTotal = '0';
+
+        foreach ($quotations as $i => $q) {
+            $key = "quotations.{$i}";
+
+            if ($q->lead_time_days === null) {
+                $this->error("{$key}.lead_time_days", 'Enter the lead time in days.');
+            }
+
+            if ($q->recommended_quantity !== null) {
+                if (Decimal::compare($q->recommended_quantity, $q->quantity_offered) > 0) {
+                    $this->error("{$key}.recommended_quantity", 'The recommended quantity is more than the quantity offered.');
+                } elseif ($q->minimum_order_quantity !== null
+                    && Decimal::compare($q->recommended_quantity, $q->minimum_order_quantity) < 0) {
+                    $this->error("{$key}.recommended_quantity", 'The recommended quantity is below the minimum order quantity.');
+                }
+            }
+
+            if ($q->is_recommended && $q->recommended_quantity !== null && Decimal::compare($q->recommended_quantity, '0') > 0) {
+                $hasRecommendation = true;
+                $recommendedTotal = Decimal::add($recommendedTotal, $q->recommended_quantity);
+            }
+
+            if ($q->price_valid_until !== null && $q->price_valid_until->toDateString() < $today) {
+                $this->warning("{$key}.price_valid_until", 'This price is no longer valid.');
+            }
+
+            if ($q->technical_status !== TechnicalStatus::PENDING) {
+                $this->warning("{$key}.technical_status", 'MOH has already assessed this quotation.');
+            }
+        }
+
+        if (! $hasRecommendation) {
+            $this->error('quotations.recommended', 'Recommend at least one quotation with a quantity greater than zero.');
+        } elseif ($requisition->quantity_requested !== null
+            && Decimal::compare($recommendedTotal, $requisition->quantity_requested) !== 0) {
+            $this->warning('quotations.recommended_total', 'The total recommended quantity differs from the quantity requested.');
+        }
+    }
+
+    /** Rows ordered as saved, re-indexed from 0 so keys match the payload positions. */
+    private function rows(string $model, string $caseId): Collection
+    {
+        return $model::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('sort_order')->orderBy('id')->get()->values();
+    }
+
+    private function requirePresent(CaseRequisition $r, string $field, string $message): void
+    {
+        if ($this->blank($r->{$field})) {
+            $this->error("requisition.{$field}", $message);
+        }
+    }
+
+    private function requirePositive(CaseRequisition $r, string $field, string $message): void
+    {
+        if ($r->{$field} === null || Decimal::compare($r->{$field}, '0') <= 0) {
+            $this->error("requisition.{$field}", $message);
+        }
+    }
+
+    private function blank(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+
+    private function error(string $key, string $message): void
+    {
+        $this->errors[] = ['key' => $key, 'message' => $message];
+    }
+
+    private function warning(string $key, string $message): void
+    {
+        $this->warnings[] = ['key' => $key, 'message' => $message];
+    }
+}
