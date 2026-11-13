@@ -323,9 +323,11 @@ it('shows the header, requisition, holder and assignments', function () {
     $response = $this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case))->assertOk();
     $props = ownProps($response);
 
-    // Slice 9b added intake and record_hardcopy (true for the cmo on a SUBMITTED case).
+    // Slice 9b added intake and record_hardcopy (true for the cmo on a SUBMITTED case);
+    // slice 10a added forward_for_review (false: only a CMO_INTAKE case can be sent).
     expect(pageProps($response)['can'])->toBe([
         'requests' => false, 'cases' => true, 'download_documents' => true, 'intake' => true, 'record_hardcopy' => true,
+        'forward_for_review' => false,
     ])
         ->and($props['case']['reference_no'])->toBe($case->reference_no)
         ->and($props['case']['holder_label'])->toBe('CMO')

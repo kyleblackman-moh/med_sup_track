@@ -5,8 +5,10 @@ namespace App\Http\Resources\Cases;
 use App\Enums\CaseStatus;
 use App\Enums\DocumentVisibility;
 use App\Enums\Permission;
+use App\Enums\ReviewDesk;
 use App\Enums\Role;
 use App\Enums\ScanStatus;
+use App\Enums\TrackStatus;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Models\CaseAssignment;
 use App\Models\CaseTransition;
@@ -15,6 +17,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\EligibleReviewers;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -37,6 +40,9 @@ final class StaffCaseDetail
             'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries',
         ]);
 
+        $canForward = $case->status === CaseStatus::CMO_INTAKE
+            && Gate::forUser($user)->allows('act', [$case, Permission::CaseRouteToReview->value]);
+
         return [
             'case' => [
                 ...StaffCaseSummary::fields($case),
@@ -53,6 +59,12 @@ final class StaffCaseDetail
             'documents' => self::documents($case, $user),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
+            'review_progress' => self::reviewProgress($case),
+            // Slice 10a: eligible reviewers, only for a user who may send this case for review.
+            'reviewers' => $canForward ? [
+                ReviewDesk::Technical->field() => app(EligibleReviewers::class)->for(ReviewDesk::Technical),
+                ReviewDesk::Funding->field() => app(EligibleReviewers::class)->for(ReviewDesk::Funding),
+            ] : null,
             // A page prop named "can" replaces the shared one, so the shared
             // navigation flags are repeated here (as in RequestController).
             'can' => [
@@ -64,8 +76,55 @@ final class StaffCaseDetail
                     && Gate::forUser($user)->allows('act', [$case, Permission::CaseIntake->value]),
                 'record_hardcopy' => in_array($case->status, RecordHardcopy::STATUSES, true)
                     && Gate::forUser($user)->allows('act', [$case, Permission::HardcopyConfirm->value]),
+                // Slice 10a: the same check ForwardForReview runs.
+                'forward_for_review' => $canForward,
             ],
         ];
+    }
+
+    /**
+     * Three plain rows once the case has been sent for review (a track is set):
+     * technical and funding with their reviewers, and the hardcopy date.
+     * Null before review. No deadlines, no lateness.
+     */
+    private static function reviewProgress(ProcurementCase $case): ?array
+    {
+        if ($case->technical_track === null && $case->funding_track === null) {
+            return null;
+        }
+
+        $reviewers = CaseAssignment::query()
+            ->where('case_id', $case->getKey())
+            ->whereIn('purpose', array_map(fn (ReviewDesk $d) => $d->value, ReviewDesk::cases()))
+            ->whereNotNull('user_id')
+            ->whereNull('cancelled_at')
+            ->with('user:id,name')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('purpose')
+            ->map(fn ($rows) => $rows->map(fn (CaseAssignment $a) => $a->user?->name)->filter()->unique()->sort()->values()->all());
+
+        $rows = array_map(function (ReviewDesk $desk) use ($case, $reviewers) {
+            $track = $case->{$desk->track()};
+
+            return [
+                'key' => $desk->value,
+                'label' => $desk->label(),
+                'state' => $track instanceof TrackStatus ? $track->label() : 'Not started',
+                'reviewers' => $reviewers[$desk->value] ?? [],
+                'received_on' => null,
+            ];
+        }, ReviewDesk::cases());
+
+        $rows[] = [
+            'key' => 'hardcopy',
+            'label' => 'Hardcopy received',
+            'state' => $case->hardcopy_received_on === null ? 'Not received' : 'Received',
+            'reviewers' => [],
+            'received_on' => $case->hardcopy_received_on?->toDateString(),
+        ];
+
+        return $rows;
     }
 
     /** Received date, who recorded it and when; null when not received. */

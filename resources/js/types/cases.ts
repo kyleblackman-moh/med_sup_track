@@ -57,6 +57,26 @@ export interface StaffCaseAbilities {
     download_documents: boolean;
     intake: boolean;
     record_hardcopy: boolean;
+    forward_for_review: boolean;
+}
+
+export interface ReviewerOption {
+    id: number;
+    name: string;
+}
+
+/** Present only for a user who may send the case for review. */
+export interface EligibleReviewers {
+    technocrats: ReviewerOption[];
+    cab_officers: ReviewerOption[];
+}
+
+export interface ReviewProgressRow {
+    key: 'technical' | 'funding' | 'hardcopy';
+    label: string;
+    state: string;
+    reviewers: string[];
+    received_on: string | null;
 }
 
 export interface StaffDocument {

@@ -69,6 +69,7 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
         // Slice 9b actions. 20 a minute per user.
         Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {
             Route::post('{procurementCase}/intake', 'intake')->name('intake');
+            Route::post('{procurementCase}/forward-for-review', 'forwardForReview')->name('forward');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
         });
