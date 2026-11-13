@@ -14,14 +14,19 @@ export interface FieldDef {
     hint?: string;
 }
 
+/** Tabs of the draft form, in order. */
+export type TabId = 'details' | 'stock' | 'tender' | 'orders' | 'quotations' | 'documents';
+
 export interface FieldGroup {
     title: string;
+    tab: TabId;
     fields: FieldDef[];
 }
 
 export const REQUISITION_GROUPS: FieldGroup[] = [
     {
         title: 'Request details',
+        tab: 'details',
         fields: [
             { name: 'vendor_reference', label: 'Your reference', kind: 'text' },
             { name: 'request_date', label: 'Request date', kind: 'date' },
@@ -36,6 +41,7 @@ export const REQUISITION_GROUPS: FieldGroup[] = [
     },
     {
         title: 'Stock position',
+        tab: 'stock',
         fields: [
             { name: 'average_monthly_consumption', label: 'Average monthly consumption', kind: 'decimal' },
             { name: 'central_stores_stock', label: 'Central stores stock', kind: 'decimal', hint: 'Enter 0 if none.' },
@@ -47,6 +53,7 @@ export const REQUISITION_GROUPS: FieldGroup[] = [
     },
     {
         title: 'Tender background',
+        tab: 'tender',
         fields: [
             { name: 'tender_reference', label: 'Tender reference', kind: 'text' },
             { name: 'tender_outcome', label: 'Tender outcome', kind: 'select', options: 'tender_outcome' },
@@ -55,6 +62,7 @@ export const REQUISITION_GROUPS: FieldGroup[] = [
     },
     {
         title: 'Request for quotation (RFQ)',
+        tab: 'tender',
         fields: [
             { name: 'rfq_date', label: 'RFQ date', kind: 'date' },
             { name: 'rfq_audience', label: 'RFQ sent to', kind: 'select', options: 'rfq_audience' },
@@ -64,13 +72,31 @@ export const REQUISITION_GROUPS: FieldGroup[] = [
 ];
 
 export const COMMENTS_FIELD: FieldDef = { name: 'applicant_comments', label: 'Comments', kind: 'textarea' };
+export const COMMENTS_TAB: TabId = 'documents';
 
 export const REQUISITION_FIELDS: FieldDef[] = [...REQUISITION_GROUPS.flatMap((g) => g.fields), COMMENTS_FIELD];
+
+/** The tab each child section lives on. */
+export const SECTION_TAB: Record<Section, TabId> = {
+    stock_expiries: 'stock',
+    tender_awards: 'orders',
+    purchase_orders: 'orders',
+    quotations: 'quotations',
+};
+
+/** A column of the compact row list: a field, or a server-computed value when derived is set. */
+export interface SummaryColumn {
+    key: string;
+    label: string;
+    derived?: boolean;
+}
 
 export interface SectionDef {
     title: string;
     rowLabel: string;
     columns: FieldDef[];
+    /** Columns shown in the compact list; the dialog edits every column. */
+    summary: SummaryColumn[];
     /** Values for a new row; fields the server defaults must not be sent empty. */
     newRow: Record<string, string | boolean>;
     /** Server-computed values shown per row: [derived key, label]. */
@@ -99,6 +125,14 @@ export const SECTIONS: Record<Section, SectionDef> = {
             { name: 'is_recommended', label: 'Recommended', kind: 'boolean' },
             { name: 'recommended_quantity', label: 'Recommended quantity', kind: 'decimal' },
         ],
+        summary: [
+            { key: 'supplier_name', label: 'Supplier' },
+            { key: 'unit_price', label: 'Unit price' },
+            { key: 'quantity_offered', label: 'Qty offered' },
+            { key: 'offered_total', label: 'Offered total', derived: true },
+            { key: 'is_recommended', label: 'Recommended' },
+            { key: 'recommended_quantity', label: 'Recommended qty' },
+        ],
         newRow: { previous_price_maintained: 'UNKNOWN', is_recommended: false },
         derived: [
             ['offered_total', 'Offered total'],
@@ -122,6 +156,12 @@ export const SECTIONS: Record<Section, SectionDef> = {
             { name: 'quantity_awarded', label: 'Quantity awarded', kind: 'decimal' },
             { name: 'unit_cost', label: 'Unit cost', kind: 'decimal' },
         ],
+        summary: [
+            { key: 'supplier_name', label: 'Supplier' },
+            { key: 'quantity_awarded', label: 'Qty awarded' },
+            { key: 'unit_cost', label: 'Unit cost' },
+            { key: 'total', label: 'Total', derived: true },
+        ],
         newRow: {},
         derived: [
             ['total', 'Total'],
@@ -144,6 +184,13 @@ export const SECTIONS: Record<Section, SectionDef> = {
             { name: 'delivery_eta', label: 'Delivery ETA', kind: 'date' },
             { name: 'delivery_status', label: 'Delivery status', kind: 'text' },
         ],
+        summary: [
+            { key: 'po_number', label: 'PO number' },
+            { key: 'supplier_name', label: 'Supplier' },
+            { key: 'quantity_ordered', label: 'Ordered' },
+            { key: 'quantity_delivered', label: 'Delivered' },
+            { key: 'delivery_eta', label: 'Delivery ETA' },
+        ],
         newRow: { quantity_delivered: '0' },
         derived: [['quantity_outstanding', 'Outstanding']],
         totals: [
@@ -158,6 +205,10 @@ export const SECTIONS: Record<Section, SectionDef> = {
         columns: [
             { name: 'quantity', label: 'Quantity', kind: 'decimal' },
             { name: 'expiry_date', label: 'Expiry date', kind: 'date' },
+        ],
+        summary: [
+            { key: 'quantity', label: 'Quantity' },
+            { key: 'expiry_date', label: 'Expiry date' },
         ],
         newRow: {},
         derived: [],

@@ -1,16 +1,16 @@
 import { FieldInput } from '@/components/requests/field-input';
-import { COMMENTS_FIELD, REQUISITION_FIELDS, REQUISITION_GROUPS, SECTIONS, type FieldDef } from '@/components/requests/fields';
+import { COMMENTS_FIELD, COMMENTS_TAB, REQUISITION_FIELDS, REQUISITION_GROUPS, SECTIONS, type FieldDef, type TabId } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
-import { ReadinessPanel } from '@/components/requests/readiness-panel';
-import { SectionTable, type EditableRow } from '@/components/requests/section-table';
+import { FormActions } from '@/components/requests/form-actions';
+import { buildTabs, FormTabs } from '@/components/requests/form-tabs';
+import { RowList } from '@/components/requests/row-list';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type Section, type UploadRules } from '@/types/requests';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type UploadRules } from '@/types/requests';
+import { Head, router, useForm } from '@inertiajs/react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Props {
     case: RequestDetail;
@@ -20,62 +20,98 @@ interface Props {
     can: { edit: boolean };
 }
 
-type FormData = {
-    requisition: Record<string, string>;
-} & Record<Section, EditableRow[]>;
+type FormData = { requisition: Record<string, string> };
 
-/** Field ids follow the server's dotted error keys: requisition.x -> requisition-x, quotations.0.x -> quotations-0-x. */
+/** Field ids follow the server's dotted error keys: requisition.x -> requisition-x. */
 const fieldId = (key: string) => key.replace(/\./g, '-');
 
-function visibleRequisitionFields(config: FormConfig): FieldDef[] {
-    return REQUISITION_FIELDS.filter((f) => !f.pharmOnly || config.is_pharm);
-}
+const visible = (config: FormConfig) => (field: FieldDef) => !field.pharmOnly || config.is_pharm;
 
 function initialData(detail: RequestDetail, config: FormConfig): FormData {
     const requisition: Record<string, string> = {};
-    for (const field of visibleRequisitionFields(config)) {
+    for (const field of REQUISITION_FIELDS.filter(visible(config))) {
         const value = detail.requisition[field.name];
         requisition[field.name] = value === null || value === undefined ? '' : String(value);
     }
 
-    const sections = {} as Record<Section, EditableRow[]>;
-    for (const section of Object.keys(SECTIONS) as Section[]) {
-        sections[section] = detail[section].map((saved) => {
-            const row: EditableRow = { _key: `saved-${saved.id}` };
-            for (const field of SECTIONS[section].columns) {
-                const value = saved[field.name];
-                row[field.name] = field.kind === 'boolean' ? value === true : value === null || value === undefined ? '' : String(value);
-            }
-
-            return row;
-        });
-    }
-
-    return { requisition, ...sections };
+    return { requisition };
 }
 
+/** Requisition fields shown on one tab. */
+function tabFields(tab: TabId, config: FormConfig): FieldDef[] {
+    const fields = REQUISITION_GROUPS.filter((g) => g.tab === tab).flatMap((g) => g.fields);
+
+    return [...fields, ...(tab === COMMENTS_TAB ? [COMMENTS_FIELD] : [])].filter(visible(config));
+}
+
+function tabFromUrl(ids: TabId[]): TabId {
+    if (typeof window === 'undefined') {
+        return ids[0];
+    }
+    const wanted = new URLSearchParams(window.location.search).get('tab');
+
+    return ids.find((id) => id === wanted) ?? ids[0];
+}
+
+/**
+ * The draft form, one tab per part. Requisition fields are saved per tab
+ * (Next and tab changes save first); row sections save as rows are changed.
+ */
 export default function Edit({ case: detail, readiness, config, documents }: Props) {
-    const allowed = config.allowed_sections;
-    const { data, setData, put, processing, transform, ...form } = useForm<FormData>(initialData(detail, config));
+    const tabs = useMemo(() => buildTabs(config), [config]);
+    const ids = tabs.map((t) => t.id);
+    const [active, setActive] = useState<TabId>(() => tabFromUrl(ids));
+    const { data, setData, put, processing, transform, isDirty, setDefaults, ...form } = useForm<FormData>(initialData(detail, config));
     const errors = form.errors as Record<string, string>;
-    const errorEntries = Object.entries(errors);
+
+    const index = ids.indexOf(active);
+    const tab = tabs[index];
+    const fields = tabFields(active, config);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         { title: 'Edit draft', href: route('requests.edit', detail.id) },
     ];
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
-
-        // Send the requisition and the allowed sections only, without client-only row keys.
-        transform((d) => ({
-            requisition: d.requisition,
-            ...Object.fromEntries(allowed.map((section) => [section, d[section].map(({ _key, ...row }) => (void _key, row))])),
-        }));
-        put(route('requests.update', detail.id), { preserveScroll: true });
+    const show = (next: TabId) => {
+        setActive(next);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', next);
+        window.history.replaceState(window.history.state, '', url);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    /** Save this tab's fields (only if changed), then run `then`. Validation errors keep the user here. */
+    const saveThen = (then?: () => void) => {
+        if (!isDirty) {
+            then?.();
+
+            return;
+        }
+        const names = fields.map((f) => f.name);
+        transform((d) => ({ requisition: Object.fromEntries(names.map((name) => [name, d.requisition[name] ?? ''])) }));
+        put(route('requests.update', detail.id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setDefaults();
+                then?.();
+            },
+        });
+    };
+
+    const goNext = () => saveThen(() => (index < tabs.length - 1 ? show(ids[index + 1]) : router.visit(route('requests.show', detail.id))));
+    const goBack = () => saveThen(() => index > 0 && show(ids[index - 1]));
+    const select = (next: TabId) => next !== active && saveThen(() => show(next));
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        goNext();
+    };
+
+    const errorEntries = Object.entries(errors);
+
+    // A render function, not a component: a component defined here would remount (and lose focus) on every keystroke.
     const requisitionInput = (field: FieldDef) => (
         <FieldInput
             key={field.name}
@@ -92,7 +128,7 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Edit draft request" />
 
-            <div className="mx-auto w-full max-w-6xl space-y-6 p-4">
+            <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pt-4">
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New request'}</h1>
@@ -103,16 +139,18 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                     <StatusBadge label={detail.status_label} group={detail.status_group} />
                 </header>
 
+                <FormTabs tabs={tabs} active={active} readiness={readiness} onSelect={select} />
+
                 <FlashMessages />
 
                 <div aria-live="assertive" className="empty:hidden">
                     {errorEntries.length > 0 && (
                         <div
                             role="alert"
-                            className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+                            className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
                         >
-                            <p className="font-medium">Your draft was not saved. Please fix the following:</p>
-                            <ul className="mt-2 list-disc space-y-1 pl-5">
+                            <p className="font-medium">This tab was not saved. Please fix the following:</p>
+                            <ul className="mt-1 list-disc space-y-0.5 pl-5">
                                 {errorEntries.map(([key, message]) => (
                                     <li key={key}>
                                         <a href={`#${fieldId(key)}`} className="underline">
@@ -125,67 +163,60 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                     )}
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-                    <div className="space-y-8">
-                        <form onSubmit={submit} className="space-y-8" noValidate>
-                            {REQUISITION_GROUPS.map((group) => {
-                                const fields = group.fields.filter((f) => !f.pharmOnly || config.is_pharm);
-
-                                return (
-                                    <section key={group.title} aria-labelledby={fieldId(`group.${group.title}`)} className="space-y-4">
-                                        <h2 id={fieldId(`group.${group.title}`)} className="text-lg font-semibold">
-                                            {group.title}
-                                        </h2>
-                                        <div className="grid gap-4 sm:grid-cols-2">{fields.map(requisitionInput)}</div>
-                                    </section>
-                                );
-                            })}
-
-                            {allowed.map((section) => (
-                                <SectionTable
-                                    key={section}
-                                    section={section}
-                                    def={SECTIONS[section]}
-                                    rows={data[section]}
-                                    savedRows={detail[section]}
-                                    totals={detail.totals[section]}
-                                    required={config.required_sections.includes(section)}
-                                    cap={config.row_caps[section]}
-                                    config={config}
-                                    errors={errors}
-                                    onChange={(rows) => setData(section, rows)}
-                                />
+                <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="space-y-6 pb-4">
+                    {fields.length > 0 && (
+                        <form onSubmit={submit} noValidate className="space-y-6">
+                            {REQUISITION_GROUPS.filter((g) => g.tab === active).map((group) => (
+                                <fieldset key={group.title} className="space-y-3">
+                                    <legend className="text-lg font-semibold">{group.title}</legend>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        {group.fields.filter(visible(config)).map(requisitionInput)}
+                                    </div>
+                                </fieldset>
                             ))}
 
-                            <section aria-labelledby="comments-heading" className="space-y-4">
-                                <h2 id="comments-heading" className="text-lg font-semibold">
-                                    Comments
-                                </h2>
-                                {requisitionInput(COMMENTS_FIELD)}
-                            </section>
+                            {active === 'stock' && (
+                                <p className="text-muted-foreground text-sm">
+                                    Stock on hand: <span className="text-foreground font-medium">{detail.requisition.derived.stock_on_hand ?? '—'}</span>
+                                    {' · '}Coverage (months):{' '}
+                                    <span className="text-foreground font-medium">{detail.requisition.derived.coverage_months ?? '—'}</span>
+                                    <span className="block text-xs">Updated when you save.</span>
+                                </p>
+                            )}
 
-                            <div className="flex items-center gap-4 border-t pt-4">
-                                <Button type="submit" disabled={processing}>
-                                    {processing ? 'Saving…' : 'Save draft'}
-                                </Button>
-                                <Link href={route('requests.show', detail.id)} className="text-sm underline">
-                                    Review and submit
-                                </Link>
-                            </div>
+                            {active === COMMENTS_TAB && requisitionInput(COMMENTS_FIELD)}
+
+                            {/* Enter in a field moves on, like Next. */}
+                            <button type="submit" hidden aria-hidden tabIndex={-1} />
                         </form>
+                    )}
 
-                        {/* Outside the draft form: uploads are separate requests. */}
-                        <SupportingDocuments caseId={detail.id} groups={documents} rules={config.uploads} />
-                    </div>
+                    {tab.sections.map((section) => (
+                        <RowList
+                            key={section}
+                            caseId={detail.id}
+                            section={section}
+                            def={SECTIONS[section]}
+                            rows={detail[section]}
+                            totals={detail.totals[section]}
+                            required={config.required_sections.includes(section)}
+                            cap={config.row_caps[section]}
+                            config={config}
+                        />
+                    ))}
 
-                    <aside className="space-y-4">
-                        <ReadinessPanel readiness={readiness} />
-                        <p className="text-muted-foreground text-xs">
-                            Stock on hand: {detail.requisition.derived.stock_on_hand ?? '—'} · Coverage (months):{' '}
-                            {detail.requisition.derived.coverage_months ?? '—'}
-                        </p>
-                    </aside>
+                    {active === 'documents' && <SupportingDocuments caseId={detail.id} groups={documents} rules={config.uploads} />}
                 </div>
+
+                <FormActions
+                    isFirst={index === 0}
+                    isLast={index === tabs.length - 1}
+                    dirty={isDirty}
+                    processing={processing}
+                    onBack={goBack}
+                    onSave={() => saveThen()}
+                    onNext={goNext}
+                />
             </div>
         </AppLayout>
     );

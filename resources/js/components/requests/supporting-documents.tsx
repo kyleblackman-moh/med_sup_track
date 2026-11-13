@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { type DocumentGroup, type RequestDocument, type UploadRules } from '@/types/requests';
 import { router, usePage } from '@inertiajs/react';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 
 interface Props {
     caseId: string;
@@ -64,18 +64,19 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false }:
             </div>
 
             {groups.map((group) => (
-                <DocumentCard key={group.purpose} caseId={caseId} group={group} readOnly={readOnly} />
+                <DocumentCard key={group.purpose} caseId={caseId} group={group} rules={rules} readOnly={readOnly} />
             ))}
         </section>
     );
 }
 
-function DocumentCard({ caseId, group, readOnly }: { caseId: string; group: DocumentGroup; readOnly: boolean }) {
+function DocumentCard({ caseId, group, rules, readOnly }: { caseId: string; group: DocumentGroup; rules?: UploadRules; readOnly: boolean }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [file, setFile] = useState<File | null>(null);
     const [replacing, setReplacing] = useState<RequestDocument | null>(null);
     const [progress, setProgress] = useState<number | null>(null);
     const [active, setActive] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
     const inputId = `upload-${group.purpose}`;
     const canUpload = !readOnly && (group.documents.length === 0 || group.documents.some((d) => d.can_replace));
 
@@ -95,6 +96,9 @@ function DocumentCard({ caseId, group, readOnly }: { caseId: string; group: Docu
                 onSuccess: () => {
                     setFile(null);
                     setReplacing(null);
+                    if (inputRef.current) {
+                        inputRef.current.value = ''; // so choosing the same file again fires onChange
+                    }
                 },
                 onFinish: () => setProgress(null),
             },
@@ -122,7 +126,7 @@ function DocumentCard({ caseId, group, readOnly }: { caseId: string; group: Docu
                             readOnly={readOnly}
                             onReplace={() => {
                                 setReplacing(doc);
-                                document.getElementById(inputId)?.focus();
+                                inputRef.current?.click();
                             }}
                         />
                     ))}
@@ -133,13 +137,22 @@ function DocumentCard({ caseId, group, readOnly }: { caseId: string; group: Docu
                 <form onSubmit={upload} className="mt-4 flex flex-wrap items-end gap-3">
                     <div className="grid gap-1.5">
                         <Label htmlFor={inputId}>{replacing ? `Replace ${replacing.display_name}` : 'Add a file'}</Label>
-                        <input
-                            id={inputId}
-                            type="file"
-                            className="text-sm"
-                            aria-describedby={active && errors.file ? `${inputId}-error` : undefined}
-                            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* The native input is visually hidden but stays focusable; the button opens it. */}
+                            <input
+                                ref={inputRef}
+                                id={inputId}
+                                type="file"
+                                className="sr-only"
+                                accept={rules?.extensions.map((ext) => `.${ext}`).join(',')}
+                                aria-describedby={active && errors.file ? `${inputId}-error` : undefined}
+                                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                            />
+                            <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+                                {file ? 'Change file' : 'Choose file'}
+                            </Button>
+                            <span className="text-muted-foreground text-sm break-all">{file ? file.name : 'No file chosen'}</span>
+                        </div>
                     </div>
                     <Button type="submit" size="sm" disabled={!file || progress !== null}>
                         {replacing ? 'Upload replacement' : 'Upload'}
