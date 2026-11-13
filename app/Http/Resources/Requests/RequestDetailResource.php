@@ -30,12 +30,24 @@ class RequestDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $case = $this->resource;
+        return [
+            ...RequestSummaryResource::fields($this->resource, $request->user()),
+            ...self::requisitionContent($this->resource),
+        ];
+    }
+
+    /**
+     * The vendor-entered content and its server-computed values: requisition,
+     * the four child sections and section totals. Shared with the staff case
+     * view (slice 9a) so both show the same figures. Vendor-supplied columns
+     * only; never technical_status or other staff-set columns.
+     */
+    public static function requisitionContent(ProcurementCase $case): array
+    {
         $requisition = $case->requisition;
         $percentages = $case->tenderAwardPercentages();
 
         return [
-            ...RequestSummaryResource::fields($case, $request->user()),
             'requisition' => [
                 ...self::values($requisition, array_keys(RequisitionRules::requisitionFields())),
                 'derived' => [
@@ -67,11 +79,11 @@ class RequestDetailResource extends JsonResource
             ])->values()->all(),
             'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries'))
                 ->values()->all(),
-            'totals' => $this->totals($case),
+            'totals' => self::totals($case),
         ];
     }
 
-    private function totals(ProcurementCase $case): array
+    private static function totals(ProcurementCase $case): array
     {
         $recommended = $case->quotations->filter(fn (CaseQuotation $q) => $q->is_recommended && $q->recommendedTotal() !== null);
         $withVat = $recommended->map(fn (CaseQuotation $q) => $q->recommendedTotalIncludingVat());

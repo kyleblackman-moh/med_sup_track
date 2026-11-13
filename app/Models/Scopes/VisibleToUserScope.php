@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +15,7 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * global scope and CasePolicy::view both use it.
  *
  * Fails closed: no user, or a vendor without an organisation, sees nothing.
+ * Staff (any non-vendor user) never see a DRAFT case.
  */
 class VisibleToUserScope implements Scope
 {
@@ -45,12 +47,16 @@ class VisibleToUserScope implements Scope
             return;
         }
 
-        // 3. Staff with case.view_all: everything.
+        // 3. Staff never see drafts, whatever they hold: a draft belongs to the
+        //    vendor until it is submitted. Applies to every branch below.
+        $query->where("{$table}.status", '<>', CaseStatus::DRAFT->value);
+
+        // 4. Staff with case.view_all: every non-draft case.
         if ($user->can(Permission::CaseViewAll->value)) {
             return;
         }
 
-        // 4. Other staff: cases they are assigned to.
+        // 5. Other staff: non-draft cases they are assigned to.
         $roles = $user->getRoleNames()->all();
 
         $query->whereIn("{$table}.id", function (QueryBuilder $sub) use ($user, $roles) {

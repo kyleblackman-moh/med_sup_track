@@ -3,8 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Models\ProcurementCase;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
 
 /**
@@ -68,6 +70,8 @@ class HandleInertiaRequests extends Middleware
             // Feature flags for navigation (show/hide only; routes authorise).
             'can' => [
                 'requests' => $user?->can(Permission::CaseSubmit->value) ?? false,
+                // Same policy as the /cases routes.
+                'cases' => $user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),

@@ -1,15 +1,13 @@
-import { COMMENTS_FIELD, REQUISITION_GROUPS, SECTIONS, displayValue } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { RequisitionView } from '@/components/requests/requisition-view';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type DocumentGroup, type Readiness, type RequestDetail, type Section } from '@/types/requests';
+import { type DocumentGroup, type Readiness, type RequestDetail } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
-
-const SECTION_ORDER: Section[] = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
 interface Props {
     case: RequestDetail;
@@ -55,80 +53,7 @@ export default function Show({ case: detail, documents, readiness, can }: Props)
 
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
-                {[...REQUISITION_GROUPS, { title: 'Comments', fields: [COMMENTS_FIELD] }].map((group) => {
-                    const fields = group.fields.filter((f) => !f.pharmOnly || detail.procurement_type.category === 'PHARM');
-
-                    return (
-                        <section key={group.title} className="space-y-2">
-                            <h2 className="text-lg font-semibold">{group.title}</h2>
-                            <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                                {fields.map((field) => (
-                                    <div key={field.name}>
-                                        <dt className="text-muted-foreground text-sm">{field.label}</dt>
-                                        <dd className="whitespace-pre-line">{displayValue(field, detail.requisition[field.name])}</dd>
-                                    </div>
-                                ))}
-                            </dl>
-                        </section>
-                    );
-                })}
-
-                <p className="text-sm">
-                    Stock on hand: {detail.requisition.derived.stock_on_hand ?? '—'} · Coverage (months):{' '}
-                    {detail.requisition.derived.coverage_months ?? '—'}
-                </p>
-
-                {SECTION_ORDER.filter((section) => detail[section].length > 0).map((section) => {
-                    const def = SECTIONS[section];
-
-                    return (
-                        <section key={section} className="space-y-2">
-                            <h2 className="text-lg font-semibold">{def.title}</h2>
-                            <div className="overflow-x-auto rounded-lg border">
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-muted/50">
-                                        <tr>
-                                            {def.columns.map((field) => (
-                                                <th key={field.name} scope="col" className="px-3 py-2 font-medium">
-                                                    {field.label}
-                                                </th>
-                                            ))}
-                                            {def.derived.map(([key, label]) => (
-                                                <th key={key} scope="col" className="px-3 py-2 font-medium">
-                                                    {label}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {detail[section].map((row) => (
-                                            <tr key={row.id} className="border-t">
-                                                {def.columns.map((field) => (
-                                                    <td key={field.name} className="px-3 py-2">
-                                                        {displayValue(field, row[field.name])}
-                                                    </td>
-                                                ))}
-                                                {def.derived.map(([key]) => (
-                                                    <td key={key} className="px-3 py-2 font-medium">
-                                                        {row.derived?.[key] ?? '—'}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                                {def.totals.map(([key, label]) => (
-                                    <div key={key} className="flex gap-1">
-                                        <dt className="text-muted-foreground">{label}:</dt>
-                                        <dd className="font-medium">{detail.totals[section][key] ?? '—'}</dd>
-                                    </div>
-                                ))}
-                            </dl>
-                        </section>
-                    );
-                })}
+                <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
 
                 <SupportingDocuments caseId={detail.id} groups={documents} readOnly />
             </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CaseStatus;
 use App\Enums\Role;
 use App\Enums\TechnicalStatus;
 use App\Models\CasePurchaseOrder;
@@ -32,6 +33,15 @@ const CHILD_MODELS = [
     CaseStockExpiry::class,
 ];
 
+/**
+ * A submitted case. These tests read as the CMO, and staff never see drafts
+ * (slice 9a), so the default DRAFT from makeCase() would be invisible.
+ */
+function submittedCase(): ProcurementCase
+{
+    return makeCase(['status' => CaseStatus::SUBMITTED]);
+}
+
 /** One row of every child type for $case, written through the relations. */
 function addChildren(ProcurementCase $case): void
 {
@@ -46,7 +56,7 @@ function addChildren(ProcurementCase $case): void
 
 it('loads every child back through the case, in the specified order', function () {
     $this->actingAs(caseUser(Role::Cmo));
-    $case = makeCase();
+    $case = submittedCase();
 
     $case->requisition()->create(['item_description' => 'Amoxicillin 500mg', 'vendor_reference' => 'REF-1']);
     $case->quotations()->create(['sort_order' => 3, 'supplier_name' => 'Q3', 'unit_price' => '1', 'quantity_offered' => '1']);
@@ -75,7 +85,7 @@ it('loads every child back through the case, in the specified order', function (
 
 it('keeps decimals as strings and casts enums and dates', function () {
     $this->actingAs(caseUser(Role::Cmo));
-    $case = makeCase();
+    $case = submittedCase();
     $case->quotations()->create(['supplier_name' => 'S', 'unit_price' => '0.754', 'quantity_offered' => '2000', 'vat_rate' => '12.5']);
 
     $quotation = $case->quotations()->firstOrFail();
@@ -153,7 +163,7 @@ it('multiplies tender award costs exactly', function () {
 
 it('computes each award as a share of the awarded quantity', function () {
     $this->actingAs(caseUser(Role::Cmo));
-    $case = makeCase();
+    $case = submittedCase();
     $a = $case->tenderAwards()->create(['supplier_name' => 'A', 'quantity_awarded' => '2800', 'unit_cost' => '1']);
     $b = $case->tenderAwards()->create(['supplier_name' => 'B', 'quantity_awarded' => '1200', 'unit_cost' => '1']);
     $c = $case->tenderAwards()->create(['supplier_name' => 'C', 'quantity_awarded' => '0', 'unit_cost' => '1']);
@@ -163,8 +173,8 @@ it('computes each award as a share of the awarded quantity', function () {
 
 it('returns no percentages when there are no awards or they sum to zero', function () {
     $this->actingAs(caseUser(Role::Cmo));
-    $none = makeCase();
-    $zero = makeCase();
+    $none = submittedCase();
+    $zero = submittedCase();
     $zero->tenderAwards()->create(['supplier_name' => 'A', 'quantity_awarded' => '0', 'unit_cost' => '1']);
 
     expect($none->tenderAwardPercentages())->toBe([])

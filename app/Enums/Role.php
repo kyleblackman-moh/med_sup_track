@@ -22,10 +22,26 @@ enum Role: string
     case SystemAdmin = 'system_admin';
     case Auditor = 'auditor';
 
+    /** Display label (for example the holder of a case). Display only, never for checks. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::VendorApplicant => 'Vendor',
+            self::CmoRegistry => 'CMO Registry',
+            self::Cmo => 'CMO',
+            self::Technocrat => 'Technocrat',
+            self::CabOfficer => 'Cost and Budgeting',
+            self::LegalOfficer => 'Legal Unit',
+            self::PsOffice => 'PS Office',
+            self::SystemAdmin => 'System Admin',
+            self::Auditor => 'Auditor',
+        };
+    }
+
     /**
      * The permissions granted to this role.
      *
-     * @return list<Permission>
+     * @return list<P>
      */
     public function permissions(): array
     {
@@ -72,6 +88,6 @@ enum Role: string
     /** @return list<string> */
     public function permissionNames(): array
     {
-        return array_map(fn (Permission $p) => $p->value, $this->permissions());
+        return array_map(fn (P $p) => $p->value, $this->permissions());
     }
 }

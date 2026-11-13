@@ -30,7 +30,7 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
-    can: { requests: boolean };
+    can: { requests: boolean; cases: boolean };
     flash: { success: string | null; error: string | null };
     [key: string]: unknown;
 }

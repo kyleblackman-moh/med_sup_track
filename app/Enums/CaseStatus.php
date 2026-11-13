@@ -24,6 +24,27 @@ enum CaseStatus: string
     case WITHDRAWN = 'WITHDRAWN';
     case REJECTED_FINAL = 'REJECTED_FINAL';
 
+    /** Internal (staff) label for every status. Draft wording, confirm with the CMO's office. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::DRAFT => 'Draft',
+            self::SUBMITTED => 'Submitted',
+            self::CMO_INTAKE => 'CMO intake',
+            self::IN_REVIEW => 'In review',
+            self::READY_FOR_FILE => 'Ready for file',
+            self::FILE_PREPARED => 'File prepared',
+            self::WITH_LEGAL => 'With Legal',
+            self::WITH_PS => 'With PS',
+            self::NON_OBJECTION_GRANTED => 'Non-objection granted',
+            self::LETTER_ISSUED => 'Letter issued',
+            self::CLOSED => 'Closed',
+            self::RETURNED_TO_CMO => 'Returned to CMO',
+            self::WITHDRAWN => 'Withdrawn',
+            self::REJECTED_FINAL => 'Rejected (final)',
+        };
+    }
+
     /**
      * What a vendor user sees. Internal stages collapse into "Under review", so
      * the raw status never reaches a vendor.

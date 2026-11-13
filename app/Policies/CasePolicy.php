@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Enums\UserType;
 use App\Models\CaseAssignment;
 use App\Models\ProcurementCase;
 use App\Models\Scopes\VisibleToUserScope;
@@ -30,6 +31,17 @@ class CasePolicy
         return $user->isVendor()
             || $user->can(Permission::CaseViewAll->value)
             || $user->can(Permission::CaseViewAssigned->value);
+    }
+
+    /**
+     * May use the staff case pages (slice 9a): a staff user (identity layer,
+     * user_type) holding case.view_all or case.view_assigned. Which cases they
+     * then see is still VisibleToUserScope's decision.
+     */
+    public function viewStaffCases(User $user): bool
+    {
+        return $user->user_type === UserType::Staff->value
+            && ($user->can(Permission::CaseViewAll->value) || $user->can(Permission::CaseViewAssigned->value));
     }
 
     public function view(User $user, ProcurementCase $case): bool

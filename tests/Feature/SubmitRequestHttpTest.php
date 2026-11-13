@@ -54,10 +54,14 @@ it('returns 404 to a vendor of another organisation', function () {
     expect(caseRow($case->id)->status)->toBe('DRAFT');
 });
 
-it('returns 403 to staff without case.submit, as on the other request routes', function (Role $role) {
+// Slice 9a: staff never see a DRAFT, so route model binding answers 404 before
+// the case.submit middleware runs; routes without a case still answer 403.
+it('refuses staff without case.submit: 404 on a draft, 403 on the request list', function (Role $role) {
     [$case] = readyDraft();
+    $staff = caseUser($role);
 
-    $this->actingAs(caseUser($role))->post("/requests/{$case->id}/submit")->assertForbidden();
+    $this->actingAs($staff)->post("/requests/{$case->id}/submit")->assertNotFound();
+    $this->actingAs($staff)->get('/requests')->assertForbidden();
 
     expect(caseRow($case->id)->status)->toBe('DRAFT');
 })->with([Role::Cmo, Role::PsOffice]);

@@ -3,7 +3,9 @@
 use App\Enums\Permission;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
+use App\Models\ProcurementCase;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -51,7 +53,20 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
             ->middleware('throttle:60,1')->name('documents.download');
     });
 
-// The short-lived signed link issued by documents.download.
+// Staff case pages (slice 9a), read-only. 403 without CasePolicy::viewStaffCases;
+// hidden and DRAFT cases are 404 through the global scope on route model binding.
+Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
+    ->prefix('cases')
+    ->name('cases.')
+    ->controller(StaffCaseController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{procurementCase}', 'show')->name('show');
+        Route::get('{procurementCase}/documents/{document}/download', 'download')
+            ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
+    });
+
+// The short-lived signed link issued by documents.download and cases.documents.download.
 Route::get('documents/{document}/file', [DocumentController::class, 'file'])
     ->middleware(['auth', 'signed'])->name('documents.file');
 

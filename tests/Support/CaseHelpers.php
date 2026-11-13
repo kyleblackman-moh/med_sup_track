@@ -160,9 +160,10 @@ function visibilityFixture(): array
     return ['x' => $x, 'y' => $y, 'actors' => $actors, 'cases' => $cases];
 }
 
+// F is a DRAFT: no staff user sees it, even with case.view_all (slice 9a).
 const EXPECTED_VISIBLE = [
-    'cmo' => ['A', 'B', 'C', 'D', 'E', 'F'],
-    'ps_office' => ['A', 'B', 'C', 'D', 'E', 'F'],
+    'cmo' => ['A', 'B', 'C', 'D', 'E'],
+    'ps_office' => ['A', 'B', 'C', 'D', 'E'],
     'vendor_x' => ['A', 'B', 'E'],
     'vendor_y' => ['C', 'D', 'F'],
     't1' => ['B', 'C', 'E'],

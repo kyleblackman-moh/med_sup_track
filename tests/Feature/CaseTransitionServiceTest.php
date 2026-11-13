@@ -145,6 +145,11 @@ function actorFor(TransitionRule $rule, ProcurementCase $case): User
     $roles = SpatieRole::with('permissions')->orderBy('name')->get()
         ->filter(fn ($r) => $r->permissions->contains('name', $rule->permission));
 
+    // Slice 9a: staff never see a DRAFT, so only the owning vendor can act on one.
+    if ($case->status === CaseStatus::DRAFT && $roles->contains('name', Role::VendorApplicant->value)) {
+        return vendorUser($case->organisation()->first());
+    }
+
     $viewAll = $roles->first(fn ($r) => $r->permissions->contains('name', PermissionName::CaseViewAll->value));
     if ($viewAll) {
         return caseUser($viewAll->name);
@@ -503,12 +508,21 @@ it('does not let a vendor of another org withdraw', function () {
     expectNothingWritten($case, 'DRAFT');
 });
 
-it('lets staff with case.withdraw withdraw from all three statuses', function (CaseStatus $from) {
+it('lets staff with case.withdraw withdraw SUBMITTED and IN_REVIEW cases', function (CaseStatus $from) {
     $case = makeCase(['status' => $from]);
 
     expect(service()->transition($case, CaseStatus::WITHDRAWN, caseUser(Role::Cmo), 'Withdrawn on request')->status)
         ->toBe(CaseStatus::WITHDRAWN);
-})->with([CaseStatus::DRAFT, CaseStatus::SUBMITTED, CaseStatus::IN_REVIEW]);
+})->with([CaseStatus::SUBMITTED, CaseStatus::IN_REVIEW]);
+
+// Slice 9a: staff never see a DRAFT, so they cannot withdraw one either.
+it('does not let staff withdraw a DRAFT', function () {
+    $case = makeCase(['status' => CaseStatus::DRAFT]);
+
+    expect(fn () => service()->transition($case, CaseStatus::WITHDRAWN, caseUser(Role::Cmo), 'Withdrawn on request'))
+        ->toThrow(AuthorizationException::class);
+    expectNothingWritten($case, 'DRAFT');
+});
 
 // 11. Track resets ------------------------------------------------------------------
 

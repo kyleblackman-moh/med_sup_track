@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FileText, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, FileText, Folder, FolderOpen, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -35,9 +35,16 @@ const requestsNavItem: NavItem = {
     icon: FileText,
 };
 
+// Shown only when the server shares can.cases (staff case pages; display only).
+const casesNavItem: NavItem = {
+    title: 'Cases',
+    url: '/cases',
+    icon: FolderOpen,
+};
+
 export function AppSidebar() {
     const { can } = usePage<SharedData>().props;
-    const navItems = can?.requests ? [...mainNavItems, requestsNavItem] : mainNavItems;
+    const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
 
     return (
         <Sidebar collapsible="icon" variant="inset">
