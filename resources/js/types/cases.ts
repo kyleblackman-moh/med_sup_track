@@ -58,6 +58,8 @@ export interface StaffCaseAbilities {
     intake: boolean;
     record_hardcopy: boolean;
     forward_for_review: boolean;
+    record_review: boolean;
+    mark_ready_for_file: boolean;
 }
 
 export interface ReviewerOption {
@@ -71,12 +73,38 @@ export interface EligibleReviewers {
     cab_officers: ReviewerOption[];
 }
 
-export interface ReviewProgressRow {
+export interface GateReviewer {
+    name: string | null;
+    /** Latest outcome label, or null while pending. */
+    outcome: string | null;
+    recorded_at: string | null;
+    /** Only for a negative outcome (staff only). */
+    reason: string | null;
+}
+
+export interface GateRow {
     key: 'technical' | 'funding' | 'hardcopy';
     label: string;
+    done: boolean;
     state: string;
-    reviewers: string[];
+    reviewers: GateReviewer[];
     received_on: string | null;
+    recorded_by: string | null;
+    recorded_at: string | null;
+}
+
+/** Gate tracker (slice 10b). All states come from the server. */
+export interface GateState {
+    rows: GateRow[];
+    open: boolean;
+    missing: string[];
+}
+
+export interface ReviewForm {
+    track: 'technical' | 'funding';
+    label: string;
+    outcomes: { value: string; label: string; positive: boolean }[];
+    current: { outcome: string; label: string; reason: string | null; recorded_at: string | null } | null;
 }
 
 export interface StaffDocument {

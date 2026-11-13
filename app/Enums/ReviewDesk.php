@@ -61,6 +61,31 @@ enum ReviewDesk: string
         };
     }
 
+    /** The outcomes a reviewer at this desk may record: [positive, negative]. */
+    public function outcomes(): array
+    {
+        return match ($this) {
+            self::Technical => [ReviewOutcome::Favourable, ReviewOutcome::NotFavourable],
+            self::Funding => [ReviewOutcome::Confirmed, ReviewOutcome::NotConfirmed],
+        };
+    }
+
+    public function positiveTrack(): TrackStatus
+    {
+        return $this === self::Technical ? TrackStatus::FAVOURABLE : TrackStatus::CONFIRMED;
+    }
+
+    public function negativeTrack(): TrackStatus
+    {
+        return $this === self::Technical ? TrackStatus::NOT_FAVOURABLE : TrackStatus::NOT_CONFIRMED;
+    }
+
+    /** Audit action for a recorded outcome at this desk. */
+    public function auditAction(): AuditAction
+    {
+        return $this === self::Technical ? AuditAction::CaseTechnicalReviewRecorded : AuditAction::CaseFundingRecorded;
+    }
+
     /** Plural noun for messages, for example "Choose 1 to 3 technocrats." */
     public function people(): string
     {

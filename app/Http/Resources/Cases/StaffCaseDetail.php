@@ -16,8 +16,11 @@ use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
+use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\EligibleReviewers;
+use App\Workflow\TrackCalculator;
+use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -42,6 +45,7 @@ final class StaffCaseDetail
 
         $canForward = $case->status === CaseStatus::CMO_INTAKE
             && Gate::forUser($user)->allows('act', [$case, Permission::CaseRouteToReview->value]);
+        $reviewForms = self::reviewForms($case, $user);
 
         return [
             'case' => [
@@ -59,7 +63,9 @@ final class StaffCaseDetail
             'documents' => self::documents($case, $user),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
-            'review_progress' => self::reviewProgress($case),
+            'gate' => self::gate($case),
+            // Slice 10b: the outcome forms this user may use (empty for everyone else).
+            'review_forms' => $reviewForms,
             // Slice 10a: eligible reviewers, only for a user who may send this case for review.
             'reviewers' => $canForward ? [
                 ReviewDesk::Technical->field() => app(EligibleReviewers::class)->for(ReviewDesk::Technical),
@@ -78,53 +84,111 @@ final class StaffCaseDetail
                     && Gate::forUser($user)->allows('act', [$case, Permission::HardcopyConfirm->value]),
                 // Slice 10a: the same check ForwardForReview runs.
                 'forward_for_review' => $canForward,
+                // Slice 10b: the same checks RecordReviewOutcome and MarkReadyForFile run.
+                'record_review' => $reviewForms !== [],
+                'mark_ready_for_file' => $case->status === CaseStatus::IN_REVIEW
+                    && Gate::forUser($user)->allows('act', [$case, Permission::FilePrepare->value]),
             ],
         ];
     }
 
     /**
-     * Three plain rows once the case has been sent for review (a track is set):
-     * technical and funding with their reviewers, and the hardcopy date.
-     * Null before review. No deadlines, no lateness.
+     * The gate tracker (slice 10b; was the 10a Review progress panel). Null
+     * before the case is sent for review. Three rows: technical and funding with
+     * each assigned reviewer's latest outcome (the reason of a negative outcome
+     * is included: this DTO is staff-only), and hardcopy. `open` and `missing`
+     * come from TransitionRules::gateMissing, the same check the T4 guard runs.
+     * No deadlines, no lateness.
      */
-    private static function reviewProgress(ProcurementCase $case): ?array
+    private static function gate(ProcurementCase $case): ?array
     {
         if ($case->technical_track === null && $case->funding_track === null) {
             return null;
         }
 
-        $reviewers = CaseAssignment::query()
-            ->where('case_id', $case->getKey())
-            ->whereIn('purpose', array_map(fn (ReviewDesk $d) => $d->value, ReviewDesk::cases()))
-            ->whereNotNull('user_id')
-            ->whereNull('cancelled_at')
-            ->with('user:id,name')
-            ->orderBy('id')
-            ->get()
-            ->groupBy('purpose')
-            ->map(fn ($rows) => $rows->map(fn (CaseAssignment $a) => $a->user?->name)->filter()->unique()->sort()->values()->all());
-
-        $rows = array_map(function (ReviewDesk $desk) use ($case, $reviewers) {
+        $rows = array_map(function (ReviewDesk $desk) use ($case) {
             $track = $case->{$desk->track()};
 
             return [
                 'key' => $desk->value,
                 'label' => $desk->label(),
+                'done' => $track === $desk->positiveTrack(),
                 'state' => $track instanceof TrackStatus ? $track->label() : 'Not started',
-                'reviewers' => $reviewers[$desk->value] ?? [],
+                'reviewers' => TrackCalculator::reviewers($case, $desk)->map(fn (array $r) => [
+                    'name' => $r['assignment']->user?->name,
+                    'outcome' => $r['latest']?->outcome->label(),
+                    'recorded_at' => $r['latest']?->created_at?->copy()->utc()->toIso8601ZuluString(),
+                    'reason' => $r['latest'] !== null && ! $r['latest']->outcome->isPositive() ? $r['latest']->reason : null,
+                ])->values()->all(),
                 'received_on' => null,
+                'recorded_by' => null,
+                'recorded_at' => null,
             ];
         }, ReviewDesk::cases());
 
+        $hardcopy = self::hardcopy($case);
         $rows[] = [
             'key' => 'hardcopy',
             'label' => 'Hardcopy received',
-            'state' => $case->hardcopy_received_on === null ? 'Not received' : 'Received',
+            'done' => $case->hardcopy_received_at !== null,
+            'state' => $hardcopy === null ? 'Not received' : 'Received',
             'reviewers' => [],
-            'received_on' => $case->hardcopy_received_on?->toDateString(),
+            'received_on' => $hardcopy['received_on'] ?? null,
+            'recorded_by' => $hardcopy['recorded_by'] ?? null,
+            'recorded_at' => $hardcopy['recorded_at'] ?? null,
         ];
 
-        return $rows;
+        $inReview = $case->status === CaseStatus::IN_REVIEW;
+        $missing = TransitionRules::gateMissing($case);
+
+        return [
+            'rows' => $rows,
+            'open' => $inReview && $missing === [],
+            'missing' => $inReview ? MarkReadyForFile::messages($missing) : [],
+        ];
+    }
+
+    /**
+     * The outcome forms this user may use: one per desk where they hold the
+     * permission (CasePolicy::act) AND an active assignment, while IN_REVIEW.
+     * The same checks RecordReviewOutcome runs. Includes their current outcome.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function reviewForms(ProcurementCase $case, User $user): array
+    {
+        if ($case->status !== CaseStatus::IN_REVIEW) {
+            return [];
+        }
+
+        $forms = [];
+        foreach (ReviewDesk::cases() as $desk) {
+            $reviewers = TrackCalculator::reviewers($case, $desk);
+            if (! $reviewers->has((int) $user->getKey())
+                || ! Gate::forUser($user)->allows('act', [$case, $desk->permission()->value])) {
+                continue;
+            }
+
+            $latest = $reviewers[(int) $user->getKey()]['latest'];
+            [$positive, $negative] = $desk->outcomes();
+
+            $forms[] = [
+                'track' => $desk->value,
+                'label' => $desk->label(),
+                'outcomes' => [
+                    ['value' => $positive->value, 'label' => $positive->label(), 'positive' => true],
+                    ['value' => $negative->value, 'label' => $negative->label(), 'positive' => false],
+                ],
+                'current' => $latest === null ? null : [
+                    'outcome' => $latest->outcome->value,
+                    'label' => $latest->outcome->label(),
+                    'reason' => $latest->reason,
+                    'recorded_at' => $latest->created_at?->copy()->utc()->toIso8601ZuluString(),
+                ],
+            ];
+        }
+
+        return $forms;
     }
 
     /** Received date, who recorded it and when; null when not received. */

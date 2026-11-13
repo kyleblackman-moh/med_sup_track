@@ -127,8 +127,14 @@ final class TransitionRules
         }
     }
 
-    /** T4: technical favourable, funding confirmed and hardcopy received. */
-    private static function gateGuard(ProcurementCase $case, User $actor): void
+    /**
+     * The T4 gate conditions not yet met: 'technical', 'funding', 'hardcopy'.
+     * The one definition of the gate: the guard below and the case view's gate
+     * tracker (slice 10b) both use it.
+     *
+     * @return list<string>
+     */
+    public static function gateMissing(ProcurementCase $case): array
     {
         $missing = [];
 
@@ -141,6 +147,14 @@ final class TransitionRules
         if ($case->hardcopy_received_at === null) {
             $missing[] = 'hardcopy';
         }
+
+        return $missing;
+    }
+
+    /** T4: technical favourable, funding confirmed and hardcopy received. */
+    private static function gateGuard(ProcurementCase $case, User $actor): void
+    {
+        $missing = self::gateMissing($case);
 
         if ($missing !== []) {
             throw new GateNotPassed($missing);

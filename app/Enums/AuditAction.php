@@ -25,6 +25,8 @@ enum AuditAction: string
     case CaseHardcopyReceived = 'case.hardcopy_received';
     case CaseHardcopyReversed = 'case.hardcopy_reversed';
     case CaseForwardedForReview = 'case.forwarded_for_review';
+    case CaseTechnicalReviewRecorded = 'case.technical_review_recorded';
+    case CaseFundingRecorded = 'case.funding_recorded';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

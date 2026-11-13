@@ -411,7 +411,7 @@ it('gives the reviewer lists and the can flag only to a user who may send the ca
     expect($cmoProps['can']['forward_for_review'])->toBeTrue()
         ->and(array_keys($cmoProps['reviewers']))->toBe(['technocrats', 'cab_officers'])
         ->and(array_column($cmoProps['reviewers']['technocrats'], 'id'))->toContain($tech->id)
-        ->and($cmoProps['review_progress'])->toBeNull()
+        ->and($cmoProps['gate'])->toBeNull()
         ->and($registryProps['can']['forward_for_review'])->toBeFalse()
         ->and($registryProps['reviewers'])->toBeNull()
         ->and($psProps['can']['forward_for_review'])->toBeFalse()
@@ -432,21 +432,26 @@ it('shows review progress after the case is sent', function () {
 
     $props = pageProps($this->actingAs($tech)->get(route('cases.show', $case))->assertOk());
 
+    // Slice 10b turned review_progress into the gate tracker (gate.rows).
+    $pending = fn (User $u) => ['name' => $u->name, 'outcome' => null, 'recorded_at' => null, 'reason' => null];
+    $none = ['received_on' => null, 'recorded_by' => null, 'recorded_at' => null];
+
     expect($props['can']['forward_for_review'])->toBeFalse()
         ->and($props['reviewers'])->toBeNull()
-        ->and($props['review_progress'])->toBe([
-            ['key' => 'technical', 'label' => 'Technical review', 'state' => 'Pending', 'reviewers' => [$tech->name], 'received_on' => null],
-            ['key' => 'funding', 'label' => 'Funding confirmation', 'state' => 'Pending', 'reviewers' => [$cab->name], 'received_on' => null],
-            ['key' => 'hardcopy', 'label' => 'Hardcopy received', 'state' => 'Not received', 'reviewers' => [], 'received_on' => null],
+        ->and($props['gate']['rows'])->toBe([
+            ['key' => 'technical', 'label' => 'Technical review', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($tech)], ...$none],
+            ['key' => 'funding', 'label' => 'Funding confirmation', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($cab)], ...$none],
+            ['key' => 'hardcopy', 'label' => 'Hardcopy received', 'done' => false, 'state' => 'Not received', 'reviewers' => [], ...$none],
         ]);
 
     $this->actingAs($cmo)->post(route('cases.hardcopy.store', $case), ['received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString()])
         ->assertSessionHasNoErrors();
     $props = pageProps($this->actingAs($cmo)->get(route('cases.show', $case))->assertOk());
 
-    expect($props['review_progress'][2])->toBe([
-        'key' => 'hardcopy', 'label' => 'Hardcopy received', 'state' => 'Received', 'reviewers' => [],
+    expect($props['gate']['rows'][2])->toMatchArray([
+        'key' => 'hardcopy', 'label' => 'Hardcopy received', 'done' => true, 'state' => 'Received', 'reviewers' => [],
         'received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString(),
+        'recorded_by' => $cmo->name,
     ]);
 });
 
@@ -462,7 +467,7 @@ it('shows the vendor no reviewer names and no instruction', function () {
     $scan = scanProps(collect($props)->except(['auth'])->all());
 
     expectVendorSafe($props);
-    foreach (['reviewers', 'review_progress', 'assignments', 'timeline', 'reason', 'instruction'] as $key) {
+    foreach (['reviewers', 'review_progress', 'gate', 'review_forms', 'assignments', 'timeline', 'reason', 'instruction'] as $key) {
         expect($scan['keys'])->not->toContain($key);
     }
     foreach ($scan['strings'] as $string) {

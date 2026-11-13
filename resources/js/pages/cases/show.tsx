@@ -1,5 +1,6 @@
-import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
+import { CaseActions, hardcopyText } from '@/components/cases/case-actions';
 import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
+import { GateTracker } from '@/components/cases/gate-tracker';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
@@ -9,8 +10,9 @@ import { type BreadcrumbItem } from '@/types';
 import {
     type AssignmentEntry,
     type EligibleReviewers,
+    type GateState,
     type HardcopyRecord,
-    type ReviewProgressRow,
+    type ReviewForm,
     type StaffCaseAbilities,
     type StaffCaseDetail,
     type StaffDocument,
@@ -26,7 +28,8 @@ interface Props {
     documents: StaffDocument[];
     timeline: TimelineEntry[];
     assignments: AssignmentEntry[];
-    review_progress: ReviewProgressRow[] | null;
+    gate: GateState | null;
+    review_forms: ReviewForm[];
     reviewers: EligibleReviewers | null;
     can: StaffCaseAbilities;
 }
@@ -89,7 +92,8 @@ export default function CaseShow({
     documents,
     timeline,
     assignments,
-    review_progress,
+    gate,
+    review_forms,
     reviewers,
     can,
 }: Props) {
@@ -149,26 +153,8 @@ export default function CaseShow({
                                 </dl>
                             </Card>
 
-                            <Card title="Review progress" id="review-progress-heading">
-                                {review_progress ? (
-                                    <dl className="divide-y text-sm">
-                                        {review_progress.map((row) => (
-                                            <div key={row.key} className="grid gap-1 py-2 sm:grid-cols-3">
-                                                <dt className="font-medium">{row.label}</dt>
-                                                <dd>{row.received_on ? `Received on ${formatDay(row.received_on)}` : row.state}</dd>
-                                                <dd className="text-muted-foreground">
-                                                    {row.key === 'hardcopy'
-                                                        ? ''
-                                                        : row.reviewers.length > 0
-                                                          ? row.reviewers.join(', ')
-                                                          : 'No reviewer assigned'}
-                                                </dd>
-                                            </div>
-                                        ))}
-                                    </dl>
-                                ) : (
-                                    <p className="text-muted-foreground text-sm">Not yet sent for review.</p>
-                                )}
+                            <Card title="Gate" id="gate-heading">
+                                <GateTracker gate={gate} />
                             </Card>
                         </>
                     )}
@@ -284,6 +270,8 @@ export default function CaseShow({
                             dates={hardcopy_dates}
                             can={can}
                             reviewers={reviewers}
+                            gate={gate}
+                            reviewForms={review_forms}
                         />
                     )}
                 </div>

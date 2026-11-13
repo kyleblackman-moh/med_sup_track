@@ -328,6 +328,8 @@ it('shows the header, requisition, holder and assignments', function () {
     expect(pageProps($response)['can'])->toBe([
         'requests' => false, 'cases' => true, 'download_documents' => true, 'intake' => true, 'record_hardcopy' => true,
         'forward_for_review' => false,
+        // Slice 10b: false on a SUBMITTED case.
+        'record_review' => false, 'mark_ready_for_file' => false,
     ])
         ->and($props['case']['reference_no'])->toBe($case->reference_no)
         ->and($props['case']['holder_label'])->toBe('CMO')
