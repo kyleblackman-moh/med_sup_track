@@ -51,6 +51,19 @@ export default function Show({ case: detail, documents, readiness, can }: Props)
 
                 <FlashMessages />
 
+                {detail.reference_no && (
+                    <p className="bg-card rounded-md border px-4 py-2 text-sm">
+                        {detail.hardcopy_received_on
+                            ? `Hardcopy received on ${new Date(`${detail.hardcopy_received_on}T12:00:00Z`).toLocaleDateString('en-TT', {
+                                  timeZone: 'UTC',
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                              })}`
+                            : 'Hardcopy not yet received'}
+                    </p>
+                )}
+
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
                 <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />

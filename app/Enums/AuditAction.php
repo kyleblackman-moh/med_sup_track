@@ -20,6 +20,10 @@ enum AuditAction: string
     case CaseDraftSaved = 'case.draft_saved';
     case CaseReferenceAssigned = 'case.reference_assigned';
     case CaseAssignedToPool = 'case.assigned_to_pool';
+    case CaseAssignmentCompleted = 'case.assignment_completed';
+    case CaseAssignmentCreated = 'case.assignment_created';
+    case CaseHardcopyReceived = 'case.hardcopy_received';
+    case CaseHardcopyReversed = 'case.hardcopy_reversed';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

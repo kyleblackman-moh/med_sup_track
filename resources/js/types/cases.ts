@@ -45,6 +45,20 @@ export interface CaseListOptions {
 
 export type StaffCaseDetail = StaffCaseSummary & RequisitionContent & { category: 'PHARM' | 'NON_PHARM' | null };
 
+export interface HardcopyRecord {
+    received_on: string;
+    recorded_by: string | null;
+    recorded_at: string | null;
+}
+
+export interface StaffCaseAbilities {
+    requests: boolean;
+    cases: boolean;
+    download_documents: boolean;
+    intake: boolean;
+    record_hardcopy: boolean;
+}
+
 export interface StaffDocument {
     id: string;
     display_name: string;

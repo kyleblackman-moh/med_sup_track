@@ -31,7 +31,7 @@ export interface SharedData {
     quote: { message: string; author: string };
     auth: Auth;
     can: { requests: boolean; cases: boolean };
-    flash: { success: string | null; error: string | null };
+    flash: { success: string | null; error: string | null; info: string | null };
     [key: string]: unknown;
 }
 

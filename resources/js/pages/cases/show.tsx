@@ -1,17 +1,28 @@
+import { CaseActions, hardcopyText } from '@/components/cases/case-actions';
+import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AssignmentEntry, type StaffCaseDetail, type StaffDocument, type TimelineEntry } from '@/types/cases';
+import {
+    type AssignmentEntry,
+    type HardcopyRecord,
+    type StaffCaseAbilities,
+    type StaffCaseDetail,
+    type StaffDocument,
+    type TimelineEntry,
+} from '@/types/cases';
 import { Head } from '@inertiajs/react';
 import { type ReactNode } from 'react';
 
 interface Props {
     case: StaffCaseDetail;
+    hardcopy: HardcopyRecord | null;
+    hardcopy_dates: { today: string; earliest: string | null };
     documents: StaffDocument[];
     timeline: TimelineEntry[];
     assignments: AssignmentEntry[];
-    can: { requests: boolean; cases: boolean; download_documents: boolean };
+    can: StaffCaseAbilities;
 }
 
 const TZ = 'America/Port_of_Spain';
@@ -35,8 +46,8 @@ function Card({ title, id, children }: { title: string; id: string; children: Re
     );
 }
 
-/** Read-only staff view of one case (slice 9a). Nothing on this page changes the case. */
-export default function CaseShow({ case: detail, documents, timeline, assignments, can }: Props) {
+/** Staff view of one case (slice 9a), with the slice 9b actions card. */
+export default function CaseShow({ case: detail, hardcopy, hardcopy_dates, documents, timeline, assignments, can }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Cases', href: route('cases.index') },
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
@@ -53,12 +64,13 @@ export default function CaseShow({ case: detail, documents, timeline, assignment
                         <Badge variant="outline">{detail.status_label}</Badge>
                     </div>
                     <p className="text-muted-foreground">{detail.item_description ?? 'No item description'}</p>
-                    <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
                         {[
                             ['Organisation', detail.organisation ?? '—'],
                             ['Procurement type', detail.procurement_type ?? '—'],
                             ['Current holder', detail.holder_label ?? '—'],
                             ['Submitted', formatDate(detail.submitted_at)],
+                            ['Hardcopy', hardcopyText(hardcopy)],
                         ].map(([label, value]) => (
                             <div key={label}>
                                 <dt className="text-muted-foreground">{label}</dt>
@@ -67,6 +79,10 @@ export default function CaseShow({ case: detail, documents, timeline, assignment
                         ))}
                     </dl>
                 </header>
+
+                <FlashMessages />
+
+                <CaseActions caseId={detail.id} reference={detail.reference_no} hardcopy={hardcopy} dates={hardcopy_dates} can={can} />
 
                 <div className="space-y-6">
                     <RequisitionView content={detail} isPharm={detail.category === 'PHARM'} />

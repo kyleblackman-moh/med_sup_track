@@ -3,6 +3,7 @@
 use App\Enums\Permission;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
@@ -64,6 +65,13 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
+
+        // Slice 9b actions. 20 a minute per user.
+        Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {
+            Route::post('{procurementCase}/intake', 'intake')->name('intake');
+            Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
+            Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
+        });
     });
 
 // The short-lived signed link issued by documents.download and cases.documents.download.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Cases;
 
+use App\Enums\CaseStatus;
 use App\Enums\DocumentVisibility;
 use App\Enums\Permission;
 use App\Enums\Role;
@@ -13,6 +14,8 @@ use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
+use App\Workflow\Actions\RecordHardcopy;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -41,6 +44,12 @@ final class StaffCaseDetail
                 'category' => $case->procurementType?->category->value,
                 ...RequestDetailResource::requisitionContent($case),
             ],
+            'hardcopy' => self::hardcopy($case),
+            // Bounds for the date input; the server re-checks both.
+            'hardcopy_dates' => [
+                'today' => CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString(),
+                'earliest' => $case->submitted_at?->copy()->setTimezone(RecordHardcopy::TIMEZONE)->toDateString(),
+            ],
             'documents' => self::documents($case, $user),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
@@ -50,7 +59,26 @@ final class StaffCaseDetail
                 'requests' => $user->can(Permission::CaseSubmit->value),
                 'cases' => Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class),
                 'download_documents' => $user->can(Permission::DocumentDownload->value),
+                // Slice 9b actions: the same policy checks the services run.
+                'intake' => $case->status === CaseStatus::SUBMITTED
+                    && Gate::forUser($user)->allows('act', [$case, Permission::CaseIntake->value]),
+                'record_hardcopy' => in_array($case->status, RecordHardcopy::STATUSES, true)
+                    && Gate::forUser($user)->allows('act', [$case, Permission::HardcopyConfirm->value]),
             ],
+        ];
+    }
+
+    /** Received date, who recorded it and when; null when not received. */
+    private static function hardcopy(ProcurementCase $case): ?array
+    {
+        if ($case->hardcopy_received_on === null) {
+            return null;
+        }
+
+        return [
+            'received_on' => $case->hardcopy_received_on->toDateString(),
+            'recorded_by' => User::query()->whereKey($case->hardcopy_received_by)->value('name'),
+            'recorded_at' => $case->hardcopy_received_at?->copy()->utc()->toIso8601ZuluString(),
         ];
     }
 

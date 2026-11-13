@@ -1,7 +1,7 @@
 import { type Flash } from '@/types/requests';
 import { usePage } from '@inertiajs/react';
 
-/** Success / error messages flashed by the server, announced politely. */
+/** Success / info / error messages flashed by the server, announced politely. */
 export function FlashMessages() {
     const { flash } = usePage<{ flash: Flash }>().props;
 
@@ -12,6 +12,7 @@ export function FlashMessages() {
                     {flash.success}
                 </p>
             )}
+            {flash?.info && <p className="bg-muted text-foreground rounded-md border px-4 py-2 text-sm">{flash.info}</p>}
             {flash?.error && (
                 <p className="rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
                     {flash.error}

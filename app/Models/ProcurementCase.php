@@ -85,6 +85,7 @@ class ProcurementCase extends Model
             'technical_track' => TrackStatus::class,
             'funding_track' => TrackStatus::class,
             'hardcopy_received_at' => 'datetime',
+            'hardcopy_received_on' => 'date',
             'technical_completed_at' => 'datetime',
             'funding_completed_at' => 'datetime',
             'submitted_at' => 'datetime',

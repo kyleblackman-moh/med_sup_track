@@ -34,6 +34,8 @@ export interface RequestDetail extends RequestSummary {
     purchase_orders: Row[];
     stock_expiries: Row[];
     totals: Record<Section, Record<string, string | null>>;
+    /** Calendar date (Y-m-d) the Ministry received the hardcopy, or null. */
+    hardcopy_received_on: string | null;
 }
 
 export interface ReadinessItem {
@@ -84,4 +86,5 @@ export interface UploadRules {
 export interface Flash {
     success: string | null;
     error: string | null;
+    info: string | null;
 }

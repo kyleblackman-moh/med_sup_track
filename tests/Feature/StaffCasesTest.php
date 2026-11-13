@@ -323,7 +323,10 @@ it('shows the header, requisition, holder and assignments', function () {
     $response = $this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case))->assertOk();
     $props = ownProps($response);
 
-    expect(pageProps($response)['can'])->toBe(['requests' => false, 'cases' => true, 'download_documents' => true])
+    // Slice 9b added intake and record_hardcopy (true for the cmo on a SUBMITTED case).
+    expect(pageProps($response)['can'])->toBe([
+        'requests' => false, 'cases' => true, 'download_documents' => true, 'intake' => true, 'record_hardcopy' => true,
+    ])
         ->and($props['case']['reference_no'])->toBe($case->reference_no)
         ->and($props['case']['holder_label'])->toBe('CMO')
         ->and($props['case']['requisition']['item_description'])->toBe('Item for '.$case->reference_no)
