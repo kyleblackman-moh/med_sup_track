@@ -1,5 +1,5 @@
 import { type RequestDetail, type Section } from '@/types/requests';
-import { COMMENTS_FIELD, REQUISITION_GROUPS, SECTIONS, displayValue } from './fields';
+import { COMMENTS_FIELD, COMMENTS_TAB, displayValue, REQUISITION_GROUPS, SECTION_TAB, SECTIONS, type TabId } from './fields';
 
 const SECTION_ORDER: Section[] = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
@@ -10,10 +10,17 @@ export type RequisitionContent = Pick<RequestDetail, 'requisition' | 'totals' | 
  * Every derived value and total comes from the server. Shared by the vendor
  * request view and the staff case view.
  */
-export function RequisitionView({ content, isPharm }: { content: RequisitionContent; isPharm: boolean }) {
+export function RequisitionView({ content, isPharm, tab }: { content: RequisitionContent; isPharm: boolean; tab?: TabId }) {
+    // With a tab, only that tab's groups and sections (the vendor form's split); without, everything.
+    const groups = [...REQUISITION_GROUPS, { title: 'Comments', fields: [COMMENTS_FIELD], tab: COMMENTS_TAB }].filter(
+        (group) => tab === undefined || group.tab === tab,
+    );
+    const sections = SECTION_ORDER.filter((section) => (tab === undefined ? content[section].length > 0 : SECTION_TAB[section] === tab));
+    const showStock = tab === undefined || tab === 'stock';
+
     return (
         <>
-            {[...REQUISITION_GROUPS, { title: 'Comments', fields: [COMMENTS_FIELD] }].map((group) => {
+            {groups.map((group) => {
                 const fields = group.fields.filter((f) => !f.pharmOnly || isPharm);
 
                 return (
@@ -31,13 +38,24 @@ export function RequisitionView({ content, isPharm }: { content: RequisitionCont
                 );
             })}
 
-            <p className="text-sm">
-                Stock on hand: {content.requisition.derived.stock_on_hand ?? '—'} · Coverage (months):{' '}
-                {content.requisition.derived.coverage_months ?? '—'}
-            </p>
+            {showStock && (
+                <p className="text-sm">
+                    Stock on hand: {content.requisition.derived.stock_on_hand ?? '—'} · Coverage (months):{' '}
+                    {content.requisition.derived.coverage_months ?? '—'}
+                </p>
+            )}
 
-            {SECTION_ORDER.filter((section) => content[section].length > 0).map((section) => {
+            {sections.map((section) => {
                 const def = SECTIONS[section];
+
+                if (content[section].length === 0) {
+                    return (
+                        <section key={section} className="space-y-2">
+                            <h2 className="text-lg font-semibold">{def.title}</h2>
+                            <p className="text-muted-foreground text-sm">None recorded.</p>
+                        </section>
+                    );
+                }
 
                 return (
                     <section key={section} className="space-y-2">

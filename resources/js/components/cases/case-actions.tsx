@@ -102,8 +102,6 @@ export function CaseActions({ caseId, reference, hardcopy, dates, can, reviewers
                 </div>
             )}
 
-            {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}
-
             {can.record_hardcopy && (
                 <div className="space-y-3 border-t pt-4">
                     <h3 className="font-medium">Hardcopy</h3>
@@ -193,6 +191,9 @@ export function CaseActions({ caseId, reference, hardcopy, dates, can, reviewers
                     )}
                 </div>
             )}
+
+            {/* Last on purpose: send for review is the final step at intake. */}
+            {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}
         </section>
     );
 }
