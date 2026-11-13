@@ -16,11 +16,7 @@ const sidebarNavItems: NavItem[] = [
         url: '/settings/password',
         icon: null,
     },
-    {
-        title: 'Appearance',
-        url: '/settings/appearance',
-        icon: null,
-    },
+    // Appearance is hidden: light only for launch (design.md section 1).
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

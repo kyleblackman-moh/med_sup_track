@@ -123,7 +123,7 @@ export default function CasesIndex({ cases, filters, options }: Props) {
                                 {cases.data.map((c) => (
                                     <tr key={c.id} className="hover:bg-muted/30 border-t">
                                         <td className="px-3 py-2 font-medium whitespace-nowrap">
-                                            <Link href={route('cases.show', c.id)} className="underline underline-offset-2">
+                                            <Link href={route('cases.show', c.id)} className="font-mono text-xs underline underline-offset-2">
                                                 {c.reference_no ?? '—'}
                                             </Link>
                                         </td>

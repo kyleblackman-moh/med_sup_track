@@ -117,7 +117,8 @@ export default function CaseShow({
             <div className="mx-auto w-full max-w-6xl space-y-4 p-4">
                 <header className="space-y-1">
                     <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-2xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
+                        {/* The reference is the page title here: mono, but kept at heading size. */}
+                        <h1 className="font-mono text-2xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
                         <Badge variant="outline">{detail.status_label}</Badge>
                     </div>
                     <p className="text-muted-foreground">{detail.item_description ?? 'No item description'}</p>

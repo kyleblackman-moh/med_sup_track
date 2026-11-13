@@ -1,3 +1,6 @@
+// Self-hosted fonts (design.md section 4): bundled by Vite, no font CDN.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/jetbrains-mono';
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
@@ -25,5 +28,5 @@ createInertiaApp({
     },
 });
 
-// This will set light / dark mode on load...
+// Light only: makes sure the .dark class is never present.
 initializeTheme();

@@ -31,7 +31,8 @@ export default function Show({ case: detail, documents, readiness, can }: Props)
                     <div>
                         <h1 className="text-2xl font-semibold">{detail.item_description ?? 'Request'}</h1>
                         <p className="text-muted-foreground text-sm">
-                            {detail.procurement_type.name} · {detail.reference_no ?? 'Draft'}
+                            {detail.procurement_type.name} ·{' '}
+                            {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : 'Draft'}
                         </p>
                     </div>
                     <div className="flex items-center gap-3">

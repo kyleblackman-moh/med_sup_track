@@ -1,5 +1,13 @@
 import { FieldInput } from '@/components/requests/field-input';
-import { COMMENTS_FIELD, COMMENTS_TAB, REQUISITION_FIELDS, REQUISITION_GROUPS, SECTIONS, type FieldDef, type TabId } from '@/components/requests/fields';
+import {
+    COMMENTS_FIELD,
+    COMMENTS_TAB,
+    REQUISITION_FIELDS,
+    REQUISITION_GROUPS,
+    SECTIONS,
+    type FieldDef,
+    type TabId,
+} from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { FormActions } from '@/components/requests/form-actions';
 import { buildTabs, FormTabs } from '@/components/requests/form-tabs';
@@ -133,7 +141,8 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                     <div>
                         <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New request'}</h1>
                         <p className="text-muted-foreground text-sm">
-                            {config.procurement_type.name} · {detail.reference_no ?? 'Draft'}
+                            {config.procurement_type.name} ·{' '}
+                            {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : 'Draft'}
                         </p>
                     </div>
                     <StatusBadge label={detail.status_label} group={detail.status_group} />
@@ -169,15 +178,14 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                             {REQUISITION_GROUPS.filter((g) => g.tab === active).map((group) => (
                                 <fieldset key={group.title} className="space-y-3">
                                     <legend className="text-lg font-semibold">{group.title}</legend>
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        {group.fields.filter(visible(config)).map(requisitionInput)}
-                                    </div>
+                                    <div className="grid gap-4 sm:grid-cols-2">{group.fields.filter(visible(config)).map(requisitionInput)}</div>
                                 </fieldset>
                             ))}
 
                             {active === 'stock' && (
                                 <p className="text-muted-foreground text-sm">
-                                    Stock on hand: <span className="text-foreground font-medium">{detail.requisition.derived.stock_on_hand ?? '—'}</span>
+                                    Stock on hand:{' '}
+                                    <span className="text-foreground font-medium">{detail.requisition.derived.stock_on_hand ?? '—'}</span>
                                     {' · '}Coverage (months):{' '}
                                     <span className="text-foreground font-medium">{detail.requisition.derived.coverage_months ?? '—'}</span>
                                     <span className="block text-xs">Updated when you save.</span>
