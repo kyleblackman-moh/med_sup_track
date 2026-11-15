@@ -293,9 +293,11 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 |---|---|---|---|
 | Technical | Technocrat | Favourable consideration given | `cases.technical_track` |
 | Funding | CAB | Funding availability confirmed | `cases.funding_track` |
-| Hardcopy | CMO Registry | Hardcopy physically received and logged | `cases.hardcopy_received_at` (+ `hardcopy_received_by`) |
+| Hardcopy | CMO Registry | Hardcopy physically received and logged | `cases.hardcopy_received_on` (the date received), plus `hardcopy_received_by` and `hardcopy_received_at` (who recorded it, and when) |
 
-**Gate rule.** `IN_REVIEW → READY_FOR_FILE` is allowed only when `technical_track = favourable` AND `funding_track = confirmed` AND `hardcopy_received_at IS NOT NULL`. The transition guard enforces this server-side. The UI shows three ticks.
+**Gate rule.** `IN_REVIEW → READY_FOR_FILE` is allowed only when `technical_track = favourable` AND `funding_track = confirmed` AND `hardcopy_received_on IS NOT NULL`. The transition guard enforces this server-side. The UI shows three ticks.
+
+**Hardcopy single source (slice 10c).** "Hardcopy received" means `hardcopy_received_on IS NOT NULL`, and nothing else. The gate, the staff case page and the vendor page all read it through `ProcurementCase::hardcopyReceived()`. The CHECK constraint `ck_cases_hardcopy_all_or_none` keeps the three hardcopy columns either all set or all null.
 
 **Track values:** `pending`, `favourable` / `confirmed`, `not_favourable` / `not_confirmed`, and `query_open` (where a query blocks that track).
 
