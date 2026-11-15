@@ -15,9 +15,11 @@ use App\Workflow\Exceptions\ReasonRequired;
 use App\Workflow\Exceptions\StaleTransition;
 use App\Workflow\TransitionRule;
 use App\Workflow\TransitionRules;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -83,12 +85,12 @@ const EXPECTED_PENDING_GUARDS = [
     'T9' => ['no_open_ps_queries'],
     'T10' => ['ps_query_created'],
     'T11' => [],
-    'T12' => ['query_answered_and_forwarded'],
+    'T12' => [], // slice 10e: a reason is required instead
     'T13' => ['letter_generated'],
     'T14' => ['dispatch_confirmed'],
     'T15' => [],
     'T16' => [],
-    'T17' => ['query_answered_and_forwarded'],
+    'T17' => [], // slice 10e: replaced by the real returned-by-PS guard
 ];
 
 function rule(string $code): TransitionRule
@@ -142,13 +144,24 @@ function caseFor(TransitionRule $rule, array $attributes = []): ProcurementCase
         return ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
     }
 
-    return makeCase([
+    $case = makeCase([
         'status' => $rule->from[0],
         ...($rule->code === 'T4' ? gatePassed() : []),
         // Slice 10c: T5 and T6 require a file number (PrepareFile writes it before T5).
         ...(in_array($rule->code, ['T5', 'T6'], true) ? ['file_no' => 'HE:8/2/50/TEST'] : []),
         ...$attributes,
     ]);
+
+    // Slice 10e: T17 requires that the PS returned the case (latest move into RETURNED_TO_CMO).
+    if ($rule->code === 'T17') {
+        DB::table('case_transitions')->insert([
+            'case_id' => $case->id, 'from_status' => CaseStatus::WITH_PS->value, 'to_status' => CaseStatus::RETURNED_TO_CMO->value,
+            'actor_id' => caseUser(Role::PsOffice)->id, 'reason' => SETUP_RETURN_REASON, 'return_kind' => 'legal',
+            'created_at' => CarbonImmutable::now('UTC')->subDay(),
+        ]);
+    }
+
+    return $case;
 }
 
 /**
@@ -186,9 +199,19 @@ function reasonFor(TransitionRule $rule): ?string
     return $rule->requiresReason ? 'Documented reason' : null;
 }
 
+/** History written as test setup (the T17 case starts with an earlier PS return). */
+const SETUP_RETURN_REASON = 'Setup: an earlier PS return';
+
+/** Transitions written by the test itself, not by setup. */
+function newTransitions(ProcurementCase $case): Builder
+{
+    return DB::table('case_transitions')->where('case_id', $case->id)
+        ->where(fn (Builder $q) => $q->whereNull('reason')->orWhere('reason', '!=', SETUP_RETURN_REASON));
+}
+
 function transitionRows(ProcurementCase $case): int
 {
-    return DB::table('case_transitions')->where('case_id', $case->id)->count();
+    return newTransitions($case)->count();
 }
 
 function auditRows(ProcurementCase $case): int
@@ -267,7 +290,7 @@ it('performs each enabled rule and records it once', function (string $code) {
         ->and($result->current_holder_role)->toBe($rule->holderRole)
         ->and(statusInDb($case))->toBe($rule->to->value);
 
-    $row = DB::table('case_transitions')->where('case_id', $case->id)->sole();
+    $row = newTransitions($case)->sole();
     expect($row->from_status)->toBe($rule->from[0]->value)
         ->and($row->to_status)->toBe($rule->to->value)
         ->and((int) $row->actor_id)->toBe($actor->id)
@@ -398,10 +421,11 @@ it('requires a reason where the rule says so', function (string $code, ?string $
     expectNothingWritten($case, $rule->from[0]->value);
 })->with(['T8', 'T10', 'T11', 'T15'])->with([null, '', "  \t\n "]);
 
-it('marks exactly T8, T10, T11, T15 (and the disabled T16) as needing a reason', function () {
+it('marks exactly T8, T10, T11, T12, T15, T17 (and the disabled T16) as needing a reason', function () {
     // Spec 6.5 requires a reason on T16 too; it is disabled until Q3 is decided.
+    // Slice 10e: T12 and T17 carry the CMO's note as their reason.
     expect(collect(TransitionRules::all())->filter->requiresReason->pluck('code')->all())
-        ->toBe(['T8', 'T10', 'T11', 'T15', 'T16']);
+        ->toBe(['T8', 'T10', 'T11', 'T12', 'T15', 'T16', 'T17']);
 });
 
 it('accepts a null reason for rules that do not need one', function () {

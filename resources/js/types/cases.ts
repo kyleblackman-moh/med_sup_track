@@ -100,6 +100,7 @@ export interface StaffCaseAbilities {
     send_to_legal: boolean;
     record_legal_decision: boolean;
     record_ps_decision: boolean;
+    route_onward: boolean;
 }
 
 export interface ReviewerOption {
@@ -175,4 +176,27 @@ export interface AssignmentEntry {
     state: 'Active' | 'Completed' | 'Cancelled';
     assigned_at: string | null;
     completed_at: string | null;
+}
+
+/** Slice 10e: one destination in the Send onward panel. Everything comes from the server. */
+export interface RouteDestination {
+    value: 'technocrats' | 'legal' | 'ps';
+    label: string;
+    consequence: string;
+    /** False when the destination cannot be used now (for example no Legal officer assigned). */
+    available: boolean;
+}
+
+/** Slice 10e: the Send onward side panel, present only for a user who may route the case now. */
+export interface RoutePanel {
+    destinations: RouteDestination[];
+    suggested: RouteDestination['value'] | null;
+    suggested_line: string | null;
+    technocrats: ReviewerOption[];
+    reviewers_min: number;
+    reviewers_max: number;
+    note_min: number;
+    note_max: number;
+    /** Last 8 history rows, newest first. */
+    timeline: TimelineEntry[];
 }

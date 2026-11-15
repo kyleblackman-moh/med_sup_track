@@ -86,8 +86,9 @@ final class TransitionRules
             new TransitionRule('T11', [S::RETURNED_TO_CMO], S::IN_REVIEW, P::CaseRouteToReview->value,
                 requiresReason: true, holderRole: null, resetTracks: ['technical_track']),
 
+            // Slice 10e: the CMO sends a returned case back to Legal with a note (the reason).
             new TransitionRule('T12', [S::RETURNED_TO_CMO], S::WITH_LEGAL, P::QueryForward->value,
-                holderRole: 'legal_officer', pendingGuards: ['query_answered_and_forwarded']),
+                requiresReason: true, holderRole: 'legal_officer'),
 
             new TransitionRule('T13', [S::NON_OBJECTION_GRANTED], S::LETTER_ISSUED, P::LetterIssue->value,
                 holderRole: 'cmo', pendingGuards: ['letter_generated']),
@@ -103,8 +104,9 @@ final class TransitionRules
                 requiresReason: true, holderRole: null, enabled: false),
 
             // Assumption A1: after a PS query is answered the case returns to the PS.
+            // Slice 10e: only a case the PS returned can go back to the PS.
             new TransitionRule('T17', [S::RETURNED_TO_CMO], S::WITH_PS, P::QueryForward->value,
-                holderRole: 'ps_office', pendingGuards: ['query_answered_and_forwarded']),
+                requiresReason: true, holderRole: 'ps_office', guard: self::returnedByPsGuard(...)),
         ];
     }
 
@@ -166,6 +168,7 @@ final class TransitionRules
     /** Plain-English messages for the file-number guard key (shown to staff). */
     public const GUARD_MESSAGES = [
         'file_no' => 'File number has not been entered',
+        'returned_by_ps' => 'Only a case returned by the PS can go back to the PS',
     ];
 
     /** T5 and T6 (slice 10c): the case has a file number. Read from the row, not the model. */
@@ -173,6 +176,23 @@ final class TransitionRules
     {
         if (blank(DB::table('cases')->where('id', $case->getKey())->value('file_no'))) {
             throw new GateNotPassed(['file_no']);
+        }
+    }
+
+    /**
+     * T17 (slice 10e): the latest move into RETURNED_TO_CMO came from WITH_PS.
+     * Read from case_transitions, so a direct service call cannot bypass it.
+     */
+    private static function returnedByPsGuard(ProcurementCase $case, User $actor): void
+    {
+        $from = DB::table('case_transitions')
+            ->where('case_id', $case->getKey())
+            ->where('to_status', S::RETURNED_TO_CMO->value)
+            ->orderByDesc('id')
+            ->value('from_status');
+
+        if ($from !== S::WITH_PS->value) {
+            throw new GateNotPassed(['returned_by_ps']);
         }
     }
 

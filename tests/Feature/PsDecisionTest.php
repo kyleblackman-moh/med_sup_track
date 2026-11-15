@@ -402,8 +402,8 @@ it('lets the PS decide again after the case comes back to WITH_PS', function () 
     $case = case10d(CaseStatus::WITH_PS);
     app(RecordPsDecision::class)->handle($case, ps10d(), 'return_to_cmo', 'First round: clarify clause 4.', 'legal');
 
-    // T17 directly through the service (routing a returned case onward is slice 10e).
-    app(CaseTransitionService::class)->transition(fresh10d($case), CaseStatus::WITH_PS, caseUser(Role::Cmo));
+    // T17 directly through the service. Slice 10e: T17 needs a reason (the CMO's note).
+    app(CaseTransitionService::class)->transition(fresh10d($case), CaseStatus::WITH_PS, caseUser(Role::Cmo), 'Answer attached for the PS.');
 
     $second = app(RecordPsDecision::class)->handle(fresh10d($case), ps10d(), 'grant');
 
@@ -419,8 +419,8 @@ it('lets the still-assigned Legal officer decide again after the case comes back
     legalRow10d($case, $officer);
     app(RecordLegalDecision::class)->handle($case, $officer, 'return_to_cmo', 'First round: clause 4 needs work.');
 
-    // T12 directly through the service.
-    app(CaseTransitionService::class)->transition(fresh10d($case), CaseStatus::WITH_LEGAL, caseUser(Role::Cmo));
+    // T12 directly through the service. Slice 10e: T12 needs a reason (the CMO's note).
+    app(CaseTransitionService::class)->transition(fresh10d($case), CaseStatus::WITH_LEGAL, caseUser(Role::Cmo), 'Answer attached for Legal.');
 
     $second = app(RecordLegalDecision::class)->handle(fresh10d($case), $officer, 'confirmed');
 

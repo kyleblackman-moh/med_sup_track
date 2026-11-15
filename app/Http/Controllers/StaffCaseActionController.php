@@ -14,6 +14,7 @@ use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RecordReviewOutcome;
 use App\Workflow\Actions\RecordTechnicalReview;
+use App\Workflow\Actions\RouteReturnedCase;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\Exceptions\InvalidTransition;
 use App\Workflow\Exceptions\StaleTransition;
@@ -237,6 +238,45 @@ class StaffCaseActionController extends Controller
         return back()->with('success', $validated['decision'] === RecordPsDecision::GRANT
             ? 'Non-objection granted.'
             : 'Case returned to the CMO with a query.');
+    }
+
+    /** Slice 10e: T11 (technocrats), T12 (legal) or T17 (ps) from RETURNED_TO_CMO. */
+    public function routeOnward(Request $request, ProcurementCase $procurementCase, RouteReturnedCase $route): RedirectResponse
+    {
+        if (is_array($request->input('reviewers'))) {
+            $request->merge(['reviewers' => array_values(array_unique(array_map('strval', array_filter($request->input('reviewers'), 'is_scalar'))))]);
+        }
+
+        $min = RouteReturnedCase::NOTE_MIN;
+        $max = RouteReturnedCase::NOTE_MAX;
+        $validated = $request->validate([
+            'destination' => ['required', 'string', 'in:'.implode(',', RouteReturnedCase::DESTINATIONS)],
+            // The 10-character minimum is checked by RouteReturnedCase after trimming.
+            'note' => ['required', 'string', "max:{$max}"],
+            'reviewers' => ['nullable', 'array', 'max:'.RouteReturnedCase::REVIEWERS_MAX],
+            'reviewers.*' => ['integer'],
+        ], [
+            'destination.required' => 'Choose where to send the case.',
+            'destination.in' => 'Choose where to send the case.',
+            'note.required' => "Give a note of {$min} to {$max} characters.",
+            'note.max' => "The note can be at most {$max} characters.",
+            'reviewers.max' => 'Choose 1 to '.RouteReturnedCase::REVIEWERS_MAX.' Technocrats.',
+            'reviewers.*.integer' => 'Choose from the listed Technocrats.',
+        ]);
+
+        $result = $route->handle(
+            $procurementCase,
+            $request->user(),
+            $validated['destination'],
+            $validated['note'],
+            $validated['reviewers'] ?? [],
+        );
+
+        if ($result->already) {
+            return back()->with('info', 'This case was already sent onward ('.$result->detail.') by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Case sent onward: '.$result->case->status->label().'.');
     }
 
     /**

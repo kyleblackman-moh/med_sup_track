@@ -1,10 +1,13 @@
 import { CaseActions, hardcopyText } from '@/components/cases/case-actions';
 import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
+import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
+import { SendOnwardPanel } from '@/components/cases/send-onward';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -19,6 +22,7 @@ import {
     type ReturnedBanner,
     type ReviewerOption,
     type ReviewForm,
+    type RoutePanel,
     type StaffCaseAbilities,
     type StaffCaseDetail,
     type StaffDocument,
@@ -44,6 +48,7 @@ interface Props {
     ps_form: PsForm | null;
     ps_outcome: PsOutcome | null;
     granted: GrantedLine | null;
+    route_panel: RoutePanel | null;
     can: StaffCaseAbilities;
 }
 
@@ -115,6 +120,7 @@ export default function CaseShow({
     ps_form,
     ps_outcome,
     granted,
+    route_panel,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -125,6 +131,7 @@ export default function CaseShow({
     const tabs = buildTabs(detail);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
+    const [routeOpen, setRouteOpen] = useState(false);
 
     const show = (next: TabId) => {
         setActive(next);
@@ -166,6 +173,13 @@ export default function CaseShow({
                                     {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
                                         .filter((part) => part)
                                         .join(', ')}
+                                    {can.route_onward && route_panel && (
+                                        <div className="mt-3">
+                                            <Button type="button" size="sm" onClick={() => setRouteOpen(true)}>
+                                                Send onward
+                                            </Button>
+                                        </div>
+                                    )}
                                 </section>
                             )}
 
@@ -268,22 +282,7 @@ export default function CaseShow({
                     {active === 'history' && (
                         <div className="grid gap-6 lg:grid-cols-2">
                             <Card title="Timeline" id="timeline-heading">
-                                {timeline.length === 0 ? (
-                                    <p className="text-muted-foreground text-sm">No status changes recorded.</p>
-                                ) : (
-                                    <ol className="space-y-3 border-l pl-4">
-                                        {timeline.map((t) => (
-                                            <li key={t.id} className="text-sm">
-                                                <p className="font-medium">{t.from_label ? `${t.from_label} → ${t.to_label}` : t.to_label}</p>
-                                                <p className="text-muted-foreground">
-                                                    {formatDateTime(t.at)} · {t.actor ?? 'System'}
-                                                    {t.acting_for && ` (on behalf of ${t.acting_for})`}
-                                                </p>
-                                                {t.reason && <p className="mt-1 whitespace-pre-line">{t.reason}</p>}
-                                            </li>
-                                        ))}
-                                    </ol>
-                                )}
+                                <CaseTimeline entries={timeline} />
                             </Card>
 
                             <Card title="Assignments" id="assignments-heading">
@@ -324,9 +323,25 @@ export default function CaseShow({
                             legalForm={legal_form}
                             psForm={ps_form}
                             psOutcome={ps_outcome}
+                            onSendOnward={route_panel ? () => setRouteOpen(true) : null}
                         />
                     )}
                 </div>
+
+                {can.route_onward && route_panel && (
+                    <SendOnwardPanel
+                        open={routeOpen}
+                        onOpenChange={setRouteOpen}
+                        caseId={detail.id}
+                        reference={detail.reference_no}
+                        procurementType={detail.procurement_type}
+                        itemDescription={detail.item_description}
+                        statusLabel={detail.status_label}
+                        returned={returned}
+                        gate={gate}
+                        panel={route_panel}
+                    />
+                )}
 
                 <CaseTabNav tabs={tabs} active={active} onSelect={show} finishHref={route('cases.index')} />
             </div>

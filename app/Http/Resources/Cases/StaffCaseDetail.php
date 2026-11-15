@@ -21,6 +21,8 @@ use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RecordPsDecision;
+use App\Workflow\Actions\RouteReturnedCase;
+use App\Workflow\Actions\SendToLegal;
 use App\Workflow\EligibleReviewers;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
@@ -61,6 +63,8 @@ final class StaffCaseDetail
         // Slice 10d: the same check RecordPsDecision runs.
         $canPsDecide = $case->status === CaseStatus::WITH_PS
             && Gate::forUser($user)->allows('act', [$case, Permission::NonObjectionGrant->value]);
+        // Slice 10e: the same checks RouteReturnedCase runs.
+        $canRoute = RouteReturnedCase::canRoute($case, $user);
 
         return [
             'case' => [
@@ -72,7 +76,8 @@ final class StaffCaseDetail
                 ...RequestDetailResource::requisitionContent($case),
             ],
             // Slice 10c: the prepare-file form's starting value (config cases.file_no_prefix).
-            'file_no_default' => $canPrepare ? (string) config('cases.file_no_prefix', '') : null,
+            // Slice 10e: the case's existing file number when it has one (a second round), else the config prefix.
+            'file_no_default' => $canPrepare ? (filled($case->file_no) ? (string) $case->file_no : (string) config('cases.file_no_prefix', '')) : null,
             // Slice 10c: eligible Legal officers (id and name), only for a user who may send to Legal.
             'legal_officers' => $canSendToLegal ? app(EligibleReviewers::class)->legal() : null,
             'legal_form' => $canDecide ? [
@@ -94,6 +99,8 @@ final class StaffCaseDetail
             ] : null,
             'ps_outcome' => $canPsDecide ? null : self::psOutcome($case),
             'granted' => self::granted($case),
+            // Slice 10e: the Send onward panel, only for a user who may route this returned case now.
+            'route_panel' => $canRoute ? self::routePanel($case, $user) : null,
             'hardcopy' => self::hardcopy($case),
             // Bounds for the date input; the server re-checks both.
             'hardcopy_dates' => [
@@ -132,6 +139,7 @@ final class StaffCaseDetail
                 'send_to_legal' => $canSendToLegal,
                 'record_legal_decision' => $canDecide,
                 'record_ps_decision' => $canPsDecide,
+                'route_onward' => $canRoute,
             ],
         ];
     }
@@ -164,6 +172,69 @@ final class StaffCaseDetail
             'reason' => $row->reason,
             'by' => $row->actor?->name,
             'at' => $row->created_at?->copy()->utc()->toIso8601ZuluString(),
+        ];
+    }
+
+    /**
+     * The Send onward side panel (slice 10e). Only the destinations this user
+     * may choose now, the suggested one, a plain sentence for each, the eligible
+     * Technocrats (when Technocrats is offered) and the last 8 history rows,
+     * newest first. No funding amounts, no quotation data.
+     */
+    private static function routePanel(ProcurementCase $case, User $user): array
+    {
+        $destinations = RouteReturnedCase::destinationsFor($case, $user);
+        $legalNames = CaseAssignment::query()->with('user:id,name')
+            ->where('case_id', $case->getKey())
+            ->where('purpose', SendToLegal::PURPOSE)
+            ->whereNotNull('user_id')
+            ->whereNull('completed_at')
+            ->whereNull('cancelled_at')
+            ->orderBy('id')->get()
+            ->map(fn (CaseAssignment $a) => $a->user?->name)->filter()->unique()->values()->all();
+
+        $options = array_map(fn (string $d) => match ($d) {
+            RouteReturnedCase::TECHNOCRATS => [
+                'value' => $d,
+                'label' => 'Technocrats',
+                'consequence' => 'The case returns to In review. The technical review restarts with the Technocrats you choose; funding and hardcopy stay as recorded.',
+                'available' => true,
+            ],
+            RouteReturnedCase::LEGAL => [
+                'value' => $d,
+                'label' => 'Legal',
+                'consequence' => $legalNames === []
+                    ? RouteReturnedCase::NO_LEGAL_OFFICER.'.'
+                    : 'The case goes back to With Legal, to the Legal officer'.(count($legalNames) > 1 ? 's' : '').' already assigned: '.implode(', ', $legalNames).'.',
+                'available' => $legalNames !== [],
+            ],
+            RouteReturnedCase::PS => [
+                'value' => $d,
+                'label' => 'PS office',
+                'consequence' => 'The case goes back to the PS office for a decision.',
+                'available' => true,
+            ],
+        }, $destinations);
+
+        $available = array_values(array_filter($options, fn (array $o) => $o['available']));
+        $suggested = RouteReturnedCase::suggested($case);
+        if (! in_array($suggested, array_column($available, 'value'), true)) {
+            $suggested = $available[0]['value'] ?? null;
+        }
+        $suggestedLabel = collect($options)->firstWhere('value', $suggested)['label'] ?? null;
+
+        return [
+            'destinations' => $options,
+            'suggested' => $suggested,
+            'suggested_line' => $suggestedLabel !== null ? "Suggested: {$suggestedLabel}" : null,
+            'technocrats' => in_array(RouteReturnedCase::TECHNOCRATS, $destinations, true)
+                ? app(EligibleReviewers::class)->for(ReviewDesk::Technical)
+                : [],
+            'reviewers_min' => RouteReturnedCase::REVIEWERS_MIN,
+            'reviewers_max' => RouteReturnedCase::REVIEWERS_MAX,
+            'note_min' => RouteReturnedCase::NOTE_MIN,
+            'note_max' => RouteReturnedCase::NOTE_MAX,
+            'timeline' => array_slice(array_reverse(self::timeline($case)), 0, 8),
         ];
     }
 

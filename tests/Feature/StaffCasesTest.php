@@ -334,6 +334,8 @@ it('shows the header, requisition, holder and assignments', function () {
         'prepare_file' => false, 'send_to_legal' => false, 'record_legal_decision' => false,
         // Slice 10d: false on a SUBMITTED case.
         'record_ps_decision' => false,
+        // Slice 10e: false on a SUBMITTED case.
+        'route_onward' => false,
     ])
         ->and($props['case']['reference_no'])->toBe($case->reference_no)
         ->and($props['case']['holder_label'])->toBe('CMO')

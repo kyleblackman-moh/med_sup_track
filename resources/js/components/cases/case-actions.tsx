@@ -35,6 +35,8 @@ interface Props {
     legalForm: LegalForm | null;
     psForm: PsForm | null;
     psOutcome: PsOutcome | null;
+    /** Slice 10e: opens the Send onward panel; null when the user may not route the case. */
+    onSendOnward: (() => void) | null;
 }
 
 export function formatDay(day: string): string {
@@ -70,6 +72,7 @@ export function CaseActions({
     legalForm,
     psForm,
     psOutcome,
+    onSendOnward,
 }: Props) {
     const [confirmIntake, setConfirmIntake] = useState(false);
     const [confirmReverse, setConfirmReverse] = useState(false);
@@ -248,6 +251,16 @@ export function CaseActions({
             {/* Slice 10d: the PS decision, or once decided a plain statement of it. */}
             {can.record_ps_decision && psForm && <PsDecisionForm caseId={caseId} form={psForm} />}
             {!can.record_ps_decision && psOutcome && <PsOutcomeStatement outcome={psOutcome} />}
+
+            {/* Slice 10e: a returned case goes onward through the side panel. */}
+            {can.route_onward && onSendOnward && (
+                <div className="space-y-2 border-t pt-4">
+                    <h3 className="font-medium">Returned case</h3>
+                    <Button type="button" onClick={onSendOnward}>
+                        Send onward
+                    </Button>
+                </div>
+            )}
 
             {/* Last on purpose: send for review is the final step at intake. */}
             {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}
