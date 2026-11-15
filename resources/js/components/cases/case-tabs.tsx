@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Link } from '@inertiajs/react';
 import { KeyboardEvent, useRef } from 'react';
 
 export interface CaseTab<T extends string = string> {
@@ -71,10 +72,14 @@ interface CaseTabNavProps<T extends string> {
     tabs: CaseTab<T>[];
     active: T;
     onSelect: (tab: T) => void;
+    finishHref: string;
 }
 
-/** Previous / Next, pinned to the bottom of the screen on every tab. Moves between tabs only. */
-export function CaseTabNav<T extends string>({ tabs, active, onSelect }: CaseTabNavProps<T>) {
+/**
+ * Previous / Next, pinned to the bottom of the screen on every tab. Moves
+ * between tabs only (it never saves). On the last tab Next becomes Finish.
+ */
+export function CaseTabNav<T extends string>({ tabs, active, onSelect, finishHref }: CaseTabNavProps<T>) {
     const index = tabs.findIndex((t) => t.id === active);
     const prev = tabs[index - 1];
     const next = tabs[index + 1];
@@ -88,9 +93,16 @@ export function CaseTabNav<T extends string>({ tabs, active, onSelect }: CaseTab
                 <span className="text-muted-foreground ml-auto text-xs">
                     {index + 1} of {tabs.length}
                 </span>
-                <Button type="button" onClick={() => next && onSelect(next.id)} disabled={!next}>
-                    {next ? `Next: ${next.label}` : 'Next'}
-                </Button>
+                {next ? (
+                    <Button type="button" onClick={() => onSelect(next.id)}>
+                        Next: {next.label}
+                    </Button>
+                ) : (
+                    // The last tab (Actions) ends the walk-through: back to the case list.
+                    <Button asChild>
+                        <Link href={finishHref}>Finish: back to cases</Link>
+                    </Button>
+                )}
             </div>
         </div>
     );

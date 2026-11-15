@@ -1,9 +1,10 @@
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { type GateState, type ReviewForm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 
 const TZ = 'America/Port_of_Spain';
 
@@ -15,34 +16,73 @@ function formatDateTime(iso: string | null): string {
  * One reviewer's outcome form for their own track (slice 10b). Shown only for
  * the server's review_forms; the server checks permission, assignment and
  * status again on every save.
+ *
+ * Flow: choose an outcome; "Record outcome" opens a summary to confirm; once
+ * recorded the form becomes a summary with "Change outcome". There is no draft:
+ * recording is the save, and it can be changed while the case is in review.
  */
 export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form: ReviewForm }) {
-    const form = useForm({ outcome: def.current?.outcome ?? '', reason: '' });
+    const form = useForm({ outcome: def.current?.outcome ?? '', reason: def.current?.reason ?? '' });
     const errors = form.errors as Record<string, string>;
-    const negative = def.outcomes.find((o) => o.value === form.data.outcome)?.positive === false;
+    const [editing, setEditing] = useState(def.current === null);
+    const [confirming, setConfirming] = useState(false);
+    const chosen = def.outcomes.find((o) => o.value === form.data.outcome);
+    const negative = chosen?.positive === false;
     const id = `review-${def.track}`;
+    const reason = form.data.reason.trim();
 
-    const submit = (e: FormEvent) => {
+    const review = (e: FormEvent) => {
         e.preventDefault();
+        setConfirming(true);
+    };
+
+    const record = () => {
         form.post(route(def.track === 'technical' ? 'cases.technical' : 'cases.funding', caseId), {
             preserveScroll: true,
-            onSuccess: () => form.setData('reason', ''),
+            preserveState: 'errors',
+            onSuccess: () => setEditing(false),
+            onFinish: () => setConfirming(false),
         });
     };
 
+    const keepCurrent = () => {
+        form.setData({ outcome: def.current?.outcome ?? '', reason: def.current?.reason ?? '' });
+        form.clearErrors();
+        setEditing(false);
+    };
+
+    if (!editing && def.current) {
+        return (
+            <section className="space-y-3 border-t pt-4" aria-labelledby={`${id}-done`}>
+                <h3 id={`${id}-done`} className="font-medium">
+                    Your {def.label.toLowerCase()} is recorded
+                </h3>
+                <dl className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr]">
+                    <dt className="text-muted-foreground">Outcome</dt>
+                    <dd className="font-medium">{def.current.label}</dd>
+                    {def.current.reason && (
+                        <>
+                            <dt className="text-muted-foreground">Reason or note</dt>
+                            <dd className="whitespace-pre-line">{def.current.reason}</dd>
+                        </>
+                    )}
+                    <dt className="text-muted-foreground">Recorded</dt>
+                    <dd>{formatDateTime(def.current.recorded_at)}</dd>
+                </dl>
+                <p className="text-muted-foreground text-sm">
+                    Nothing else is needed from you on this case for now. You can change the outcome until the CMO marks the case ready for file.
+                </p>
+                <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+                    Change outcome
+                </Button>
+            </section>
+        );
+    }
+
     return (
-        <form onSubmit={submit} className="space-y-3 border-t pt-4" noValidate>
+        <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
             <h3 className="font-medium">Your {def.label.toLowerCase()}</h3>
-            <p className="text-sm">
-                {def.current ? (
-                    <>
-                        Current outcome: <span className="font-medium">{def.current.label}</span>
-                        <span className="text-muted-foreground"> · recorded {formatDateTime(def.current.recorded_at)}</span>
-                    </>
-                ) : (
-                    <span className="text-muted-foreground">You have not recorded an outcome yet.</span>
-                )}
-            </p>
+            {!def.current && <p className="text-muted-foreground text-sm">You have not recorded an outcome yet.</p>}
 
             <fieldset className="grid gap-2" aria-describedby={`${id}-outcome-error`}>
                 <legend className="text-sm font-medium">Outcome</legend>
@@ -83,9 +123,42 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                 <InputError id={`${id}-reason-error`} message={errors.reason ?? errors.review} />
             </div>
 
-            <Button type="submit" disabled={form.processing || form.data.outcome === ''}>
-                {form.processing ? 'Saving…' : 'Save'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={form.processing || form.data.outcome === ''}>
+                    Record outcome
+                </Button>
+                {def.current && (
+                    <Button type="button" variant="outline" onClick={keepCurrent}>
+                        Keep current outcome
+                    </Button>
+                )}
+            </div>
+
+            <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Record this outcome?</DialogTitle>
+                        <DialogDescription>Check the summary, then record it.</DialogDescription>
+                    </DialogHeader>
+                    <dl className="grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
+                        <dt className="text-muted-foreground">Review</dt>
+                        <dd>{def.label}</dd>
+                        <dt className="text-muted-foreground">Outcome</dt>
+                        <dd className="font-medium">{chosen?.label}</dd>
+                        <dt className="text-muted-foreground">{negative ? 'Reason' : 'Note'}</dt>
+                        <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
+                    </dl>
+                    <p className="text-muted-foreground text-sm">You can change it until the CMO marks the case ready for file.</p>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
+                            Go back
+                        </Button>
+                        <Button type="button" onClick={record} disabled={form.processing}>
+                            {form.processing ? 'Recording…' : 'Record outcome'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </form>
     );
 }

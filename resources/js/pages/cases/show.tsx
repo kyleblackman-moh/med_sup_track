@@ -301,7 +301,7 @@ export default function CaseShow({
                     )}
                 </div>
 
-                <CaseTabNav tabs={tabs} active={active} onSelect={show} />
+                <CaseTabNav tabs={tabs} active={active} onSelect={show} finishHref={route('cases.index')} />
             </div>
         </AppLayout>
     );
