@@ -16,8 +16,10 @@ use App\Submissions\Exceptions\SubmissionNotReady;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmitCase;
+use App\Workflow\Actions\CloseCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
+use App\Workflow\Actions\IssueLetter;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordFundingConfirmation;
@@ -49,7 +51,7 @@ use Throwable;
  */
 class DevSampleCase extends Command
 {
-    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps, returned_by_legal, ps_granted, returned_by_ps_legal or returned_by_ps_technical}';
+    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps, returned_by_legal, ps_granted, returned_by_ps_legal, returned_by_ps_technical, letter_issued or closed}';
 
     protected $description = 'DEV ONLY: create one sample case and drive it to a stage through the real workflow services';
 
@@ -72,9 +74,14 @@ class DevSampleCase extends Command
         'returned_by_legal' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_return'],
         // Slice 10d.
         'ps_granted' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_grant'],
+        // Slice 10f.
+        'letter_issued' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_grant', 'issue_letter'],
+        'closed' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_grant', 'issue_letter', 'close'],
         'returned_by_ps_legal' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_return_legal'],
         'returned_by_ps_technical' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_return_technical'],
     ];
+
+    public const LETTER_REFERENCE = 'DEV/NOL/001';
 
     public const PS_RETURN_REASON = 'Dev sample: the PS office needs this point clarified before deciding.';
 
@@ -86,6 +93,7 @@ class DevSampleCase extends Command
         'ready' => 'cmo', 'prepare' => 'cmo', 'send_to_legal' => 'cmo',
         'legal_confirm' => 'legal', 'legal_return' => 'legal',
         'ps_grant' => 'ps', 'ps_return_legal' => 'ps', 'ps_return_technical' => 'ps',
+        'issue_letter' => 'cmo', 'close' => 'cmo',
     ];
 
     /** Step => other dev users it names (reviewers, Legal officer), looked up before anything is created. */
@@ -183,6 +191,12 @@ class DevSampleCase extends Command
             'ps_return_technical' => app(RecordPsDecision::class)->handle(
                 $fresh(), $actor, RecordPsDecision::RETURN_TO_CMO, self::PS_RETURN_REASON, ReturnKind::Technical->value,
             ),
+            // Slice 10f: today's date, emailed today, sample reference.
+            'issue_letter' => app(IssueLetter::class)->handle(
+                $fresh(), $actor, CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString(), self::LETTER_REFERENCE,
+                CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString(),
+            ),
+            'close' => app(CloseCase::class)->handle($fresh(), $actor),
         };
     }
 

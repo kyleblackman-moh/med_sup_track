@@ -92,6 +92,11 @@ class ProcurementCase extends Model
             'status_changed_at' => 'datetime',
             'file_prepared_at' => 'datetime',
             'closed_at' => 'datetime',
+            // Slice 10f: the issued letter (calendar dates, Port of Spain).
+            'letter_date' => 'date',
+            'letter_emailed_on' => 'date',
+            'letter_hardcopy_sent_on' => 'date',
+            'letter_recorded_at' => 'datetime',
         ];
     }
 

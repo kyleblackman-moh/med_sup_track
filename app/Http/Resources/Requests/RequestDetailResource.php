@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Requests;
 
+use App\Enums\CaseStatus;
 use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
@@ -35,7 +36,20 @@ class RequestDetailResource extends JsonResource
             ...self::requisitionContent($this->resource),
             // Slice 9b: the date only. Never who recorded it, corrections or reasons.
             'hardcopy_received_on' => $this->resource->hardcopyReceived() ? $this->resource->hardcopy_received_on->toDateString() : null,
+            // Slice 10f: once issued, the letter date and reference only. Never the
+            // channel dates, who recorded it, or anything earlier in the process.
+            'letter' => self::letter($this->resource),
         ];
+    }
+
+    /** @return array{date: string, reference: string|null}|null */
+    private static function letter(ProcurementCase $case): ?array
+    {
+        if (! in_array($case->status, [CaseStatus::LETTER_ISSUED, CaseStatus::CLOSED], true) || $case->letter_date === null) {
+            return null;
+        }
+
+        return ['date' => $case->letter_date->toDateString(), 'reference' => $case->letter_reference];
     }
 
     /**

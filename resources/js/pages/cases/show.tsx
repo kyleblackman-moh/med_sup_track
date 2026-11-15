@@ -1,4 +1,4 @@
-import { CaseActions, hardcopyText } from '@/components/cases/case-actions';
+import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
 import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
@@ -17,6 +17,7 @@ import {
     type GrantedLine,
     type HardcopyRecord,
     type LegalForm,
+    type LetterRecord,
     type PsForm,
     type PsOutcome,
     type ReturnedBanner,
@@ -49,6 +50,8 @@ interface Props {
     ps_outcome: PsOutcome | null;
     granted: GrantedLine | null;
     route_panel: RoutePanel | null;
+    letter: LetterRecord | null;
+    letter_dates: { today: string } | null;
     can: StaffCaseAbilities;
 }
 
@@ -121,6 +124,8 @@ export default function CaseShow({
     ps_outcome,
     granted,
     route_panel,
+    letter,
+    letter_dates,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -192,6 +197,23 @@ export default function CaseShow({
                                         {granted.at && `, ${formatDateTime(granted.at)}`}
                                     </p>
                                     {granted.note && <p className="whitespace-pre-line">Note: {granted.note}</p>}
+                                </section>
+                            )}
+
+                            {letter && (
+                                // Slice 10f: staff only. Every part comes from the server.
+                                <section role="status" className="bg-muted rounded-lg border p-4 text-sm">
+                                    <span className="font-semibold">Letter issued:</span>{' '}
+                                    {[
+                                        `dated ${formatDay(letter.date)}`,
+                                        letter.reference ? `reference ${letter.reference}` : null,
+                                        letter.emailed_on ? `emailed on ${formatDay(letter.emailed_on)}` : null,
+                                        letter.hardcopy_sent_on ? `hardcopy sent on ${formatDay(letter.hardcopy_sent_on)}` : null,
+                                        letter.recorded_by ? `recorded by ${letter.recorded_by}` : null,
+                                        letter.recorded_at ? `on ${formatDateTime(letter.recorded_at)}` : null,
+                                    ]
+                                        .filter((part) => part)
+                                        .join(', ')}
                                 </section>
                             )}
 
@@ -324,6 +346,7 @@ export default function CaseShow({
                             psForm={ps_form}
                             psOutcome={ps_outcome}
                             onSendOnward={route_panel ? () => setRouteOpen(true) : null}
+                            letterToday={letter_dates?.today ?? null}
                         />
                     )}
                 </div>

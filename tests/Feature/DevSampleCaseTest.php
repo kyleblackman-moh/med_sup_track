@@ -63,7 +63,7 @@ it('refuses an unknown stage', function () {
     asLocal();
     $before = sampleCount();
 
-    $this->artisan('dev:sample-case', ['stage' => 'closed'])->expectsOutputToContain('Unknown stage')->assertFailed();
+    $this->artisan('dev:sample-case', ['stage' => 'reopened'])->expectsOutputToContain('Unknown stage')->assertFailed();
 
     expect(sampleCount())->toBe($before);
 });
@@ -108,7 +108,22 @@ it('drives a new sample case to each stage along a valid path', function (string
     'ps_granted' => ['ps_granted', CaseStatus::NON_OBJECTION_GRANTED],
     'returned_by_ps_legal' => ['returned_by_ps_legal', CaseStatus::RETURNED_TO_CMO],
     'returned_by_ps_technical' => ['returned_by_ps_technical', CaseStatus::RETURNED_TO_CMO],
+    // Slice 10f.
+    'letter_issued' => ['letter_issued', CaseStatus::LETTER_ISSUED],
+    'closed' => ['closed', CaseStatus::CLOSED],
 ]);
+
+it('records the sample letter on the letter stages', function (string $stage) {
+    asLocal();
+
+    $this->artisan('dev:sample-case', ['stage' => $stage])->assertSuccessful();
+
+    $case = latestSample();
+    expect($case->letter_date)->not->toBeNull()
+        ->and($case->letter_reference)->toBe(DevSampleCase::LETTER_REFERENCE)
+        ->and($case->letter_emailed_on)->not->toBeNull()
+        ->and($case->closed_at === null)->toBe($stage === 'letter_issued');
+})->with(['letter_issued', 'closed']);
 
 it('ends the PS return stages with the matching return_kind and the sample reason', function (string $stage, string $kind) {
     asLocal();

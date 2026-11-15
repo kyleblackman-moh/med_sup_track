@@ -90,11 +90,13 @@ final class TransitionRules
             new TransitionRule('T12', [S::RETURNED_TO_CMO], S::WITH_LEGAL, P::QueryForward->value,
                 requiresReason: true, holderRole: 'legal_officer'),
 
+            // Slice 10f: the letter is recorded by hand (IssueLetter writes it before T13).
             new TransitionRule('T13', [S::NON_OBJECTION_GRANTED], S::LETTER_ISSUED, P::LetterIssue->value,
-                holderRole: 'cmo', pendingGuards: ['letter_generated']),
+                holderRole: 'cmo', guard: self::letterRecordedGuard(...)),
 
+            // Slice 10f: closing reuses letter.issue (no separate permission).
             new TransitionRule('T14', [S::LETTER_ISSUED], S::CLOSED, P::LetterIssue->value,
-                holderRole: null, pendingGuards: ['dispatch_confirmed']),
+                holderRole: null, guard: self::letterOnRecordGuard(...)),
 
             new TransitionRule('T15', [S::DRAFT, S::SUBMITTED, S::IN_REVIEW], S::WITHDRAWN, P::CaseWithdraw->value,
                 requiresReason: true, holderRole: null, guard: self::withdrawGuard(...)),
@@ -169,6 +171,8 @@ final class TransitionRules
     public const GUARD_MESSAGES = [
         'file_no' => 'File number has not been entered',
         'returned_by_ps' => 'Only a case returned by the PS can go back to the PS',
+        'letter_date' => 'The letter date has not been recorded',
+        'letter_channel' => 'Record when the letter was emailed or when the hardcopy was sent',
     ];
 
     /** T5 and T6 (slice 10c): the case has a file number. Read from the row, not the model. */
@@ -193,6 +197,33 @@ final class TransitionRules
 
         if ($from !== S::WITH_PS->value) {
             throw new GateNotPassed(['returned_by_ps']);
+        }
+    }
+
+    /** T13 (slice 10f): the letter date and at least one channel date. Read from the row. */
+    private static function letterRecordedGuard(ProcurementCase $case, User $actor): void
+    {
+        $row = DB::table('cases')->where('id', $case->getKey())
+            ->first(['letter_date', 'letter_emailed_on', 'letter_hardcopy_sent_on']);
+
+        $missing = [];
+        if ($row?->letter_date === null) {
+            $missing[] = 'letter_date';
+        }
+        if ($row?->letter_emailed_on === null && $row?->letter_hardcopy_sent_on === null) {
+            $missing[] = 'letter_channel';
+        }
+
+        if ($missing !== []) {
+            throw new GateNotPassed($missing);
+        }
+    }
+
+    /** T14 (slice 10f): a letter is on record. Read from the row. */
+    private static function letterOnRecordGuard(ProcurementCase $case, User $actor): void
+    {
+        if (DB::table('cases')->where('id', $case->getKey())->value('letter_date') === null) {
+            throw new GateNotPassed(['letter_date']);
         }
     }
 

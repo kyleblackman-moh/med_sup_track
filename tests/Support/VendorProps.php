@@ -10,6 +10,9 @@ const FORBIDDEN_PROP_KEYS = [
     'org_id', 'created_by', 'file_no', 'current_holder_role', 'status',
     'technical_track', 'funding_track', 'hardcopy_received_at', 'hardcopy_received_by', 'hardcopy_receipt_method',
     'technical_status', 'technical_status_set_by', 'technical_status_set_at',
+    // Slice 10f: the vendor sees the letter date and reference only.
+    'letter_emailed_on', 'letter_hardcopy_sent_on', 'letter_recorded_by', 'letter_recorded_at',
+    'emailed_on', 'hardcopy_sent_on', 'recorded_by', 'recorded_at', 'closed_at',
 ];
 
 /** Internal status values with no vendor-facing equivalent. */

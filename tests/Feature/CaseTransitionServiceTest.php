@@ -86,8 +86,8 @@ const EXPECTED_PENDING_GUARDS = [
     'T10' => ['ps_query_created'],
     'T11' => [],
     'T12' => [], // slice 10e: a reason is required instead
-    'T13' => ['letter_generated'],
-    'T14' => ['dispatch_confirmed'],
+    'T13' => [], // slice 10f: replaced by the real letter-recorded guard
+    'T14' => [], // slice 10f: replaced by the real letter-on-record guard
     'T15' => [],
     'T16' => [],
     'T17' => [], // slice 10e: replaced by the real returned-by-PS guard
@@ -149,6 +149,11 @@ function caseFor(TransitionRule $rule, array $attributes = []): ProcurementCase
         ...($rule->code === 'T4' ? gatePassed() : []),
         // Slice 10c: T5 and T6 require a file number (PrepareFile writes it before T5).
         ...(in_array($rule->code, ['T5', 'T6'], true) ? ['file_no' => 'HE:8/2/50/TEST'] : []),
+        // Slice 10f: T13 and T14 require the letter recorded (IssueLetter writes it before T13).
+        ...(in_array($rule->code, ['T13', 'T14'], true) ? [
+            'letter_date' => '2026-11-10', 'letter_emailed_on' => '2026-11-10',
+            'letter_recorded_by' => caseUser(Role::Cmo)->id, 'letter_recorded_at' => CarbonImmutable::now('UTC'),
+        ] : []),
         ...$attributes,
     ]);
 

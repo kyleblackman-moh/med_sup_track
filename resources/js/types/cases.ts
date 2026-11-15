@@ -101,6 +101,8 @@ export interface StaffCaseAbilities {
     record_legal_decision: boolean;
     record_ps_decision: boolean;
     route_onward: boolean;
+    issue_letter: boolean;
+    close_case: boolean;
 }
 
 export interface ReviewerOption {
@@ -199,4 +201,14 @@ export interface RoutePanel {
     note_max: number;
     /** Last 8 history rows, newest first. */
     timeline: TimelineEntry[];
+}
+
+/** Slice 10f: the recorded letter (staff only). Dates are Y-m-d; recorded_at is ISO. */
+export interface LetterRecord {
+    date: string;
+    reference: string | null;
+    emailed_on: string | null;
+    hardcopy_sent_on: string | null;
+    recorded_by: string | null;
+    recorded_at: string | null;
 }

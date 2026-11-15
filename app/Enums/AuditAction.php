@@ -32,6 +32,8 @@ enum AuditAction: string
     case CaseLegalDecision = 'case.legal_decision';
     case CasePsDecision = 'case.ps_decision';
     case CaseRoutedOnward = 'case.routed_onward';
+    case CaseLetterIssued = 'case.letter_issued';
+    case CaseClosed = 'case.closed';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

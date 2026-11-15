@@ -1,5 +1,6 @@
 import { ForwardForReview } from '@/components/cases/forward-for-review';
 import { LegalDecisionForm, PrepareFileForm, SendToLegal } from '@/components/cases/legal-actions';
+import { CloseCaseButton, IssueLetterForm } from '@/components/cases/letter-actions';
 import { PsDecisionForm, PsOutcomeStatement } from '@/components/cases/ps-actions';
 import { MarkReadyForFile, ReviewOutcomeForm } from '@/components/cases/review-actions';
 import InputError from '@/components/input-error';
@@ -37,6 +38,8 @@ interface Props {
     psOutcome: PsOutcome | null;
     /** Slice 10e: opens the Send onward panel; null when the user may not route the case. */
     onSendOnward: (() => void) | null;
+    /** Slice 10f: the latest date the issue-letter form accepts; null when the user may not issue it. */
+    letterToday: string | null;
 }
 
 export function formatDay(day: string): string {
@@ -73,6 +76,7 @@ export function CaseActions({
     psForm,
     psOutcome,
     onSendOnward,
+    letterToday,
 }: Props) {
     const [confirmIntake, setConfirmIntake] = useState(false);
     const [confirmReverse, setConfirmReverse] = useState(false);
@@ -261,6 +265,10 @@ export function CaseActions({
                     </Button>
                 </div>
             )}
+
+            {/* Slice 10f: record the letter as issued, then close the case. */}
+            {can.issue_letter && letterToday && <IssueLetterForm caseId={caseId} today={letterToday} />}
+            {can.close_case && <CloseCaseButton caseId={caseId} reference={reference} />}
 
             {/* Last on purpose: send for review is the final step at intake. */}
             {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}

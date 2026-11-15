@@ -36,6 +36,8 @@ export interface RequestDetail extends RequestSummary {
     totals: Record<Section, Record<string, string | null>>;
     /** Calendar date (Y-m-d) the Ministry received the hardcopy, or null. */
     hardcopy_received_on: string | null;
+    /** Slice 10f: once the letter is issued, its date (Y-m-d) and reference; null before. */
+    letter: { date: string; reference: string | null } | null;
 }
 
 export interface ReadinessItem {

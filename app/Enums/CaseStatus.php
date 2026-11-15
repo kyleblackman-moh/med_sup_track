@@ -70,8 +70,9 @@ enum CaseStatus: string
             'DRAFT' => 'Draft',
             'SUBMITTED' => 'Submitted',
             'UNDER_REVIEW' => 'Under review',
-            'LETTER_ISSUED' => 'Letter issued',
-            'CLOSED' => 'Closed',
+            // Slice 10f: both groups show the outcome. NON_OBJECTION_GRANTED stays
+            // "Under review" until the letter is recorded as issued.
+            'LETTER_ISSUED', 'CLOSED' => 'Non-objection granted',
             'WITHDRAWN' => 'Withdrawn',
             'NOT_APPROVED' => 'Not approved',
         };

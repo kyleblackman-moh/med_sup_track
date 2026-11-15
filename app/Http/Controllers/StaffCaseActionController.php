@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\ReturnKind;
 use App\Models\ProcurementCase;
+use App\Workflow\Actions\CloseCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
+use App\Workflow\Actions\IssueLetter;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordFundingConfirmation;
@@ -238,6 +240,50 @@ class StaffCaseActionController extends Controller
         return back()->with('success', $validated['decision'] === RecordPsDecision::GRANT
             ? 'Non-objection granted.'
             : 'Case returned to the CMO with a query.');
+    }
+
+    /** Slice 10f: T13. Dates are checked (not in the future) by IssueLetter. */
+    public function issueLetter(Request $request, ProcurementCase $procurementCase, IssueLetter $issue): RedirectResponse
+    {
+        $validated = $request->validate([
+            'letter_date' => ['required', 'string', 'date_format:Y-m-d'],
+            'letter_reference' => ['nullable', 'string', 'max:'.IssueLetter::REFERENCE_MAX],
+            'emailed_on' => ['nullable', 'string', 'date_format:Y-m-d'],
+            'hardcopy_sent_on' => ['nullable', 'string', 'date_format:Y-m-d'],
+        ], [
+            'letter_date.required' => 'Enter the date on the letter.',
+            'letter_date.date_format' => 'Enter the date on the letter.',
+            'letter_reference.max' => 'The reference can be at most '.IssueLetter::REFERENCE_MAX.' characters.',
+            'emailed_on.date_format' => 'Enter the date the letter was emailed.',
+            'hardcopy_sent_on.date_format' => 'Enter the date the hardcopy was sent.',
+        ]);
+
+        $result = $issue->handle(
+            $procurementCase,
+            $request->user(),
+            $validated['letter_date'],
+            $validated['letter_reference'] ?? null,
+            $validated['emailed_on'] ?? null,
+            $validated['hardcopy_sent_on'] ?? null,
+        );
+
+        if ($result->already) {
+            return back()->with('info', 'The letter was already recorded as issued by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Letter recorded as issued.');
+    }
+
+    /** Slice 10f: T14. */
+    public function closeCase(Request $request, ProcurementCase $procurementCase, CloseCase $close): RedirectResponse
+    {
+        $result = $close->handle($procurementCase, $request->user());
+
+        if ($result->already) {
+            return back()->with('info', 'This case was already closed by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Case closed.');
     }
 
     /** Slice 10e: T11 (technocrats), T12 (legal) or T17 (ps) from RETURNED_TO_CMO. */

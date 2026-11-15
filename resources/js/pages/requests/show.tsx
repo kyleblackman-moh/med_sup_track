@@ -16,6 +16,11 @@ interface Props {
     can: { submit: boolean };
 }
 
+/** A calendar date (Y-m-d), shown as-is: no time zone shift. */
+function formatDay(day: string): string {
+    return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function Show({ case: detail, documents, readiness, can }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
@@ -62,6 +67,19 @@ export default function Show({ case: detail, documents, readiness, can }: Props)
                                   year: 'numeric',
                               })}`
                             : 'Hardcopy not yet received'}
+                    </p>
+                )}
+
+                {detail.letter && (
+                    // Slice 10f: the outcome, with the letter date and reference only.
+                    <p role="status" className="bg-card rounded-md border px-4 py-2 text-sm">
+                        <span className="font-medium">Non-objection granted.</span> Letter dated {formatDay(detail.letter.date)}
+                        {detail.letter.reference && (
+                            <>
+                                , reference <span className="font-mono">{detail.letter.reference}</span>
+                            </>
+                        )}
+                        .
                     </p>
                 )}
 

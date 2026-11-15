@@ -65,6 +65,11 @@ final class StaffCaseDetail
             && Gate::forUser($user)->allows('act', [$case, Permission::NonObjectionGrant->value]);
         // Slice 10e: the same checks RouteReturnedCase runs.
         $canRoute = RouteReturnedCase::canRoute($case, $user);
+        // Slice 10f: the same checks IssueLetter and CloseCase run.
+        $canIssueLetter = $case->status === CaseStatus::NON_OBJECTION_GRANTED
+            && Gate::forUser($user)->allows('act', [$case, Permission::LetterIssue->value]);
+        $canClose = $case->status === CaseStatus::LETTER_ISSUED
+            && Gate::forUser($user)->allows('act', [$case, Permission::LetterIssue->value]);
 
         return [
             'case' => [
@@ -101,6 +106,9 @@ final class StaffCaseDetail
             'granted' => self::granted($case),
             // Slice 10e: the Send onward panel, only for a user who may route this returned case now.
             'route_panel' => $canRoute ? self::routePanel($case, $user) : null,
+            // Slice 10f: the recorded letter (staff only), and the latest date the issue form accepts.
+            'letter' => self::letter($case),
+            'letter_dates' => $canIssueLetter ? ['today' => CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString()] : null,
             'hardcopy' => self::hardcopy($case),
             // Bounds for the date input; the server re-checks both.
             'hardcopy_dates' => [
@@ -140,6 +148,8 @@ final class StaffCaseDetail
                 'record_legal_decision' => $canDecide,
                 'record_ps_decision' => $canPsDecide,
                 'route_onward' => $canRoute,
+                'issue_letter' => $canIssueLetter,
+                'close_case' => $canClose,
             ],
         ];
     }
@@ -235,6 +245,27 @@ final class StaffCaseDetail
             'note_min' => RouteReturnedCase::NOTE_MIN,
             'note_max' => RouteReturnedCase::NOTE_MAX,
             'timeline' => array_slice(array_reverse(self::timeline($case)), 0, 8),
+        ];
+    }
+
+    /**
+     * "Letter issued: dated ..., reference ..., emailed on ..., hardcopy sent
+     * on ..., recorded by ..., on ..." (slice 10f): null unless the case is
+     * LETTER_ISSUED or CLOSED and a letter is on record. Staff only.
+     */
+    private static function letter(ProcurementCase $case): ?array
+    {
+        if (! in_array($case->status, [CaseStatus::LETTER_ISSUED, CaseStatus::CLOSED], true) || $case->letter_date === null) {
+            return null;
+        }
+
+        return [
+            'date' => $case->letter_date->toDateString(),
+            'reference' => $case->letter_reference,
+            'emailed_on' => $case->letter_emailed_on?->toDateString(),
+            'hardcopy_sent_on' => $case->letter_hardcopy_sent_on?->toDateString(),
+            'recorded_by' => User::query()->whereKey($case->letter_recorded_by)->value('name'),
+            'recorded_at' => $case->letter_recorded_at?->copy()->utc()->toIso8601ZuluString(),
         ];
     }
 

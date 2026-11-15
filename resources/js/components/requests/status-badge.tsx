@@ -5,7 +5,8 @@ const VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outlin
     SUBMITTED: 'secondary',
     UNDER_REVIEW: 'secondary',
     LETTER_ISSUED: 'default',
-    CLOSED: 'outline',
+    // Slice 10f: the same tone as LETTER_ISSUED; both show "Non-objection granted".
+    CLOSED: 'default',
     WITHDRAWN: 'outline',
     NOT_APPROVED: 'destructive',
 };

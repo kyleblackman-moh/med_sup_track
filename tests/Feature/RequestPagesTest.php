@@ -390,8 +390,9 @@ it('maps every status to a vendor label and group', function (CaseStatus $status
     [CaseStatus::WITH_PS, 'Under review', 'UNDER_REVIEW'],
     [CaseStatus::RETURNED_TO_CMO, 'Under review', 'UNDER_REVIEW'],
     [CaseStatus::NON_OBJECTION_GRANTED, 'Under review', 'UNDER_REVIEW'],
-    [CaseStatus::LETTER_ISSUED, 'Letter issued', 'LETTER_ISSUED'],
-    [CaseStatus::CLOSED, 'Closed', 'CLOSED'],
+    // Slice 10f: both show the outcome; the groups stay separate.
+    [CaseStatus::LETTER_ISSUED, 'Non-objection granted', 'LETTER_ISSUED'],
+    [CaseStatus::CLOSED, 'Non-objection granted', 'CLOSED'],
     [CaseStatus::WITHDRAWN, 'Withdrawn', 'WITHDRAWN'],
     [CaseStatus::REJECTED_FINAL, 'Not approved', 'NOT_APPROVED'],
 ]);
