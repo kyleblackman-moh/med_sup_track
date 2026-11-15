@@ -11,8 +11,11 @@ import {
     type AssignmentEntry,
     type EligibleReviewers,
     type GateState,
+    type GrantedLine,
     type HardcopyRecord,
     type LegalForm,
+    type PsForm,
+    type PsOutcome,
     type ReturnedBanner,
     type ReviewerOption,
     type ReviewForm,
@@ -38,6 +41,9 @@ interface Props {
     legal_officers: ReviewerOption[] | null;
     legal_form: LegalForm | null;
     returned: ReturnedBanner | null;
+    ps_form: PsForm | null;
+    ps_outcome: PsOutcome | null;
+    granted: GrantedLine | null;
     can: StaffCaseAbilities;
 }
 
@@ -106,6 +112,9 @@ export default function CaseShow({
     legal_officers,
     legal_form,
     returned,
+    ps_form,
+    ps_outcome,
+    granted,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -147,12 +156,28 @@ export default function CaseShow({
                     {active === 'overview' && (
                         <>
                             {returned && (
-                                // "Returned to CMO by <source>: <reason>, <name>, <date>" (no source named when the server gives none).
+                                // "Returned to CMO by <source> (<kind>): <reason>, <name>, <date>". The server
+                                // gives the source (CaseStatus::returnedBySource) and, for a PS return, the kind.
                                 <section role="status" className="bg-muted rounded-lg border p-4 text-sm">
-                                    <span className="font-semibold">Returned to CMO{returned.source ? ` by ${returned.source}` : ''}:</span>{' '}
+                                    <span className="font-semibold">
+                                        Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
+                                        {returned.kind ? ` (${returned.kind})` : ''}:
+                                    </span>{' '}
                                     {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
                                         .filter((part) => part)
                                         .join(', ')}
+                                </section>
+                            )}
+
+                            {granted && (
+                                // Slice 10d: staff only. "Non-objection granted by <name>, <date>", plus the note.
+                                <section role="status" className="bg-muted space-y-1 rounded-lg border p-4 text-sm">
+                                    <p>
+                                        <span className="font-semibold">Non-objection granted</span>
+                                        {granted.by && ` by ${granted.by}`}
+                                        {granted.at && `, ${formatDateTime(granted.at)}`}
+                                    </p>
+                                    {granted.note && <p className="whitespace-pre-line">Note: {granted.note}</p>}
                                 </section>
                             )}
 
@@ -297,6 +322,8 @@ export default function CaseShow({
                             fileNoDefault={file_no_default}
                             legalOfficers={legal_officers}
                             legalForm={legal_form}
+                            psForm={ps_form}
+                            psOutcome={ps_outcome}
                         />
                     )}
                 </div>

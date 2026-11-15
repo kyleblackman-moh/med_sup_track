@@ -5,6 +5,7 @@ namespace App\Http\Resources\Cases;
 use App\Enums\CaseStatus;
 use App\Enums\DocumentVisibility;
 use App\Enums\Permission;
+use App\Enums\ReturnKind;
 use App\Enums\ReviewDesk;
 use App\Enums\Role;
 use App\Enums\ScanStatus;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
+use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\EligibleReviewers;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
@@ -56,6 +58,9 @@ final class StaffCaseDetail
         $canDecide = $case->status === CaseStatus::WITH_LEGAL
             && Gate::forUser($user)->allows('act', [$case, Permission::LegalConfirm->value])
             && RecordLegalDecision::isAssigned($case, $user);
+        // Slice 10d: the same check RecordPsDecision runs.
+        $canPsDecide = $case->status === CaseStatus::WITH_PS
+            && Gate::forUser($user)->allows('act', [$case, Permission::NonObjectionGrant->value]);
 
         return [
             'case' => [
@@ -78,6 +83,17 @@ final class StaffCaseDetail
                 ], RecordLegalDecision::DECISIONS),
             ] : null,
             'returned' => self::returned($case),
+            // Slice 10d: the PS decision form (only for a user who may decide now),
+            // the latest PS outcome (replaces the form once decided), and the grant line.
+            'ps_form' => $canPsDecide ? [
+                'decisions' => [
+                    ['value' => RecordPsDecision::GRANT, 'label' => 'Grant non-objection', 'needs_reason' => false],
+                    ['value' => RecordPsDecision::RETURN_TO_CMO, 'label' => 'Return to CMO with a query', 'needs_reason' => true],
+                ],
+                'kinds' => array_map(fn (ReturnKind $k) => ['value' => $k->value, 'label' => $k->label()], ReturnKind::cases()),
+            ] : null,
+            'ps_outcome' => $canPsDecide ? null : self::psOutcome($case),
+            'granted' => self::granted($case),
             'hardcopy' => self::hardcopy($case),
             // Bounds for the date input; the server re-checks both.
             'hardcopy_dates' => [
@@ -115,6 +131,7 @@ final class StaffCaseDetail
                 'prepare_file' => $canPrepare,
                 'send_to_legal' => $canSendToLegal,
                 'record_legal_decision' => $canDecide,
+                'record_ps_decision' => $canPsDecide,
             ],
         ];
     }
@@ -142,7 +159,46 @@ final class StaffCaseDetail
 
         return [
             'source' => $row->from_status?->returnedBySource(),
+            // Slice 10d: "legal-related query" / "technical query" on a PS return; null otherwise.
+            'kind' => $row->return_kind?->queryLabel(),
             'reason' => $row->reason,
+            'by' => $row->actor?->name,
+            'at' => $row->created_at?->copy()->utc()->toIso8601ZuluString(),
+        ];
+    }
+
+    /**
+     * "Non-objection granted by <name>, <date>" plus the optional note (slice
+     * 10d): null unless the case is NON_OBJECTION_GRANTED. Staff only.
+     */
+    private static function granted(ProcurementCase $case): ?array
+    {
+        if ($case->status !== CaseStatus::NON_OBJECTION_GRANTED) {
+            return null;
+        }
+
+        $row = RecordPsDecision::latestRow($case);
+        if ($row === null || $row->to_status !== CaseStatus::NON_OBJECTION_GRANTED) {
+            return null;
+        }
+
+        return [
+            'by' => $row->actor?->name,
+            'at' => $row->created_at?->copy()->utc()->toIso8601ZuluString(),
+            'note' => $row->reason,
+        ];
+    }
+
+    /**
+     * The latest PS decision as a plain statement (outcome, who, when), shown
+     * in the Actions tab in place of the form. Null when there is none.
+     */
+    private static function psOutcome(ProcurementCase $case): ?array
+    {
+        $row = RecordPsDecision::latestRow($case);
+
+        return $row === null ? null : [
+            'outcome' => RecordPsDecision::outcomeLabel($row),
             'by' => $row->actor?->name,
             'at' => $row->created_at?->copy()->utc()->toIso8601ZuluString(),
         ];

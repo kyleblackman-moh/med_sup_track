@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CaseStatus;
+use App\Enums\ReturnKind;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
@@ -29,6 +30,7 @@ class CaseTransition extends Model
         return [
             'from_status' => CaseStatus::class,
             'to_status' => CaseStatus::class,
+            'return_kind' => ReturnKind::class, // slice 10d: PS returns only
         ];
     }
 

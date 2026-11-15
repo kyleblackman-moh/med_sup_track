@@ -30,6 +30,7 @@ enum AuditAction: string
     case CaseFilePrepared = 'case.file_prepared';
     case CaseSentToLegal = 'case.sent_to_legal';
     case CaseLegalDecision = 'case.legal_decision';
+    case CasePsDecision = 'case.ps_decision';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

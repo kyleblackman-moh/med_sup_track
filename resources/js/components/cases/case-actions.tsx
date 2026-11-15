@@ -1,5 +1,6 @@
 import { ForwardForReview } from '@/components/cases/forward-for-review';
 import { LegalDecisionForm, PrepareFileForm, SendToLegal } from '@/components/cases/legal-actions';
+import { PsDecisionForm, PsOutcomeStatement } from '@/components/cases/ps-actions';
 import { MarkReadyForFile, ReviewOutcomeForm } from '@/components/cases/review-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ import {
     type GateState,
     type HardcopyRecord,
     type LegalForm,
+    type PsForm,
+    type PsOutcome,
     type ReviewerOption,
     type ReviewForm,
     type StaffCaseAbilities,
@@ -30,6 +33,8 @@ interface Props {
     fileNoDefault: string | null;
     legalOfficers: ReviewerOption[] | null;
     legalForm: LegalForm | null;
+    psForm: PsForm | null;
+    psOutcome: PsOutcome | null;
 }
 
 export function formatDay(day: string): string {
@@ -63,6 +68,8 @@ export function CaseActions({
     fileNoDefault,
     legalOfficers,
     legalForm,
+    psForm,
+    psOutcome,
 }: Props) {
     const [confirmIntake, setConfirmIntake] = useState(false);
     const [confirmReverse, setConfirmReverse] = useState(false);
@@ -98,7 +105,9 @@ export function CaseActions({
         can.mark_ready_for_file ||
         can.prepare_file ||
         can.send_to_legal ||
-        can.record_legal_decision;
+        can.record_legal_decision ||
+        can.record_ps_decision ||
+        psOutcome !== null;
     const intakeError = (intake.errors as Record<string, string>).intake;
 
     return (
@@ -235,6 +244,10 @@ export function CaseActions({
             {can.prepare_file && fileNoDefault !== null && <PrepareFileForm caseId={caseId} defaultFileNo={fileNoDefault} />}
             {can.send_to_legal && legalOfficers && <SendToLegal caseId={caseId} reference={reference} officers={legalOfficers} />}
             {can.record_legal_decision && legalForm && <LegalDecisionForm caseId={caseId} form={legalForm} />}
+
+            {/* Slice 10d: the PS decision, or once decided a plain statement of it. */}
+            {can.record_ps_decision && psForm && <PsDecisionForm caseId={caseId} form={psForm} />}
+            {!can.record_ps_decision && psOutcome && <PsOutcomeStatement outcome={psOutcome} />}
 
             {/* Last on purpose: send for review is the final step at intake. */}
             {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}

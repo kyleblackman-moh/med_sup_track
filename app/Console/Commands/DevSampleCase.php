@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Documents\DocumentUploadService;
 use App\Enums\DocumentPurpose;
 use App\Enums\Permission;
+use App\Enums\ReturnKind;
 use App\Enums\UserType;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -22,6 +23,7 @@ use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordFundingConfirmation;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
+use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RecordTechnicalReview;
 use App\Workflow\Actions\SendToLegal;
 use Carbon\CarbonImmutable;
@@ -47,7 +49,7 @@ use Throwable;
  */
 class DevSampleCase extends Command
 {
-    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps or returned_by_legal}';
+    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps, returned_by_legal, ps_granted, returned_by_ps_legal or returned_by_ps_technical}';
 
     protected $description = 'DEV ONLY: create one sample case and drive it to a stage through the real workflow services';
 
@@ -68,7 +70,13 @@ class DevSampleCase extends Command
         'with_legal' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal'],
         'with_ps' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm'],
         'returned_by_legal' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_return'],
+        // Slice 10d.
+        'ps_granted' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_grant'],
+        'returned_by_ps_legal' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_return_legal'],
+        'returned_by_ps_technical' => ['draft', 'documents', 'submit', 'intake', 'hardcopy', 'forward', 'technical', 'funding', 'ready', 'prepare', 'send_to_legal', 'legal_confirm', 'ps_return_technical'],
     ];
+
+    public const PS_RETURN_REASON = 'Dev sample: the PS office needs this point clarified before deciding.';
 
     /** Step => the dev user (actor key) it needs. */
     private const STEP_ACTORS = [
@@ -77,6 +85,7 @@ class DevSampleCase extends Command
         'forward' => 'cmo', 'technical' => 'technocrat', 'funding' => 'cab',
         'ready' => 'cmo', 'prepare' => 'cmo', 'send_to_legal' => 'cmo',
         'legal_confirm' => 'legal', 'legal_return' => 'legal',
+        'ps_grant' => 'ps', 'ps_return_legal' => 'ps', 'ps_return_technical' => 'ps',
     ];
 
     /** Step => other dev users it names (reviewers, Legal officer), looked up before anything is created. */
@@ -166,6 +175,13 @@ class DevSampleCase extends Command
             'legal_confirm' => app(RecordLegalDecision::class)->handle($fresh(), $actor, RecordLegalDecision::CONFIRMED),
             'legal_return' => app(RecordLegalDecision::class)->handle(
                 $fresh(), $actor, RecordLegalDecision::RETURN_TO_CMO, self::RETURN_REASON,
+            ),
+            'ps_grant' => app(RecordPsDecision::class)->handle($fresh(), $actor, RecordPsDecision::GRANT),
+            'ps_return_legal' => app(RecordPsDecision::class)->handle(
+                $fresh(), $actor, RecordPsDecision::RETURN_TO_CMO, self::PS_RETURN_REASON, ReturnKind::Legal->value,
+            ),
+            'ps_return_technical' => app(RecordPsDecision::class)->handle(
+                $fresh(), $actor, RecordPsDecision::RETURN_TO_CMO, self::PS_RETURN_REASON, ReturnKind::Technical->value,
             ),
         };
     }
@@ -270,6 +286,7 @@ class DevSampleCase extends Command
             'technocrat' => $staff(Permission::TechnicalConsider)->first(),
             'cab' => $staff(Permission::FundingConfirm)->first(),
             'legal' => $staff(Permission::LegalConfirm)->first(),
+            'ps' => $staff(Permission::NonObjectionGrant)->first(),
         };
     }
 
@@ -282,6 +299,7 @@ class DevSampleCase extends Command
             'technocrat' => 'a technocrat (active staff with technical.consider)',
             'cab' => 'a CAB officer (active staff with funding.confirm)',
             'legal' => 'a Legal officer (active staff with legal.confirm)',
+            'ps' => 'a PS office user (active staff with nonobjection.grant)',
         };
     }
 

@@ -22,7 +22,7 @@ beforeEach(function () {
 
     // One dev user per desk, so the tests do not depend on the dev seeder.
     vendorUser(vendorOrg());
-    foreach ([Role::CmoRegistry, Role::Cmo, Role::Technocrat, Role::CabOfficer, Role::LegalOfficer] as $role) {
+    foreach ([Role::CmoRegistry, Role::Cmo, Role::Technocrat, Role::CabOfficer, Role::LegalOfficer, Role::PsOffice] as $role) {
         caseUser($role);
     }
 });
@@ -104,6 +104,25 @@ it('drives a new sample case to each stage along a valid path', function (string
     'with_legal' => ['with_legal', CaseStatus::WITH_LEGAL],
     'with_ps' => ['with_ps', CaseStatus::WITH_PS],
     'returned_by_legal' => ['returned_by_legal', CaseStatus::RETURNED_TO_CMO],
+    // Slice 10d.
+    'ps_granted' => ['ps_granted', CaseStatus::NON_OBJECTION_GRANTED],
+    'returned_by_ps_legal' => ['returned_by_ps_legal', CaseStatus::RETURNED_TO_CMO],
+    'returned_by_ps_technical' => ['returned_by_ps_technical', CaseStatus::RETURNED_TO_CMO],
+]);
+
+it('ends the PS return stages with the matching return_kind and the sample reason', function (string $stage, string $kind) {
+    asLocal();
+
+    $this->artisan('dev:sample-case', ['stage' => $stage])->assertSuccessful();
+
+    $last = DB::table('case_transitions')->where('case_id', latestSample()->id)->orderByDesc('id')->first();
+    expect($last->from_status)->toBe('WITH_PS')
+        ->and($last->to_status)->toBe('RETURNED_TO_CMO')
+        ->and($last->return_kind)->toBe($kind)
+        ->and($last->reason)->toBe(DevSampleCase::PS_RETURN_REASON);
+})->with([
+    'legal' => ['returned_by_ps_legal', 'legal'],
+    'technical' => ['returned_by_ps_technical', 'technical'],
 ]);
 
 it('ends returned_by_legal at RETURNED_TO_CMO with the reason as the transition reason', function () {

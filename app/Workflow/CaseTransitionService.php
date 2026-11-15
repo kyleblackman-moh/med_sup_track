@@ -4,6 +4,7 @@ namespace App\Workflow;
 
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
+use App\Enums\ReturnKind;
 use App\Enums\TrackStatus;
 use App\Events\CaseTransitioned;
 use App\Models\CaseTransition;
@@ -16,6 +17,7 @@ use App\Workflow\Exceptions\StaleTransition;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use InvalidArgumentException;
 
 /**
  * The only way to change a case's status (spec 6.6). Workflow rules
@@ -23,9 +25,17 @@ use Illuminate\Support\Facades\Gate;
  */
 final class CaseTransitionService
 {
-    public function transition(ProcurementCase $case, CaseStatus $to, User $actor, ?string $reason = null): ProcurementCase
+    /**
+     * @param  ReturnKind|null  $returnKind  Slice 10d: only for a PS return
+     *                                       (WITH_PS -> RETURNED_TO_CMO); written on the same history row.
+     */
+    public function transition(ProcurementCase $case, CaseStatus $to, User $actor, ?string $reason = null, ?ReturnKind $returnKind = null): ProcurementCase
     {
         $from = $case->status instanceof CaseStatus ? $case->status : null;
+
+        if ($returnKind !== null && ! ($from === CaseStatus::WITH_PS && $to === CaseStatus::RETURNED_TO_CMO)) {
+            throw new InvalidArgumentException('return_kind is recorded only on a PS return (WITH_PS -> RETURNED_TO_CMO).');
+        }
 
         // 1. Rule
         $rule = ($from ? TransitionRules::find($from, $to) : null)
@@ -46,7 +56,7 @@ final class CaseTransitionService
 
         // 5. Write status, history and audit atomically. The audit write fails closed:
         //    if it throws, the whole transition rolls back.
-        DB::transaction(function () use ($case, $rule, $from, $to, $actor, $reason) {
+        DB::transaction(function () use ($case, $rule, $from, $to, $actor, $reason, $returnKind) {
             $locked = ProcurementCase::withoutGlobalScopes()
                 ->whereKey($case->getKey())
                 ->lockForUpdate()
@@ -78,6 +88,7 @@ final class CaseTransitionService
                 // TODO(delegation, spec 8.5): set acting_for_id when delegations exist.
                 'acting_for_id' => null,
                 'reason' => $reason,
+                'return_kind' => $returnKind?->value,
                 'created_at' => CarbonImmutable::now('UTC'),
             ])->save();
 

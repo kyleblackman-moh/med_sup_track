@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReturnKind;
 use App\Models\ProcurementCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
@@ -10,6 +11,7 @@ use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordFundingConfirmation;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
+use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RecordReviewOutcome;
 use App\Workflow\Actions\RecordTechnicalReview;
 use App\Workflow\Actions\SendToLegal;
@@ -196,6 +198,44 @@ class StaffCaseActionController extends Controller
 
         return back()->with('success', $validated['decision'] === RecordLegalDecision::CONFIRMED
             ? 'Contract confirmed. The case is now with the PS office.'
+            : 'Case returned to the CMO with a query.');
+    }
+
+    /** Slice 10d: T9 (grant) or T10 (return_to_cmo with a return_kind). First decision wins. */
+    public function psDecision(Request $request, ProcurementCase $procurementCase, RecordPsDecision $record): RedirectResponse
+    {
+        $min = RecordPsDecision::REASON_MIN;
+        $max = RecordPsDecision::REASON_MAX;
+        $return = RecordPsDecision::RETURN_TO_CMO;
+
+        $validated = $request->validate([
+            'decision' => ['required', 'string', 'in:'.implode(',', RecordPsDecision::DECISIONS)],
+            'return_kind' => ['nullable', 'string', "required_if:decision,{$return}", 'in:'.implode(',', ReturnKind::values())],
+            // The 10-character minimum applies to a return only; RecordPsDecision checks it.
+            'reason' => ['nullable', 'string', "max:{$max}", "required_if:decision,{$return}"],
+        ], [
+            'decision.required' => 'Choose a decision.',
+            'decision.in' => 'Choose a decision.',
+            'return_kind.required_if' => 'Choose whether the query is legal-related or technical.',
+            'return_kind.in' => 'Choose whether the query is legal-related or technical.',
+            'reason.required_if' => "Give a reason of {$min} to {$max} characters.",
+            'reason.max' => "The reason can be at most {$max} characters.",
+        ]);
+
+        $result = $record->handle(
+            $procurementCase,
+            $request->user(),
+            $validated['decision'],
+            $validated['reason'] ?? null,
+            $validated['return_kind'] ?? null,
+        );
+
+        if ($result->already) {
+            return back()->with('info', 'The PS decision was already recorded ('.$result->detail.') by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', $validated['decision'] === RecordPsDecision::GRANT
+            ? 'Non-objection granted.'
             : 'Case returned to the CMO with a query.');
     }
 

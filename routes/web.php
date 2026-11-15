@@ -76,6 +76,7 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/prepare-file', 'prepareFile')->name('prepare');
             Route::post('{procurementCase}/send-to-legal', 'sendToLegal')->name('legal.send');
             Route::post('{procurementCase}/legal-decision', 'legalDecision')->name('legal.decide');
+            Route::post('{procurementCase}/ps-decision', 'psDecision')->name('ps.decide');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
         });

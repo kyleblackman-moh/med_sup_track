@@ -54,9 +54,31 @@ export interface LegalForm {
 export interface ReturnedBanner {
     /** "Legal", "PS office", or null when no source is named. */
     source: string | null;
+    /** Slice 10d: "legal-related query" / "technical query" on a PS return; null otherwise. */
+    kind: string | null;
     reason: string | null;
     by: string | null;
     at: string | null;
+}
+
+/** Slice 10d: the PS decision form, present only for a user who may decide now (With PS). */
+export interface PsForm {
+    decisions: { value: 'grant' | 'return_to_cmo'; label: string; needs_reason: boolean }[];
+    kinds: { value: 'legal' | 'technical'; label: string }[];
+}
+
+/** Slice 10d: the latest PS decision as a plain statement (staff only). */
+export interface PsOutcome {
+    outcome: string;
+    by: string | null;
+    at: string | null;
+}
+
+/** Slice 10d: "Non-objection granted by <name>, <date>" (staff only). */
+export interface GrantedLine {
+    by: string | null;
+    at: string | null;
+    note: string | null;
 }
 
 export interface HardcopyRecord {
@@ -77,6 +99,7 @@ export interface StaffCaseAbilities {
     prepare_file: boolean;
     send_to_legal: boolean;
     record_legal_decision: boolean;
+    record_ps_decision: boolean;
 }
 
 export interface ReviewerOption {
