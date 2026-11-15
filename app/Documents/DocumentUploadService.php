@@ -120,13 +120,15 @@ final class DocumentUploadService
                     AuditAction::DocumentUploadReceived,
                     ['type' => 'document', 'id' => $id],
                     $case->getKey(),
+                    // Never the file name: it is typed by the uploader, and the
+                    // auditor and system admin see no case content. The name
+                    // lives only in documents.original_name.
                     [
                         'document_id' => $id,
                         'purpose' => $purpose->value,
                         'version' => $version,
                         'size_bytes' => $size,
                         'sha256' => $sha256,
-                        'display_name' => $inspected->displayName,
                     ],
                     $user,
                 );

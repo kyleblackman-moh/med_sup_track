@@ -77,8 +77,9 @@ it('stores a valid upload as a PENDING external document and queues the scan', f
     $context = json_decode($audit->metadata, true);
     expect($context)->toBe([
         'document_id' => $document->id, 'purpose' => 'original_rfq', 'version' => 1,
-        'size_bytes' => strlen(pdfBytes()), 'sha256' => hash('sha256', pdfBytes()), 'display_name' => 'My RFQ.pdf',
-    ])->and($audit->metadata)->not->toContain('%PDF');
+        'size_bytes' => strlen(pdfBytes()), 'sha256' => hash('sha256', pdfBytes()),
+    ])->and($audit->metadata)->not->toContain('%PDF')
+        ->and($audit->metadata)->not->toContain('My RFQ');
 
     Queue::assertPushed(ScanDocumentJob::class, fn (ScanDocumentJob $job) => $job->documentId === $document->id);
 });
