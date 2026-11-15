@@ -63,7 +63,7 @@ export function GateTracker({ gate }: { gate: GateState | null }) {
                                             <span className="font-medium">{r.name ?? 'Unknown user'}</span>
                                             <span className="text-muted-foreground">
                                                 {' · '}
-                                                {r.outcome ?? 'Pending'}
+                                                {r.outcome ?? 'No outcome yet'}
                                                 {r.recorded_at && ` on ${formatDateTime(r.recorded_at)}`}
                                             </span>
                                             {r.reason && <p className="text-muted-foreground mt-0.5 whitespace-pre-line">Reason: {r.reason}</p>}

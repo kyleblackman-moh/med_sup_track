@@ -13,19 +13,27 @@ use Illuminate\Support\Collection;
  * Derives a gate track from its reviewers' outcomes (slice 10b).
  *
  * DECISION (flagged for review): the reviewers of a track are the ACTIVE user
- * assignments created at T3 for that desk, found by assignment purpose
- * (ReviewDesk value), never by role name. For each of them only their LATEST
- * event counts. Then:
+ * assignments for that desk, found by assignment purpose (ReviewDesk value),
+ * never by role name. For each of them only their LATEST event counts, and only
+ * an event created at or after that reviewer's active assignment's assigned_at
+ * (slice 10e: a new review round starts blank, so an outcome from an earlier
+ * round never counts). Then:
  *   - negative if ANY reviewer's latest outcome is negative;
  *   - positive only if EVERY reviewer's latest outcome is positive;
  *   - pending otherwise (including a track with no active reviewers).
  * An event by someone who is no longer an active reviewer is ignored.
+ *
+ * Precision: case_assignments.assigned_at and case_track_events.created_at are
+ * both SQL Server datetime (about 3 ms). An outcome is always recorded in a
+ * later request than the assignment it belongs to.
  */
 final class TrackCalculator
 {
     /**
      * Active reviewer assignments of the desk, each with that reviewer's latest
-     * event (or null), keyed by user id, in assignment order.
+     * event in the current assignment (or null), keyed by user id, in
+     * assignment order. If a user somehow has several active rows, the latest
+     * one is used.
      *
      * @return Collection<int, array{assignment: CaseAssignment, latest: CaseTrackEvent|null}>
      */
@@ -40,19 +48,24 @@ final class TrackCalculator
             ->with('user:id,name')
             ->orderBy('id')
             ->get()
-            ->unique('user_id');
+            ->keyBy(fn (CaseAssignment $a) => (int) $a->user_id) // later rows overwrite earlier ones
+            ->sortBy(fn (CaseAssignment $a) => (int) $a->getKey());
 
-        $latest = $assignments->isEmpty() ? collect() : CaseTrackEvent::query()
+        $events = $assignments->isEmpty() ? collect() : CaseTrackEvent::query()
             ->where('case_id', $case->getKey())
             ->where('track', $desk->value)
-            ->whereIn('actor_id', $assignments->pluck('user_id')->all())
+            ->whereIn('actor_id', $assignments->keys()->all())
             ->orderBy('id')
             ->get()
-            ->keyBy(fn (CaseTrackEvent $e) => (int) $e->actor_id); // later rows overwrite earlier ones
+            ->groupBy(fn (CaseTrackEvent $e) => (int) $e->actor_id);
 
-        return $assignments->mapWithKeys(fn (CaseAssignment $a) => [
-            (int) $a->user_id => ['assignment' => $a, 'latest' => $latest->get((int) $a->user_id)],
-        ]);
+        return $assignments->map(function (CaseAssignment $a, int $userId) use ($events) {
+            $since = $a->assigned_at;
+            $current = ($events->get($userId) ?? collect())
+                ->filter(fn (CaseTrackEvent $e) => $since === null || ($e->created_at !== null && $e->created_at->gte($since)));
+
+            return ['assignment' => $a, 'latest' => $current->last()];
+        });
     }
 
     public static function compute(ProcurementCase $case, ReviewDesk $desk): TrackStatus
