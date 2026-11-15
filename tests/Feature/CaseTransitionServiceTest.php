@@ -275,8 +275,11 @@ it('performs each enabled rule and records it once', function (string $code) {
         ->and($row->reason)->toBe(reasonFor($rule));
 
     $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', 'case.transitioned')->sole();
+    // The reason text stays in case_transitions; the audit row has only a flag and a length.
     expect(json_decode($audit->metadata, true))->toBe([
-        'from' => $rule->from[0]->value, 'to' => $rule->to->value, 'reason' => reasonFor($rule), 'rule' => $code,
+        'from' => $rule->from[0]->value, 'to' => $rule->to->value,
+        'has_reason' => reasonFor($rule) !== null, 'reason_length' => mb_strlen((string) reasonFor($rule)),
+        'rule' => $code,
     ])->and((int) $audit->actor_user_id)->toBe($actor->id)
         ->and($audit->subject_type)->toBe('case')
         ->and($audit->subject_id)->toBe($case->id);
@@ -560,6 +563,23 @@ it('resets only technical_track on T11', function () {
     expect($result->technical_track)->toBe(TrackStatus::PENDING)
         ->and($result->funding_track)->toBe(TrackStatus::CONFIRMED)
         ->and(DB::table('cases')->where('id', $case->id)->value('hardcopy_received_at'))->toBe($hardcopy);
+});
+
+// 11b. Reason text stays out of audit_logs ----------------------------------------
+
+it('keeps the reason text out of every audit row and in case_transitions.reason', function () {
+    $case = makeCase(['status' => CaseStatus::RETURNED_TO_CMO, ...gatePassed()]);
+    $reason = 'Zebra-quartz reason 7731: unique text that must not reach audit_logs';
+
+    service()->transition($case, CaseStatus::IN_REVIEW, caseUser(Role::Cmo), $reason);
+
+    $audits = DB::table('audit_logs')->where('case_id', $case->id)->get();
+    $transitioned = $audits->firstWhere('action', 'case.transitioned');
+
+    expect($audits)->not->toBeEmpty()
+        ->and($audits->filter(fn ($row) => str_contains((string) $row->metadata, 'Zebra-quartz')))->toBeEmpty()
+        ->and(json_decode($transitioned->metadata, true))->toMatchArray(['has_reason' => true, 'reason_length' => mb_strlen($reason)])
+        ->and(DB::table('case_transitions')->where('case_id', $case->id)->value('reason'))->toBe($reason);
 });
 
 // 12. Model guard -------------------------------------------------------------------

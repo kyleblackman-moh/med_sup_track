@@ -96,7 +96,15 @@ final class CaseTransitionService
                 AuditAction::CaseTransitioned,
                 ['type' => 'case', 'id' => $locked->getKey()],
                 $locked->getKey(),
-                ['from' => $from->value, 'to' => $to->value, 'reason' => $reason, 'rule' => $rule->code],
+                // Never the reason text: the auditor and system admin see no case
+                // content. The text lives only in case_transitions.reason.
+                [
+                    'from' => $from->value,
+                    'to' => $to->value,
+                    'has_reason' => $reason !== null,
+                    'reason_length' => $reason === null ? 0 : mb_strlen($reason),
+                    'rule' => $rule->code,
+                ],
                 $actor,
             );
 
