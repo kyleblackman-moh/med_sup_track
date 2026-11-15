@@ -297,7 +297,11 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 
 **Gate rule.** `IN_REVIEW → READY_FOR_FILE` is allowed only when `technical_track = favourable` AND `funding_track = confirmed` AND `hardcopy_received_at IS NOT NULL`. The transition guard enforces this server-side. The UI shows three ticks.
 
-**Track values:** `pending`, `favourable` / `confirmed`, and `query_open` (where a query blocks that track).
+**Track values:** `pending`, `favourable` / `confirmed`, `not_favourable` / `not_confirmed`, and `query_open` (where a query blocks that track).
+
+- `not_favourable` (technical) and `not_confirmed` (funding) were added in slice 10b: a reviewer may record a negative outcome, with a reason of 10 to 500 characters. **[Decided]**
+- Each track is derived from the latest outcome of every actively assigned reviewer for that desk: any negative gives the negative value; all positive gives the positive value; otherwise `pending`.
+- A negative track keeps the gate closed. It is not a final rejection.
 
 ### 6.5 Transitions table (draft for sign-off)
 
