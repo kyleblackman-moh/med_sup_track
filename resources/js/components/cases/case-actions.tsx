@@ -1,11 +1,20 @@
 import { ForwardForReview } from '@/components/cases/forward-for-review';
+import { LegalDecisionForm, PrepareFileForm, SendToLegal } from '@/components/cases/legal-actions';
 import { MarkReadyForFile, ReviewOutcomeForm } from '@/components/cases/review-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type EligibleReviewers, type GateState, type HardcopyRecord, type ReviewForm, type StaffCaseAbilities } from '@/types/cases';
+import {
+    type EligibleReviewers,
+    type GateState,
+    type HardcopyRecord,
+    type LegalForm,
+    type ReviewerOption,
+    type ReviewForm,
+    type StaffCaseAbilities,
+} from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
@@ -18,6 +27,9 @@ interface Props {
     reviewers: EligibleReviewers | null;
     gate: GateState | null;
     reviewForms: ReviewForm[];
+    fileNoDefault: string | null;
+    legalOfficers: ReviewerOption[] | null;
+    legalForm: LegalForm | null;
 }
 
 export function formatDay(day: string): string {
@@ -39,7 +51,19 @@ export function hardcopyText(hardcopy: HardcopyRecord | null): string {
  * correct the hardcopy. Buttons appear only for the server's can flags; the
  * server authorises every request again.
  */
-export function CaseActions({ caseId, reference, hardcopy, dates, can, reviewers, gate, reviewForms }: Props) {
+export function CaseActions({
+    caseId,
+    reference,
+    hardcopy,
+    dates,
+    can,
+    reviewers,
+    gate,
+    reviewForms,
+    fileNoDefault,
+    legalOfficers,
+    legalForm,
+}: Props) {
     const [confirmIntake, setConfirmIntake] = useState(false);
     const [confirmReverse, setConfirmReverse] = useState(false);
 
@@ -66,7 +90,15 @@ export function CaseActions({ caseId, reference, hardcopy, dates, can, reviewers
     };
 
     const canForward = can.forward_for_review && reviewers !== null;
-    const hasActions = can.intake || can.record_hardcopy || canForward || can.record_review || can.mark_ready_for_file;
+    const hasActions =
+        can.intake ||
+        can.record_hardcopy ||
+        canForward ||
+        can.record_review ||
+        can.mark_ready_for_file ||
+        can.prepare_file ||
+        can.send_to_legal ||
+        can.record_legal_decision;
     const intakeError = (intake.errors as Record<string, string>).intake;
 
     return (
@@ -198,6 +230,11 @@ export function CaseActions({ caseId, reference, hardcopy, dates, can, reviewers
             {/* Slice 10b: a reviewer's own track, then the CMO's T4 action. */}
             {can.record_review && reviewForms.map((f) => <ReviewOutcomeForm key={f.track} caseId={caseId} form={f} />)}
             {can.mark_ready_for_file && <MarkReadyForFile caseId={caseId} gate={gate} />}
+
+            {/* Slice 10c: prepare the file, send to Legal, the Legal decision. */}
+            {can.prepare_file && fileNoDefault !== null && <PrepareFileForm caseId={caseId} defaultFileNo={fileNoDefault} />}
+            {can.send_to_legal && legalOfficers && <SendToLegal caseId={caseId} reference={reference} officers={legalOfficers} />}
+            {can.record_legal_decision && legalForm && <LegalDecisionForm caseId={caseId} form={legalForm} />}
 
             {/* Last on purpose: send for review is the final step at intake. */}
             {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}

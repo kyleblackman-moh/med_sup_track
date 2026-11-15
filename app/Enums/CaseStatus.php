@@ -46,6 +46,20 @@ enum CaseStatus: string
     }
 
     /**
+     * Who sent a case back to the CMO, named from the from_status of the
+     * transition into RETURNED_TO_CMO (slice 10c; for reuse in 10d). Null when
+     * no source should be named. Staff-only wording.
+     */
+    public function returnedBySource(): ?string
+    {
+        return match ($this) {
+            self::WITH_LEGAL => 'Legal',
+            self::WITH_PS => 'PS office',
+            default => null,
+        };
+    }
+
+    /**
      * What a vendor user sees. Internal stages collapse into "Under review", so
      * the raw status never reaches a vendor.
      * Draft, confirm with the CMO's office.

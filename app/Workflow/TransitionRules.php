@@ -61,11 +61,13 @@ final class TransitionRules
             new TransitionRule('T4', [S::IN_REVIEW], S::READY_FOR_FILE, P::FilePrepare->value,
                 holderRole: 'cmo', guard: self::gateGuard(...)),
 
+            // Slice 10c: PrepareFile writes file_no in the same transaction, before this runs.
             new TransitionRule('T5', [S::READY_FOR_FILE], S::FILE_PREPARED, P::FilePrepare->value,
-                holderRole: 'cmo', pendingGuards: ['file_number_issued']),
+                holderRole: 'cmo', guard: self::fileNoGuard(...)),
 
+            // Slice 10c: no code path reaches WITH_LEGAL without a file number.
             new TransitionRule('T6', [S::FILE_PREPARED], S::WITH_LEGAL, P::FilePrepare->value,
-                holderRole: 'legal_officer'),
+                holderRole: 'legal_officer', guard: self::fileNoGuard(...)),
 
             new TransitionRule('T7', [S::WITH_LEGAL], S::WITH_PS, P::LegalConfirm->value,
                 holderRole: 'ps_office', pendingGuards: ['no_open_legal_queries']),
@@ -144,7 +146,7 @@ final class TransitionRules
         if ($case->funding_track !== TrackStatus::CONFIRMED) {
             $missing[] = 'funding';
         }
-        if ($case->hardcopy_received_at === null) {
+        if (! $case->hardcopyReceived()) {
             $missing[] = 'hardcopy';
         }
 
@@ -158,6 +160,19 @@ final class TransitionRules
 
         if ($missing !== []) {
             throw new GateNotPassed($missing);
+        }
+    }
+
+    /** Plain-English messages for the file-number guard key (shown to staff). */
+    public const GUARD_MESSAGES = [
+        'file_no' => 'File number has not been entered',
+    ];
+
+    /** T5 and T6 (slice 10c): the case has a file number. Read from the row, not the model. */
+    private static function fileNoGuard(ProcurementCase $case, User $actor): void
+    {
+        if (blank(DB::table('cases')->where('id', $case->getKey())->value('file_no'))) {
+            throw new GateNotPassed(['file_no']);
         }
     }
 

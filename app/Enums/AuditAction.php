@@ -27,6 +27,9 @@ enum AuditAction: string
     case CaseForwardedForReview = 'case.forwarded_for_review';
     case CaseTechnicalReviewRecorded = 'case.technical_review_recorded';
     case CaseFundingRecorded = 'case.funding_recorded';
+    case CaseFilePrepared = 'case.file_prepared';
+    case CaseSentToLegal = 'case.sent_to_legal';
+    case CaseLegalDecision = 'case.legal_decision';
 
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';

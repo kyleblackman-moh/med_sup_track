@@ -34,7 +34,7 @@ class RequestDetailResource extends JsonResource
             ...RequestSummaryResource::fields($this->resource, $request->user()),
             ...self::requisitionContent($this->resource),
             // Slice 9b: the date only. Never who recorded it, corrections or reasons.
-            'hardcopy_received_on' => $this->resource->hardcopy_received_on?->toDateString(),
+            'hardcopy_received_on' => $this->resource->hardcopyReceived() ? $this->resource->hardcopy_received_on->toDateString() : null,
         ];
     }
 

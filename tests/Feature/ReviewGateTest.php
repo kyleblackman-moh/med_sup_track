@@ -16,7 +16,6 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -76,7 +75,9 @@ function setGate10b(ProcurementCase $case, bool $technical, bool $funding, bool 
     DB::table('cases')->where('id', $case->id)->update([
         'technical_track' => $technical ? 'FAVOURABLE' : 'PENDING',
         'funding_track' => $funding ? 'CONFIRMED' : 'PENDING',
+        // All three hardcopy columns together (slice 10c CHECK constraint).
         'hardcopy_received_at' => $hardcopy ? CarbonImmutable::now('UTC') : null,
+        'hardcopy_received_by' => $hardcopy ? caseUser(Role::CmoRegistry)->id : null,
         'hardcopy_received_on' => $hardcopy ? CarbonImmutable::now('America/Port_of_Spain')->toDateString() : null,
     ]);
 }

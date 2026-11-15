@@ -6,10 +6,13 @@ use App\Models\ProcurementCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
 use App\Workflow\Actions\MarkReadyForFile;
+use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordFundingConfirmation;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RecordReviewOutcome;
 use App\Workflow\Actions\RecordTechnicalReview;
+use App\Workflow\Actions\SendToLegal;
 use App\Workflow\Exceptions\InvalidTransition;
 use App\Workflow\Exceptions\StaleTransition;
 use Illuminate\Http\RedirectResponse;
@@ -117,6 +120,83 @@ class StaffCaseActionController extends Controller
         $ready->handle($procurementCase, $request->user());
 
         return back()->with('success', 'Case marked ready for file.');
+    }
+
+    /** Slice 10c: T5. The file number is typed by the CMO (pre-filled from config). */
+    public function prepareFile(Request $request, ProcurementCase $procurementCase, PrepareFile $prepare): RedirectResponse
+    {
+        $validated = $request->validate([
+            'file_no' => ['required', 'string', 'max:'.PrepareFile::FILE_NO_MAX],
+        ], [
+            'file_no.required' => 'Enter the file number.',
+            'file_no.max' => 'The file number can be at most '.PrepareFile::FILE_NO_MAX.' characters.',
+        ]);
+
+        $result = $prepare->handle($procurementCase, $request->user(), $validated['file_no']);
+
+        if ($result->already) {
+            return back()->with('info', 'The file was already prepared'.($result->detail ? " as {$result->detail}" : '').' by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'File prepared.');
+    }
+
+    /** Slice 10c: T6. The service re-checks each officer's eligibility by permission. */
+    public function sendToLegal(Request $request, ProcurementCase $procurementCase, SendToLegal $send): RedirectResponse
+    {
+        if (is_array($request->input('legal_officers'))) {
+            $request->merge(['legal_officers' => array_values(array_unique(array_map('strval', array_filter($request->input('legal_officers'), 'is_scalar'))))]);
+        }
+
+        $max = SendToLegal::MAX;
+        $validated = $request->validate([
+            'legal_officers' => ['required', 'array', 'min:'.SendToLegal::MIN, "max:{$max}"],
+            'legal_officers.*' => ['integer', 'exists:users,id'],
+            'instruction' => ['nullable', 'string', 'max:'.SendToLegal::INSTRUCTION_MAX],
+        ], [
+            'legal_officers.required' => 'Choose at least one Legal officer.',
+            'legal_officers.min' => 'Choose at least one Legal officer.',
+            'legal_officers.max' => "Choose at most {$max} Legal officers.",
+            'legal_officers.*.integer' => 'Choose from the listed Legal officers.',
+            'legal_officers.*.exists' => 'Choose from the listed Legal officers.',
+        ]);
+
+        $result = $send->handle($procurementCase, $request->user(), $validated['legal_officers'], $validated['instruction'] ?? null);
+
+        if ($result->already) {
+            return back()->with('info', 'This case was already sent to Legal by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Case sent to Legal.');
+    }
+
+    /** Slice 10c: T7 (confirmed) or T8 (return_to_cmo). First decision wins. */
+    public function legalDecision(Request $request, ProcurementCase $procurementCase, RecordLegalDecision $record): RedirectResponse
+    {
+        $min = RecordLegalDecision::REASON_MIN;
+        $max = RecordLegalDecision::REASON_MAX;
+        $return = RecordLegalDecision::RETURN_TO_CMO;
+
+        $validated = $request->validate([
+            'decision' => ['required', 'string', 'in:'.implode(',', RecordLegalDecision::DECISIONS)],
+            // The 10-character minimum applies to a return only; RecordLegalDecision checks it.
+            'reason' => ['nullable', 'string', "max:{$max}", "required_if:decision,{$return}"],
+        ], [
+            'decision.required' => 'Choose a decision.',
+            'decision.in' => 'Choose a decision.',
+            'reason.required_if' => "Give a reason of {$min} to {$max} characters.",
+            'reason.max' => "The reason can be at most {$max} characters.",
+        ]);
+
+        $result = $record->handle($procurementCase, $request->user(), $validated['decision'], $validated['reason'] ?? null);
+
+        if ($result->already) {
+            return back()->with('info', 'The Legal decision was already recorded ('.$result->detail.') by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', $validated['decision'] === RecordLegalDecision::CONFIRMED
+            ? 'Contract confirmed. The case is now with the PS office.'
+            : 'Case returned to the CMO with a query.');
     }
 
     /**

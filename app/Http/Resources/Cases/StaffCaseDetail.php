@@ -18,6 +18,7 @@ use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\EligibleReviewers;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
@@ -47,13 +48,36 @@ final class StaffCaseDetail
             && Gate::forUser($user)->allows('act', [$case, Permission::CaseRouteToReview->value]);
         $reviewForms = self::reviewForms($case, $user);
 
+        // Slice 10c: the same checks PrepareFile, SendToLegal and RecordLegalDecision run.
+        $canPrepare = $case->status === CaseStatus::READY_FOR_FILE
+            && Gate::forUser($user)->allows('act', [$case, Permission::FilePrepare->value]);
+        $canSendToLegal = $case->status === CaseStatus::FILE_PREPARED
+            && Gate::forUser($user)->allows('act', [$case, Permission::FilePrepare->value]);
+        $canDecide = $case->status === CaseStatus::WITH_LEGAL
+            && Gate::forUser($user)->allows('act', [$case, Permission::LegalConfirm->value])
+            && RecordLegalDecision::isAssigned($case, $user);
+
         return [
             'case' => [
                 ...StaffCaseSummary::fields($case),
                 'item_description' => $case->requisition?->item_description,
                 'category' => $case->procurementType?->category->value,
+                // Slice 10c: staff only (the vendor DTOs never carry it).
+                'file_no' => $case->file_no,
                 ...RequestDetailResource::requisitionContent($case),
             ],
+            // Slice 10c: the prepare-file form's starting value (config cases.file_no_prefix).
+            'file_no_default' => $canPrepare ? (string) config('cases.file_no_prefix', '') : null,
+            // Slice 10c: eligible Legal officers (id and name), only for a user who may send to Legal.
+            'legal_officers' => $canSendToLegal ? app(EligibleReviewers::class)->legal() : null,
+            'legal_form' => $canDecide ? [
+                'decisions' => array_map(fn (string $d) => [
+                    'value' => $d,
+                    'label' => $d === RecordLegalDecision::CONFIRMED ? 'Contract confirmed' : 'Return to CMO with a query',
+                    'needs_reason' => $d === RecordLegalDecision::RETURN_TO_CMO,
+                ], RecordLegalDecision::DECISIONS),
+            ] : null,
+            'returned' => self::returned($case),
             'hardcopy' => self::hardcopy($case),
             // Bounds for the date input; the server re-checks both.
             'hardcopy_dates' => [
@@ -88,7 +112,39 @@ final class StaffCaseDetail
                 'record_review' => $reviewForms !== [],
                 'mark_ready_for_file' => $case->status === CaseStatus::IN_REVIEW
                     && Gate::forUser($user)->allows('act', [$case, Permission::FilePrepare->value]),
+                'prepare_file' => $canPrepare,
+                'send_to_legal' => $canSendToLegal,
+                'record_legal_decision' => $canDecide,
             ],
+        ];
+    }
+
+    /**
+     * The "returned to CMO" banner (slice 10c): null unless the case is
+     * RETURNED_TO_CMO. From the latest transition into that status; the source
+     * comes from its from_status (CaseStatus::returnedBySource). Staff only.
+     */
+    private static function returned(ProcurementCase $case): ?array
+    {
+        if ($case->status !== CaseStatus::RETURNED_TO_CMO) {
+            return null;
+        }
+
+        $row = CaseTransition::query()->with('actor:id,name')
+            ->where('case_id', $case->getKey())
+            ->where('to_status', CaseStatus::RETURNED_TO_CMO->value)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->first();
+
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'source' => $row->from_status?->returnedBySource(),
+            'reason' => $row->reason,
+            'by' => $row->actor?->name,
+            'at' => $row->created_at?->copy()->utc()->toIso8601ZuluString(),
         ];
     }
 
@@ -130,8 +186,8 @@ final class StaffCaseDetail
         $rows[] = [
             'key' => 'hardcopy',
             'label' => 'Hardcopy received',
-            'done' => $case->hardcopy_received_at !== null,
-            'state' => $hardcopy === null ? 'Not received' : 'Received',
+            'done' => $case->hardcopyReceived(),
+            'state' => $case->hardcopyReceived() ? 'Received' : 'Not received',
             'reviewers' => [],
             'received_on' => $hardcopy['received_on'] ?? null,
             'recorded_by' => $hardcopy['recorded_by'] ?? null,
@@ -194,7 +250,7 @@ final class StaffCaseDetail
     /** Received date, who recorded it and when; null when not received. */
     private static function hardcopy(ProcurementCase $case): ?array
     {
-        if ($case->hardcopy_received_on === null) {
+        if (! $case->hardcopyReceived()) {
             return null;
         }
 

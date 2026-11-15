@@ -43,7 +43,21 @@ export interface CaseListOptions {
     organisations: OptionList;
 }
 
-export type StaffCaseDetail = StaffCaseSummary & RequisitionContent & { category: 'PHARM' | 'NON_PHARM' | null };
+export type StaffCaseDetail = StaffCaseSummary & RequisitionContent & { category: 'PHARM' | 'NON_PHARM' | null; file_no: string | null };
+
+/** Slice 10c: the Legal decision form, present only for an assigned Legal officer at With Legal. */
+export interface LegalForm {
+    decisions: { value: 'confirmed' | 'return_to_cmo'; label: string; needs_reason: boolean }[];
+}
+
+/** Slice 10c: shown to staff while the case is Returned to CMO. */
+export interface ReturnedBanner {
+    /** "Legal", "PS office", or null when no source is named. */
+    source: string | null;
+    reason: string | null;
+    by: string | null;
+    at: string | null;
+}
 
 export interface HardcopyRecord {
     received_on: string;
@@ -60,6 +74,9 @@ export interface StaffCaseAbilities {
     forward_for_review: boolean;
     record_review: boolean;
     mark_ready_for_file: boolean;
+    prepare_file: boolean;
+    send_to_legal: boolean;
+    record_legal_decision: boolean;
 }
 
 export interface ReviewerOption {

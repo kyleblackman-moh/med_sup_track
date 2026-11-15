@@ -76,7 +76,7 @@ const EXPECTED_PENDING_GUARDS = [
     'T2' => [],
     'T3' => ['assignments_created'],
     'T4' => [],
-    'T5' => ['file_number_issued'],
+    'T5' => [], // slice 10c: replaced by the real file_no guard (T6 has it too)
     'T6' => [],
     'T7' => ['no_open_legal_queries'],
     'T8' => ['legal_query_created'],
@@ -113,7 +113,20 @@ function gatePassed(): array
     return [
         'technical_track' => TrackStatus::FAVOURABLE,
         'funding_track' => TrackStatus::CONFIRMED,
-        'hardcopy_received_at' => now(),
+        ...hardcopyColumns(true),
+    ];
+}
+
+/**
+ * Slice 10c: "received" means the date is set, and the CHECK constraint needs
+ * the date, recorder and recorded-at columns together (all set or all null).
+ */
+function hardcopyColumns(bool $received): array
+{
+    return [
+        'hardcopy_received_on' => $received ? now('America/Port_of_Spain')->toDateString() : null,
+        'hardcopy_received_at' => $received ? now() : null,
+        'hardcopy_received_by' => $received ? caseUser(Role::CmoRegistry)->id : null,
     ];
 }
 
@@ -132,6 +145,8 @@ function caseFor(TransitionRule $rule, array $attributes = []): ProcurementCase
     return makeCase([
         'status' => $rule->from[0],
         ...($rule->code === 'T4' ? gatePassed() : []),
+        // Slice 10c: T5 and T6 require a file number (PrepareFile writes it before T5).
+        ...(in_array($rule->code, ['T5', 'T6'], true) ? ['file_no' => 'HE:8/2/50/TEST'] : []),
         ...$attributes,
     ]);
 }
@@ -325,7 +340,7 @@ it('passes the T4 gate only when all three conditions hold', function (bool $tec
         'status' => CaseStatus::IN_REVIEW,
         'technical_track' => $technical ? TrackStatus::FAVOURABLE : TrackStatus::PENDING,
         'funding_track' => $funding ? TrackStatus::CONFIRMED : TrackStatus::QUERY_OPEN,
-        'hardcopy_received_at' => $hardcopy ? now() : null,
+        ...hardcopyColumns($hardcopy),
     ]);
     $cmo = caseUser(Role::Cmo);
 
@@ -363,7 +378,7 @@ it('blocks the gate for both PENDING and QUERY_OPEN tracks', function (TrackStat
 })->with([TrackStatus::PENDING, TrackStatus::QUERY_OPEN]);
 
 it('blocks the gate when a track is null (never routed to review)', function () {
-    $case = makeCase(['status' => CaseStatus::IN_REVIEW, 'hardcopy_received_at' => now()]);
+    $case = makeCase(['status' => CaseStatus::IN_REVIEW, ...hardcopyColumns(true)]);
 
     expect(fn () => service()->transition($case, CaseStatus::READY_FOR_FILE, caseUser(Role::Cmo)))
         ->toThrow(GateNotPassed::class);

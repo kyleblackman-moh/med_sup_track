@@ -95,6 +95,17 @@ class ProcurementCase extends Model
         ];
     }
 
+    /**
+     * The one definition of "hardcopy received" (slice 10c): the received date is
+     * set. The gate, the staff page and the vendor page all read this. The CHECK
+     * constraint ck_cases_hardcopy_all_or_none keeps the recorder and recorded-at
+     * columns in step with it.
+     */
+    public function hardcopyReceived(): bool
+    {
+        return $this->hardcopy_received_on !== null;
+    }
+
     public function organisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class, 'org_id');

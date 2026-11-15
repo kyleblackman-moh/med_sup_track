@@ -12,6 +12,9 @@ import {
     type EligibleReviewers,
     type GateState,
     type HardcopyRecord,
+    type LegalForm,
+    type ReturnedBanner,
+    type ReviewerOption,
     type ReviewForm,
     type StaffCaseAbilities,
     type StaffCaseDetail,
@@ -31,6 +34,10 @@ interface Props {
     gate: GateState | null;
     review_forms: ReviewForm[];
     reviewers: EligibleReviewers | null;
+    file_no_default: string | null;
+    legal_officers: ReviewerOption[] | null;
+    legal_form: LegalForm | null;
+    returned: ReturnedBanner | null;
     can: StaffCaseAbilities;
 }
 
@@ -95,6 +102,10 @@ export default function CaseShow({
     gate,
     review_forms,
     reviewers,
+    file_no_default,
+    legal_officers,
+    legal_form,
+    returned,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -135,6 +146,16 @@ export default function CaseShow({
                 <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="space-y-6 pb-4">
                     {active === 'overview' && (
                         <>
+                            {returned && (
+                                // "Returned to CMO by <source>: <reason>, <name>, <date>" (no source named when the server gives none).
+                                <section role="status" className="bg-muted rounded-lg border p-4 text-sm">
+                                    <span className="font-semibold">Returned to CMO{returned.source ? ` by ${returned.source}` : ''}:</span>{' '}
+                                    {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
+                                        .filter((part) => part)
+                                        .join(', ')}
+                                </section>
+                            )}
+
                             <Card title="Case summary" id="summary-heading">
                                 <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                                     {[
@@ -144,10 +165,11 @@ export default function CaseShow({
                                         ['Current holder', detail.holder_label ?? '—'],
                                         ['Submitted', formatDate(detail.submitted_at)],
                                         ['Hardcopy', hardcopyText(hardcopy)],
+                                        ...(detail.file_no ? [['File number', detail.file_no]] : []),
                                     ].map(([label, value]) => (
                                         <div key={label}>
                                             <dt className="text-muted-foreground">{label}</dt>
-                                            <dd className="font-medium">{value}</dd>
+                                            <dd className={label === 'File number' ? 'font-mono font-medium' : 'font-medium'}>{value}</dd>
                                         </div>
                                     ))}
                                 </dl>
@@ -272,6 +294,9 @@ export default function CaseShow({
                             reviewers={reviewers}
                             gate={gate}
                             reviewForms={review_forms}
+                            fileNoDefault={file_no_default}
+                            legalOfficers={legal_officers}
+                            legalForm={legal_form}
                         />
                     )}
                 </div>
