@@ -81,8 +81,7 @@ export function WorkQueue({ queue }: { queue: WorkQueueData }) {
                 {items.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
                         <CircleCheck className="text-status-success-foreground size-8" aria-hidden="true" />
-                        <p className="text-sm font-medium">You're all caught up</p>
-                        <p className="text-muted-foreground text-sm">Nothing is waiting on you right now.</p>
+                        <p className="text-sm font-medium">Nothing needs your action right now.</p>
                     </div>
                 ) : (
                     <>

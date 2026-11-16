@@ -70,13 +70,12 @@ export default function Dashboard({ workQueue }: Props) {
                     <h1 className="mt-1 text-xl font-semibold">
                         {greeting(now)}, {firstName}
                     </h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        {workQueue
-                            ? waiting === 0
-                                ? 'Nothing is waiting on you right now.'
-                                : `You have ${waiting} ${waiting === 1 ? 'item' : 'items'} waiting on you.`
-                            : 'Choose where to start.'}
-                    </p>
+                    {/* With an empty queue the queue's own empty state says so; no second sentence here. */}
+                    {(!workQueue || waiting > 0) && (
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            {workQueue ? `You have ${waiting} ${waiting === 1 ? 'item' : 'items'} waiting on you.` : 'Choose where to start.'}
+                        </p>
+                    )}
                 </header>
 
                 {workQueue && <WorkQueue queue={workQueue} />}

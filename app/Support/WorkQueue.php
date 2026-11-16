@@ -4,12 +4,15 @@ namespace App\Support;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Enums\ReviewDesk;
 use App\Http\Resources\Cases\StaffCaseSummary;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
+use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
@@ -47,6 +50,12 @@ final class WorkQueue
             'returned' => ['Returned to CMO', 'Route onward', self::routePermissions(), [CaseStatus::RETURNED_TO_CMO], 'status'],
             'letter' => ['Letters to draft', 'Issue letter', [Permission::LetterIssue], [CaseStatus::NON_OBJECTION_GRANTED], 'status'],
             'close' => ['To close', 'Confirm dispatch and close', [Permission::LetterIssue], [CaseStatus::LETTER_ISSUED], 'status'],
+            // Assigned reviewers (TrackCalculator::canRecordReview), only until they record an outcome.
+            'technical' => ['Technical reviews', 'Record technical review', [ReviewDesk::Technical->permission()], [CaseStatus::IN_REVIEW], 'status'],
+            'funding' => ['Funding confirmations', 'Record funding outcome', [ReviewDesk::Funding->permission()], [CaseStatus::IN_REVIEW], 'status'],
+            // The assigned Legal officer (RecordLegalDecision::isAssigned).
+            'legal_decision' => ['Contract decisions', 'Record Legal decision', [Permission::LegalConfirm], [CaseStatus::WITH_LEGAL], 'status'],
+            'ps_decision' => ['Non-objection decisions', 'Record PS decision', [Permission::NonObjectionGrant], [CaseStatus::WITH_PS], 'status'],
         ];
     }
 
@@ -119,11 +128,16 @@ final class WorkQueue
                 if (! in_array($case->status, $stepStatuses, true) || ! self::stepApplies($key, $case)) {
                     continue;
                 }
-                // The same checks the action runs: CasePolicy::act, or for a returned
-                // case RouteReturnedCase::canRoute (act for each allowed destination).
-                $allowed = $key === 'returned'
-                    ? RouteReturnedCase::canRoute($case, $user)
-                    : $gate->allows('act', [$case, $permissions[0]->value]);
+                // The same checks the case page uses for the action: CasePolicy::act,
+                // plus the action's own predicate where it has one.
+                $allowed = match ($key) {
+                    'returned' => RouteReturnedCase::canRoute($case, $user),
+                    'technical' => self::reviewPending($case, $user, ReviewDesk::Technical),
+                    'funding' => self::reviewPending($case, $user, ReviewDesk::Funding),
+                    'legal_decision' => $gate->allows('act', [$case, $permissions[0]->value])
+                        && RecordLegalDecision::isAssigned($case, $user),
+                    default => $gate->allows('act', [$case, $permissions[0]->value]),
+                };
                 if (! $allowed) {
                     continue;
                 }
@@ -161,6 +175,19 @@ final class WorkQueue
         }
 
         return ['groups' => $groups, 'items' => $items, 'truncated' => $truncated];
+    }
+
+    /**
+     * Review step: the case page's rule (TrackCalculator::canRecordReview, which
+     * includes CasePolicy::act), and only while this reviewer has no outcome in
+     * their current assignment (TrackCalculator's same-round rule). The case page
+     * keeps the form after that so the outcome can be changed; that is not
+     * queue work.
+     */
+    private static function reviewPending(ProcurementCase $case, User $user, ReviewDesk $desk): bool
+    {
+        return TrackCalculator::canRecordReview($case, $user, $desk)
+            && TrackCalculator::reviewers($case, $desk)[(int) $user->getKey()]['latest'] === null;
     }
 
     /**

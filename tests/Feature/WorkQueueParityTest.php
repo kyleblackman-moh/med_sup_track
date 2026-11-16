@@ -1,11 +1,15 @@
 <?php
 
 use App\Console\Commands\DevSampleCase;
+use App\Enums\CaseStatus;
+use App\Enums\ReviewDesk;
 use App\Enums\Role;
 use App\Http\Resources\Cases\StaffCaseDetail;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\WorkQueue;
+use App\Workflow\Actions\RecordFundingConfirmation;
+use App\Workflow\Actions\RecordTechnicalReview;
 use App\Workflow\TransitionRules;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -53,16 +57,31 @@ function paritySample(): ProcurementCase
 }
 
 /**
- * Queue step => is it due, by the case page's action flags. Hardcopy and gate
- * add the conditions the queue shows on top of the flag: the case page also
- * offers a hardcopy correction once received, and shows "mark ready" with a
- * gate tracker while the gate is still open.
+ * Queue step => is it due, by the case page's action flags.
+ *
+ * PARITY EXCEPTIONS (documented; each adds a condition on top of the flag):
+ *   - hardcopy: the case page also offers a correction once received; the
+ *     queue only shows it while not yet received.
+ *   - gate: the case page shows "mark ready" with a gate tracker while the
+ *     gate is still open; the queue only once nothing is missing.
+ *   - technical / funding (review pending): the case page keeps the review form
+ *     after the reviewer records an outcome, so it can be changed; the queue
+ *     only shows it while the form has no outcome in the current round
+ *     (review_forms[].current === null, TrackCalculator's same-round rule).
  *
  * @return list<string>
  */
-function stepsByDetailFlags(ProcurementCase $case, array $can): array
+function stepsByDetailFlags(ProcurementCase $case, array $dto): array
 {
+    $can = $dto['can'];
+    $pendingReview = fn (string $track) => collect($dto['review_forms'])
+        ->contains(fn (array $form) => $form['track'] === $track && $form['current'] === null);
+
     $due = [
+        'technical' => $can['record_review'] && $pendingReview('technical'),
+        'funding' => $can['record_review'] && $pendingReview('funding'),
+        'legal_decision' => $can['record_legal_decision'],
+        'ps_decision' => $can['record_ps_decision'],
         'intake' => $can['intake'],
         'hardcopy' => $can['record_hardcopy'] && ! $case->hardcopyReceived(),
         'forward' => $can['forward_for_review'],
@@ -91,8 +110,37 @@ it('queues a case for a user exactly when the case page offers the matching acti
 
         $queued = collect(WorkQueue::for($user)['items'] ?? [])
             ->where('case_id', $case->id)->pluck('step')->sort()->values()->all();
-        $expected = stepsByDetailFlags($fresh, StaffCaseDetail::for($fresh, $user)['can']);
+        $expected = stepsByDetailFlags($fresh, StaffCaseDetail::for($fresh, $user));
 
         expect($queued)->toBe($expected, "stage {$stage}, user {$key}");
     }
 })->with(array_keys(DevSampleCase::STAGES));
+
+it('drops a review from the queue once the reviewer records it, while the case page keeps the form (parity exception)', function (string $key, ReviewDesk $desk) {
+    app()->detectEnvironment(fn () => 'local');
+    $this->artisan('dev:sample-case', ['stage' => 'in_review'])->assertSuccessful();
+    $case = paritySample();
+    $reviewer = parityDevUsers()[$key];
+    $this->actingAs($reviewer);
+
+    $steps = fn () => collect(WorkQueue::for($reviewer)['items'])->where('case_id', $case->id)->pluck('step')->all();
+    $form = fn () => collect(StaffCaseDetail::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $reviewer)['review_forms'])
+        ->firstWhere('track', $desk->value);
+
+    expect($steps())->toBe([$desk->value])
+        ->and($form()['current'])->toBeNull();
+
+    // The real service, as the dev command uses it.
+    $fresh = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
+    $desk === ReviewDesk::Technical
+        ? app(RecordTechnicalReview::class)->handle($fresh, $reviewer, 'favourable')
+        : app(RecordFundingConfirmation::class)->handle($fresh, $reviewer, 'confirmed');
+
+    expect(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->status)->toBe(CaseStatus::IN_REVIEW)
+        ->and($steps())->toBe([])
+        ->and($form())->not->toBeNull()
+        ->and($form()['current'])->not->toBeNull();
+})->with([
+    'technocrat' => ['technocrat', ReviewDesk::Technical],
+    'CAB' => ['cab', ReviewDesk::Funding],
+]);

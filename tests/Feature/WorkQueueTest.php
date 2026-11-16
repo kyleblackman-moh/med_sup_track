@@ -5,6 +5,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\TrackStatus;
 use App\Http\Resources\Cases\StaffCaseDetail;
+use App\Models\CaseAssignment;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
 use App\Models\User;
@@ -101,7 +102,67 @@ it('sends no queue to users without queue permissions', function (string $role) 
     $props = pageProps($this->actingAs(caseUser($role))->get(route('dashboard'))->assertOk());
 
     expect($props['workQueue'])->toBeNull();
-})->with(['technocrat', 'cab_officer', 'legal_officer', 'ps_office', 'auditor']);
+})->with(['auditor', 'system_admin']);
+
+it('sends every staff role with queue steps a queue, empty when nothing is theirs', function (string $role) {
+    // Fresh users with no assignments: assigned-case roles have nothing to do.
+    $queue = pageProps($this->actingAs(caseUser($role))->get(route('dashboard'))->assertOk())['workQueue'];
+
+    expect($queue)->not->toBeNull()
+        ->and($queue['groups'])->not->toBeEmpty();
+    if (in_array($role, ['technocrat', 'cab_officer', 'legal_officer'], true)) {
+        expect($queue['items'])->toBe([]);
+    }
+})->with(['cmo_registry', 'cmo', 'technocrat', 'cab_officer', 'legal_officer', 'ps_office']);
+
+/** An active assignment of $user on $case for a desk or Legal, as ForwardForReview and SendToLegal create them. */
+function queueAssign(ProcurementCase $case, User $user, string $purpose, Role $role): void
+{
+    (new CaseAssignment)->forceFill([
+        'case_id' => $case->id,
+        'role' => $role->value,
+        'purpose' => $purpose,
+        'user_id' => $user->id,
+        'assigned_at' => now()->subMinute(),
+    ])->save();
+}
+
+it('queues the review and decision steps for the assigned officer only', function (CaseStatus $status, Role $role, string $purpose, string $step) {
+    $mine = caseUser($role);
+    $other = caseUser($role);
+    $case = queueCase(['status' => $status, ...withHardcopy()]);
+    queueAssign($case, $mine, $purpose, $role);
+
+    expect(queueSteps($mine, $case))->toBe([$step])
+        ->and(queueSteps($other, $case))->toBe([]);
+})->with([
+    'technical review' => [CaseStatus::IN_REVIEW, Role::Technocrat, 'technical', 'technical'],
+    'funding confirmation' => [CaseStatus::IN_REVIEW, Role::CabOfficer, 'funding', 'funding'],
+    'legal decision' => [CaseStatus::WITH_LEGAL, Role::LegalOfficer, 'legal', 'legal_decision'],
+]);
+
+it('queues every case with the PS for the PS office', function () {
+    $case = queueCase(['status' => CaseStatus::WITH_PS]);
+
+    expect(queueSteps(caseUser(Role::PsOffice), $case))->toBe(['ps_decision']);
+});
+
+it('never queues a DRAFT case, even one assigned to the user', function (Role $role, string $purpose) {
+    $user = caseUser($role);
+    $draft = queueCase(['status' => CaseStatus::DRAFT, 'submitted_at' => null, 'reference_no' => null]);
+    queueAssign($draft, $user, $purpose, $role);
+
+    $items = pageProps($this->actingAs($user)->get(route('dashboard'))->assertOk())['workQueue']['items'] ?? [];
+
+    expect(collect($items)->where('case_id', $draft->id))->toBeEmpty();
+})->with([
+    [Role::CmoRegistry, 'intake'],
+    [Role::Cmo, 'intake'],
+    [Role::Technocrat, 'technical'],
+    [Role::CabOfficer, 'funding'],
+    [Role::LegalOfficer, 'legal'],
+    [Role::PsOffice, 'ps'],
+]);
 
 it('measures waiting time and orders the oldest first', function () {
     $older = queueCase(['status' => CaseStatus::READY_FOR_FILE, 'submitted_at' => now()->subDays(12)]);
@@ -120,9 +181,14 @@ it('measures waiting time and orders the oldest first', function () {
 });
 
 it('lands queue users on the dashboard and other staff on the case list', function () {
-    expect(LandingPage::for(caseUser(Role::Cmo)))->toBe('/dashboard')
-        ->and(LandingPage::for(caseUser(Role::CmoRegistry)))->toBe('/dashboard')
-        ->and(LandingPage::for(caseUser(Role::Technocrat)))->toBe('/cases');
+    // Staff who may view cases but hold no queue permission still start on the list.
+    $viewer = caseUser();
+    $viewer->givePermissionTo(Permission::CaseViewAll->value);
+
+    foreach ([Role::Cmo, Role::CmoRegistry, Role::Technocrat, Role::CabOfficer, Role::LegalOfficer, Role::PsOffice] as $role) {
+        expect(LandingPage::for(caseUser($role)))->toBe('/dashboard', $role->value);
+    }
+    expect(LandingPage::for($viewer))->toBe('/cases');
 });
 
 it('shares nav.cmo_office with the CMO on every page, including the case page with its own can prop', function () {

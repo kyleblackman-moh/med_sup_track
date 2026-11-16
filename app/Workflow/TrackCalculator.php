@@ -2,12 +2,15 @@
 
 namespace App\Workflow;
 
+use App\Enums\CaseStatus;
 use App\Enums\ReviewDesk;
 use App\Enums\TrackStatus;
 use App\Models\CaseAssignment;
 use App\Models\CaseTrackEvent;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Derives a gate track from its reviewers' outcomes (slice 10b).
@@ -66,6 +69,19 @@ final class TrackCalculator
 
             return ['assignment' => $a, 'latest' => $current->last()];
         });
+    }
+
+    /**
+     * May $user record (or change) their outcome on this desk now? IN_REVIEW,
+     * an active reviewer of the desk, and CasePolicy::act with the desk's
+     * permission. The one definition, used by the case page's review forms
+     * and the dashboard work queue.
+     */
+    public static function canRecordReview(ProcurementCase $case, User $user, ReviewDesk $desk): bool
+    {
+        return $case->status === CaseStatus::IN_REVIEW
+            && self::reviewers($case, $desk)->has((int) $user->getKey())
+            && Gate::forUser($user)->allows('act', [$case, $desk->permission()->value]);
     }
 
     public static function compute(ProcurementCase $case, ReviewDesk $desk): TrackStatus

@@ -378,13 +378,11 @@ final class StaffCaseDetail
 
         $forms = [];
         foreach (ReviewDesk::cases() as $desk) {
-            $reviewers = TrackCalculator::reviewers($case, $desk);
-            if (! $reviewers->has((int) $user->getKey())
-                || ! Gate::forUser($user)->allows('act', [$case, $desk->permission()->value])) {
+            if (! TrackCalculator::canRecordReview($case, $user, $desk)) {
                 continue;
             }
 
-            $latest = $reviewers[(int) $user->getKey()]['latest'];
+            $latest = TrackCalculator::reviewers($case, $desk)[(int) $user->getKey()]['latest'];
             [$positive, $negative] = $desk->outcomes();
 
             $forms[] = [

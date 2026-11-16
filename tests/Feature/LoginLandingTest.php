@@ -36,13 +36,13 @@ it('lands each user on the page their permissions lead to', function (?string $r
     $this->assertAuthenticatedAs($user);
 })->with([
     'vendor applicant' => ['vendor', '/requests'],
-    // Users with a work queue start on the dashboard, where the queue is.
+    // Every staff role with work-queue steps starts on the dashboard (BUNDLE-1 Part 4).
     'cmo' => [Role::Cmo->value, '/dashboard'],
     'cmo registry' => [Role::CmoRegistry->value, '/dashboard'],
-    'technocrat' => [Role::Technocrat->value, '/cases'],
-    'cab officer' => [Role::CabOfficer->value, '/cases'],
-    'legal officer' => [Role::LegalOfficer->value, '/cases'],
-    'ps office' => [Role::PsOffice->value, '/cases'],
+    'technocrat' => [Role::Technocrat->value, '/dashboard'],
+    'cab officer' => [Role::CabOfficer->value, '/dashboard'],
+    'legal officer' => [Role::LegalOfficer->value, '/dashboard'],
+    'ps office' => [Role::PsOffice->value, '/dashboard'],
     'system admin (neither)' => [Role::SystemAdmin->value, '/dashboard'],
     'auditor (neither)' => [Role::Auditor->value, '/dashboard'],
     'no role (neither)' => [null, '/dashboard'],
