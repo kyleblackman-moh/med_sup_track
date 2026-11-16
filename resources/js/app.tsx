@@ -1,5 +1,5 @@
 // Self-hosted fonts (design.md section 4): bundled by Vite, no font CDN.
-import '@fontsource-variable/inter';
+// Roboto (sans) is declared latin-only in app.css; JetBrains Mono is for references.
 import '@fontsource-variable/jetbrains-mono';
 import '../css/app.css';
 
