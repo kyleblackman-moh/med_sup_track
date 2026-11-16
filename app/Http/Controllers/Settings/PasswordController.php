@@ -29,14 +29,23 @@ class PasswordController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        $user = $request->user();
+        $forced = (bool) $user->password_change_required;
+
+        // A forced change must actually change the password: current_password is
+        // checked against the stored hash, so differing from it is enough.
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::defaults(), 'confirmed'],
+            'password' => ['required', Password::defaults(), 'confirmed', ...($forced ? ['different:current_password'] : [])],
+        ], [
+            'password.different' => 'Choose a password different from your current one.',
         ]);
 
-        $request->user()->update([
+        // Validation passed, so the flag is cleared together with the new hash.
+        $user->forceFill([
             'password' => Hash::make($validated['password']),
-        ]);
+            'password_change_required' => false,
+        ])->save();
 
         return back();
     }
