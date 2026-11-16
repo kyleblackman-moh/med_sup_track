@@ -104,7 +104,11 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
         });
     };
 
-    const remove = (index: number) => save(saved().filter((_, i) => i !== index), () => setRemoving(null));
+    const remove = (index: number) =>
+        save(
+            saved().filter((_, i) => i !== index),
+            () => setRemoving(null),
+        );
 
     const openNew = () => {
         setShowErrors(false);
@@ -182,7 +186,13 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                                         <td className="px-3 py-2">
                                             {removing === index ? (
                                                 <div className="flex justify-end gap-1 whitespace-nowrap">
-                                                    <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} disabled={processing}>
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={() => remove(index)}
+                                                        disabled={processing}
+                                                    >
                                                         Remove<span className="sr-only"> {name}</span>
                                                     </Button>
                                                     <Button type="button" variant="ghost" size="sm" onClick={() => setRemoving(null)}>
