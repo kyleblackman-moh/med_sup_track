@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
-// Slice cleanup-1: no getdate() default on case_assignments.assigned_at or
-// case_track_events.created_at (the app writes UTC itself; getdate() is local
-// time), and the append-only trigger on case_track_events still holds.
+// Slice cleanup-1: no getdate() default on case_assignments.assigned_at,
+// case_track_events.created_at or case_transitions.created_at (the app writes UTC
+// itself; getdate() is local time), and the append-only trigger on
+// case_track_events still holds.
 // DatabaseTransactions only. Each failing statement is the LAST statement of its
 // test: a SQL Server error can end the test's transaction.
 
@@ -75,6 +76,30 @@ it('refuses a case_track_events insert without created_at', function () {
 
     expect(fn () => DB::table('case_track_events')->insert([
         'case_id' => $case->id, 'track' => 'technical', 'outcome' => 'favourable', 'actor_id' => $tech->id,
+    ]))->toThrow(QueryException::class, 'created_at');
+});
+
+it('has no default on case_transitions.created_at, which stays NOT NULL', function () {
+    $defaults = DB::select("
+        SELECT dc.name
+        FROM sys.default_constraints dc
+        JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+        WHERE dc.parent_object_id = OBJECT_ID('case_transitions') AND c.name = 'created_at'
+    ");
+
+    $nullable = DB::table('INFORMATION_SCHEMA.COLUMNS')
+        ->where('TABLE_NAME', 'case_transitions')->where('COLUMN_NAME', 'created_at')
+        ->value('IS_NULLABLE');
+
+    expect($defaults)->toBe([])->and($nullable)->toBe('NO');
+});
+
+it('refuses a case_transitions insert without created_at', function () {
+    $case = caseTd();
+    $cmo = caseUser(Role::Cmo);
+
+    expect(fn () => DB::table('case_transitions')->insert([
+        'case_id' => $case->id, 'from_status' => 'CMO_INTAKE', 'to_status' => 'IN_REVIEW', 'actor_id' => $cmo->id,
     ]))->toThrow(QueryException::class, 'created_at');
 });
 

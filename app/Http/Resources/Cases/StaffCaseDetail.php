@@ -168,7 +168,8 @@ final class StaffCaseDetail
         $row = CaseTransition::query()->with('actor:id,name')
             ->where('case_id', $case->getKey())
             ->where('to_status', CaseStatus::RETURNED_TO_CMO->value)
-            ->orderByDesc('created_at')->orderByDesc('id')
+            // By id only, like RouteReturnedCase::latestReturn and the T17 guard.
+            ->orderByDesc('id')
             ->first();
 
         if ($row === null) {

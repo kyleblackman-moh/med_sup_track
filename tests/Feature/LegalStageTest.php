@@ -9,6 +9,7 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Workflow\Actions\PrepareFile;
 use App\Workflow\Actions\RecordLegalDecision;
+use App\Workflow\Actions\RouteReturnedCase;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\CaseTransitionService;
 use App\Workflow\Exceptions\GateNotPassed;
@@ -513,6 +514,26 @@ it('names the source from the from_status of the latest return', function (strin
     'PS office' => ['WITH_PS', 'PS office'],
     'other' => ['IN_REVIEW', null],
 ]);
+
+it('picks the latest return by id, not created_at, in the banner, the destinations and the T17 guard', function () {
+    $case = case10c(CaseStatus::RETURNED_TO_CMO);
+    $row = fn (string $from, CarbonImmutable $at) => DB::table('case_transitions')->insert([
+        'case_id' => $case->id, 'from_status' => $from, 'to_status' => 'RETURNED_TO_CMO',
+        'actor_id' => caseUser(Role::Cmo)->id, 'reason' => 'Some reason here', 'created_at' => $at,
+    ]);
+    // The newer row (higher id) carries the OLDER timestamp.
+    $row('WITH_PS', CarbonImmutable::now('UTC'));
+    $row('WITH_LEGAL', CarbonImmutable::now('UTC')->subDay());
+
+    $props = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case))->assertOk());
+    $fresh = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
+
+    expect($props['returned']['source'])->toBe('Legal')
+        ->and(RouteReturnedCase::latestReturn($fresh)->from_status)->toBe(CaseStatus::WITH_LEGAL)
+        ->and(RouteReturnedCase::allowedDestinations($fresh))->not->toContain('ps')
+        ->and(fn () => app(CaseTransitionService::class)->transition($fresh, CaseStatus::WITH_PS, caseUser(Role::Cmo), 'Back to the PS please.'))
+        ->toThrow(GateNotPassed::class);
+});
 
 // 6. Hardcopy single source ------------------------------------------------------
 
