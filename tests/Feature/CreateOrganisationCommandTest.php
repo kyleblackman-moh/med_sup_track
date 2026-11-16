@@ -15,7 +15,7 @@ function coName(): string
 
 function coAudits()
 {
-    return DB::table('audit_logs')->where('action', 'organisation_created');
+    return DB::table('audit_logs')->where('action', 'organisation.created');
 }
 
 it('creates an active vendor organisation', function () {
@@ -46,7 +46,7 @@ it('refuses a duplicate name and changes nothing', function () {
         ->and(coAudits()->count())->toBe($audits);
 });
 
-it('audits organisation_created with only the id and type', function () {
+it('audits organisation.created with only the id and type', function () {
     $name = 'Distinctive Supplies '.Str::ulid();
 
     Artisan::call('app:organisation-create', ['name' => $name, '--short-name' => 'DSX']);

@@ -41,7 +41,7 @@ function cuRun(array $args): array
 
 function cuAuditRows(?int $userId = null)
 {
-    return DB::table('audit_logs')->where('action', 'user_created')
+    return DB::table('audit_logs')->where('action', 'user.created')
         ->when($userId !== null, fn ($q) => $q->where('subject_id', (string) $userId))->get();
 }
 
@@ -126,7 +126,7 @@ it('fails clearly unless there is exactly one MOH organisation', function (strin
         ->and(User::count())->toBe($users);
 })->with(['none', 'two']);
 
-it('audits user_created with only id, role, organisation and console', function () {
+it('audits user.created with only id, role, organisation and console', function () {
     $email = cuEmail();
 
     [, , $password] = cuRun(['name' => 'Distinctive Name', 'email' => $email, 'role' => 'legal_officer']);

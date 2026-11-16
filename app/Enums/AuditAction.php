@@ -47,7 +47,7 @@ enum AuditAction: string
     case DocumentWithdrawn = 'document.withdrawn';
     case DocumentDownloaded = 'document.downloaded';
 
-    // Accounts and organisations (console). Names as specified for BUNDLE-1.
-    case UserCreated = 'user_created';
-    case OrganisationCreated = 'organisation_created';
+    // Accounts and organisations (console).
+    case UserCreated = 'user.created';
+    case OrganisationCreated = 'organisation.created';
 }

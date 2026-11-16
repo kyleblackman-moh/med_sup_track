@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 
 /**
  * Creates an active VENDOR organisation (vendors are data). The audit row
- * organisation_created carries only the new id and type: no name text.
+ * organisation.created carries only the new id and type: no name text.
  */
 class CreateOrganisation extends Command
 {
