@@ -20,11 +20,13 @@ class DatabaseSeeder extends Seeder
             OrganisationSeeder::class,
         ]);
 
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Example user (factory password "password"): local only, never in
+        // staging or production. Real accounts come from app:user-create.
+        if (app()->isLocal()) {
+            User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
     }
 }
