@@ -46,6 +46,22 @@ enum CaseStatus: string
     }
 
     /**
+     * Staff badge tone (design.md section 3). The server decides it; React maps
+     * the tone to classes and never reads status codes.
+     */
+    public function tone(): string
+    {
+        return match ($this) {
+            self::DRAFT, self::SUBMITTED, self::CMO_INTAKE, self::IN_REVIEW,
+            self::READY_FOR_FILE, self::FILE_PREPARED => 'neutral',
+            self::RETURNED_TO_CMO => 'warning',
+            self::WITH_LEGAL, self::WITH_PS => 'info',
+            self::NON_OBJECTION_GRANTED, self::LETTER_ISSUED, self::CLOSED => 'success',
+            self::REJECTED_FINAL, self::WITHDRAWN => 'danger',
+        };
+    }
+
+    /**
      * Who sent a case back to the CMO, named from the from_status of the
      * transition into RETURNED_TO_CMO (slice 10c; for reuse in 10d). Null when
      * no source should be named. Staff-only wording.

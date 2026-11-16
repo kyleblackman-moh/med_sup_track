@@ -49,6 +49,17 @@
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
 
+    --color-status-neutral: var(--status-neutral);
+    --color-status-neutral-foreground: var(--status-neutral-foreground);
+    --color-status-info: var(--status-info);
+    --color-status-info-foreground: var(--status-info-foreground);
+    --color-status-success: var(--status-success);
+    --color-status-success-foreground: var(--status-success-foreground);
+    --color-status-warning: var(--status-warning);
+    --color-status-warning-foreground: var(--status-warning-foreground);
+    --color-status-danger: var(--status-danger);
+    --color-status-danger-foreground: var(--status-danger-foreground);
+
     --color-sidebar: var(--sidebar-background);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -116,6 +127,17 @@
     --sidebar-accent-foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
     --sidebar-border: hsl(240, 26.1%, 91%); /* #e2e2ee */
     --sidebar-ring: hsl(217.2, 91.2%, 59.8%); /* not in design.md; unchanged */
+    /* Status badge tones (design.md section 3). Each pair is 5.2:1 or better. */
+    --status-neutral: hsl(240, 33.3%, 95.9%); /* #f1f1f8 */
+    --status-neutral-foreground: hsl(240, 10.9%, 43.1%); /* #62627a */
+    --status-info: hsl(219.1, 100%, 95.5%); /* #e8f0ff */
+    --status-info-foreground: hsl(219.7, 89.7%, 38%); /* #0a45b8 */
+    --status-success: hsl(140.6, 84.2%, 92.5%); /* #dcfce7 */
+    --status-success-foreground: hsl(142.8, 64.2%, 24.1%); /* #166534 */
+    --status-warning: hsl(48, 96.5%, 88.8%); /* #fef3c7 */
+    --status-warning-foreground: hsl(22.7, 82.5%, 31.4%); /* #92400e */
+    --status-danger: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
+    --status-danger-foreground: hsl(0, 70%, 35.3%); /* #991b1b */
 }
 
 .dark {

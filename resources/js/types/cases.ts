@@ -12,9 +12,19 @@ export interface StaffCaseSummary {
     item_description: string | null;
     status: string;
     status_label: string;
+    status_tone: StatusTone;
     holder_label: string | null;
     submitted_at: string | null;
     days_since_submitted: number | null;
+}
+
+/** Badge tone decided by the server (design.md section 3). */
+export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+
+/** A row of the staff case list. */
+export interface StaffCaseListRow extends StaffCaseSummary {
+    /** Not sent yet: queries are not built. */
+    has_open_query?: boolean;
 }
 
 export interface CaseFilters {
@@ -22,12 +32,21 @@ export interface CaseFilters {
     type: string;
     org: string;
     ref: string;
-    sort: 'submitted_at' | 'reference_no' | 'status';
+    /** 'funding': in review, funding not yet confirmed (the CAB view). */
+    awaiting: '' | 'funding';
+    /** 'days' is days since submission (submitted_at, reversed) on the server. */
+    sort: 'submitted_at' | 'reference_no' | 'status' | 'days';
     dir: 'asc' | 'desc';
 }
 
+/** UI hints for the case list; the server authorises every request. */
+export interface CaseListCan {
+    create: boolean;
+    see_organisation: boolean;
+}
+
 export interface CaseListPage {
-    data: StaffCaseSummary[];
+    data: StaffCaseListRow[];
     current_page: number;
     last_page: number;
     total: number;

@@ -31,6 +31,8 @@ export interface SharedData {
     quote: { message: string; author: string };
     auth: Auth;
     can: { requests: boolean; cases: boolean };
+    /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
+    nav: { cmo_office: boolean };
     flash: { success: string | null; error: string | null; info: string | null };
     [key: string]: unknown;
 }

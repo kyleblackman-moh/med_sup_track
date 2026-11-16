@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { FileText, FolderOpen, LayoutGrid } from 'lucide-react';
+import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -23,14 +23,25 @@ const requestsNavItem: NavItem = {
 
 // Shown only when the server shares can.cases (staff case pages; display only).
 const casesNavItem: NavItem = {
-    title: 'Cases',
+    title: 'File tracking',
     url: '/cases',
     icon: FolderOpen,
 };
 
+// Office of the CMO shortcuts: saved views of the case register. Shown when the
+// server shares nav.cmo_office; the /cases routes authorise as usual.
+// Queries & responses is added when queries are built (Phase 2).
+const cmoNavItems: NavItem[] = [
+    { title: 'To review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
+    { title: 'CAB', url: '/cases?awaiting=funding', icon: Landmark },
+    { title: 'PS file', url: '/cases?status=WITH_PS', icon: FileSignature },
+    { title: 'Drafts', url: '/cases?status=NON_OBJECTION_GRANTED', icon: FilePen },
+];
+
 export function AppSidebar() {
-    const { can } = usePage<SharedData>().props;
+    const { can, nav } = usePage<SharedData>().props;
     const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
+    const showCmo = Boolean(nav?.cmo_office);
 
     return (
         // Flat with a right border (design.md section 6), not the starter kit's "inset".
@@ -49,6 +60,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={navItems} />
+                {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} />}
             </SidebarContent>
 
             <SidebarFooter>

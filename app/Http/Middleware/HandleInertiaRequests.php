@@ -73,6 +73,17 @@ class HandleInertiaRequests extends Middleware
                 // Same policy as the /cases routes.
                 'cases' => $user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class),
             ],
+            /*
+             * Sidebar sections, separate from `can` because a page prop named `can`
+             * (the staff case page has one) replaces the shared `can` entirely.
+             *
+             * cmo_office: file.prepare stands in for "the CMO's office". The flag
+             * only shows the Office of the CMO links; the /cases routes and
+             * CasePolicy still guard every page and action behind them.
+             */
+            'nav' => [
+                'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
+            ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

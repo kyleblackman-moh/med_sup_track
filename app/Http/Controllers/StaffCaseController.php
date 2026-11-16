@@ -7,6 +7,7 @@ use App\Enums\CaseStatus;
 use App\Enums\OrganisationType;
 use App\Enums\Permission;
 use App\Enums\ScanStatus;
+use App\Enums\TrackStatus;
 use App\Http\Resources\Cases\StaffCaseDetail;
 use App\Http\Resources\Cases\StaffCaseSummary;
 use App\Models\Document;
@@ -33,7 +34,8 @@ class StaffCaseController extends Controller
 {
     private const PER_PAGE = 25;
 
-    private const SORTS = ['submitted_at', 'reference_no', 'status'];
+    /** 'days' is days since submission: submitted_at in the opposite direction. */
+    private const SORTS = ['submitted_at', 'reference_no', 'status', 'days'];
 
     public function index(Request $request): Response|RedirectResponse
     {
@@ -47,6 +49,8 @@ class StaffCaseController extends Controller
             'ref' => ['nullable', 'string', 'min:3', 'max:30', 'regex:/^[A-Za-z0-9\/-]+$/'],
             'sort' => ['nullable', 'string', Rule::in(self::SORTS)],
             'dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
+            // CAB view: in review with funding not yet confirmed.
+            'awaiting' => ['nullable', 'string', Rule::in(['funding'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ], [
             'ref.min' => 'Enter at least 3 characters of the reference.',
@@ -62,6 +66,9 @@ class StaffCaseController extends Controller
         $filters = $validator->validated();
         $sort = $filters['sort'] ?? 'submitted_at';
         $dir = $filters['dir'] ?? 'desc';
+        [$column, $columnDir] = $sort === 'days'
+            ? ['submitted_at', $dir === 'asc' ? 'desc' : 'asc']
+            : [$sort, $dir];
 
         $page = ProcurementCase::query()
             ->with(['organisation:id,name', 'procurementType:id,name', 'requisition:id,case_id,item_description'])
@@ -69,8 +76,11 @@ class StaffCaseController extends Controller
             ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
             ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
             ->when($filters['ref'] ?? null, fn ($q, $v) => $q->where('cases.reference_no', 'like', "%{$v}%"))
-            ->orderBy("cases.{$sort}", $dir)
-            ->orderBy('cases.id', $dir)
+            ->when(($filters['awaiting'] ?? null) === 'funding', fn ($q) => $q
+                ->where('cases.status', CaseStatus::IN_REVIEW->value)
+                ->whereIn('cases.funding_track', [TrackStatus::PENDING->value, TrackStatus::NOT_CONFIRMED->value, TrackStatus::QUERY_OPEN->value]))
+            ->orderBy("cases.{$column}", $columnDir)
+            ->orderBy('cases.id', $columnDir)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
@@ -92,6 +102,7 @@ class StaffCaseController extends Controller
                 'type' => isset($filters['type']) ? (string) $filters['type'] : '',
                 'org' => $filters['org'] ?? '',
                 'ref' => $filters['ref'] ?? '',
+                'awaiting' => $filters['awaiting'] ?? '',
                 'sort' => $sort,
                 'dir' => $dir,
             ],
@@ -101,6 +112,12 @@ class StaffCaseController extends Controller
                     ->map(fn (ProcurementType $t) => ['value' => (string) $t->id, 'label' => $t->name])->all(),
                 'organisations' => Organisation::where('type', OrganisationType::Vendor->value)->orderBy('name')->get(['id', 'name'])
                     ->map(fn (Organisation $o) => ['value' => $o->id, 'label' => $o->name])->all(),
+            ],
+            // UI hints only; every endpoint authorises on its own. Not 'can': that
+            // name is the shared nav flags (HandleInertiaRequests) and would be overwritten.
+            'abilities' => [
+                'create' => $request->user()->can(Permission::CaseSubmit->value),
+                'see_organisation' => ! $request->user()->isVendor(),
             ],
         ]);
     }

@@ -200,8 +200,9 @@ it('lists the expected columns, without drafts', function () {
     expect($props['cases']['data'])->toHaveCount(1)
         ->and(array_keys($row))->toBe([
             'id', 'reference_no', 'organisation', 'procurement_type', 'item_description', 'status',
-            'status_label', 'holder_label', 'submitted_at', 'days_since_submitted',
+            'status_label', 'status_tone', 'holder_label', 'submitted_at', 'days_since_submitted',
         ])
+        ->and($row['status_tone'])->toBe('neutral')
         ->and($row['reference_no'])->toBe($case->reference_no)
         ->and($row['organisation'])->toBe($org->name)
         ->and($row['status_label'])->toBe('Submitted')
@@ -238,7 +239,17 @@ it('sorts by the whitelisted columns', function () {
     $second = staffCase(['org_id' => $org->id, 'reference_no' => 'NR-9A-BBB', 'submitted_at' => now()->subDay()]);
 
     expect(listedIds($cmo, $org))->toBe([$second->id, $first->id]) // default: submitted_at desc
-        ->and(listedIds($cmo, $org, ['sort' => 'reference_no', 'dir' => 'asc']))->toBe([$first->id, $second->id]);
+        ->and(listedIds($cmo, $org, ['sort' => 'reference_no', 'dir' => 'asc']))->toBe([$first->id, $second->id])
+        // days = days since submission: most days first means oldest submission first
+        ->and(listedIds($cmo, $org, ['sort' => 'days', 'dir' => 'desc']))->toBe([$first->id, $second->id])
+        ->and(listedIds($cmo, $org, ['sort' => 'days', 'dir' => 'asc']))->toBe([$second->id, $first->id]);
+});
+
+it('sends UI permission hints for the list page', function () {
+    $props = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.index')));
+
+    expect($props['abilities'])->toBe(['create' => false, 'see_organisation' => true])
+        ->and($props['can']['cases'])->toBeTrue(); // the shared nav flags survive
 });
 
 it('rejects invalid filter and sort values with validation errors', function (array $query, string $field) {

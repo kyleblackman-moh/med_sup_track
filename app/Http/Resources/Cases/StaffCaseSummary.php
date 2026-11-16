@@ -30,6 +30,7 @@ final class StaffCaseSummary
                 : null,
             'status' => $case->status->value,
             'status_label' => $case->status->label(),
+            'status_tone' => $case->status->tone(),
             'holder_label' => self::holderLabel($case->current_holder_role),
             'submitted_at' => $case->submitted_at?->copy()->utc()->toIso8601ZuluString(),
             // Calendar days in Port of Spain. Display only: no thresholds, no SLA meaning.

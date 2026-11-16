@@ -20,6 +20,11 @@ final class LandingPage
             return route('requests.index', absolute: false);
         }
 
+        // Staff with a work queue start on the dashboard, where the queue is.
+        if (WorkQueue::appliesTo($user)) {
+            return route('dashboard', absolute: false);
+        }
+
         if ($user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
             return route('cases.index', absolute: false);
         }

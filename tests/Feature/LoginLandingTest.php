@@ -36,8 +36,9 @@ it('lands each user on the page their permissions lead to', function (?string $r
     $this->assertAuthenticatedAs($user);
 })->with([
     'vendor applicant' => ['vendor', '/requests'],
-    'cmo' => [Role::Cmo->value, '/cases'],
-    'cmo registry' => [Role::CmoRegistry->value, '/cases'],
+    // Users with a work queue start on the dashboard, where the queue is.
+    'cmo' => [Role::Cmo->value, '/dashboard'],
+    'cmo registry' => [Role::CmoRegistry->value, '/dashboard'],
     'technocrat' => [Role::Technocrat->value, '/cases'],
     'cab officer' => [Role::CabOfficer->value, '/cases'],
     'legal officer' => [Role::LegalOfficer->value, '/cases'],
