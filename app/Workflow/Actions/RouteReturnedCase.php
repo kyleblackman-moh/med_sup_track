@@ -11,6 +11,7 @@ use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\Audit;
+use App\Workflow\AssignmentRound;
 use App\Workflow\CaseTransitionService;
 use App\Workflow\EligibleReviewers;
 use App\Workflow\Exceptions\GateNotPassed;
@@ -283,28 +284,7 @@ final class RouteReturnedCase
     /** Completes every active technical assignment (the earlier round). Returns how many. */
     private function closeTechnicalRound(ProcurementCase $case, User $actor): int
     {
-        $rows = CaseAssignment::query()
-            ->where('case_id', $case->getKey())
-            ->where('purpose', ReviewDesk::Technical->value)
-            ->whereNull('completed_at')
-            ->whereNull('cancelled_at')
-            ->orderBy('id')
-            ->get();
-
-        $now = CarbonImmutable::now('UTC');
-        foreach ($rows as $row) {
-            $row->forceFill(['completed_at' => $now])->save();
-
-            Audit::record(
-                AuditAction::CaseAssignmentCompleted,
-                ['type' => 'case_assignment', 'id' => $row->getKey()],
-                $case->getKey(),
-                ['role' => $row->role, 'user_id' => $row->user_id !== null ? (int) $row->user_id : null, 'purpose' => $row->purpose, 'reason' => 'new_review_round'],
-                $actor,
-            );
-        }
-
-        return $rows->count();
+        return AssignmentRound::close($case, $actor, ReviewDesk::Technical->value, AssignmentRound::NEW_REVIEW_ROUND);
     }
 
     private function assign(ProcurementCase $case, User $actor, User $reviewer): void

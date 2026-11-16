@@ -10,6 +10,7 @@ use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\Audit;
+use App\Workflow\AssignmentRound;
 use App\Workflow\CaseTransitionService;
 use App\Workflow\EligibleReviewers;
 use App\Workflow\Exceptions\GateNotPassed;
@@ -25,7 +26,11 @@ use Illuminate\Validation\ValidationException;
  * name), transition (the T6 guard requires file_no), one active user assignment
  * per officer, and audit with counts only. Fail closed.
  *
- * Other assignments are left as they are.
+ * Each send starts a new Legal round (cleanup-1): every active Legal assignment
+ * is completed first (AssignmentRound, as T11 does for technical rows), so an
+ * earlier officer keeps read-only access and only the officers chosen now can
+ * decide. Technical, funding and registry assignments are left as they are.
+ * T12 (RouteReturnedCase) sends the case back without touching assignments.
  */
 final class SendToLegal
 {
@@ -87,6 +92,11 @@ final class SendToLegal
                     'send_to_legal' => implode('; ', array_map(fn (string $k) => TransitionRules::GUARD_MESSAGES[$k] ?? $k, $e->missing)).'.',
                 ]);
             }
+
+            // A new Legal round: close every active Legal row (earlier rounds, and
+            // any duplicates), then one fresh row per chosen officer, even one
+            // chosen again. Other purposes are never touched.
+            AssignmentRound::close($locked, $actor, self::PURPOSE, AssignmentRound::NEW_LEGAL_ROUND);
 
             foreach ($chosen as $officer) {
                 $this->assign($locked, $actor, $officer);
