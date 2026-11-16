@@ -8,11 +8,15 @@ use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
+use App\Support\LandingPage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
+// No public home page: guests go to sign in, signed-in users to their landing page.
+Route::get('/', function (Request $request) {
+    return $request->user()
+        ? redirect(LandingPage::for($request->user()))
+        : redirect()->route('login');
 })->name('home');
 
 Route::middleware(['auth'])->group(function () {
