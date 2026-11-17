@@ -29,7 +29,7 @@ workflow, permissions or screens.
 - Access = permission + case status + assignment (`CasePolicy::act`). Vendor users are
   scoped to their org; staff never see DRAFT cases; external IDs are ULIDs.
 - Vendors never receive internal content (messages, documents, notification text).
-- `case_transitions` and `audit_logs` are insert-only. Cases are never deleted (no hard deletes, no soft deletes). Closed and withdrawn are statuses.
+- `case_transitions` and `audit_logs` are insert-only. Submitted cases are never deleted. A vendor's own DRAFT can be deleted, and only through CaseEraser. dev:clear-cases (local and testing only) uses the same class. No soft deletes. Closed and withdrawn are statuses.
 - Store UTC; display `America/Port_of_Spain`.
 - Hardcopy received means `hardcopy_received_on IS NOT NULL`, read through
   `ProcurementCase::hardcopyReceived()`. The three hardcopy columns are all set or all null.

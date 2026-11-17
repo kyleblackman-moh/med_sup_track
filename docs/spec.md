@@ -548,7 +548,7 @@ erDiagram
 - All timestamps are stored in UTC and displayed in `America/Port_of_Spain`.
 - Status columns are backed by PHP enums.
 - `case_transitions` and `audit_logs` are insert-only.
-- Soft-deleting cases is not allowed; use `WITHDRAWN` or retention rules (13.7).
+- Soft-deleting cases is not allowed; use `WITHDRAWN` or retention rules (13.7). Submitted cases are never deleted. A vendor's own DRAFT can be deleted, and only through CaseEraser. dev:clear-cases (local and testing only) uses the same class.
 
 ### 9.4 Reference numbers
 
