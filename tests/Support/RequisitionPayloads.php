@@ -145,8 +145,9 @@ function adHocPayload(): array
             ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '1.3000'],
         ],
         'stock_expiries' => [
-            ['quantity' => '120', 'expiry_date' => '2027-03-31'],
-            ['quantity' => '80.5', 'expiry_date' => '2027-06-30'],
+            // Relative to today (slice V2-1), so the expiry warning never fires on the fixture.
+            ['quantity' => '120', 'expiry_date' => now('America/Port_of_Spain')->addMonths(4)->endOfMonth()->toDateString()],
+            ['quantity' => '80.5', 'expiry_date' => now('America/Port_of_Spain')->addMonths(7)->endOfMonth()->toDateString()],
         ],
         'quotations' => [
             adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => 'No registration on file.']),

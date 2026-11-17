@@ -8,6 +8,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
+use App\Submissions\ExpiryRisk;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionRules;
 use App\Support\Decimal;
@@ -119,8 +120,12 @@ class RequestDetailResource extends JsonResource
     private static function adHocFigures(ProcurementCase $case): array
     {
         $requisition = $case->requisition;
+        $risk = ExpiryRisk::for($case);
 
         return [
+            // Slice V2-1: whole days, and the batches at risk or expired (ExpiryRisk).
+            'days_on_hand' => $risk['days_on_hand'],
+            'expiry_warnings' => ExpiryRisk::asList($risk['expiry_warnings']),
             'suppliers_awarded' => $case->suppliersAwarded(),
             'quotations_received' => $case->quotationsReceived(),
             'quotations_considered' => $case->quotationsConsidered(),

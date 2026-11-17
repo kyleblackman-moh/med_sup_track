@@ -21,6 +21,7 @@ use App\Submissions\ChangeRequestType;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
+use App\Submissions\ExpiryRisk;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
@@ -227,6 +228,9 @@ class RequestController extends Controller
                 'id_map' => (object) $saved->idMap,
                 'row_ids' => (object) $saved->rowIds,
                 'saved_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(),
+                // Slice V2-1 (ExpiryRisk): advisory only.
+                'days_on_hand' => $saved->daysOnHand,
+                'expiry_warnings' => ExpiryRisk::asList($saved->expiryWarnings),
             ]);
         }
 

@@ -314,6 +314,8 @@ it('computes the AD_HOC figures on the server', function () {
     $detail = pageProps($this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk())['case'];
 
     expect($detail['figures'])->toBe([
+        'days_on_hand' => 12,                               // V2-1: 200.50 / (500 / 30) = 12.03, whole days
+        'expiry_warnings' => [],                            // V2-1: the fixture's batches are well covered
         'suppliers_awarded' => 2,
         'quotations_received' => 2,
         'quotations_considered' => 1,

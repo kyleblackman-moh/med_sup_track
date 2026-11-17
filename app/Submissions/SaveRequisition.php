@@ -118,7 +118,17 @@ final class SaveRequisition
             );
         });
 
-        return new SavedDraft($case->refresh(), $idMap, $rowIds);
+        // Slice V2-1: days on hand and the expiry warning on what was saved.
+        $fresh = $case->refresh();
+        $requisition = CaseRequisition::withoutGlobalScopes()->where('case_id', $fresh->getKey())->first();
+        $risk = ExpiryRisk::compute(
+            $requisition?->average_monthly_consumption,
+            (bool) $requisition?->no_stock_on_hand,
+            CaseStockExpiry::withoutGlobalScopes()->where('case_id', $fresh->getKey())->get(),
+            ExpiryRisk::referenceDate($fresh),
+        );
+
+        return new SavedDraft($fresh, $idMap, $rowIds, $risk['days_on_hand'], $risk['expiry_warnings']);
     }
 
     /**

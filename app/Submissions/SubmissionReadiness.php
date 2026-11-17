@@ -16,6 +16,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /**
@@ -50,7 +51,7 @@ final class SubmissionReadiness
             'quotations' => $this->rows(CaseQuotation::class, $caseId),
             'tender_awards' => $this->rows(CaseTenderAward::class, $caseId),
             'purchase_orders' => $this->rows(CasePurchaseOrder::class, $caseId),
-            'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->get(),
+            'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->orderBy('id')->get(),
         ];
 
         if ($profile->isAdHocForm()) {
@@ -63,6 +64,11 @@ final class SubmissionReadiness
                 if ($q->technical_status !== TechnicalStatus::PENDING) {
                     $this->warning("quotations.{$i}.technical_status", 'MOH has already assessed this quotation.');
                 }
+            }
+
+            // Slice V2-1: the expiry warning. Advisory only, never an error.
+            if (! $requisition->no_stock_on_hand) {
+                $this->expiryWarnings($requisition, $rows['stock_expiries'], ExpiryRisk::referenceDate($case));
             }
 
             $this->checkDocuments($type, $caseId);
@@ -91,6 +97,27 @@ final class SubmissionReadiness
         $this->checkDocuments($type, $caseId);
 
         return new ReadinessReport($this->errors, $this->warnings, []);
+    }
+
+    /**
+     * One warning per batch at risk or expired (ExpiryRisk), keyed to the
+     * batch's expiry date like the payload ("stock_expiries.<index>.expiry_date").
+     */
+    private function expiryWarnings(CaseRequisition $requisition, Collection $batches, CarbonImmutable $today): void
+    {
+        $risk = ExpiryRisk::compute($requisition->average_monthly_consumption, false, $batches, $today);
+
+        foreach ($batches->values() as $i => $batch) {
+            $warning = $risk['expiry_warnings'][(int) $batch->getKey()] ?? null;
+            if ($warning === null) {
+                continue;
+            }
+
+            $n = $i + 1;
+            $this->warning("stock_expiries.{$i}.expiry_date", $warning['state'] === ExpiryRisk::EXPIRED
+                ? "Stock batch {$n} is past its expiry date."
+                : "Stock batch {$n} may expire before it is used: about {$warning['cover_days']} days of stock up to this batch, and it expires in {$warning['days_until_expiry']} days.");
+        }
     }
 
     /**
