@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Http\Resources\Requests\AdHocFormConfig;
+use App\Http\Resources\Requests\AdHocSections;
 use App\Http\Resources\Requests\FormConfig;
 use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
@@ -14,9 +16,11 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftNotEditable;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -122,6 +126,11 @@ class RequestController extends Controller
 
         Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
 
+        // Slice F2: an AD_HOC draft always gets the single-page form, never the old one.
+        if ($procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC) {
+            return $this->adHocEdit($request, $procurementCase, $readiness);
+        }
+
         return Inertia::render('requests/edit', [
             'case' => $this->detail($request, $procurementCase),
             'readiness' => (new ReadinessResource($readiness->evaluate($procurementCase)))->resolve($request),
@@ -146,12 +155,51 @@ class RequestController extends Controller
         $data = RequisitionData::validate($request->except(['_token', '_method']), $procurementCase->procurementType);
 
         try {
-            $save->handle($procurementCase, $request->user(), $data);
+            $saved = $save->handle($procurementCase, $request->user(), $data);
         } catch (DraftNotEditable) {
             return $this->notEditable($procurementCase);
         }
 
+        if ($procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC) {
+            // Autosave: no banner. The page attaches the new row ids by client_key.
+            return back()->with('saved', [
+                'id_map' => (object) $saved->idMap,
+                'row_ids' => (object) $saved->rowIds,
+                'saved_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(),
+            ]);
+        }
+
         return back()->with('success', 'Draft saved.');
+    }
+
+    /**
+     * The AD_HOC single-page form (slice F2). Every prop is a closure, so the
+     * page's partial reloads (autosave, Review and submit) compute only what they ask for.
+     */
+    private function adHocEdit(Request $request, ProcurementCase $case, SubmissionReadiness $readiness): Response
+    {
+        $report = null;
+        $evaluate = function () use (&$report, $readiness, $case) {
+            return $report ??= $readiness->evaluate($case);
+        };
+
+        return Inertia::render('requests/ad-hoc/edit', [
+            'case' => fn () => $this->detail($request, $case),
+            'sections' => function () use ($case, $evaluate) {
+                $report = $evaluate();
+                $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+
+                return AdHocSections::for($case, $report);
+            },
+            'config' => fn () => [...AdHocFormConfig::for(), 'uploads' => RequestDocuments::uploadRules()],
+            'documents' => fn () => RequestDocuments::for($case, $request->user()),
+            'saved' => fn () => $request->session()->get('saved'),
+            'hardcopy_notice' => RequestReceipt::HARDCOPY_NOTICE,
+            'can' => fn () => $this->can($request, [
+                'edit' => true,
+                'submit' => Gate::allows('act', [$case, self::PERMISSION->value]),
+            ]),
+        ]);
     }
 
     private function detail(Request $request, ProcurementCase $case): array

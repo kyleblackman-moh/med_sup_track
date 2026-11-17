@@ -18,6 +18,7 @@ enum AuditAction: string
     case CaseTransitioned = 'case.transitioned';
     case CaseCreated = 'case.created';
     case CaseDraftSaved = 'case.draft_saved';
+    case CaseDraftRowsDiscarded = 'case.draft_rows_discarded';
     case CaseReferenceAssigned = 'case.reference_assigned';
     case CaseAssignedToPool = 'case.assigned_to_pool';
     case CaseAssignmentCompleted = 'case.assignment_completed';

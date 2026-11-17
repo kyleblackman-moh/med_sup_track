@@ -231,7 +231,7 @@ function saveDraft(ProcurementCase $case, User $vendor, array $payload): Procure
 {
     $data = RequisitionData::validate($payload, $case->procurementType()->firstOrFail());
 
-    return app(SaveRequisition::class)->handle($case, $vendor, $data);
+    return app(SaveRequisition::class)->handle($case, $vendor, $data)->case;
 }
 
 /**

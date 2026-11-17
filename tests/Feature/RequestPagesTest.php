@@ -190,8 +190,8 @@ it('gives each type its own section config', function (string $code, array $allo
         ->where('config.allowed_sections', $allowed)
         ->where('config.is_pharm', $pharm));
 })->with([
-    ['AD_HOC', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'], false],
-    // Old types: drafts made before slice F1 keep their section config.
+    // Old types: drafts made before slice F1 keep their section config and the old page.
+    // AD_HOC has its own page since slice F2 (AdHocFormTest).
     ['AD_HOC_NON_PHARM', ['quotations'], false],
     ['AD_HOC_PHARM', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'], true],
 ]);
@@ -219,13 +219,15 @@ it('returns the same 404 for another org\'s case and a missing case', function (
 
 // 5. Update ---------------------------------------------------------------------
 
-it('saves a valid payload and redirects back with a success flash', function () {
+// Slice F2: an AD_HOC save is an autosave: no banner, the saved row ids instead.
+it('saves a valid payload and redirects back with the saved row ids', function () {
     [$case, $vendor] = vendorDraft();
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
         ->put("/requests/{$case->id}", [...adHocPayload(), '_token' => 'x', '_method' => 'PUT'])
         ->assertRedirect("/requests/{$case->id}/edit")
-        ->assertSessionHas('success');
+        ->assertSessionMissing('success')
+        ->assertSessionHas('saved', fn (array $saved) => count((array) $saved['row_ids']->quotations) === 2);
 
     expect(requisitionOf($case)->item_description)->toBe('Infant feeding tube, size 6Fr')
         ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(2)
@@ -234,6 +236,15 @@ it('saves a valid payload and redirects back with a success flash', function () 
     // Rows missing from the payload are deleted: a second save with one new quotation leaves one.
     $this->actingAs($vendor)->put("/requests/{$case->id}", ['quotations' => array_slice(adHocPayload()['quotations'], 0, 1)]);
     expect(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(1);
+});
+
+it('still flashes "Draft saved." for an old-type save', function () {
+    [$case, $vendor] = vendorDraft('TENDER_EXCESS');
+
+    $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
+        ->put("/requests/{$case->id}", tenderExcessPayload())
+        ->assertSessionHas('success', 'Draft saved.')
+        ->assertSessionMissing('saved');
 });
 
 it('shares the success flash on the next page', function () {
@@ -364,10 +375,11 @@ it('shows exact server-computed values', function () {
 
 // 8. Readiness ------------------------------------------------------------------
 
+// Slice F2: the AD_HOC edit page carries "sections"; the show page keeps "readiness".
 it('shows readiness errors for an empty draft and none for a complete one', function () {
     [$empty, $vendor] = vendorDraft();
 
-    $this->actingAs($vendor)->get("/requests/{$empty->id}/edit")->assertInertia(fn (Assert $page) => $page
+    $this->actingAs($vendor)->get("/requests/{$empty->id}")->assertInertia(fn (Assert $page) => $page
         ->where('readiness.is_ready', false)
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
@@ -378,7 +390,7 @@ it('shows readiness errors for an empty draft and none for a complete one', func
     [$complete, $owner] = vendorDraft();
     saveCompleteAdHoc($complete, $owner);
     attachRequiredDocuments($complete);
-    $this->actingAs($owner)->get("/requests/{$complete->id}/edit")->assertInertia(fn (Assert $page) => $page
+    $this->actingAs($owner)->get("/requests/{$complete->id}")->assertInertia(fn (Assert $page) => $page
         ->where('readiness.is_ready', true)
         ->where('readiness.errors', []));
 });

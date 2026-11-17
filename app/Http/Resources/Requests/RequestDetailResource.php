@@ -154,10 +154,12 @@ class RequestDetailResource extends JsonResource
         ];
     }
 
-    /** The row id plus its vendor-supplied fields. */
+    /** The row id plus its vendor-supplied fields (client_key is never stored, so never sent). */
     private static function row(Model $row, string $section, ?string $code = null): array
     {
-        return ['id' => $row->getKey(), ...self::values($row, array_keys(RequisitionRules::rowFields($section, $code)))];
+        $fields = array_diff(array_keys(RequisitionRules::rowFields($section, $code)), ['client_key']);
+
+        return ['id' => $row->getKey(), ...self::values($row, $fields)];
     }
 
     /** @param  list<string>  $fields */

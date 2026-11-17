@@ -48,7 +48,7 @@ final class SaveRequisition
         'stock_expiries' => [CaseStockExpiry::class, false],
     ];
 
-    public function handle(ProcurementCase $case, User $user, RequisitionData $data): ProcurementCase
+    public function handle(ProcurementCase $case, User $user, RequisitionData $data): SavedDraft
     {
         $gate = Gate::forUser($user);
 
@@ -61,7 +61,10 @@ final class SaveRequisition
 
         $gate->authorize('act', [$case, Permission::CaseSubmit->value]);
 
-        DB::transaction(function () use ($case, $user, $data) {
+        $idMap = [];
+        $rowIds = [];
+
+        DB::transaction(function () use ($case, $user, $data, &$idMap, &$rowIds) {
             $locked = ProcurementCase::withoutGlobalScopes()->whereKey($case->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== CaseStatus::DRAFT) {
@@ -84,9 +87,9 @@ final class SaveRequisition
                     continue;
                 }
 
-                $this->saveSection($caseId, $section, $model, $hasSortOrder, $data->sections[$section]);
+                $rowIds[$section] = $this->saveSection($caseId, $section, $model, $hasSortOrder, $data->sections[$section], $idMap);
 
-                $counts[$section] = count($data->sections[$section]);
+                $counts[$section] = count($rowIds[$section]);
             }
 
             // Audit sections in their usual order, whatever order they were saved in.
@@ -108,7 +111,7 @@ final class SaveRequisition
             );
         });
 
-        return $case->refresh();
+        return new SavedDraft($case->refresh(), $idMap, $rowIds);
     }
 
     /**
@@ -117,10 +120,29 @@ final class SaveRequisition
      * transaction rolls back) for an id that is not a row of this case and
      * section, or an award_id that is not an award row of this case.
      *
+     * Slice F2: a blank row (RequisitionRules::isBlankRow) is dropped, so a blank
+     * row with an id is deleted. client_key is never stored; a new row's key is
+     * added to $idMap. Returns the saved rows' ids in order.
+     *
      * @param  class-string<Model>  $model
      * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, int>  $idMap
+     * @return list<int>
      */
-    private function saveSection(string $caseId, string $section, string $model, bool $hasSortOrder, array $rows): void
+    /** The row's vendor-entered columns (as for AD_HOC) are all empty. */
+    private static function isBlank(Model $row, string $section): bool
+    {
+        $fields = array_diff(array_keys(RequisitionRules::rowFields($section, ProcurementTypeProfile::AD_HOC)), ['id', 'client_key']);
+        $values = [];
+        foreach ($fields as $field) {
+            $value = $row->getAttribute($field);
+            $values[$field] = is_bool($value) || $value === null ? $value : (string) $value;
+        }
+
+        return RequisitionRules::isBlankRow($values);
+    }
+
+    private function saveSection(string $caseId, string $section, string $model, bool $hasSortOrder, array $rows, array &$idMap): array
     {
         $existing = $model::withoutGlobalScopes()->where('case_id', $caseId)->get()->keyBy(fn (Model $m) => (int) $m->getKey());
         $awardIds = $section === 'purchase_orders'
@@ -130,7 +152,8 @@ final class SaveRequisition
 
         foreach ($rows as $index => $values) {
             $id = $values['id'] ?? null;
-            unset($values['id']);
+            $clientKey = $values['client_key'] ?? null;
+            unset($values['id'], $values['client_key']);
 
             if ($id !== null && ! $existing->has($id)) {
                 throw ValidationException::withMessages(["{$section}.{$index}.id" => 'This row no longer exists. Reload the page and try again.']);
@@ -143,8 +166,14 @@ final class SaveRequisition
             $row = $id !== null ? $existing->get($id) : (new $model)->forceFill(['case_id' => $caseId]);
             $row->fill($values);
 
+            // Judged on the row as it would be saved (an id-only row keeps its values):
+            // a blank row is dropped, so an existing blank row is deleted below.
+            if (self::isBlank($row, $section)) {
+                continue;
+            }
+
             if ($hasSortOrder) {
-                $row->forceFill(['sort_order' => $index]);
+                $row->forceFill(['sort_order' => count($kept)]); // blank rows leave no gap
             }
 
             if ($row instanceof CaseQuotation) {
@@ -156,13 +185,18 @@ final class SaveRequisition
                 ]);
             }
 
+            $isNew = ! $row->exists;
             $row->save();
             $kept[] = (int) $row->getKey();
+
+            if ($isNew && $clientKey !== null) {
+                $idMap[$clientKey] = (int) $row->getKey();
+            }
         }
 
         $removed = $existing->keys()->diff($kept)->values()->all();
         if ($removed === []) {
-            return;
+            return $kept;
         }
 
         if ($section === 'tender_awards') {
@@ -174,5 +208,7 @@ final class SaveRequisition
         }
 
         $model::withoutGlobalScopes()->where('case_id', $caseId)->whereIn('id', $removed)->delete();
+
+        return $kept;
     }
 }

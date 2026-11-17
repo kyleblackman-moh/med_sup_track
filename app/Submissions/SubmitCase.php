@@ -5,7 +5,11 @@ namespace App\Submissions;
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Enums\TenderOutcome;
 use App\Models\CaseAssignment;
+use App\Models\CasePurchaseOrder;
+use App\Models\CaseRequisition;
+use App\Models\CaseTenderAward;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
@@ -48,6 +52,11 @@ final class SubmitCase
 
             Gate::forUser($actor)->authorize('act', [$locked, Permission::CaseSubmit->value]);
 
+            // Slice F2: nothing awarded, so the draft's award and order rows (hidden
+            // in the form) are discarded and staff never see stale rows. Rolled back
+            // with everything else if the submit fails.
+            $this->discardRowsWhenNothingAwarded($locked, $actor);
+
             // Never trust the page: evaluate again under the lock.
             $report = $this->readiness->evaluate($locked);
             if (! $report->isReady()) {
@@ -79,6 +88,35 @@ final class SubmitCase
 
             return SubmitResult::submitted($locked->refresh());
         });
+    }
+
+    /**
+     * AD_HOC only, outcome NOT_AWARDED: deletes the draft's purchase orders, then
+     * its award rows (orders point at awards). Audits the counts only.
+     */
+    private function discardRowsWhenNothingAwarded(ProcurementCase $case, User $actor): void
+    {
+        if ($case->procurementType()->value('code') !== ProcurementTypeProfile::AD_HOC) {
+            return;
+        }
+
+        $outcome = CaseRequisition::withoutGlobalScopes()->where('case_id', $case->getKey())->value('tender_outcome');
+        if ($outcome !== TenderOutcome::NOT_AWARDED) { // value() returns the cast enum
+            return;
+        }
+
+        $orders = CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->getKey())->delete();
+        $awards = CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->getKey())->delete();
+
+        if ($orders + $awards > 0) {
+            Audit::record(
+                AuditAction::CaseDraftRowsDiscarded,
+                ['type' => 'case', 'id' => $case->getKey()],
+                $case->getKey(),
+                ['reason' => 'not_awarded', 'counts' => ['tender_awards' => $awards, 'purchase_orders' => $orders]],
+                $actor,
+            );
+        }
     }
 
     /**

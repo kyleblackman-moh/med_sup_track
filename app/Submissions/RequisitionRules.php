@@ -7,6 +7,7 @@ use App\Enums\PreviousPriceMaintained;
 use App\Enums\RfqAudience;
 use App\Enums\TenderOutcome;
 use App\Models\ProcurementType;
+use App\Support\Decimal;
 use Illuminate\Validation\Rule;
 
 /**
@@ -81,6 +82,7 @@ final class RequisitionRules
 
             if (array_key_exists('id', self::rowFields($section, $type->code))) {
                 $rules["{$section}.*.id"][] = 'distinct';
+                $rules["{$section}.*.client_key"][] = 'distinct';
             }
         }
 
@@ -249,7 +251,9 @@ final class RequisitionRules
     /**
      * AD_HOC child rows: every column optional at save. "id" is the row's own id
      * (absent on a new row); orders point at an award row by award_id, which
-     * SaveRequisition checks belongs to the case.
+     * SaveRequisition checks belongs to the case. "client_key" (slice F2) is a
+     * random key the page gives a new row so it can attach the id the save
+     * returns (SavedDraft::$idMap); it is never stored.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -257,6 +261,46 @@ final class RequisitionRules
     {
         $id = ['type' => 'rowid'];
 
+        return ['client_key' => self::str(64), ...self::adHocColumns($section, $id)];
+    }
+
+    /** Values a blank row may still carry: the defaults a new row starts with. */
+    public const BLANK_ROW_DEFAULTS = ['considered' => true, 'is_recommended' => false, 'quantity_delivered' => '0'];
+
+    /**
+     * A row with nothing entered (slice F2): every value is null or empty text,
+     * booleans are at their defaults; id and client_key do not count. Such a
+     * row is dropped on save (and, if it had an id, deleted).
+     */
+    public static function isBlankRow(array $values): bool
+    {
+        foreach ($values as $key => $value) {
+            if ($key === 'id' || $key === 'client_key') {
+                continue;
+            }
+            if (is_bool($value)) {
+                if ($value !== (self::BLANK_ROW_DEFAULTS[$key] ?? false)) {
+                    return false;
+                }
+
+                continue;
+            }
+            // A numeric default (quantity_delivered 0) counts as nothing entered.
+            if (is_string($value) && isset(self::BLANK_ROW_DEFAULTS[$key]) && is_numeric($value)
+                && Decimal::compare($value, (string) self::BLANK_ROW_DEFAULTS[$key]) === 0) {
+                continue;
+            }
+            if ($value !== null && ! (is_string($value) && trim($value) === '')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private static function adHocColumns(string $section, array $id): array
+    {
         return match ($section) {
             'quotations' => [
                 'id' => $id,
