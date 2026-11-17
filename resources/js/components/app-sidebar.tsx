@@ -44,8 +44,9 @@ export function AppSidebar() {
     const showCmo = Boolean(nav?.cmo_office);
 
     return (
-        // Flat with a right border (design.md section 6), not the starter kit's "inset".
-        <Sidebar collapsible="icon" variant="sidebar">
+        // UI-4: the sidebar sits on L0 with no background or border of its own; the "inset"
+        // variant puts the page on the L1 canvas beside it (design.md sections 5 and 6).
+        <Sidebar collapsible="icon" variant="inset" className="print:hidden">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -63,7 +64,7 @@ export function AppSidebar() {
                 {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} />}
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="border-t">
                 {/* The starter kit's Repository and Documentation links are removed (design.md section 6). */}
                 <NavUser />
             </SidebarFooter>

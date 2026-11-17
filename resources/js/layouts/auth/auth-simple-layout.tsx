@@ -1,4 +1,6 @@
+import { APP_BRAND } from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { BrandStripe } from '@/components/brand-stripe';
 import { Link } from '@inertiajs/react';
 
 interface AuthLayoutProps {
@@ -8,27 +10,39 @@ interface AuthLayoutProps {
     description?: string;
 }
 
+/**
+ * UI-4: the other account pages (forgot and reset password, confirm, verify)
+ * share the sign-in page's look: a centred white card on L0 with the brand
+ * stripe on top (design.md sections 2 and 5). Token classes only.
+ */
 export default function AuthSimpleLayout({ children, title, description }: AuthLayoutProps) {
     return (
-        <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div className="w-full max-w-sm">
-                <div className="flex flex-col gap-8">
-                    <div className="flex flex-col items-center gap-4">
-                        <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
-                            </div>
-                            <span className="sr-only">{title}</span>
-                        </Link>
+        <div className="bg-background text-foreground flex min-h-svh flex-col items-center justify-center px-3 py-10">
+            <main className="bg-card w-full max-w-md overflow-hidden rounded-2xl border shadow-xs">
+                <BrandStripe />
 
-                        <div className="space-y-2 text-center">
-                            <h1 className="text-xl font-medium">{title}</h1>
-                            <p className="text-muted-foreground text-center text-sm">{description}</p>
-                        </div>
+                <div className="flex flex-col gap-6 px-6 pt-8 pb-8 sm:px-8">
+                    <Link
+                        href={route('home')}
+                        className="focus-visible:ring-ring flex items-center gap-3 self-start rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                    >
+                        <span className="bg-primary text-primary-foreground flex size-[34px] items-center justify-center rounded-[4px] rounded-bl-2xl">
+                            <AppLogoIcon className="size-5 fill-current" aria-hidden="true" />
+                        </span>
+                        <span className="grid leading-tight">
+                            <span className="text-sm font-semibold">{APP_BRAND.name}</span>
+                            <span className="text-muted-foreground text-xs">{APP_BRAND.descriptor}</span>
+                        </span>
+                    </Link>
+
+                    <div className="space-y-1">
+                        <h1 className="text-xl font-semibold tracking-[-0.01em]">{title}</h1>
+                        {description && <p className="text-muted-foreground text-[13px]">{description}</p>}
                     </div>
+
                     {children}
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
