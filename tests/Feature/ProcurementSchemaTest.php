@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 /**
  * Expected SQL Server types per column (as reported by Schema::getColumns).
- * Slice F1 added the columns marked "F1" (additive).
+ * Slice F1 added the columns marked "F1" and slice V2-1 those marked "V2" (additive).
  */
 const SLICE_6B_COLUMNS = [
     'procurement_types' => [
@@ -44,6 +44,8 @@ const SLICE_6B_COLUMNS = [
         'stock_location' => 'nvarchar(200)', 'no_stock_on_hand' => 'bit', 'quantity_to_purchase' => 'decimal(14,2)',
         'tender_price' => 'decimal(14,4)', 'previous_price' => 'decimal(14,4)', 'quoted_price_acceptable' => 'bit',
         'price_note' => 'nvarchar(max)',
+        // V2
+        'tender_cycle_start' => 'date', 'tender_cycle_end' => 'date', 'quantity_on_order' => 'decimal(14,2)',
     ],
     'case_quotations' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
@@ -56,11 +58,13 @@ const SLICE_6B_COLUMNS = [
         'technical_status_set_by' => 'bigint', 'technical_status_set_at' => 'datetime',
         'created_at' => 'datetime', 'updated_at' => 'datetime',
         'considered' => 'bit', // F1
+        'ex_stock' => 'bit', 'country_of_origin' => 'nvarchar(100)', 'remarks' => 'nvarchar(255)', // V2
     ],
     'case_tender_awards' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
         'manufacturer' => 'nvarchar(200)', 'brand' => 'nvarchar(200)', 'quantity_awarded' => 'decimal(14,2)',
         'unit_cost' => 'decimal(14,4)', 'created_at' => 'datetime', 'updated_at' => 'datetime',
+        'country_of_origin' => 'nvarchar(100)', // V2
     ],
     'case_purchase_orders' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
@@ -71,6 +75,11 @@ const SLICE_6B_COLUMNS = [
     ],
     'case_stock_expiries' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'quantity' => 'decimal(14,2)', 'expiry_date' => 'date',
+        'created_at' => 'datetime', 'updated_at' => 'datetime',
+    ],
+    'case_variations' => [ // V2
+        'id' => 'bigint', 'case_id' => 'nchar(26)', 'variation_type' => 'nvarchar(100)',
+        'existing_detail' => 'nvarchar(500)', 'proposed_detail' => 'nvarchar(500)', 'effective_date' => 'date',
         'created_at' => 'datetime', 'updated_at' => 'datetime',
     ],
 ];
@@ -256,6 +265,15 @@ it('allows only one requisition per case', function () {
 
     DB::table('case_requisitions')->insert(['case_id' => $caseId]);
     expectRejected(fn () => DB::table('case_requisitions')->insert(['case_id' => $caseId]));
+});
+
+it('allows only one variation row per case, and blocks deleting its case (V2-1)', function () {
+    $caseId = insertCase();
+
+    DB::table('case_variations')->insert(['case_id' => $caseId]);
+    expectRejected(fn () => DB::table('case_variations')->insert(['case_id' => $caseId]));
+    expectRejected(fn () => DB::table('case_variations')->insert(['case_id' => Str::lower((string) Str::ulid())]));
+    expectRejected(fn () => DB::table('cases')->where('id', $caseId)->delete());
 });
 
 it('rejects child rows for a case that does not exist', function () {

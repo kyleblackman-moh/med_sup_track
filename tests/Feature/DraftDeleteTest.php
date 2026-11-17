@@ -21,7 +21,7 @@ use Spatie\Permission\PermissionRegistrar;
 /** Every table that holds a case's own rows, with the column that points at the case. */
 const ERASED_TABLES = [
     'case_purchase_orders', 'case_tender_awards', 'case_quotations',
-    'case_stock_expiries', 'case_requisitions', 'documents',
+    'case_stock_expiries', 'case_variations', 'case_requisitions', 'documents',
 ];
 
 beforeEach(function () {
@@ -132,7 +132,7 @@ it('writes one draft.deleted audit row with ids, the type code and counts only',
         ->and($metadata['procurement_type'])->toBe('AD_HOC')
         ->and($metadata['rows'])->toBe([
             'purchase_orders' => 1, 'tender_awards' => 2, 'quotations' => 2,
-            'stock_expiries' => 2, 'requisitions' => 1, 'documents' => 1,
+            'stock_expiries' => 2, 'variations' => 0, 'requisitions' => 1, 'documents' => 1,
         ])
         ->and($metadata['files'])->toBe(1);
 
@@ -164,6 +164,28 @@ it('deletes the documents and their files, including a replaced version, and kee
         ->and(documentsDisk()->exists($kept->storage_key))->toBeTrue()
         ->and(DB::table('documents')->where('id', $kept->id)->exists())->toBeTrue()
         ->and(json_decode(draftDeletedAudits($case->id)->first()->metadata, true)['files'])->toBe(2);
+});
+
+it('deletes the variation row with the draft, through the route and through erase() (V2-1)', function () {
+    [$case, $vendor] = filledDraft('AD_HOC');
+    [$other] = filledDraft('AD_HOC', $vendor);
+    foreach ([$case, $other] as $draft) {
+        DB::table('case_variations')->insert([
+            'case_id' => $draft->id, 'variation_type' => 'Price', 'existing_detail' => 'Old', 'proposed_detail' => 'New',
+            'effective_date' => '2027-01-01', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    $this->actingAs($vendor)->delete(route('requests.destroy', $case->id))->assertRedirect(route('requests.index'));
+
+    expect(DB::table('case_variations')->where('case_id', $case->id)->exists())->toBeFalse()
+        ->and(json_decode(draftDeletedAudits($case->id)->first()->metadata, true)['rows']['variations'])->toBe(1);
+
+    // dev:clear-cases calls erase() directly.
+    app(CaseEraser::class)->erase($other->id);
+
+    expect(DB::table('case_variations')->where('case_id', $other->id)->exists())->toBeFalse()
+        ->and(DB::table('cases')->where('id', $other->id)->exists())->toBeFalse();
 });
 
 // 2. Who may delete -------------------------------------------------------------
