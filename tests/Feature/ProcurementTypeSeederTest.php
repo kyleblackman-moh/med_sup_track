@@ -27,6 +27,7 @@ const EXPECTED_TYPES = [
     'AD_HOC' => ['Ad hoc purchase', null, false, 60],
     'AD_HOC_PHARM' => ['Ad hoc purchase (Pharm)', 'PHARM', false, 70],
     'AD_HOC_NON_PHARM' => ['Ad hoc purchase (Non-Pharm)', 'NON_PHARM', false, 80],
+    'NOT_SELECTED' => ['Not selected', null, false, 90], // V2-1b: a new draft's type until one is chosen
 ];
 
 const AD_HOC_REQUIRED = [
@@ -69,6 +70,7 @@ function expectedDocuments(): array
             ['supplier_correspondence', 'Supplier correspondence and lead-time confirmation', false],
             ['other_supporting', 'Other supporting justification', false],
         ],
+        'NOT_SELECTED' => formDocuments(false),
     ];
 }
 
@@ -113,7 +115,8 @@ it('requires Bids for the three Ad Hoc types only, no file for Excess and Variat
         ->and($required('TENDER_VARIATION'))->toBe([])
         ->and($required('AD_HOC'))->toBe(['bids'])
         ->and($required('AD_HOC_PHARM'))->toBe($sixRequired)
-        ->and($required('AD_HOC_NON_PHARM'))->toBe($sixRequired);
+        ->and($required('AD_HOC_NON_PHARM'))->toBe($sixRequired)
+        ->and($required('NOT_SELECTED'))->toBe([]);
 });
 
 it('numbers sort_order 10, 20, 30... within each type, uniquely', function () {

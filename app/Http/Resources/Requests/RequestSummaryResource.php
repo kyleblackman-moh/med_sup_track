@@ -6,6 +6,7 @@ use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Submissions\ProcurementTypeProfile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -36,8 +37,10 @@ class RequestSummaryResource extends JsonResource
             'status_group' => $case->status->vendorGroup(),
             'procurement_type' => [
                 'code' => $type->code,
-                'name' => $type->name,
-                'category' => $type->category?->value, // null for AD_HOC
+                'name' => $type->name, // "Not selected" for a new draft (V2-1b)
+                'category' => $type->category?->value, // null for the tender types and NOT_SELECTED
+                // V2-1b: false until the vendor chooses a type (the list shows the label muted).
+                'selected' => $type->code !== ProcurementTypeProfile::NOT_SELECTED,
             ],
             'item_description' => $requisition?->item_description,
             'vendor_reference' => $requisition?->vendor_reference,

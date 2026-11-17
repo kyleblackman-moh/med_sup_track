@@ -20,6 +20,9 @@ use Illuminate\Validation\ValidationException;
  * types. Nothing entered is deleted: data in a section the new type hides
  * stays in the draft and is discarded only at submit (SubmitCase).
  *
+ * Slice V2-1b: this is also how the type of a new draft (NOT_SELECTED) is
+ * chosen. The change is always TO one of the five, never to NOT_SELECTED.
+ *
  * The caller binds the case through the visibility scope, so a case outside
  * the user's organisation is 404 before it gets here. A case that is not a
  * DRAFT is DraftNotEditable (403). Audited with the two type codes only.

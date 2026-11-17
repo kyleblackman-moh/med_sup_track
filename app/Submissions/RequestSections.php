@@ -118,7 +118,7 @@ final class RequestSections
         'effective_date' => 'Enter the date the variation takes effect.',
     ];
 
-    public const REQUEST_TYPE_NEEDED = 'Choose the request type.';
+    public const REQUEST_TYPE_NEEDED = 'Choose a request type';
 
     public const AWARD_ROW_NEEDED = 'Add at least one awarded supplier.';
 
@@ -211,7 +211,8 @@ final class RequestSections
             $errors[] = ['key' => $key, 'message' => $message];
         };
 
-        // A draft of a type that is not one of the five (the old AD_HOC) must choose one first.
+        // A draft whose type is not one of the five (NOT_SELECTED, or the old AD_HOC) must choose one
+        // first: the items every type needs, plus this one error. Per-type rules apply once chosen.
         $requires = self::REQUIRES[$code] ?? null;
         if ($requires === null) {
             $add('request_type', self::REQUEST_TYPE_NEEDED);

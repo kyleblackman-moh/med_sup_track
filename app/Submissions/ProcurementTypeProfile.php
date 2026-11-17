@@ -27,6 +27,12 @@ final readonly class ProcurementTypeProfile
     public const TENDER_VARIATION = 'TENDER_VARIATION';
 
     /**
+     * Slice V2-1b: a new draft's type until one of the five is chosen in the
+     * form. Inactive and never offered as a choice; it cannot be submitted.
+     */
+    public const NOT_SELECTED = 'NOT_SELECTED';
+
+    /**
      * Slice V2-1: the five request types, in display order. Each uses the one
      * request form; RequestSections decides what each shows and requires. The
      * only codes a new draft may have (CreateDraftCase) or change to.
@@ -54,6 +60,7 @@ final readonly class ProcurementTypeProfile
         self::AD_HOC_NOT_AWARDED => [self::ALL_SECTIONS, []],
         self::TENDER_EXCESS => [self::ALL_SECTIONS, []],
         self::TENDER_VARIATION => [self::ALL_SECTIONS, []],
+        self::NOT_SELECTED => [self::ALL_SECTIONS, []],
         // Old types (inactive): unchanged.
         'AD_HOC_PHARM' => [
             ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
@@ -94,10 +101,10 @@ final readonly class ProcurementTypeProfile
         return in_array($section, $this->requiredSections, true);
     }
 
-    /** The one request form: the five request types (V2-1) and the old AD_HOC (F1). */
+    /** The one request form: the five request types (V2-1), NOT_SELECTED (V2-1b) and the old AD_HOC (F1). */
     public function isAdHocForm(): bool
     {
-        return $this->isRequestType() || $this->code === self::AD_HOC;
+        return $this->isRequestType() || $this->code === self::AD_HOC || $this->code === self::NOT_SELECTED;
     }
 
     /** One of the five request types of slice V2-1. */

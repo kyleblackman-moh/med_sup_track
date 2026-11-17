@@ -8,7 +8,9 @@ export type OptionList = { value: string; label: string }[];
 export interface ProcurementTypeSummary {
     code: string;
     name: string;
-    category: 'PHARM' | 'NON_PHARM' | null; // null for AD_HOC
+    category: 'PHARM' | 'NON_PHARM' | 'AD_HOC' | null; // null for the tender types and an unselected draft
+    /** V2-1b: false until the vendor chooses a type ("Not selected"). */
+    selected: boolean;
 }
 
 export interface RequestSummary {

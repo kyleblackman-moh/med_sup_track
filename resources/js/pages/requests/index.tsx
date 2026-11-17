@@ -122,7 +122,9 @@ export default function Index({ title, filters, requests, can }: Props) {
                                         <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">
                                             {request.reference_no ?? <span className="text-muted-foreground font-sans">Not assigned</span>}
                                         </td>
-                                        <td className="px-4 py-2">{request.procurement_type.name}</td>
+                                        <td className={request.procurement_type.selected ? 'px-4 py-2' : 'text-muted-foreground px-4 py-2'}>
+                                            {request.procurement_type.name}
+                                        </td>
                                         <td className="px-4 py-2">
                                             {request.item_description ?? <span className="text-muted-foreground">Not described yet</span>}
                                         </td>

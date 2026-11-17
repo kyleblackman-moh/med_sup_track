@@ -92,6 +92,9 @@ class ProcurementTypeSeeder extends Seeder
                 $supplierCorrespondence,
                 $otherSupporting,
             ]],
+            // Slice V2-1b: a new draft's type until the vendor chooses one in the form.
+            // Inactive, so it is never offered as a choice; no file is required.
+            ['NOT_SELECTED', 'Not selected', null, false, $formDocuments(false)],
         ];
     }
 }

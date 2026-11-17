@@ -22,17 +22,22 @@ use Illuminate\Validation\ValidationException;
 final class CreateDraftCase
 {
     /**
+     * Slice V2-1b: with no type (New request) the draft's type is NOT_SELECTED
+     * and the vendor chooses one in the form (ChangeRequestType). A type given
+     * here (the dev sample command, tests) must be one of the five, active.
+     *
      * @throws AuthorizationException not a vendor user with an organisation and case.submit
      * @throws ValidationException the procurement type is inactive or not one of the five request types
      */
-    public function handle(User $user, ProcurementType $type): ProcurementCase
+    public function handle(User $user, ?ProcurementType $type = null): ProcurementCase
     {
         if (! $user->isVendor() || $user->org_id === null || ! $user->can(Permission::CaseSubmit->value)) {
             throw new AuthorizationException('Only vendor users can start a request.');
         }
 
-        // Slice V2-1: a new draft is always one of the five request types.
-        if (! $type->is_active || ! ProcurementTypeProfile::for($type)->isRequestType()) {
+        if ($type === null) {
+            $type = ProcurementType::where('code', ProcurementTypeProfile::NOT_SELECTED)->firstOrFail();
+        } elseif (! $type->is_active || ! ProcurementTypeProfile::for($type)->isRequestType()) {
             throw ValidationException::withMessages([
                 'procurement_type' => 'This procurement type is not available.',
             ]);

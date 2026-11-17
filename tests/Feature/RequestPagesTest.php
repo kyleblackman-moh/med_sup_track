@@ -80,7 +80,7 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('status_label', 'Draft')
             ->where('status_group', 'DRAFT')
             // Slice V2-1: the Ad Hoc types have category AD_HOC and no vendor reference field.
-            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender unable to supply', 'category' => 'AD_HOC'])
+            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender unable to supply', 'category' => 'AD_HOC', 'selected' => true])
             ->where('item_description', 'Infant feeding tube, size 6Fr')
             ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
