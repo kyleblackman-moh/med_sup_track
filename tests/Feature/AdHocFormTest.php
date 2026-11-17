@@ -505,6 +505,21 @@ it('accepts several files in one category, one request each', function () {
     expect(DB::table('documents')->where('case_id', $case->id)->where('purpose', 'bids')->whereNull('supersedes_id')->count())->toBe(3);
 });
 
+// UI-3: the drop zone sends a batch one file per request, in order.
+it('keeps a batch going past a rejected file, with the error on that request only', function () {
+    [$case, $vendor] = newDraft();
+    $edit = route('requests.edit', $case->id);
+
+    $this->actingAs($vendor)->from($edit)->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload('a.pdf', pdfBytes())])
+        ->assertRedirect($edit)->assertSessionHasNoErrors();
+    $this->actingAs($vendor)->from($edit)->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload('b.png', pngBytes())])
+        ->assertRedirect($edit)->assertSessionHasErrors(['file' => 'Only PDF files are accepted.']);
+    $this->actingAs($vendor)->from($edit)->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload('c.pdf', pdfBytes())])
+        ->assertRedirect($edit)->assertSessionHasNoErrors();
+
+    expect(DB::table('documents')->where('case_id', $case->id)->orderBy('original_name')->pluck('original_name')->all())->toBe(['a.pdf', 'c.pdf']);
+});
+
 it('refuses the old categories for AD_HOC', function (DocumentPurpose $purpose) {
     [$case, $vendor] = newDraft();
 

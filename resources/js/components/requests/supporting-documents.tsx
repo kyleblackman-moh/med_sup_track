@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { formatSize, UploadDropZone, type UploadDropZoneHandle } from '@/components/requests/upload-drop-zone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,35 +25,27 @@ const STATUS_VARIANT: Record<RequestDocument['status_label'], 'secondary' | 'def
     Rejected: 'destructive',
 };
 
-function formatSize(bytes: number): string {
-    if (bytes < 1024) {
-        return `${bytes} B`;
-    }
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(0)} KB`;
-    }
-
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /**
- * Supporting documents, one card per document type. The server decides what is
- * listed and allowed (can_* flags) and validates every upload; this only sends
- * requests through Inertia. While anything is being scanned, the documents and
- * readiness props are reloaded every 5 seconds.
+ * Supporting documents, one card per document type, each with its own drop
+ * zone (UI-3). The server decides what is listed and allowed (can_* flags) and
+ * validates every upload; this only sends requests through Inertia. While
+ * anything is being scanned, the documents props are reloaded every 5 seconds,
+ * except while files are being sent.
  */
 export function SupportingDocuments({ caseId, groups, rules, readOnly = false, reloadProps = ['documents', 'readiness'], embedded = false }: Props) {
     const scanning = groups.some((group) => group.documents.some((doc) => doc.status_label === 'Scanning'));
     const reloadKey = reloadProps.join(','); // a stable dependency (the default array is new on every render)
+    const [busyZones, setBusyZones] = useState(0);
+    const uploading = busyZones > 0;
 
     useEffect(() => {
-        if (!scanning) {
+        if (!scanning || uploading) {
             return;
         }
         const timer = window.setInterval(() => router.reload({ only: reloadKey.split(',') }), 5000);
 
         return () => window.clearInterval(timer);
-    }, [scanning, reloadKey]);
+    }, [scanning, uploading, reloadKey]);
 
     return (
         <section aria-labelledby="documents-heading" className="space-y-4">
@@ -68,116 +61,56 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false, r
             </div>
 
             {groups.map((group) => (
-                <DocumentCard key={group.purpose} caseId={caseId} group={group} rules={rules} readOnly={readOnly || group.read_only === true} />
+                <DocumentCard
+                    key={group.purpose}
+                    caseId={caseId}
+                    group={group}
+                    rules={rules}
+                    readOnly={readOnly || group.read_only === true}
+                    reloadProps={reloadProps}
+                    onBusyChange={(busy) => setBusyZones((n) => Math.max(0, n + (busy ? 1 : -1)))}
+                />
             ))}
         </section>
     );
 }
 
-function DocumentCard({ caseId, group, rules, readOnly }: { caseId: string; group: DocumentGroup; rules?: UploadRules; readOnly: boolean }) {
-    const { errors } = usePage<{ errors: Record<string, string> }>().props;
-    const [file, setFile] = useState<File | null>(null);
-    const [replacing, setReplacing] = useState<RequestDocument | null>(null);
-    const [progress, setProgress] = useState<number | null>(null);
-    const [active, setActive] = useState(false);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const inputId = `upload-${group.purpose}`;
+interface DocumentCardProps {
+    caseId: string;
+    group: DocumentGroup;
+    rules?: UploadRules;
+    readOnly: boolean;
+    reloadProps: string[];
+    onBusyChange: (busy: boolean) => void;
+}
+
+function DocumentCard({ caseId, group, rules, readOnly, reloadProps, onBusyChange }: DocumentCardProps) {
+    const zone = useRef<UploadDropZoneHandle>(null);
+    const titleId = `upload-${group.purpose}-title`;
     const canUpload = !readOnly && (group.documents.length === 0 || group.documents.some((d) => d.can_replace));
 
-    const upload = (e: FormEvent) => {
-        e.preventDefault();
-        if (!file) {
-            return;
-        }
-        setActive(true);
-        router.post(
-            route('requests.documents.store', caseId),
-            { purpose: group.purpose, file, supersedes_id: replacing?.id ?? null },
-            {
-                forceFormData: true,
-                preserveScroll: true,
-                onProgress: (event) => setProgress(event?.percentage ?? null),
-                onSuccess: () => {
-                    setFile(null);
-                    setReplacing(null);
-                    if (inputRef.current) {
-                        inputRef.current.value = ''; // so choosing the same file again fires onChange
-                    }
-                },
-                onFinish: () => setProgress(null),
-            },
-        );
-    };
-
     return (
-        <article className="rounded-lg border p-4" aria-labelledby={`${inputId}-title`}>
+        <article className="rounded-lg border p-4" aria-labelledby={titleId}>
             <header className="flex flex-wrap items-center gap-2">
-                <h3 id={`${inputId}-title`} className="font-medium">
+                <h3 id={titleId} className="font-medium">
                     {group.label}
                 </h3>
                 {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-xs">Optional</span>}
             </header>
             {group.hint && <p className="text-muted-foreground mt-1 text-sm">{group.hint}</p>}
 
-            {group.documents.length === 0 ? (
-                <p className="text-muted-foreground mt-2 text-sm">No file uploaded.</p>
-            ) : (
-                <ul className="mt-3 space-y-3">
-                    {group.documents.map((doc) => (
-                        <DocumentRow
-                            key={doc.id}
-                            caseId={caseId}
-                            doc={doc}
-                            readOnly={readOnly}
-                            onReplace={() => {
-                                setReplacing(doc);
-                                inputRef.current?.click();
-                            }}
-                        />
-                    ))}
-                </ul>
+            {canUpload && (
+                <UploadDropZone ref={zone} caseId={caseId} group={group} rules={rules} reloadProps={reloadProps} onBusyChange={onBusyChange} />
             )}
 
-            {canUpload && (
-                <form onSubmit={upload} className="mt-4 flex flex-wrap items-end gap-3">
-                    <div className="grid gap-1.5">
-                        <Label htmlFor={inputId}>{replacing ? `Replace ${replacing.display_name}` : 'Add a file'}</Label>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {/* The native input is visually hidden but stays focusable; the button opens it. */}
-                            <input
-                                ref={inputRef}
-                                id={inputId}
-                                type="file"
-                                className="sr-only"
-                                accept={rules?.extensions.map((ext) => `.${ext}`).join(',')}
-                                aria-describedby={active && errors.file ? `${inputId}-error` : undefined}
-                                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                            />
-                            <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-                                {file ? 'Change file' : 'Choose file'}
-                            </Button>
-                            <span className="text-muted-foreground text-sm break-all">{file ? file.name : 'No file chosen'}</span>
-                        </div>
-                    </div>
-                    <Button type="submit" size="sm" disabled={!file || progress !== null}>
-                        {replacing ? 'Upload replacement' : 'Upload'}
-                    </Button>
-                    {replacing && (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setReplacing(null)}>
-                            Cancel replace
-                        </Button>
-                    )}
-                    {progress !== null && (
-                        <progress value={progress} max={100} aria-label={`Uploading ${group.label}`} className="h-2 w-40">
-                            {progress}%
-                        </progress>
-                    )}
-                    {active && (
-                        <div aria-live="polite" className="w-full">
-                            <InputError id={`${inputId}-error`} message={errors.file ?? errors.purpose ?? errors.supersedes_id} />
-                        </div>
-                    )}
-                </form>
+            {group.documents.length === 0 ? (
+                <p className="text-muted-foreground mt-3 text-sm">No file uploaded.</p>
+            ) : (
+                <ul className="mt-3 space-y-3" aria-label={`Uploaded files: ${group.label}`}>
+                    {group.documents.map((doc) => (
+                        <DocumentRow key={doc.id} caseId={caseId} doc={doc} readOnly={readOnly} onReplace={() => zone.current?.replace(doc)} />
+                    ))}
+                </ul>
             )}
         </article>
     );
@@ -189,11 +122,12 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
     const [reason, setReason] = useState('');
     const reasonId = `withdraw-${doc.id}`;
 
+    // The reason is optional (slice F1): the server accepts a removal without one.
     const withdraw = (e: FormEvent) => {
         e.preventDefault();
         router.post(
             route('requests.documents.withdraw', [caseId, doc.id]),
-            { reason },
+            { reason: reason.trim() === '' ? null : reason },
             { preserveScroll: true, onSuccess: () => setConfirming(false) },
         );
     };
@@ -201,7 +135,7 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
     return (
         <li className="rounded-md border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+                <div className="min-w-0">
                     <p className="font-medium break-all">{doc.display_name}</p>
                     <p className="text-muted-foreground text-xs">
                         Version {doc.version} · {formatSize(doc.size_bytes)}
@@ -229,15 +163,16 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
             </div>
 
             {doc.status_label === 'Rejected' && (
-                <p className="mt-2 text-sm text-red-700 dark:text-red-400">This file failed the security check. Upload a replacement.</p>
+                <p className="text-destructive mt-2 text-sm">This file failed the security check. Upload a replacement.</p>
             )}
 
             {confirming && (
                 <form onSubmit={withdraw} className="mt-3 grid gap-2">
-                    <Label htmlFor={reasonId}>Why are you removing this file?</Label>
+                    <Label htmlFor={reasonId}>
+                        Why are you removing this file? <span className="text-muted-foreground font-normal">(optional)</span>
+                    </Label>
                     <textarea
                         id={reasonId}
-                        required
                         maxLength={500}
                         rows={2}
                         className="border-input rounded-md border bg-transparent px-3 py-2 text-sm"
@@ -246,7 +181,7 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
                     />
                     <InputError message={errors.reason ?? errors.document} />
                     <div className="flex gap-2">
-                        <Button type="submit" variant="destructive" size="sm" disabled={reason.trim() === ''}>
+                        <Button type="submit" variant="destructive" size="sm">
                             Remove file
                         </Button>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
