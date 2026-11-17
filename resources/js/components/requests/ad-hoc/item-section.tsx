@@ -19,7 +19,7 @@ export function ItemSection({ api }: { api: FormApi }) {
             <div className="grid gap-4 md:grid-cols-3">
                 <TextField {...field('strength')} label="Strength" optional maxLength={100} />
                 <TextField {...field('dosage_form')} label="Dosage form" optional maxLength={100} />
-                <TextField {...field('din')} label="DIN" optional inputMode="numeric" maxLength={32} hint="Digits only." />
+                <TextField {...field('din')} label="DIN" inputMode="numeric" maxLength={32} hint="Digits only." />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

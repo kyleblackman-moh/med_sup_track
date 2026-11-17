@@ -52,6 +52,16 @@ final class AdHocSections
         'documents' => ['documents'],
     ];
 
+    /** The current screen's sections => the request form sections (RequestSections) each holds. */
+    private const SCREEN_TO_REQUEST_SECTIONS = [
+        'item' => ['item_tender'],
+        'tender' => ['item_tender', 'awarded_supplier', 'existing_arrangement', 'variation_details'],
+        'stock' => ['stock'],
+        'quotations' => ['quotation_comparison'],
+        'price' => ['quotation_comparison'],
+        'documents' => ['documents'],
+    ];
+
     /** @return list<array{key: string, label: string, optional: bool, complete: bool, summary: string, issues: list<array<string, mixed>>}> */
     public static function for(ProcurementCase $case, ReadinessReport $report): array
     {
@@ -64,16 +74,32 @@ final class AdHocSections
         }
 
         $priceEntered = self::priceEntered($case);
+        $code = (string) $case->procurementType()->value('code');
 
-        return array_map(fn (string $key) => [
-            'key' => $key,
-            'label' => self::SECTIONS[$key],
-            'optional' => $key === 'price',
-            // The optional price section is complete only once something is entered.
-            'complete' => $issues[$key] === [] && ($key !== 'price' || $priceEntered),
-            'summary' => self::summary($key, $case, $priceEntered),
-            'issues' => $issues[$key],
-        ], array_keys(self::SECTIONS));
+        return array_map(function (string $key) use ($issues, $priceEntered, $case, $code) {
+            // V2-1c: until a type is chosen, a type-dependent section is not complete,
+            // never optional, and its summary says why.
+            if (self::screenAwaitsType($code, $key)) {
+                return [
+                    'key' => $key,
+                    'label' => self::SECTIONS[$key],
+                    'optional' => false,
+                    'complete' => false,
+                    'summary' => RequestSections::REQUEST_TYPE_NEEDED,
+                    'issues' => $issues[$key],
+                ];
+            }
+
+            return [
+                'key' => $key,
+                'label' => self::SECTIONS[$key],
+                'optional' => $key === 'price',
+                // The optional price section is complete only once something is entered.
+                'complete' => $issues[$key] === [] && ($key !== 'price' || $priceEntered),
+                'summary' => self::summary($key, $case, $priceEntered),
+                'issues' => $issues[$key],
+            ];
+        }, array_keys(self::SECTIONS));
     }
 
     /**
@@ -97,9 +123,25 @@ final class AdHocSections
         return array_map(fn (array $section) => [
             ...$section,
             'anchor' => "section-{$section['key']}",
-            'complete' => $issues[$section['key']] === [],
+            // V2-1c: a section waiting for the type (it has a note) is never complete.
+            'complete' => $issues[$section['key']] === [] && $section['note'] === null,
             'issues' => $issues[$section['key']],
         ], $visible);
+    }
+
+    /**
+     * V2-1c: the current screen's section waits for the type when any request
+     * form section it holds does (RequestSections::awaitsType).
+     */
+    private static function screenAwaitsType(string $code, string $screenKey): bool
+    {
+        foreach (self::SCREEN_TO_REQUEST_SECTIONS[$screenKey] as $section) {
+            if (RequestSections::awaitsType($code, $section)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function screenSectionOf(string $key): ?string

@@ -120,6 +120,17 @@ final class RequestSections
 
     public const REQUEST_TYPE_NEEDED = 'Choose a request type';
 
+    /**
+     * Slice V2-1c: the sections whose requirement depends on the type. Until a
+     * type is chosen (NOT_SELECTED, or the old AD_HOC) they are never Complete
+     * or Optional: not complete, with the note REQUEST_TYPE_NEEDED.
+     * Existing arrangement is optional for every type, but is held too so an
+     * empty unselected draft shows no section as done.
+     */
+    public const TYPE_DEPENDENT = [
+        'variation_details', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
+    ];
+
     public const AWARD_ROW_NEEDED = 'Add at least one awarded supplier.';
 
     public const STOCK_NEEDED = 'Add a stock batch, or tick "No stock on hand".';
@@ -136,18 +147,33 @@ final class RequestSections
      * The sections a type shows, in form order, with whether each is optional
      * for that type. Unknown types (the old AD_HOC) show every shared section.
      *
-     * @return list<array{key: string, label: string, optional: bool}>
+     * Slice V2-1c: while no type is chosen, a type-dependent section is never
+     * optional and carries the note "Choose a request type" (else note null).
+     *
+     * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */
     public static function visible(string $code): array
     {
         $sections = [];
         foreach (self::ORDER as $key) {
             if (self::isVisible($code, $key)) {
-                $sections[] = ['key' => $key, 'label' => self::LABELS[$key], 'optional' => self::isOptional($code, $key)];
+                $waiting = self::awaitsType($code, $key);
+                $sections[] = [
+                    'key' => $key,
+                    'label' => self::LABELS[$key],
+                    'optional' => ! $waiting && self::isOptional($code, $key),
+                    'note' => $waiting ? self::REQUEST_TYPE_NEEDED : null,
+                ];
             }
         }
 
         return $sections;
+    }
+
+    /** True for a type-dependent section of a draft whose type is not one of the five (V2-1c). */
+    public static function awaitsType(string $code, string $section): bool
+    {
+        return ! isset(self::REQUIRES[$code]) && in_array($section, self::TYPE_DEPENDENT, true);
     }
 
     public static function isVisible(string $code, string $section): bool

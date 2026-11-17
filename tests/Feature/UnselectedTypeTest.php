@@ -247,3 +247,76 @@ it('never names NOT_SELECTED in the vendor-facing code', function () {
         expect(str_contains(file_get_contents($file->getPathname()), 'NOT_SELECTED'))->toBeFalse($file->getPathname());
     }
 });
+
+// 6. Section states before and after the type is chosen (slice V2-1c) -------------------
+
+/** The edit page's two section lists for $case, keyed by section key. */
+function sectionStates($test, ProcurementCase $case, User $vendor): array
+{
+    $props = pageProps($test->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk());
+
+    return [collect($props['request_sections'])->keyBy('key'), collect($props['sections'])->keyBy('key')];
+}
+
+it('never reports a type-dependent section as Complete or Optional on an empty unselected draft', function () {
+    [$case, $vendor] = unselectedDraft();
+    [$request, $screen] = sectionStates($this, $case, $vendor);
+
+    $dependent = $request->only(RequestSections::TYPE_DEPENDENT);
+    expect($dependent->keys()->all())->toBe(['awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents']);
+    foreach ($dependent as $key => $section) {
+        expect($section['complete'])->toBeFalse($key)
+            ->and($section['optional'])->toBeFalse($key)
+            ->and($section['note'])->toBe('Choose a request type');
+    }
+    // Item and tender does not depend on the type: its normal state (not complete: it is empty).
+    expect($request['item_tender']['note'])->toBeNull()
+        ->and($request['item_tender']['complete'])->toBeFalse();
+
+    // The current screen's rail: the same, for every section holding a type-dependent one.
+    foreach (['tender', 'stock', 'quotations', 'price', 'documents'] as $key) {
+        expect($screen[$key]['complete'])->toBeFalse($key)
+            ->and($screen[$key]['optional'])->toBeFalse($key)
+            ->and($screen[$key]['summary'])->toBe('Choose a request type');
+    }
+    expect($screen['item']['summary'])->toBe('Not started');
+});
+
+it('applies the Emergency rules once chosen: stock, quotations and documents are not complete on an empty draft', function () {
+    [$case, $vendor] = unselectedDraft();
+    app(ChangeRequestType::class)->handle($case, $vendor, 'AD_HOC_EMERGENCY');
+    [$request, $screen] = sectionStates($this, $case, $vendor);
+
+    foreach (['stock', 'quotation_comparison', 'documents'] as $key) {
+        expect($request[$key]['complete'])->toBeFalse($key)
+            ->and($request[$key]['optional'])->toBeFalse($key)
+            ->and($request[$key]['note'])->toBeNull();
+    }
+    // Emergency: awarded supplier optional, orders always optional (nothing entered, so complete).
+    expect($request['awarded_supplier']['optional'])->toBeTrue()
+        ->and($request['existing_arrangement']['optional'])->toBeTrue()
+        ->and($request)->not->toHaveKey('variation_details');
+    foreach (['stock', 'quotations', 'documents'] as $key) {
+        expect($screen[$key]['complete'])->toBeFalse($key);
+    }
+    expect($screen['price']['optional'])->toBeTrue();
+});
+
+it('applies the Tender Variation rules once chosen', function () {
+    [$case, $vendor] = unselectedDraft();
+    app(ChangeRequestType::class)->handle($case, $vendor, 'TENDER_VARIATION');
+    [$request] = sectionStates($this, $case, $vendor);
+
+    expect($request['variation_details']['complete'])->toBeFalse()
+        ->and($request['variation_details']['optional'])->toBeFalse()
+        ->and($request['awarded_supplier']['complete'])->toBeFalse()
+        ->and($request['awarded_supplier']['optional'])->toBeFalse()
+        // The table: stock and quotations optional for a Tender Variation; nothing entered, nothing missing.
+        ->and($request['stock']['optional'])->toBeTrue()
+        ->and($request['stock']['complete'])->toBeTrue()
+        ->and($request['quotation_comparison']['optional'])->toBeTrue()
+        ->and($request['quotation_comparison']['complete'])->toBeTrue()
+        // No file is required for a Tender Variation.
+        ->and($request['documents']['complete'])->toBeTrue()
+        ->and($request->pluck('note')->filter()->all())->toBe([]);
+});
