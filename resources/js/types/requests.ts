@@ -20,7 +20,7 @@ export interface RequestSummary {
     item_description: string | null;
     vendor_reference: string | null;
     updated_at: string | null;
-    can: { edit: boolean };
+    can: { edit: boolean; delete: boolean };
 }
 
 export type FieldValue = string | number | boolean | null;

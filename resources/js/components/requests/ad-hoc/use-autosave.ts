@@ -41,7 +41,9 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         lastStart: number;
         timer: number | null;
         waiters: ((ok: boolean) => void)[];
-    }>({ version: 0, savedVersion: 0, inFlight: false, lastStart: 0, timer: null, waiters: [] });
+        /** Set by stop(): the draft is being deleted, so nothing more is saved. */
+        stopped: boolean;
+    }>({ version: 0, savedVersion: 0, inFlight: false, lastStart: 0, timer: null, waiters: [], stopped: false });
 
     const api = useRef<{ run: () => void; schedule: (ms: number) => void } | null>(null);
 
@@ -60,6 +62,11 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         };
         const run = () => {
             e.timer = null;
+            if (e.stopped) {
+                settle(true);
+
+                return;
+            }
             if (e.inFlight) {
                 return; // onFinish picks up whatever changed meanwhile
             }
@@ -123,7 +130,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
     useEffect(() => {
         const warn = (event: BeforeUnloadEvent) => {
             const e = engine.current;
-            if (e.version > e.savedVersion || e.inFlight) {
+            if (!e.stopped && (e.version > e.savedVersion || e.inFlight)) {
                 event.preventDefault();
                 event.returnValue = '';
             }
@@ -144,6 +151,9 @@ export function useAutosave({ url, payload, onSaved }: Options) {
 
     /** Call after every local change. */
     const changed = () => {
+        if (engine.current.stopped) {
+            return;
+        }
         engine.current.version += 1;
         setStatus('saving');
         api.current?.schedule(DEBOUNCE_MS);
@@ -172,5 +182,16 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         void flush();
     };
 
-    return { status, savedAt, changed, flush, retry };
+    /** Stop for good: drop any pending save (the draft is being deleted). A save already sent finishes on its own. */
+    const stop = () => {
+        const e = engine.current;
+        e.stopped = true;
+        if (e.timer !== null) {
+            window.clearTimeout(e.timer);
+            e.timer = null;
+        }
+        e.savedVersion = e.version;
+    };
+
+    return { status, savedAt, changed, flush, retry, stop };
 }

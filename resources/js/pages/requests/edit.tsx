@@ -1,3 +1,4 @@
+import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FieldInput } from '@/components/requests/field-input';
 import {
     COMMENTS_FIELD,
@@ -14,6 +15,7 @@ import { buildTabs, FormTabs } from '@/components/requests/form-tabs';
 import { RowList } from '@/components/requests/row-list';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type UploadRules } from '@/types/requests';
@@ -65,7 +67,8 @@ function tabFromUrl(ids: TabId[]): TabId {
  * The draft form, one tab per part. Requisition fields are saved per tab
  * (Next and tab changes save first); row sections save as rows are changed.
  */
-export default function Edit({ case: detail, readiness, config, documents }: Props) {
+export default function Edit({ case: detail, readiness, config, documents, can }: Props) {
+    const [deleting, setDeleting] = useState(false);
     const tabs = useMemo(() => buildTabs(config), [config]);
     const ids = tabs.map((t) => t.id);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(ids));
@@ -145,7 +148,14 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                             {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : 'Draft'}
                         </p>
                     </div>
-                    <StatusBadge label={detail.status_label} group={detail.status_group} />
+                    <div className="flex flex-wrap items-center gap-4">
+                        <StatusBadge label={detail.status_label} group={detail.status_group} />
+                        {can.edit && (
+                            <Button type="button" variant="ghost" className="text-destructive h-11 md:h-9" onClick={() => setDeleting(true)}>
+                                Delete draft
+                            </Button>
+                        )}
+                    </div>
                 </header>
 
                 <FormTabs tabs={tabs} active={active} readiness={readiness} onSelect={select} />
@@ -226,6 +236,7 @@ export default function Edit({ case: detail, readiness, config, documents }: Pro
                     onNext={goNext}
                 />
             </div>
+            <DeleteDraftDialog caseId={deleting ? detail.id : null} onClose={() => setDeleting(false)} />
         </AppLayout>
     );
 }

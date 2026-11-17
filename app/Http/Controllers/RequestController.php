@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Http\Resources\Requests\AdHocFormConfig;
@@ -14,7 +15,9 @@ use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
+use App\Submissions\CaseEraser;
 use App\Submissions\CreateDraftCase;
+use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionData;
@@ -23,6 +26,7 @@ use App\Submissions\SubmissionReadiness;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -170,6 +174,52 @@ class RequestController extends Controller
         }
 
         return back()->with('success', 'Draft saved.');
+    }
+
+    /**
+     * LIST-1: delete the user's own DRAFT (any procurement type) through
+     * CaseEraser. Out of scope is 404 (route model binding); a case that is not
+     * a DRAFT is 403. A repeat of a delete that already succeeded is answered
+     * by missingDraft() below.
+     */
+    public function destroy(Request $request, ProcurementCase $procurementCase, CaseEraser $eraser): RedirectResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        abort_if($procurementCase->status !== CaseStatus::DRAFT, 403);
+
+        Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
+
+        try {
+            $eraser->eraseDraft($procurementCase, $request->user());
+        } catch (DraftAlreadyDeleted) {
+            return to_route('requests.index')->with('success', 'Draft already deleted.');
+        } catch (DraftNotEditable) {
+            abort(403); // submitted while this delete waited for the lock
+        }
+
+        return to_route('requests.index')->with('success', 'Draft deleted.');
+    }
+
+    /**
+     * Route binding found no case for a DELETE. If this user's organisation
+     * deleted that draft (a double submit), say so; anything else stays 404, so
+     * nothing is learnt about other organisations' cases.
+     */
+    public static function missingDraft(Request $request): RedirectResponse
+    {
+        $orgId = $request->user()?->org_id;
+        $caseId = (string) $request->route('procurementCase');
+
+        $deletedByOrg = $orgId !== null && strlen($caseId) === 26 && DB::table('audit_logs')
+            ->where('action', AuditAction::DraftDeleted->value)
+            ->where('case_id', $caseId)
+            ->where('actor_org_id', $orgId)
+            ->exists();
+
+        abort_unless($deletedByOrg, 404);
+
+        return to_route('requests.index')->with('success', 'Draft already deleted.');
     }
 
     /**

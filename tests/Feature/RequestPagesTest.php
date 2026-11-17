@@ -82,7 +82,7 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('item_description', 'Infant feeding tube, size 6Fr')
             ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
-            ->where('can', ['edit' => true]))
+            ->where('can', ['edit' => true, 'delete' => true]))
         ->where('can.create', true)
         ->where('can.requests', true));
 

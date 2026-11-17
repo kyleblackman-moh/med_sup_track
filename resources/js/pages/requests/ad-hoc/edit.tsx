@@ -10,6 +10,7 @@ import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { TenderSection } from '@/components/requests/ad-hoc/tender-section';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
+import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
@@ -31,7 +32,7 @@ type Review = 'none' | 'issues' | 'ready';
  * what is complete (the "sections" prop). Issues show only after Review and
  * submit, which saves first, then asks the server.
  */
-export default function AdHocEdit({ case: detail, sections, config, documents, hardcopy_notice, errors }: AdHocPageProps) {
+export default function AdHocEdit({ case: detail, sections, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
     const [state, setState] = useState<FormState>(() => initialState(detail));
     const stateRef = useRef(state);
     stateRef.current = state;
@@ -42,6 +43,7 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
     const [reviewFailed, setReviewFailed] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const panelRef = useRef<HTMLElement | null>(null);
 
     const autosave = useAutosave({
@@ -191,6 +193,11 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                     </div>
                     <div className="flex flex-wrap items-center gap-4">
                         <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
+                        {can.edit && (
+                            <Button type="button" variant="ghost" className="text-destructive h-11 md:h-9" onClick={() => setDeleting(true)}>
+                                Delete draft
+                            </Button>
+                        )}
                         {/* One primary action per view: once the summary is up, Submit is the primary one. */}
                         <Button
                             type="button"
@@ -246,6 +253,17 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                     </div>
                 </div>
             </div>
+
+            <DeleteDraftDialog
+                caseId={deleting ? detail.id : null}
+                onClose={() => setDeleting(false)}
+                // Nothing more is saved; a save already sent finishes first, so it cannot land after the delete.
+                onBeforeDelete={() => {
+                    autosave.stop();
+
+                    return autosave.flush();
+                }}
+            />
 
             <SubmitDialog
                 open={confirming}

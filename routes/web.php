@@ -36,6 +36,9 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
+        // LIST-1: delete a DRAFT. A repeat of a delete that already happened is answered gracefully.
+        Route::delete('{procurementCase}', 'destroy')->middleware('throttle:20,1')->name('destroy')
+            ->missing(fn (Request $request) => RequestController::missingDraft($request));
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
             ->middleware('throttle:10,1')->name('submit');

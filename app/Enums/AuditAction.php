@@ -19,6 +19,7 @@ enum AuditAction: string
     case CaseCreated = 'case.created';
     case CaseDraftSaved = 'case.draft_saved';
     case CaseDraftRowsDiscarded = 'case.draft_rows_discarded';
+    case DraftDeleted = 'draft.deleted'; // LIST-1: a vendor erased its own DRAFT (CaseEraser)
     case CaseReferenceAssigned = 'case.reference_assigned';
     case CaseAssignedToPool = 'case.assigned_to_pool';
     case CaseAssignmentCompleted = 'case.assignment_completed';

@@ -18,8 +18,9 @@ use Illuminate\Support\Facades\DB;
  * DocumentPolicy adds the per-document rules.
  *
  * Nothing is mass assignable: rows are created and changed only inside the
- * App\Documents services and the scan job, with forceFill. Rows and files are
- * never deleted (withdrawal is a flag).
+ * App\Documents services and the scan job, with forceFill. Withdrawal is a flag:
+ * rows and files are deleted only when App\Submissions\CaseEraser erases the
+ * vendor's own DRAFT that they belong to.
  */
 class Document extends Model
 {

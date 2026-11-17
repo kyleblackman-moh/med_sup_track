@@ -44,6 +44,8 @@ class RequestSummaryResource extends JsonResource
             'updated_at' => $case->updated_at?->copy()->utc()->toIso8601ZuluString(),
             'can' => [
                 'edit' => self::canEdit($case, $user),
+                // LIST-1: a draft can be deleted by whoever may edit it.
+                'delete' => self::canEdit($case, $user),
             ],
         ];
     }

@@ -1,3 +1,4 @@
+import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { type RequestSummary } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
+import { Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
     requests: {
@@ -27,6 +30,8 @@ function formatDate(iso: string | null): string {
 }
 
 export default function Index({ requests, can }: Props) {
+    const [deleting, setDeleting] = useState<string | null>(null);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Requests" />
@@ -86,7 +91,7 @@ export default function Index({ requests, can }: Props) {
                                         </td>
                                         <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{request.reference_no ?? ''}</td>
                                         <td className="px-4 py-2">{formatDate(request.updated_at)}</td>
-                                        <td className="px-4 py-2 text-right">
+                                        <td className="px-4 py-2 text-right whitespace-nowrap">
                                             {request.can.edit ? (
                                                 <Link href={route('requests.edit', request.id)} className={cn('underline', rowLink)}>
                                                     Edit<span className="sr-only"> {request.item_description ?? 'draft'}</span>
@@ -95,6 +100,19 @@ export default function Index({ requests, can }: Props) {
                                                 <Link href={route('requests.show', request.id)} className={cn('underline', rowLink)}>
                                                     View<span className="sr-only"> {request.item_description ?? 'request'}</span>
                                                 </Link>
+                                            )}
+                                            {request.can.delete && (
+                                                // relative z-10: above the row link's overlay, with its own focus and click.
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="relative z-10 ml-2 size-11 align-middle md:size-9"
+                                                    aria-label={`Delete draft: ${request.item_description ?? 'Not described yet'}, updated ${formatDate(request.updated_at)}`}
+                                                    onClick={() => setDeleting(request.id)}
+                                                >
+                                                    <Trash2 className="size-4" aria-hidden />
+                                                </Button>
                                             )}
                                         </td>
                                     </tr>
@@ -126,6 +144,8 @@ export default function Index({ requests, can }: Props) {
                     </nav>
                 )}
             </div>
+
+            <DeleteDraftDialog caseId={deleting} onClose={() => setDeleting(null)} />
         </AppLayout>
     );
 }
