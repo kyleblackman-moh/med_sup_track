@@ -13,6 +13,7 @@ use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummaryResource;
+use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Submissions\CaseEraser;
@@ -24,6 +25,7 @@ use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -42,15 +44,28 @@ class RequestController extends Controller
 {
     private const PERMISSION = Permission::CaseSubmit;
 
+    /** UI-3: the Requests list title. The organisation label is short_name, else name (listTitle). */
+    public const LIST_TITLE = '{organisation} - requests';
+
+    /** UI-3: the longest search the list accepts; longer input is cut to this. */
+    public const SEARCH_MAX = 100;
+
     public function index(Request $request): Response
     {
+        $search = mb_substr(trim((string) $request->query('q', '')), 0, self::SEARCH_MAX);
+
+        // The global scope keeps a vendor to its own organisation, search or not.
         $page = ProcurementCase::query()
             ->with(['procurementType', 'requisition'])
+            ->when($search !== '', fn ($query) => self::matching($query, $search))
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('requests/index', [
+            'title' => self::listTitle($request->user()->organisation),
+            'filters' => ['q' => $search],
             'requests' => [
                 'data' => RequestSummaryResource::collection($page->getCollection())->resolve($request),
                 'current_page' => $page->currentPage(),
@@ -61,6 +76,37 @@ class RequestController extends Controller
             ],
             'can' => $this->can($request, ['create' => $request->user()->can(self::PERMISSION->value)]),
         ]);
+    }
+
+    /** "{organisation label} - requests": the organisation's short name if set, otherwise its name. */
+    public static function listTitle(?Organisation $organisation): string
+    {
+        $label = trim((string) ($organisation?->short_name ?? '')) !== '' ? $organisation->short_name : ($organisation?->name ?? 'Your organisation');
+
+        return str_replace('{organisation}', $label, self::LIST_TITLE);
+    }
+
+    /**
+     * Partial, case-insensitive match (the database collation is CI) on the
+     * reference, item description, strength, DIN and type label. LIKE
+     * wildcards in the search are literal: %, _ and [ are escaped with \.
+     */
+    private static function matching(Builder $query, string $search): Builder
+    {
+        $pattern = '%'.str_replace(['\\', '%', '_', '['], ['\\\\', '\\%', '\\_', '\\['], $search).'%';
+        $like = fn (string $column) => ["{$column} LIKE ? ESCAPE '\\'", [$pattern]];
+
+        return $query->where(function (Builder $any) use ($like) {
+            $any->whereRaw(...$like('cases.reference_no'))
+                ->orWhereExists(fn ($sub) => $sub->selectRaw('1')->from('case_requisitions')
+                    ->whereColumn('case_requisitions.case_id', 'cases.id')
+                    ->where(fn ($fields) => $fields->whereRaw(...$like('case_requisitions.item_description'))
+                        ->orWhereRaw(...$like('case_requisitions.strength'))
+                        ->orWhereRaw(...$like('case_requisitions.din'))))
+                ->orWhereExists(fn ($sub) => $sub->selectRaw('1')->from('procurement_types')
+                    ->whereColumn('procurement_types.id', 'cases.procurement_type_id')
+                    ->whereRaw(...$like('procurement_types.name')));
+        });
     }
 
     public function create(): Response
