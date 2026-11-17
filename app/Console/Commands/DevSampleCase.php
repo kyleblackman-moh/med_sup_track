@@ -14,6 +14,7 @@ use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\SubmissionNotReady;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmitCase;
@@ -52,7 +53,8 @@ use Throwable;
  */
 class DevSampleCase extends Command
 {
-    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps, returned_by_legal, ps_granted, returned_by_ps_legal, returned_by_ps_technical, letter_issued or closed}';
+    protected $signature = 'dev:sample-case {stage : submitted, intake, in_review, ready_for_file, file_prepared, with_legal, with_ps, returned_by_legal, ps_granted, returned_by_ps_legal, returned_by_ps_technical, letter_issued or closed}
+        {--type=AD_HOC_TENDER_UNABLE : request type: AD_HOC_EMERGENCY, AD_HOC_TENDER_UNABLE, AD_HOC_NOT_AWARDED, TENDER_EXCESS or TENDER_VARIATION}';
 
     protected $description = 'DEV ONLY: create one sample case and drive it to a stage through the real workflow services';
 
@@ -60,8 +62,11 @@ class DevSampleCase extends Command
 
     public const RETURN_REASON = 'Dev sample: clause 4 needs the vendor to clarify the delivery terms.';
 
-    /** Procurement type used for samples: Ad Hoc - Tender unable to supply (slice V2-1). */
+    /** Request type used for samples unless --type names another of the five (slice V2-1). */
     public const TYPE_CODE = 'AD_HOC_TENDER_UNABLE';
+
+    /** The request type of this run (--type). */
+    private string $typeCode = self::TYPE_CODE;
 
     /** Stage => the steps it runs (each stage includes all the earlier ones). */
     public const STAGES = [
@@ -109,6 +114,13 @@ class DevSampleCase extends Command
     {
         if (! app()->environment('local')) {
             $this->error('dev:sample-case only runs when APP_ENV is local (this is "'.app()->environment().'"). Nothing was created.');
+
+            return self::FAILURE;
+        }
+
+        $this->typeCode = (string) $this->option('type');
+        if (! in_array($this->typeCode, ProcurementTypeProfile::REQUEST_TYPES, true)) {
+            $this->error("Unknown type \"{$this->typeCode}\". Use one of: ".implode(', ', ProcurementTypeProfile::REQUEST_TYPES).'.');
 
             return self::FAILURE;
         }
@@ -203,13 +215,15 @@ class DevSampleCase extends Command
 
     private function draft(User $vendor): void
     {
-        $type = ProcurementType::where('code', self::TYPE_CODE)->firstOrFail();
+        $type = ProcurementType::where('code', $this->typeCode)->firstOrFail();
         $this->case = app(CreateDraftCase::class)->handle($vendor, $type);
 
         $save = fn (array $payload) => app(SaveRequisition::class)->handle($this->case, $vendor, RequisitionData::validate($payload, $type));
 
         // Orders point at saved award rows, so they are saved in a second step.
-        $save(self::payload());
+        // A Tender Variation also gets its variation entry.
+        $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION ? ['variation' => self::variation()] : [];
+        $save([...self::payload(), ...$variation]);
         $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $this->case->getKey())->orderBy('sort_order')->value('id');
         $save(self::orders((int) $awardId));
     }
@@ -243,7 +257,7 @@ class DevSampleCase extends Command
 
     /**
      * A complete request (every one of the five types; a Tender Variation also
-     * needs a variation entry); generic supplier names only. Tender partially
+     * needs variation()); generic supplier names only. Tender partially
      * awarded (two award rows), a stock batch, two quotations (one not
      * considered, with a reason; one recommended) and a quantity to purchase.
      * The order is saved separately (orders()), once the award ids exist.
@@ -290,6 +304,17 @@ class DevSampleCase extends Command
                 $quote('Supplier C', '0.67', ['considered' => false, 'reason_accepted_excluded' => 'Dev sample: not registered.']),
                 $quote('Supplier D', '1.5975', ['is_recommended' => true]),
             ],
+        ];
+    }
+
+    /** The variation entry of a Tender Variation sample (slice V2-1). */
+    public static function variation(): array
+    {
+        return [
+            'variation_type' => 'Price',
+            'existing_detail' => 'Dev sample: unit cost 0.65 under the current contract.',
+            'proposed_detail' => 'Dev sample: unit cost 0.72 from the next delivery.',
+            'effective_date' => CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->toDateString(),
         ];
     }
 

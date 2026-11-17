@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Submissions\ProcurementTypeProfile;
 use App\Workflow\TransitionRules;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -66,6 +67,39 @@ it('refuses an unknown stage', function () {
     $this->artisan('dev:sample-case', ['stage' => 'reopened'])->expectsOutputToContain('Unknown stage')->assertFailed();
 
     expect(sampleCount())->toBe($before);
+});
+
+// Slice V2-1: --type picks one of the five request types; AD_HOC_TENDER_UNABLE by default.
+it('refuses a type that is not one of the five, and creates nothing', function (string $type) {
+    asLocal();
+    $before = sampleCount();
+
+    $this->artisan('dev:sample-case', ['stage' => 'submitted', '--type' => $type])
+        ->expectsOutputToContain('Unknown type')
+        ->assertFailed();
+
+    expect(sampleCount())->toBe($before);
+})->with(['AD_HOC', 'AD_HOC_PHARM', 'NOT_A_TYPE']);
+
+it('submits a sample of each request type, with a variation entry for a Tender Variation only', function (string $type) {
+    asLocal();
+
+    $this->artisan('dev:sample-case', ['stage' => 'submitted', '--type' => $type])
+        ->expectsOutputToContain('Sample case ready at stage submitted')
+        ->assertSuccessful();
+
+    $case = latestSample();
+    expect($case->status)->toBe(CaseStatus::SUBMITTED)
+        ->and($case->procurementType->code)->toBe($type)
+        ->and(DB::table('case_variations')->where('case_id', $case->id)->exists())->toBe($type === 'TENDER_VARIATION');
+})->with(ProcurementTypeProfile::REQUEST_TYPES);
+
+it('uses Ad Hoc - Tender unable to supply by default', function () {
+    asLocal();
+
+    $this->artisan('dev:sample-case', ['stage' => 'submitted'])->assertSuccessful();
+
+    expect(latestSample()->procurementType->code)->toBe('AD_HOC_TENDER_UNABLE');
 });
 
 it('drives a new sample case to each stage along a valid path', function (string $stage, CaseStatus $expected) {
