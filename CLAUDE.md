@@ -39,7 +39,7 @@ workflow, permissions or screens.
 ## UI
 - Read design.md first. Theme tokens only: no hex, font or radius values in components.
 - Badge tone comes from the server (`status_tone`); React maps tone → classes.a
-- Don't name a page prop `can` (it overwrites the shared nav flags).
+- Page props may be named `can` for page-level action flags (existing convention). Never add keys to the shared `can`; nav-only flags live under `nav`.
 
 ## Working rules
 - Ask Kyle before installing any package, including `npx shadcn add`.
