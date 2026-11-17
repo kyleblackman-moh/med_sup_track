@@ -41,6 +41,22 @@ class CaseRequisition extends Model
         'rfq_audience',
         'sample_evaluation_summary',
         'applicant_comments',
+        // Slice F1: the single Ad Hoc form.
+        'strength',
+        'dosage_form',
+        'clinical_note',
+        'stock_location',
+        'no_stock_on_hand',
+        'quantity_to_purchase',
+        'tender_price',
+        'previous_price',
+        'quoted_price_acceptable',
+        'price_note',
+    ];
+
+    /** Mirrors the database default. */
+    protected $attributes = [
+        'no_stock_on_hand' => false,
     ];
 
     protected function casts(): array
@@ -57,10 +73,18 @@ class CaseRequisition extends Model
             'average_monthly_consumption' => 'decimal:2',
             'central_stores_stock' => 'decimal:2',
             'rha_stock' => 'decimal:2',
+            'no_stock_on_hand' => 'boolean',
+            'quantity_to_purchase' => 'decimal:2',
+            'tender_price' => 'decimal:4',
+            'previous_price' => 'decimal:4',
+            'quoted_price_acceptable' => 'boolean',
         ];
     }
 
-    /** central_stores_stock + rha_stock; null if either is missing. */
+    /**
+     * Old types: central_stores_stock + rha_stock; null if either is missing.
+     * AD_HOC uses ProcurementCase::batchStockOnHand() instead.
+     */
     public function stockOnHand(): ?string
     {
         if ($this->central_stores_stock === null || $this->rha_stock === null) {

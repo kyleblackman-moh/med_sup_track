@@ -2,9 +2,20 @@
 
 namespace App\Enums;
 
-/** procurement_type_documents.purpose (and, later, uploaded documents). Values are lowercase. */
+/**
+ * procurement_type_documents.purpose and documents.purpose: the category of a
+ * document. Values are lowercase.
+ *
+ * bids, regulatory and evidence are the AD_HOC drop-zone categories (slice F1).
+ * The other values belong to the old types and stay so existing documents and
+ * configuration keep loading.
+ */
 enum DocumentPurpose: string
 {
+    case bids = 'bids';
+    case regulatory = 'regulatory';
+    case evidence = 'evidence';
+
     case original_rfq = 'original_rfq';
     case supplier_quotations = 'supplier_quotations';
     case evaluation_report = 'evaluation_report';

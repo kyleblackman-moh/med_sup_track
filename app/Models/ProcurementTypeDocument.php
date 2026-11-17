@@ -14,6 +14,7 @@ class ProcurementTypeDocument extends Model
         'purpose',
         'label',
         'is_required',
+        'hint',
         'sort_order',
     ];
 

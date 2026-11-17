@@ -23,6 +23,7 @@ class CaseQuotation extends Model
         'previous_price_maintained' => 'UNKNOWN',
         'is_recommended' => false,
         'technical_status' => 'PENDING',
+        'considered' => true,
     ];
 
     /**
@@ -48,6 +49,7 @@ class CaseQuotation extends Model
         'reason_accepted_excluded',
         'is_recommended',
         'recommended_quantity',
+        'considered',
     ];
 
     protected function casts(): array
@@ -64,6 +66,7 @@ class CaseQuotation extends Model
             'previous_price_maintained' => PreviousPriceMaintained::class,
             'is_recommended' => 'boolean',
             'recommended_quantity' => 'decimal:2',
+            'considered' => 'boolean',
             'technical_status' => TechnicalStatus::class,
             'technical_status_set_at' => 'datetime',
         ];
