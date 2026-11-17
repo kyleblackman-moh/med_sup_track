@@ -5,12 +5,9 @@ namespace App\Submissions;
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
-use App\Enums\TenderOutcome;
 use App\Models\CaseAssignment;
-use App\Models\CasePurchaseOrder;
-use App\Models\CaseRequisition;
-use App\Models\CaseTenderAward;
 use App\Models\CaseTransition;
+use App\Models\CaseVariation;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\Exceptions\SubmissionNotReady;
@@ -52,10 +49,10 @@ final class SubmitCase
 
             Gate::forUser($actor)->authorize('act', [$locked, Permission::CaseSubmit->value]);
 
-            // Slice F2: nothing awarded, so the draft's award and order rows (hidden
-            // in the form) are discarded and staff never see stale rows. Rolled back
-            // with everything else if the submit fails.
-            $this->discardRowsWhenNothingAwarded($locked, $actor);
+            // Slice V2-1: data in a section this type hides is discarded, so staff
+            // never see stale data. Rolled back with everything else if the submit
+            // fails.
+            $this->discardHiddenSections($locked, $actor);
 
             // Never trust the page: evaluate again under the lock.
             $report = $this->readiness->evaluate($locked);
@@ -91,29 +88,31 @@ final class SubmitCase
     }
 
     /**
-     * AD_HOC only, outcome NOT_AWARDED: deletes the draft's purchase orders, then
-     * its award rows (orders point at awards). Audits the counts only.
+     * Slice V2-1: data in a section the type hides is discarded at submit, so
+     * staff never see stale data (RequestSections::discardedAtSubmit; today the
+     * variation details of any type but TENDER_VARIATION). Until submit it stays
+     * in the draft, in case the type changes back. Audits the counts only.
      */
-    private function discardRowsWhenNothingAwarded(ProcurementCase $case, User $actor): void
+    private function discardHiddenSections(ProcurementCase $case, User $actor): void
     {
-        if (! ProcurementTypeProfile::for((string) $case->procurementType()->value('code'))->isAdHocForm()) {
+        $code = (string) $case->procurementType()->value('code');
+        if (! ProcurementTypeProfile::for($code)->isAdHocForm()) {
             return;
         }
 
-        $outcome = CaseRequisition::withoutGlobalScopes()->where('case_id', $case->getKey())->value('tender_outcome');
-        if ($outcome !== TenderOutcome::NOT_AWARDED) { // value() returns the cast enum
-            return;
+        $counts = [];
+        foreach (RequestSections::discardedAtSubmit($code) as $section) {
+            $counts[$section] = match ($section) {
+                'variation_details' => CaseVariation::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
+            };
         }
 
-        $orders = CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->getKey())->delete();
-        $awards = CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->getKey())->delete();
-
-        if ($orders + $awards > 0) {
+        if (array_sum($counts) > 0) {
             Audit::record(
                 AuditAction::CaseDraftRowsDiscarded,
                 ['type' => 'case', 'id' => $case->getKey()],
                 $case->getKey(),
-                ['reason' => 'not_awarded', 'counts' => ['tender_awards' => $awards, 'purchase_orders' => $orders]],
+                ['reason' => 'section_hidden', 'counts' => $counts],
                 $actor,
             );
         }

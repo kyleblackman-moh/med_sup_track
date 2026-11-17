@@ -7,6 +7,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
 use App\Submissions\ProcurementTypeProfile;
+use App\Submissions\RequestSections;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -386,7 +387,7 @@ it('shows readiness errors for an empty draft and none for a complete one', func
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
             'requisition.item_description', 'requisition.quantity_requested',
-            'requisition.tender_outcome', 'quotations', 'quotations.recommended', 'documents.bids',
+            'requisition.din', 'requisition.tender_cycle_start', 'quotations', 'quotations.recommended', 'documents.bids',
         ])->diff(collect($errors)->pluck('key'))->isEmpty()));
 
     [$complete, $owner] = vendorDraft();
@@ -486,7 +487,8 @@ it('gives an AD_HOC request page the summary labels, and no other type', functio
     $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk());
 
     if ($summary) {
-        expect(array_keys($props['summary_config']))->toBe(['options', 'not_awarded'])
+        expect(array_keys($props['summary_config']))->toBe(['options', 'not_awarded', 'sections'])
+            ->and(array_column($props['summary_config']['sections'], 'key'))->toBe(array_column(RequestSections::visible($code), 'key'))
             ->and(array_keys($props['summary_config']['options']))->toBe(['tender_outcome', 'rfq_audience'])
             ->and($props['case']['figures'])->not->toBeNull();
     } else {

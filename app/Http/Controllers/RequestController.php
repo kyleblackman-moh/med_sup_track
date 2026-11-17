@@ -17,10 +17,12 @@ use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Submissions\CaseEraser;
+use App\Submissions\ChangeRequestType;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
 use App\Submissions\ProcurementTypeProfile;
+use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
@@ -150,8 +152,12 @@ class RequestController extends Controller
             // Drafts only: the reasons a submit would be refused right now.
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
             // UI-3: an AD_HOC request shows the same summary as Review and submit, which needs the option labels.
+            // Slice V2-1: plus the sections the type shows, in order (RequestSections).
             'summary_config' => ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()
-                ? Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded'])
+                ? [
+                    ...Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded']),
+                    'sections' => RequestSections::visible($procurementCase->procurementType->code),
+                ]
                 : null,
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
@@ -228,6 +234,31 @@ class RequestController extends Controller
     }
 
     /**
+     * Slice V2-1: change the user's own DRAFT to another of the five request
+     * types (ChangeRequestType). Out of scope is 404 (route model binding); a
+     * case that is not a DRAFT is 403; an unknown or inactive type is a
+     * validation error on "procurement_type".
+     */
+    public function changeType(Request $request, ProcurementCase $procurementCase, ChangeRequestType $change): RedirectResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        abort_if($procurementCase->status !== CaseStatus::DRAFT, 403);
+
+        Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
+
+        $validated = $request->validate(['procurement_type' => ['required', 'string', 'max:40']]);
+
+        try {
+            $change->handle($procurementCase, $request->user(), $validated['procurement_type']);
+        } catch (DraftNotEditable) {
+            abort(403); // submitted while this change waited for the lock
+        }
+
+        return to_route('requests.edit', $procurementCase);
+    }
+
+    /**
      * LIST-1: delete the user's own DRAFT (any procurement type) through
      * CaseEraser. Out of scope is 404 (route model binding); a case that is not
      * a DRAFT is 403. A repeat of a delete that already succeeded is answered
@@ -291,6 +322,13 @@ class RequestController extends Controller
                 $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
 
                 return AdHocSections::for($case, $report);
+            },
+            // Slice V2-1: the sections this type shows, in order, with their issues (the V2-2 screen).
+            'request_sections' => function () use ($case, $evaluate) {
+                $report = $evaluate();
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+
+                return AdHocSections::requestSections($case, $report);
             },
             'config' => fn () => [...AdHocFormConfig::for(), 'uploads' => RequestDocuments::uploadRules()],
             'documents' => fn () => RequestDocuments::for($case, $request->user()),

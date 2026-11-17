@@ -19,6 +19,7 @@ class CaseTenderAward extends Model
         'brand',
         'quantity_awarded',
         'unit_cost',
+        'country_of_origin', // slice V2-1
     ];
 
     protected function casts(): array

@@ -105,9 +105,11 @@ function pharmAllSectionsPayload(): array
 }
 
 /*
- * AD_HOC (slice F1). A complete request: item, tender partially awarded with
- * two award rows, stock batches, two quotations (one not considered, with a
- * reason; one recommended), quantity to purchase and both reference prices.
+ * The request form (slice F1; V2-1 fields added). A complete request for every
+ * one of the five types (plus variationEntry for a Tender Variation): item,
+ * contract reference and tender cycle, two award rows, stock batches, two
+ * quotations (one not considered, with a reason; one recommended), quantity to
+ * purchase and both reference prices.
  * Orders point at award ids, so they are saved in a second step
  * (adHocOrdersFor).
  */
@@ -123,8 +125,11 @@ function adHocPayload(): array
             'unit_of_measure' => 'Each',
             'clinical_note' => 'Neonatal enteral feeding',
             'tender_reference' => 'TENDER-2026-14 (2026-2027)',
-            'tender_outcome' => 'PARTIALLY_AWARDED',
             'tender_issue_explanation' => 'The awarded supplier delivered part of the order only.',
+            // Slice V2-1. The tender outcome is no longer read (not sent).
+            'tender_cycle_start' => '2026-01-01',
+            'tender_cycle_end' => '2027-12-31',
+            'quantity_on_order' => '1800',
             'stock_location' => 'Central stores',
             'average_monthly_consumption' => '500',
             'no_stock_on_hand' => false,
@@ -136,7 +141,7 @@ function adHocPayload(): array
             'price_note' => 'Within the expected range.',
         ],
         'tender_awards' => [
-            ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '1.2500'],
+            ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '1.2500', 'country_of_origin' => 'Country A'],
             ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '1.3000'],
         ],
         'stock_expiries' => [
@@ -145,8 +150,20 @@ function adHocPayload(): array
         ],
         'quotations' => [
             adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => 'No registration on file.']),
-            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true]),
+            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'ex_stock' => true, 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.']),
         ],
+    ];
+}
+
+/** A complete Tender Variation entry (slice V2-1); $overrides replace or add fields. */
+function variationEntry(array $overrides = []): array
+{
+    return [
+        'variation_type' => 'Price',
+        'existing_detail' => 'Unit cost 1.25 under the current contract.',
+        'proposed_detail' => 'Unit cost 1.40 from the next delivery.',
+        'effective_date' => '2027-01-01',
+        ...$overrides,
     ];
 }
 
@@ -178,10 +195,14 @@ function adHocOrdersFor(ProcurementCase $case): array
     ];
 }
 
-/** Saves the complete AD_HOC content in its two steps. */
+/**
+ * Saves the complete request-form content in its two steps; complete for every
+ * one of the five types (a Tender Variation also gets its variation entry).
+ */
 function saveCompleteAdHoc(ProcurementCase $case, User $vendor): ProcurementCase
 {
-    saveDraft($case, $vendor, adHocPayload());
+    $variation = $case->procurementType()->value('code') === 'TENDER_VARIATION' ? ['variation' => variationEntry()] : [];
+    saveDraft($case, $vendor, [...adHocPayload(), ...$variation]);
 
     return saveDraft($case, $vendor, adHocOrdersFor($case));
 }

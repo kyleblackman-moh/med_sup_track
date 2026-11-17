@@ -103,6 +103,10 @@ class RequestDetailResource extends JsonResource
             ])->values()->all(),
             'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries', $code))
                 ->values()->all(),
+            // Slice V2-1: the variation entry (request form only); null when none is saved.
+            'variation' => $adHoc && $case->variation !== null
+                ? self::values($case->variation, array_keys(RequisitionRules::variationFields()))
+                : null,
             'totals' => self::totals($case),
             'figures' => $adHoc ? self::adHocFigures($case) : null,
         ];

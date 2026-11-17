@@ -13,9 +13,9 @@ use Spatie\Permission\PermissionRegistrar;
 // Slice 8a: SubmissionReadiness. Drafts are built through CreateDraftCase and
 // SaveRequisition, then evaluated. Read-only: evaluation writes nothing.
 //
-// Slice F1: these are the OLD types' rules (AD_HOC_PHARM, AD_HOC_NON_PHARM,
-// TENDER_EXCESS), which still apply to their drafts. The inactive types' drafts
-// come from legacyDraft() (draftOf). AD_HOC rules: AdHocReadinessTest.
+// Slice F1: these are the OLD types' rules (AD_HOC_PHARM, AD_HOC_NON_PHARM;
+// TENDER_EXCESS moved to the request form in V2-1). The inactive types' drafts
+// come from legacyDraft() (draftOf). Request-form rules: RequestSectionsTest.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();

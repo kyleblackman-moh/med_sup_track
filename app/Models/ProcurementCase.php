@@ -162,6 +162,12 @@ class ProcurementCase extends Model
         return $this->hasMany(CaseStockExpiry::class, 'case_id')->orderBy('expiry_date')->orderBy('id');
     }
 
+    /** Tender Variation details (slice V2-1); at most one row. */
+    public function variation(): HasOne
+    {
+        return $this->hasOne(CaseVariation::class, 'case_id');
+    }
+
     /**
      * Each award's share of the total awarded quantity, as a 2-decimal percentage
      * string keyed by award id. Empty when there are no awards or they sum to zero.

@@ -9,7 +9,7 @@ use App\Submissions\RequisitionRules;
 /**
  * What the AD_HOC form (slice F2) needs to lay itself out: option labels, row
  * caps and text limits. Display only: the server re-validates every save
- * (RequisitionRules) and decides readiness (AdHocReadiness).
+ * (RequisitionRules) and decides readiness (RequestSections).
  */
 final class AdHocFormConfig
 {

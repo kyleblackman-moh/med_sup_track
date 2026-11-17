@@ -242,7 +242,8 @@ class DevSampleCase extends Command
     }
 
     /**
-     * A complete AD_HOC request; generic supplier names only. Tender partially
+     * A complete request (every one of the five types; a Tender Variation also
+     * needs a variation entry); generic supplier names only. Tender partially
      * awarded (two award rows), a stock batch, two quotations (one not
      * considered, with a reason; one recommended) and a quantity to purchase.
      * The order is saved separately (orders()), once the award ids exist.
@@ -265,10 +266,12 @@ class DevSampleCase extends Command
         return [
             'requisition' => [
                 'item_description' => self::TAG.' Infant feeding tube, size 6Fr',
+                'din' => '02345678',
                 'quantity_requested' => '2800',
                 'unit_of_measure' => 'Each',
                 'tender_reference' => 'DEV-TENDER',
-                'tender_outcome' => 'PARTIALLY_AWARDED',
+                'tender_cycle_start' => $today->subYear()->startOfMonth()->toDateString(),
+                'tender_cycle_end' => $today->addYear()->endOfMonth()->toDateString(),
                 'tender_issue_explanation' => 'Dev sample: the awarded supplier delivered part of the order only.',
                 'stock_location' => 'Central stores',
                 'average_monthly_consumption' => '500',

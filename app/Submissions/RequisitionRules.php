@@ -14,17 +14,19 @@ use Illuminate\Validation\Rule;
  * Validation rules for a requisition payload:
  *
  *   ['requisition' => [...], 'quotations' => [rows], 'tender_awards' => [rows],
- *    'purchase_orders' => [rows], 'stock_expiries' => [rows]]
+ *    'purchase_orders' => [rows], 'stock_expiries' => [rows],
+ *    'variation' => [...]]   (request form only, slice V2-1)
  *
  * Field types, lengths and ranges follow the slice 6b columns. Every requisition
  * field is nullable (a draft saves incomplete). Child rows must carry the
  * columns the database requires. Unknown keys fail at every level
  * (unknownKeyErrors), so system columns can never be supplied.
  *
- * AD_HOC (slice F1) has its own field sets: every field is optional at save
- * (a draft saves partial data and partial rows); completeness is checked at
- * submit by AdHocReadiness. Child rows may carry their row id, so a save
- * updates rows in place (SaveRequisition). The other types keep their rules.
+ * The request form (the five types of slice V2-1, and the old AD_HOC of slice
+ * F1) has its own field sets: every field is optional at save (a draft saves
+ * partial data and partial rows); completeness is checked at submit by
+ * RequestSections. Child rows may carry their row id, so a save updates rows
+ * in place (SaveRequisition). The old Pharm / Non-Pharm types keep their rules.
  */
 final class RequisitionRules
 {
@@ -86,7 +88,33 @@ final class RequisitionRules
             }
         }
 
+        // Slice V2-1: the variation entry (one object, not a list); request form only.
+        if ($profile->isAdHocForm()) {
+            $rules['variation'] = ['sometimes', 'nullable', 'array'];
+            foreach (self::variationFields() as $field => $spec) {
+                $rules["variation.{$field}"] = self::rulesFor($spec);
+            }
+        } else {
+            $rules['variation'] = ['missing'];
+        }
+
         return $rules;
+    }
+
+    /**
+     * The Tender Variation entry (slice V2-1): one row per case, every field
+     * optional at save; required at submit for TENDER_VARIATION (RequestSections).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function variationFields(): array
+    {
+        return [
+            'variation_type' => self::str(100),
+            'existing_detail' => self::str(500),
+            'proposed_detail' => self::str(500),
+            'effective_date' => ['type' => 'date'],
+        ];
     }
 
     /**
@@ -107,10 +135,15 @@ final class RequisitionRules
             }
         };
 
-        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS], '');
+        $formType = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
+        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['variation'] : [])], '');
 
         if (is_array($payload['requisition'] ?? null)) {
             $check($payload['requisition'], array_keys(self::requisitionFields($code)), 'requisition.');
+        }
+
+        if ($formType && is_array($payload['variation'] ?? null)) {
+            $check($payload['variation'], array_keys(self::variationFields()), 'variation.');
         }
 
         foreach (ProcurementTypeProfile::SECTIONS as $section) {
@@ -229,10 +262,14 @@ final class RequisitionRules
             'quantity_requested' => ['type' => 'qty'],
             'unit_of_measure' => self::str(32),
             'clinical_note' => ['type' => 'text', 'max' => 2000],
-            // 2 Tender
+            // 2 Tender. tender_reference is the contract reference (V2-1, label only).
             'tender_reference' => self::str(120),
+            // Read by nothing since V2-1; still accepted so the old screen can save until V2-2.
             'tender_outcome' => ['type' => 'enum', 'enum' => TenderOutcome::class],
             'tender_issue_explanation' => ['type' => 'text'],
+            'tender_cycle_start' => ['type' => 'date'], // V2-1
+            'tender_cycle_end' => ['type' => 'date'],   // V2-1; not before the start (checked at submit)
+            'quantity_on_order' => ['type' => 'qty'],   // V2-1: existing arrangement
             // 3 Stock
             'stock_location' => self::str(200),
             'average_monthly_consumption' => ['type' => 'qty'],
@@ -313,6 +350,10 @@ final class RequisitionRules
                 'considered' => ['type' => 'bool', 'default' => true],
                 'reason_accepted_excluded' => self::str(500),
                 'is_recommended' => ['type' => 'bool', 'default' => true],
+                // V2-1
+                'ex_stock' => ['type' => 'bool'],
+                'country_of_origin' => self::str(100),
+                'remarks' => self::str(255),
             ],
             'tender_awards' => [
                 'id' => $id,
@@ -321,6 +362,7 @@ final class RequisitionRules
                 'brand' => self::str(200),
                 'quantity_awarded' => ['type' => 'qty'],
                 'unit_cost' => ['type' => 'price'],
+                'country_of_origin' => self::str(100), // V2-1
             ],
             'purchase_orders' => [
                 'id' => $id,

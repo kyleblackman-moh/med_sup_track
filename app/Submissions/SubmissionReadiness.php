@@ -10,6 +10,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\CaseVariation;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -33,7 +34,7 @@ final class SubmissionReadiness
 
     private array $warnings = [];
 
-    public function __construct(private readonly AdHocReadiness $adHoc = new AdHocReadiness) {}
+    public function __construct(private readonly RequestSections $sections = new RequestSections) {}
 
     public function evaluate(ProcurementCase $case): ReadinessReport
     {
@@ -53,8 +54,10 @@ final class SubmissionReadiness
         ];
 
         if ($profile->isAdHocForm()) {
-            // Slice F1: the single Ad Hoc form has its own rules (AdHocReadiness).
-            $this->errors = $this->adHoc->errors($requisition, $rows);
+            // Slice V2-1: the request form's rules per type (RequestSections). An old
+            // AD_HOC draft is told to choose one of the five types first.
+            $variation = CaseVariation::withoutGlobalScopes()->where('case_id', $caseId)->first();
+            $this->errors = $this->sections->errors($type->code, $requisition, $rows, $variation);
 
             foreach ($rows['quotations'] as $i => $q) {
                 if ($q->technical_status !== TechnicalStatus::PENDING) {
@@ -67,7 +70,7 @@ final class SubmissionReadiness
             return new ReadinessReport($this->errors, $this->warnings, []);
         }
 
-        // Old types (AD_HOC_PHARM, AD_HOC_NON_PHARM, TENDER_EXCESS): unchanged.
+        // Old types (AD_HOC_PHARM, AD_HOC_NON_PHARM; inactive): unchanged.
         $this->checkRequisition($requisition, $type->category, $profile);
 
         foreach ($profile->requiredSections as $section) {

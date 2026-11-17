@@ -52,6 +52,10 @@ class CaseRequisition extends Model
         'previous_price',
         'quoted_price_acceptable',
         'price_note',
+        // Slice V2-1: the five request types.
+        'tender_cycle_start',
+        'tender_cycle_end',
+        'quantity_on_order',
     ];
 
     /** Mirrors the database default. */
@@ -78,6 +82,9 @@ class CaseRequisition extends Model
             'tender_price' => 'decimal:4',
             'previous_price' => 'decimal:4',
             'quoted_price_acceptable' => 'boolean',
+            'tender_cycle_start' => 'date',
+            'tender_cycle_end' => 'date',
+            'quantity_on_order' => 'decimal:2',
         ];
     }
 

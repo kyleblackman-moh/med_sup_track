@@ -50,6 +50,10 @@ class CaseQuotation extends Model
         'is_recommended',
         'recommended_quantity',
         'considered',
+        // Slice V2-1.
+        'ex_stock',
+        'country_of_origin',
+        'remarks',
     ];
 
     protected function casts(): array
@@ -67,6 +71,7 @@ class CaseQuotation extends Model
             'is_recommended' => 'boolean',
             'recommended_quantity' => 'decimal:2',
             'considered' => 'boolean',
+            'ex_stock' => 'boolean',
             'technical_status' => TechnicalStatus::class,
             'technical_status_set_at' => 'datetime',
         ];

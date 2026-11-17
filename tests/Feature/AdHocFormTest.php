@@ -11,8 +11,6 @@ use App\Models\CaseRequisition;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
-use App\Submissions\AdHocReadiness;
-use App\Submissions\Exceptions\SubmissionNotReady;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequisitionData;
@@ -60,34 +58,6 @@ function adHocValidationErrors(array $payload): array
     }
 }
 
-/**
- * A saved AD_HOC draft: the complete payload after $mutate, then $orders (by
- * default one order against the first award, when there is an award), then
- * the Bids file unless $bids is false. Returns the readiness report.
- */
-function adHocReport(?Closure $mutate = null, ?Closure $orders = null, bool $bids = true): ReadinessReport
-{
-    [$case, $vendor] = newDraft();
-    $payload = adHocPayload();
-    if ($mutate) {
-        $payload = $mutate($payload);
-    }
-    saveDraft($case, $vendor, $payload);
-
-    $orderPayload = $orders
-        ? $orders($case)
-        : (CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->id)->exists() ? adHocOrdersFor($case) : null);
-    if ($orderPayload !== null) {
-        saveDraft($case, $vendor, $orderPayload);
-    }
-
-    if ($bids) {
-        attachRequiredDocuments($case);
-    }
-
-    return app(SubmissionReadiness::class)->evaluate($case);
-}
-
 function adHocErrorKeys(ReadinessReport $report): array
 {
     return array_column($report->errors, 'key');
@@ -102,85 +72,9 @@ function rowsOf(string $model, ProcurementCase $case): array
     return $query->get()->keyBy('id')->all();
 }
 
-// 1. Readiness: the complete payload passes; each missing item has its own error ----
-
-it('reports the complete AD_HOC request as ready, with no errors or warnings', function () {
-    $report = adHocReport();
-
-    expect($report->errors)->toBe([])
-        ->and($report->warnings)->toBe([])
-        ->and($report->isReady())->toBeTrue();
-});
-
-it('reports each missing required item with its own key and message', function (Closure $mutate, array $expected, ?Closure $orders = null, bool $bids = true) {
-    $report = adHocReport($mutate, $orders, $bids);
-
-    expect($report->errors)->toBe($expected)
-        ->and($report->isReady())->toBeFalse();
-})->with([
-    'description' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'item_description' => null]], [['key' => 'requisition.item_description', 'message' => 'Describe the item.']]],
-    'description blank' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'item_description' => '   ']], [['key' => 'requisition.item_description', 'message' => 'Describe the item.']]],
-    'unit' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'unit_of_measure' => null]], [['key' => 'requisition.unit_of_measure', 'message' => 'Enter the unit of measure.']]],
-    'tender reference' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_reference' => null]], [['key' => 'requisition.tender_reference', 'message' => 'Enter the tender period or reference.']]],
-    'tender outcome' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_outcome' => null]], [['key' => 'requisition.tender_outcome', 'message' => 'Choose the tender outcome.']]],
-    'rfq audience' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'rfq_audience' => null]], [['key' => 'requisition.rfq_audience', 'message' => 'Choose who received the RFQ.']]],
-    'quantity requested' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_requested' => null]], [['key' => 'requisition.quantity_requested', 'message' => 'Enter a quantity requested greater than zero.']]],
-    'quantity requested zero' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_requested' => '0']], [['key' => 'requisition.quantity_requested', 'message' => 'Enter a quantity requested greater than zero.']]],
-    'consumption' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => null]], [['key' => 'requisition.average_monthly_consumption', 'message' => 'Enter the average monthly consumption (0 if none).']]],
-    'quantity to purchase' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_to_purchase' => null]], [['key' => 'requisition.quantity_to_purchase', 'message' => 'Enter a quantity to purchase greater than zero.']]],
-    'quantity to purchase zero' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_to_purchase' => '0.00']], [['key' => 'requisition.quantity_to_purchase', 'message' => 'Enter a quantity to purchase greater than zero.']]],
-    'no award row (partially awarded)' => [fn ($p) => [...$p, 'tender_awards' => []], [['key' => 'tender_awards', 'message' => AdHocReadiness::AWARD_ROW_NEEDED]]],
-    'a partly filled award row' => [fn ($p) => [...$p, 'tender_awards' => [['supplier_name' => 'Supplier A', 'quantity_awarded' => '10']]], [['key' => 'tender_awards.0.unit_cost', 'message' => 'Award row 1: enter the unit cost.']], fn () => null],
-    'a partly filled award row next to a complete one' => [fn ($p) => [...$p, 'tender_awards' => [...$p['tender_awards'], ['brand' => 'Generic Brand']]], [
-        ['key' => 'tender_awards.2.supplier_name', 'message' => 'Award row 3: enter the supplier.'],
-        ['key' => 'tender_awards.2.quantity_awarded', 'message' => 'Award row 3: enter the quantity awarded.'],
-        ['key' => 'tender_awards.2.unit_cost', 'message' => 'Award row 3: enter the unit cost.'],
-    ]],
-    'no award row (unable to supply)' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_outcome' => 'SUPPLIER_UNABLE_TO_SUPPLY'], 'tender_awards' => []], [['key' => 'tender_awards', 'message' => AdHocReadiness::AWARD_ROW_NEEDED]]],
-    'order without award' => [fn ($p) => $p, [['key' => 'purchase_orders.0.award_id', 'message' => 'Order row 1: choose the supplier from the award rows.']], fn () => ['purchase_orders' => [['po_number' => 'PO-1', 'quantity_ordered' => '10']]]],
-    'order without PO number or quantity' => [fn ($p) => $p, [
-        ['key' => 'purchase_orders.0.po_number', 'message' => 'Order row 1: enter the PO number.'],
-        ['key' => 'purchase_orders.0.quantity_ordered', 'message' => 'Order row 1: enter the quantity ordered.'],
-    ], fn (ProcurementCase $case) => ['purchase_orders' => [['award_id' => (int) CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->id)->value('id')]]]],
-    'no stock and no batch' => [fn ($p) => [...$p, 'stock_expiries' => []], [['key' => 'stock_expiries', 'message' => AdHocReadiness::STOCK_NEEDED]]],
-    'a partly filled batch' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '5']]], [['key' => 'stock_expiries.0.expiry_date', 'message' => 'Stock batch 1: enter the expiry date.']]],
-    'no quotations' => [fn ($p) => [...$p, 'quotations' => []], [
-        ['key' => 'quotations', 'message' => AdHocReadiness::QUOTATION_NEEDED],
-        ['key' => 'quotations.recommended', 'message' => AdHocReadiness::RECOMMEND_ONE],
-    ]],
-    'a partly filled quotation' => [fn ($p) => [...$p, 'quotations' => [['supplier_name' => 'Supplier D', 'unit_price' => '1.00', 'is_recommended' => true]]], [['key' => 'quotations.0.quantity_offered', 'message' => 'Quotation 1: enter the quantity offered.']]],
-    'a partly filled quotation next to a complete one' => [fn ($p) => [...$p, 'quotations' => [...$p['quotations'], ['manufacturer' => 'Generic Manufacturer']]], [
-        ['key' => 'quotations.2.supplier_name', 'message' => 'Quotation 3: enter the supplier.'],
-        ['key' => 'quotations.2.unit_price', 'message' => 'Quotation 3: enter the unit price.'],
-        ['key' => 'quotations.2.quantity_offered', 'message' => 'Quotation 3: enter the quantity offered.'],
-    ]],
-    'none recommended' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40'), adHocQuoteRow('Supplier D', '1.5975')]], [['key' => 'quotations.recommended', 'message' => AdHocReadiness::RECOMMEND_ONE]]],
-    'two recommended' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['is_recommended' => true]), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]], [['key' => 'quotations.recommended', 'message' => AdHocReadiness::RECOMMEND_ONLY_ONE]]],
-    'not considered without a reason' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => '  ']), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]], [['key' => 'quotations.0.reason_accepted_excluded', 'message' => 'Quotation 1: give the reason it was not considered.']]],
-    'no Bids file' => [fn ($p) => $p, [['key' => 'documents.bids', 'message' => 'Required document missing: Bids']], null, false],
-]);
-
-it('accepts the optional parts left empty', function (Closure $mutate, ?Closure $orders = null) {
-    $report = adHocReport($mutate, $orders);
-
-    expect($report->errors)->toBe([])->and($report->isReady())->toBeTrue();
-})->with([
-    'strength, dosage form, DIN, clinical note, location, price comparison' => [fn ($p) => [...$p, 'requisition' => [
-        ...$p['requisition'],
-        'strength' => null, 'dosage_form' => null, 'din' => null, 'clinical_note' => null, 'stock_location' => null,
-        'tender_price' => null, 'previous_price' => null, 'quoted_price_acceptable' => null, 'price_note' => null,
-    ]]],
-    'no orders' => [fn ($p) => $p, fn () => null],
-    'nothing awarded: no award or order rows' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_outcome' => 'NOT_AWARDED'], 'tender_awards' => []]],
-    // The form hides the order table when nothing was awarded, so leftover rows do not block.
-    'nothing awarded: a leftover incomplete order' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_outcome' => 'NOT_AWARDED'], 'tender_awards' => []], fn () => ['purchase_orders' => [['po_number' => 'PO-1']]]],
-    'no stock on hand, no batches' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'no_stock_on_hand' => true], 'stock_expiries' => []]],
-    // The batches are hidden and ignored when "No stock on hand" is ticked.
-    'no stock on hand, a leftover partly filled batch' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'no_stock_on_hand' => true], 'stock_expiries' => [['quantity' => '5']]]],
-    // Slice F2: 0 is allowed (was: greater than zero).
-    'average monthly consumption 0' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => '0']]],
-    'every quotation considered' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]]],
-]);
+// 1. Readiness ----------------------------------------------------------------------
+// Slice V2-1: the rules per request type (and the tender outcome rules they
+// replaced) are tested in RequestSectionsTest.
 
 it('lets an AD_HOC draft with every rule met be submitted', function () {
     [$case, $vendor] = readyDraft();
@@ -583,7 +477,8 @@ it('drops a blank row on save; a blank row with an id is deleted; an id-only row
         ['id' => $firstId],                                                                    // keep, unchanged
         ['id' => $secondId, 'supplier_name' => '', 'manufacturer' => null, 'brand' => null,
             'unit_price' => null, 'quantity_offered' => null, 'lead_time_days' => null,
-            'reason_accepted_excluded' => null, 'considered' => true, 'is_recommended' => false],  // emptied: deleted
+            'reason_accepted_excluded' => null, 'considered' => true, 'is_recommended' => false,
+            'ex_stock' => null, 'country_of_origin' => null, 'remarks' => ''],                    // emptied: deleted
         ['client_key' => 'k-blank', 'considered' => true, 'is_recommended' => false],           // new and blank: dropped
     ], 'purchase_orders' => [['client_key' => 'k-order', 'quantity_delivered' => '0']]]);    // only the default: dropped
 
@@ -655,45 +550,19 @@ it('accepts an average monthly consumption of 0, with no coverage', function () 
         ->and(adHocErrorKeys(app(SubmissionReadiness::class)->evaluate($case)))->not->toContain('requisition.average_monthly_consumption');
 });
 
-it('discards the award and order rows at submit when nothing was awarded, and touches nothing else', function () {
-    [$case, $vendor] = readyDraft(); // two awards and one order, outcome PARTIALLY_AWARDED
+// Slice V2-1: the tender outcome is no longer read. Award and order rows are
+// kept at submit whatever it says (the "not awarded" discard was removed; the
+// only discard now is of hidden sections, RequestSectionsTest).
+it('keeps the award and order rows at submit, whatever the old tender outcome says', function () {
+    [$case, $vendor] = readyDraft();
     saveDraft($case, $vendor, ['requisition' => ['tender_outcome' => 'NOT_AWARDED']]);
-    $quotes = array_keys(rowsOf(CaseQuotation::class, $case));
-    $batches = array_keys(rowsOf(CaseStockExpiry::class, $case));
-    $requisition = (array) DB::table('case_requisitions')->where('case_id', $case->id)->first();
 
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
 
-    $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', 'case.draft_rows_discarded')->sole();
     expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('SUBMITTED')
-        ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(0)
-        ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(0)
-        ->and(array_keys(rowsOf(CaseQuotation::class, $case)))->toBe($quotes)
-        ->and(array_keys(rowsOf(CaseStockExpiry::class, $case)))->toBe($batches)
-        ->and((array) DB::table('case_requisitions')->where('case_id', $case->id)->first())->toBe($requisition)
-        ->and(json_decode($audit->metadata, true))->toBe(['reason' => 'not_awarded', 'counts' => ['tender_awards' => 2, 'purchase_orders' => 1]])
-        ->and((int) $audit->actor_user_id)->toBe($vendor->id);
-});
-
-it('keeps the award and order rows at submit when something was awarded', function () {
-    [$case, $vendor] = readyDraft();
-
-    app(SubmitCase::class)->handle($case, $vendor);
-
-    expect(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2)
+        ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2)
         ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1)
         ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', 'case.draft_rows_discarded')->count())->toBe(0);
-});
-
-it('discards nothing when a not-awarded submit is refused', function () {
-    [$case, $vendor] = newDraft();
-    saveCompleteAdHoc($case, $vendor); // no Bids file, so the submit is refused
-    saveDraft($case, $vendor, ['requisition' => ['tender_outcome' => 'NOT_AWARDED']]);
-
-    expect(fn () => app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor))
-        ->toThrow(SubmissionNotReady::class);
-    expect(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2)
-        ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1);
 });
 
 it('renders a draft of each request type on the new page, never the old one', function (string $code) {
@@ -731,7 +600,9 @@ it('groups readiness by section, in form order, with plain-English issues and fi
         ->and($sections['item']['summary'])->toBe('Feeding tube')
         ->and($sections['tender']['summary'])->toBe('1 supplier awarded, 0 orders')
         ->and($sections['stock']['summary'])->toBe('Not started')
-        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.unit_of_measure', 'requisition.quantity_requested'])
+        // Slice V2-1: the DIN is required for every type; V2-1 issues are mapped onto the current screen.
+        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.din', 'requisition.quantity_requested', 'requisition.unit_of_measure'])
+        ->and(collect($sections['tender']['issues'])->pluck('field')->all())->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'requisition.tender_reference')
         ->and(collect($sections['documents']['issues'])->pluck('message')->all())->toBe(['Required document missing: Bids'])
         ->and(collect($sections['tender']['issues'])->firstWhere('key', 'tender_awards.0.quantity_awarded'))->toBe([
             'key' => 'tender_awards.0.quantity_awarded',

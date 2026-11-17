@@ -11,6 +11,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\CaseVariation;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\Exceptions\DraftNotEditable;
@@ -97,6 +98,12 @@ final class SaveRequisition
                 array_map(fn (string $s) => $counts[$s] ?? null, array_combine(ProcurementTypeProfile::SECTIONS, ProcurementTypeProfile::SECTIONS)),
                 fn ($count) => $count !== null,
             );
+
+            // Slice V2-1: the variation entry, one row at most (0 or 1 in the counts).
+            if ($data->hasVariation) {
+                $counts['variation'] = $this->saveVariation($caseId, $data->variation);
+            }
+
             $saved = [...$saved, ...array_keys($counts)];
 
             $locked->touch();
@@ -129,6 +136,40 @@ final class SaveRequisition
      * @param  array<string, int>  $idMap
      * @return list<int>
      */
+    /**
+     * Upserts the case's variation row (slice V2-1). Only the keys sent are
+     * written. A row left blank (nothing entered, or the entry sent as null) is
+     * not kept: an existing one is deleted. A partial row is saved; it is an
+     * error at submit only (RequestSections). Returns the rows kept (0 or 1).
+     *
+     * @param  array<string, mixed>|null  $values
+     */
+    private function saveVariation(string $caseId, ?array $values): int
+    {
+        $row = CaseVariation::withoutGlobalScopes()->where('case_id', $caseId)->first()
+            ?? (new CaseVariation)->forceFill(['case_id' => $caseId]);
+
+        $row->fill($values ?? array_fill_keys(array_keys(RequisitionRules::variationFields()), null));
+
+        $current = [];
+        foreach (array_keys(RequisitionRules::variationFields()) as $field) {
+            $value = $row->getAttribute($field);
+            $current[$field] = $value === null ? null : (string) $value;
+        }
+
+        if (RequisitionRules::isBlankRow($current)) {
+            if ($row->exists) {
+                $row->delete();
+            }
+
+            return 0;
+        }
+
+        $row->save();
+
+        return 1;
+    }
+
     /** The row's vendor-entered columns (as for AD_HOC) are all empty. */
     private static function isBlank(Model $row, string $section): bool
     {

@@ -12,16 +12,23 @@ use Illuminate\Validation\ValidationException;
  * Values are typed: decimals as strings, enums as enum cases, dates as Y-m-d
  * strings, integers and booleans as such. Only keys present in the payload are
  * kept: an absent key means "unchanged", null means "clear".
+ *
+ * Slice V2-1: the variation entry (request form only). hasVariation is false
+ * when the payload has no "variation" key; $variation is null when it was sent
+ * as null (clear it), else the fields sent.
  */
 final readonly class RequisitionData
 {
     /**
      * @param  array<string, mixed>|null  $requisition  null = requisition not in the payload
      * @param  array<string, list<array<string, mixed>>>  $sections  only the sections present
+     * @param  array<string, mixed>|null  $variation
      */
     private function __construct(
         public ?array $requisition,
         public array $sections,
+        public bool $hasVariation = false,
+        public ?array $variation = null,
     ) {}
 
     /** @throws ValidationException */
@@ -48,7 +55,12 @@ final readonly class RequisitionData
             }
         }
 
-        return new self($requisition, $sections);
+        $hasVariation = array_key_exists('variation', $payload);
+        $variation = $hasVariation && $payload['variation'] !== null
+            ? self::normalise($payload['variation'], RequisitionRules::variationFields())
+            : null;
+
+        return new self($requisition, $sections, $hasVariation, $variation);
     }
 
     public function hasSection(string $section): bool
