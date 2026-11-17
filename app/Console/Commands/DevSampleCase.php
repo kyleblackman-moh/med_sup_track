@@ -60,8 +60,8 @@ class DevSampleCase extends Command
 
     public const RETURN_REASON = 'Dev sample: clause 4 needs the vendor to clarify the delivery terms.';
 
-    /** Procurement type used for samples: the single Ad Hoc form (slice F1). */
-    public const TYPE_CODE = 'AD_HOC';
+    /** Procurement type used for samples: Ad Hoc - Tender unable to supply (slice V2-1). */
+    public const TYPE_CODE = 'AD_HOC_TENDER_UNABLE';
 
     /** Stage => the steps it runs (each stage includes all the earlier ones). */
     public const STAGES = [

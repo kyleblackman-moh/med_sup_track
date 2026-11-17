@@ -47,9 +47,9 @@ function listIds($test, User $vendor, ?string $q = null): array
 function searchFixture(): array
 {
     $vendor = vendorUser(vendorOrg());
-    $tube = listedRequest($vendor, 'AD_HOC', ['item_description' => 'Infant feeding tube', 'strength' => '6Fr', 'din' => '02345678'], 'NOR-2026-0142', 30);
+    $tube = listedRequest($vendor, 'AD_HOC_TENDER_UNABLE', ['item_description' => 'Infant feeding tube', 'strength' => '6Fr', 'din' => '02345678'], 'NOR-2026-0142', 30);
     $insulin = listedRequest($vendor, 'TENDER_EXCESS', ['item_description' => 'Insulin glargine', 'strength' => '100 units/mL', 'din' => '09998887'], 'NOR-2026-0007', 20);
-    $draft = listedRequest($vendor, 'AD_HOC', ['item_description' => 'Gauze 100% cotton_roll [large]'], null, 10);
+    $draft = listedRequest($vendor, 'AD_HOC_TENDER_UNABLE', ['item_description' => 'Gauze 100% cotton_roll [large]'], null, 10);
 
     return [$vendor, $tube, $insulin, $draft];
 }
@@ -72,7 +72,7 @@ it('finds requests by partial item text, strength, DIN and type label', function
     'item, other case' => ['GLARGINE', 'insulin'],
     'strength' => ['units/ml', 'insulin'],
     'din' => ['0999888', 'insulin'],
-    'type label' => ['excess of tender', 'insulin'],
+    'type label' => ['tender exc', 'insulin'],
 ]);
 
 it('matches the type label for every request of that type', function () {
@@ -119,7 +119,7 @@ it('trims the search and cuts it at 100 characters', function () {
 it('never lists another organisation\'s requests, whatever the search', function (?string $q) {
     [$vendor] = searchFixture();
     $other = vendorUser(vendorOrg());
-    $theirs = listedRequest($other, 'AD_HOC', ['item_description' => 'Infant feeding tube', 'din' => '02345678'], 'NOR-2026-0999');
+    $theirs = listedRequest($other, 'AD_HOC_TENDER_UNABLE', ['item_description' => 'Infant feeding tube', 'din' => '02345678'], 'NOR-2026-0999');
 
     expect(listIds($this, $vendor, $q))->not->toContain($theirs->id)
         ->and(listIds($this, $other, $q))->toBe($q === null || $q !== 'Insulin' ? [$theirs->id] : []);
@@ -135,7 +135,7 @@ it('keeps the newest-updated-first order, with and without a search', function (
 it('keeps the search in the paging links', function () {
     $vendor = vendorUser(vendorOrg());
     foreach (range(1, 21) as $i) {
-        listedRequest($vendor, 'AD_HOC', ['item_description' => "Feeding tube {$i}"], null, $i);
+        listedRequest($vendor, 'AD_HOC_TENDER_UNABLE', ['item_description' => "Feeding tube {$i}"], null, $i);
     }
 
     $props = pageProps($this->actingAs($vendor)->get(route('requests.index', ['q' => 'feeding']))->assertOk());

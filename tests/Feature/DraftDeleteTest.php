@@ -41,8 +41,7 @@ function filledDraft(string $code, ?User $vendor = null): array
     [$case, $vendor] = draftOf($code, $vendor);
 
     match ($code) {
-        'AD_HOC' => saveCompleteAdHoc($case, $vendor),
-        'TENDER_EXCESS' => saveDraft($case, $vendor, tenderExcessPayload()),
+        'AD_HOC_TENDER_UNABLE', 'AD_HOC_EMERGENCY', 'AD_HOC_NOT_AWARDED', 'TENDER_EXCESS', 'TENDER_VARIATION' => saveCompleteAdHoc($case, $vendor),
     };
 
     return [$case, $vendor];
@@ -106,10 +105,10 @@ it('lets the owner delete a draft of every type, children first, and touches not
         ->and(caseFootprint($other->id))->toBe($otherBefore)
         // Audit rows outlive the case: the earlier ones stay, one is added.
         ->and(DB::table('audit_logs')->where('case_id', $case->id)->count())->toBe($auditsBefore + 1);
-})->with(['AD_HOC', 'TENDER_EXCESS']);
+})->with(['AD_HOC_TENDER_UNABLE', 'TENDER_EXCESS']);
 
 it('writes one draft.deleted audit row with ids, the type code and counts only', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
     // A document row whose file is already gone: counted, and a missing file is not an error.
     $document = makeDocumentRow($case, 'supplier_quotations');
 
@@ -129,7 +128,7 @@ it('writes one draft.deleted audit row with ids, the type code and counts only',
         ->and($row->subject_id)->toBe($case->id)
         ->and(array_keys($metadata))->toBe(['case_id', 'procurement_type', 'rows', 'files'])
         ->and($metadata['case_id'])->toBe($case->id)
-        ->and($metadata['procurement_type'])->toBe('AD_HOC')
+        ->and($metadata['procurement_type'])->toBe('AD_HOC_TENDER_UNABLE')
         ->and($metadata['rows'])->toBe([
             'purchase_orders' => 1, 'tender_awards' => 2, 'quotations' => 2,
             'stock_expiries' => 2, 'variations' => 0, 'requisitions' => 1, 'documents' => 1,
@@ -147,10 +146,10 @@ it('writes one draft.deleted audit row with ids, the type code and counts only',
 });
 
 it('deletes the documents and their files, including a replaced version, and keeps other cases\' files', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
     $first = makeDocument($case, 'supplier_quotations');
     $second = makeDocument($case, 'supplier_quotations', ['version' => 2, 'supersedes_id' => $first->id]);
-    [$sibling] = filledDraft('AD_HOC', $vendor);
+    [$sibling] = filledDraft('AD_HOC_TENDER_UNABLE', $vendor);
     $kept = makeDocument($sibling, 'supplier_quotations');
 
     expect(documentsDisk()->exists($first->storage_key))->toBeTrue()
@@ -167,8 +166,8 @@ it('deletes the documents and their files, including a replaced version, and kee
 });
 
 it('deletes the variation row with the draft, through the route and through erase() (V2-1)', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
-    [$other] = filledDraft('AD_HOC', $vendor);
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
+    [$other] = filledDraft('AD_HOC_TENDER_UNABLE', $vendor);
     foreach ([$case, $other] as $draft) {
         DB::table('case_variations')->insert([
             'case_id' => $draft->id, 'variation_type' => 'Price', 'existing_detail' => 'Old', 'proposed_detail' => 'New',
@@ -191,7 +190,7 @@ it('deletes the variation row with the draft, through the route and through eras
 // 2. Who may delete -------------------------------------------------------------
 
 it('returns 404 to a vendor of another organisation and leaves the draft alone', function () {
-    [$case] = filledDraft('AD_HOC');
+    [$case] = filledDraft('AD_HOC_TENDER_UNABLE');
     $before = caseFootprint($case->id);
 
     $this->actingAs(vendorUser(vendorOrg()))->delete(route('requests.destroy', $case->id))->assertNotFound();
@@ -201,7 +200,7 @@ it('returns 404 to a vendor of another organisation and leaves the draft alone',
 });
 
 it('returns 404 to every staff role for a DRAFT', function (Role $role) {
-    [$case] = filledDraft('AD_HOC');
+    [$case] = filledDraft('AD_HOC_TENDER_UNABLE');
     $before = caseFootprint($case->id);
 
     $this->actingAs(caseUser($role))->delete(route('requests.destroy', $case->id))->assertNotFound();
@@ -225,7 +224,7 @@ it('returns 403 to the owner for every status other than DRAFT', function (CaseS
 })->with(array_values(array_filter(CaseStatus::cases(), fn (CaseStatus $s) => $s !== CaseStatus::DRAFT)));
 
 it('redirects a guest to sign in and deletes nothing', function () {
-    [$case] = filledDraft('AD_HOC');
+    [$case] = filledDraft('AD_HOC_TENDER_UNABLE');
 
     $this->delete(route('requests.destroy', $case->id))->assertRedirect('/login');
 
@@ -239,7 +238,7 @@ it('throttles deletes at 20 a minute', function () {
 // 3. Double submit --------------------------------------------------------------
 
 it('answers a second delete of the same draft gracefully', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
 
     $this->actingAs($vendor)->delete(route('requests.destroy', $case->id))->assertRedirect(route('requests.index'));
     $this->actingAs($vendor)->delete(route('requests.destroy', $case->id))
@@ -250,7 +249,7 @@ it('answers a second delete of the same draft gracefully', function () {
 });
 
 it('keeps a deleted draft and an unknown id at 404 for anyone outside the organisation', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
     $this->actingAs($vendor)->delete(route('requests.destroy', $case->id));
 
     $this->actingAs(vendorUser(vendorOrg()))->delete(route('requests.destroy', $case->id))->assertNotFound();
@@ -275,7 +274,7 @@ it('refuses to erase a case that has history rows, and deletes nothing', functio
 });
 
 it('refuses a case that is no longer a draft when it is locked', function () {
-    [$case, $vendor] = filledDraft('AD_HOC');
+    [$case, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
     $stale = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
     // Submitted by another request after this one loaded the case.
     DB::table('cases')->where('id', $case->id)->update(['status' => CaseStatus::SUBMITTED->value]);
@@ -289,7 +288,7 @@ it('refuses a case that is no longer a draft when it is locked', function () {
 // 5. The Requests list -----------------------------------------------------------
 
 it('offers delete only on DRAFT rows of the Requests list', function () {
-    [$draft, $vendor] = filledDraft('AD_HOC');
+    [$draft, $vendor] = filledDraft('AD_HOC_TENDER_UNABLE');
     $submitted = makeCase([
         'org_id' => $vendor->org_id, 'created_by' => $vendor->id,
         'status' => CaseStatus::SUBMITTED, 'status_changed_at' => CarbonImmutable::now('UTC'),

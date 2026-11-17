@@ -6,6 +6,7 @@ use App\Enums\TechnicalStatus;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
+use App\Submissions\ProcurementTypeProfile;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,7 @@ afterEach(function () {
  * A vendor with a draft built from $payload through the 8a actions. Slice F1:
  * AD_HOC by default; inactive old types come from legacyDraft (draftOf).
  */
-function vendorDraft(string $code = 'AD_HOC', ?array $payload = null): array
+function vendorDraft(string $code = 'AD_HOC_TENDER_UNABLE', ?array $payload = null): array
 {
     [$case, $vendor] = draftOf($code);
     if ($payload !== null) {
@@ -77,8 +78,8 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('reference_no', null)
             ->where('status_label', 'Draft')
             ->where('status_group', 'DRAFT')
-            // Slice F1: AD_HOC has no Pharm / Non-Pharm category and no vendor reference field.
-            ->where('procurement_type', ['code' => 'AD_HOC', 'name' => 'Ad hoc purchase', 'category' => null])
+            // Slice V2-1: the Ad Hoc types have category AD_HOC and no vendor reference field.
+            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender unable to supply', 'category' => 'AD_HOC'])
             ->where('item_description', 'Infant feeding tube, size 6Fr')
             ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
@@ -109,15 +110,15 @@ it('lists only active procurement types on create', function () {
 
     $this->actingAs($vendor)->get('/requests/create')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('requests/create')
-        ->where('types', fn ($types) => collect($types)->pluck('code')->sort()->values()->all()
-            === ['AD_HOC', 'TENDER_EXCESS']) // slice F1: the Pharm / Non-Pharm types are inactive
+        // Slice V2-1: the five request types, in order; AD_HOC and the Pharm / Non-Pharm types are inactive.
+        ->where('types', fn ($types) => collect($types)->pluck('code')->all() === ProcurementTypeProfile::REQUEST_TYPES)
         ->has('types.0', fn (Assert $type) => $type->hasAll(['id', 'code', 'name', 'category'])));
 });
 
 it('creates a draft in the user\'s organisation and ignores extra input', function () {
     $org = vendorOrg();
     $vendor = vendorUser($org);
-    $type = procurementTypeByCode('AD_HOC');
+    $type = procurementTypeByCode('AD_HOC_TENDER_UNABLE');
 
     $response = $this->actingAs($vendor)->post('/requests', [
         'procurement_type_id' => $type->id,
@@ -142,7 +143,7 @@ it('rejects an inactive or unknown procurement type and creates nothing', functi
 
     expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->count())->toBe(0);
 })->with([
-    'inactive' => fn () => procurementTypeByCode('TENDER_VARIATION')->id,
+    'inactive (replaced by the five request types)' => fn () => procurementTypeByCode('AD_HOC')->id,
     'inactive (replaced by AD_HOC)' => fn () => procurementTypeByCode('AD_HOC_PHARM')->id,
     'unknown' => fn () => 999999999,
     'missing' => fn () => null,
@@ -151,7 +152,8 @@ it('rejects an inactive or unknown procurement type and creates nothing', functi
 // 4. Edit -----------------------------------------------------------------------
 
 it('renders the edit page with case, readiness, config and can', function () {
-    [$case, $vendor] = vendorDraft('TENDER_EXCESS', tenderExcessPayload());
+    // An old-form type (a legacy draft): TENDER_EXCESS uses the request form since slice V2-1.
+    [$case, $vendor] = vendorDraft('AD_HOC_PHARM', pharmAllSectionsPayload());
     attachRequiredDocuments($case);
 
     $response = $this->actingAs($vendor)->get("/requests/{$case->id}/edit")->assertOk();
@@ -167,7 +169,7 @@ it('renders the edit page with case, readiness, config and can', function () {
         ->where('readiness.is_ready', true)
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('config.allowed_sections', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'])
-        ->where('config.required_sections', ['quotations', 'tender_awards', 'purchase_orders'])
+        ->where('config.required_sections', ['quotations'])
         ->where('config.is_pharm', true)
         ->where('config.options.need_classification', [
             ['value' => 'VITAL', 'label' => 'Vital'],
@@ -239,10 +241,10 @@ it('saves a valid payload and redirects back with the saved row ids', function (
 });
 
 it('still flashes "Draft saved." for an old-type save', function () {
-    [$case, $vendor] = vendorDraft('TENDER_EXCESS');
+    [$case, $vendor] = vendorDraft('AD_HOC_PHARM');
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
-        ->put("/requests/{$case->id}", tenderExcessPayload())
+        ->put("/requests/{$case->id}", pharmAllSectionsPayload())
         ->assertSessionHas('success', 'Draft saved.')
         ->assertSessionMissing('saved');
 });
@@ -349,8 +351,8 @@ it('shows exact server-computed values', function () {
     $payload['quotations'][2]['vat_rate'] = '12.5';
     $payload['requisition']['rha_stock'] = '1500';
     $payload['stock_expiries'] = [['quantity' => '1500', 'expiry_date' => '2027-06-30']];
-    $payload['tender_awards'] = tenderExcessPayload()['tender_awards'];
-    $payload['purchase_orders'] = tenderExcessPayload()['purchase_orders'];
+    $payload['tender_awards'] = pharmAllSectionsPayload()['tender_awards'];
+    $payload['purchase_orders'] = pharmAllSectionsPayload()['purchase_orders'];
     [$case, $vendor] = vendorDraft('AD_HOC_PHARM', $payload);
 
     $this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk()->assertInertia(fn (Assert $page) => $page
@@ -491,8 +493,13 @@ it('gives an AD_HOC request page the summary labels, and no other type', functio
         expect($props['summary_config'])->toBeNull();
     }
 })->with([
+    ['AD_HOC_EMERGENCY', true],
+    ['AD_HOC_TENDER_UNABLE', true],
+    ['AD_HOC_NOT_AWARDED', true],
+    ['TENDER_EXCESS', true],
+    ['TENDER_VARIATION', true],
     ['AD_HOC', true],
-    ['TENDER_EXCESS', false],
+    ['AD_HOC_PHARM', false],
 ]);
 
 it('keeps form actions out of the request form headers', function () {

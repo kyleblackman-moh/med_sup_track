@@ -150,7 +150,7 @@ class RequestController extends Controller
             // Drafts only: the reasons a submit would be refused right now.
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
             // UI-3: an AD_HOC request shows the same summary as Review and submit, which needs the option labels.
-            'summary_config' => $procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC
+            'summary_config' => ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()
                 ? Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded'])
                 : null,
             'can' => $this->can($request, [
@@ -182,7 +182,7 @@ class RequestController extends Controller
         Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
 
         // Slice F2: an AD_HOC draft always gets the single-page form, never the old one.
-        if ($procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC) {
+        if (ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
             return $this->adHocEdit($request, $procurementCase, $readiness);
         }
 
@@ -215,7 +215,7 @@ class RequestController extends Controller
             return $this->notEditable($procurementCase);
         }
 
-        if ($procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC) {
+        if (ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
             // Autosave: no banner. The page attaches the new row ids by client_key.
             return back()->with('saved', [
                 'id_map' => (object) $saved->idMap,

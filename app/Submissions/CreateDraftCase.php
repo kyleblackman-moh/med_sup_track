@@ -23,7 +23,7 @@ final class CreateDraftCase
 {
     /**
      * @throws AuthorizationException not a vendor user with an organisation and case.submit
-     * @throws ValidationException the procurement type is inactive
+     * @throws ValidationException the procurement type is inactive or not one of the five request types
      */
     public function handle(User $user, ProcurementType $type): ProcurementCase
     {
@@ -31,7 +31,8 @@ final class CreateDraftCase
             throw new AuthorizationException('Only vendor users can start a request.');
         }
 
-        if (! $type->is_active) {
+        // Slice V2-1: a new draft is always one of the five request types.
+        if (! $type->is_active || ! ProcurementTypeProfile::for($type)->isRequestType()) {
             throw ValidationException::withMessages([
                 'procurement_type' => 'This procurement type is not available.',
             ]);

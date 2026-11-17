@@ -57,7 +57,7 @@ function storedKeys(): array
 // 2. Pipeline -------------------------------------------------------------------
 
 it('stores a valid upload as a PENDING external document and queues the scan', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $document = storeDocument($case, $vendor, 'bids', 'My RFQ.pdf');
 
@@ -87,7 +87,7 @@ it('stores a valid upload as a PENDING external document and queues the scan', f
 });
 
 it('never puts the original name in the stored path', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $document = storeDocument($case, $vendor, 'bids', '../../evil.pdf');
 
@@ -97,7 +97,7 @@ it('never puts the original name in the stored path', function () {
 });
 
 it('audits a rejected file and stores nothing', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     expect(fn () => storeDocument($case, $vendor, 'bids', 'setup.pdf', 'MZ executable'))
         ->toThrow(ValidationException::class);
@@ -112,7 +112,7 @@ it('audits a rejected file and stores nothing', function () {
 });
 
 it('removes the stored file when the audit write fails', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     DB::listen(function ($query) {
         if (str_contains($query->sql, 'audit_logs')) {
             throw new RuntimeException('audit store unavailable');
@@ -129,14 +129,14 @@ it('removes the stored file when the audit write fails', function () {
 // 3. Authorisation and limits ---------------------------------------------------
 
 it('refuses staff users', function (Role $role) {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
 
     expect(fn () => storeDocument($case, caseUser($role)))->toThrow(AuthorizationException::class);
     expect(storedKeys())->toBe([]);
 })->with([Role::Cmo, Role::Technocrat]);
 
 it('returns 404 to a vendor of another organisation', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $this->actingAs(vendorUser(vendorOrg()))
         ->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload('q.pdf', pdfBytes())])
@@ -148,14 +148,14 @@ it('returns 404 to a vendor of another organisation', function () {
 it('refuses uploads once the case is not a draft', function () {
     $org = vendorOrg();
     $vendor = vendorUser($org);
-    $case = makeCase(['org_id' => $org->id, 'status' => CaseStatus::SUBMITTED, 'procurement_type_id' => procurementTypeByCode('AD_HOC')->id]);
+    $case = makeCase(['org_id' => $org->id, 'status' => CaseStatus::SUBMITTED, 'procurement_type_id' => procurementTypeByCode('AD_HOC_TENDER_UNABLE')->id]);
 
     expect(fn () => storeDocument($case, $vendor))->toThrow(UploadNotAllowed::class);
     expect(storedKeys())->toBe([]);
 });
 
 it('refuses a purpose not configured for the procurement type', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     try {
         storeDocument($case, $vendor, 'original_rfq');
@@ -168,7 +168,7 @@ it('refuses a purpose not configured for the procurement type', function () {
 
 it('enforces the files-per-case cap', function () {
     config(['documents.max_files_per_case' => 2]);
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     storeDocument($case, $vendor);
     storeDocument($case, $vendor, 'regulatory');
 
@@ -183,7 +183,7 @@ it('enforces the files-per-case cap', function () {
 
 it('enforces the bytes-per-case cap', function () {
     config(['documents.max_bytes_per_case' => strlen(pdfBytes()) + 10]);
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     storeDocument($case, $vendor);
 
     expect(fn () => storeDocument($case, $vendor, 'regulatory'))->toThrow(ValidationException::class);
@@ -193,7 +193,7 @@ it('enforces the bytes-per-case cap', function () {
 // 8. Versioning -----------------------------------------------------------------
 
 it('replaces a current document with a new version', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $v1 = storeDocument($case, $vendor);
 
     $v2 = storeDocument($case, $vendor, 'bids', 'new.pdf', supersedes: $v1->id);
@@ -208,7 +208,7 @@ it('replaces a current document with a new version', function () {
 });
 
 it('refuses to replace a non-current, withdrawn, other-case or other-purpose document', function (string $scenario) {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $v1 = storeDocument($case, $vendor);
 
     $target = match ($scenario) {
@@ -222,7 +222,7 @@ it('refuses to replace a non-current, withdrawn, other-case or other-purpose doc
 
             return $v1->id;
         })(),
-        'other case' => storeDocument(newDraft('AD_HOC', $vendor)[0], $vendor)->id,
+        'other case' => storeDocument(newDraft('AD_HOC_TENDER_UNABLE', $vendor)[0], $vendor)->id,
         'other purpose' => storeDocument($case, $vendor, 'regulatory')->id,
     };
 
@@ -237,7 +237,7 @@ it('refuses to replace a non-current, withdrawn, other-case or other-purpose doc
 // 9. Withdrawal -----------------------------------------------------------------
 
 it('withdraws a document with a reason and keeps the file', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     app(WithdrawDocument::class)->handle($document, $vendor, '  Uploaded the wrong file  ');
@@ -253,7 +253,7 @@ it('withdraws a document with a reason and keeps the file', function () {
 // Slice F1: the reason is optional (the drop zones send none). Changed on purpose:
 // '' and '   ' used to be refused; they now withdraw with no reason stored.
 it('withdraws a document without a reason, keeping the row and the file', function (?string $reason) {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     app(WithdrawDocument::class)->handle($document, $vendor, $reason);
@@ -269,7 +269,7 @@ it('withdraws a document without a reason, keeping the row and the file', functi
 })->with([null, '', '   ']);
 
 it('refuses a withdrawal reason over 500 characters', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     expect(fn () => app(WithdrawDocument::class)->handle($document, $vendor, str_repeat('x', 501)))->toThrow(ValidationException::class);
@@ -277,7 +277,7 @@ it('refuses a withdrawal reason over 500 characters', function () {
 });
 
 it('withdraws through the route with no reason sent', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
@@ -289,7 +289,7 @@ it('withdraws through the route with no reason sent', function () {
 });
 
 it('refuses a second withdrawal', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
     app(WithdrawDocument::class)->handle($document, $vendor, 'First');
 
@@ -298,7 +298,7 @@ it('refuses a second withdrawal', function () {
 });
 
 it('refuses withdrawal on a case that is not a draft', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
     DB::table('cases')->where('id', $case->id)->update(['status' => 'SUBMITTED']);
 
@@ -306,7 +306,7 @@ it('refuses withdrawal on a case that is not a draft', function () {
 });
 
 it('returns 404 when another organisation tries to withdraw', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     $this->actingAs(vendorUser(vendorOrg()))
@@ -317,7 +317,7 @@ it('returns 404 when another organisation tries to withdraw', function () {
 });
 
 it('withdraws through the route and redirects back', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = storeDocument($case, $vendor);
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
@@ -329,8 +329,8 @@ it('withdraws through the route and redirects back', function () {
 });
 
 it('returns 404 for a document that belongs to a different case', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
-    [$other] = newDraft('AD_HOC', $vendor);
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
+    [$other] = newDraft('AD_HOC_TENDER_UNABLE', $vendor);
     $document = storeDocument($other, $vendor);
 
     $this->actingAs($vendor)
@@ -341,7 +341,7 @@ it('returns 404 for a document that belongs to a different case', function () {
 // HTTP upload ---------------------------------------------------------------------
 
 it('uploads through the route and redirects back with a flash', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
         ->post("/requests/{$case->id}/documents", [
@@ -360,7 +360,7 @@ it('uploads through the route and redirects back with a flash', function () {
 });
 
 it('reports a rejected upload as a validation error on file', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $this->actingAs($vendor)->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload('x.pdf', 'not a pdf')])
         ->assertSessionHasErrors('file');
@@ -383,7 +383,7 @@ it('rejects every non-PDF upload with one message and stores nothing', function 
 
     expect(DB::table('documents')->where('case_id', $case->id)->count())->toBe(0)
         ->and(documentAudits($case->id, 'document.validation_rejected'))->toHaveCount(count($purposes));
-})->with(['AD_HOC', 'TENDER_EXCESS'])->with([
+})->with(['AD_HOC_TENDER_UNABLE', 'TENDER_EXCESS'])->with([
     'docx' => ['letter.docx', fn () => zipBytes('docx')],
     'xlsx' => ['prices.xlsx', fn () => zipBytes('xlsx')],
     'jpg' => ['photo.jpg', fn () => jpegBytes()],
@@ -399,7 +399,7 @@ it('sends PDF-only upload rules to the form', function () {
 
 // Slice F1: raised from 20 to 60 a minute (one request per file). Changed on purpose.
 it('throttles uploads at 60 a minute per user', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     foreach (range(1, 60) as $i) {
         $this->actingAs($vendor)->post("/requests/{$case->id}/documents", ['purpose' => 'bids', 'file' => upload("q{$i}.pdf", pdfBytes())])
@@ -416,7 +416,7 @@ it('throttles uploads at 60 a minute per user', function () {
 });
 
 it('re-queues only PENDING and ERROR documents older than the given minutes', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
     $this->travel(-30)->minutes();
     $oldPending = makeDocument($case, 'bids', ['scan_status' => ScanStatus::PENDING, 'released_at' => null]);
     $oldError = makeDocument($case, 'regulatory', ['scan_status' => ScanStatus::ERROR, 'released_at' => null]);

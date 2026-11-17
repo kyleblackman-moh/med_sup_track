@@ -13,17 +13,48 @@ final readonly class ProcurementTypeProfile
 {
     public const SECTIONS = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
-    /** The single Ad Hoc form (slice F1). */
+    /** The single Ad Hoc form of slice F1. Inactive since V2-1; its cases stay readable. */
     public const AD_HOC = 'AD_HOC';
+
+    public const AD_HOC_EMERGENCY = 'AD_HOC_EMERGENCY';
+
+    public const AD_HOC_TENDER_UNABLE = 'AD_HOC_TENDER_UNABLE';
+
+    public const AD_HOC_NOT_AWARDED = 'AD_HOC_NOT_AWARDED';
+
+    public const TENDER_EXCESS = 'TENDER_EXCESS';
+
+    public const TENDER_VARIATION = 'TENDER_VARIATION';
+
+    /**
+     * Slice V2-1: the five request types, in display order. Each uses the one
+     * request form; RequestSections decides what each shows and requires. The
+     * only codes a new draft may have (CreateDraftCase) or change to.
+     */
+    public const REQUEST_TYPES = [
+        self::AD_HOC_EMERGENCY,
+        self::AD_HOC_TENDER_UNABLE,
+        self::AD_HOC_NOT_AWARDED,
+        self::TENDER_EXCESS,
+        self::TENDER_VARIATION,
+    ];
+
+    /** The old Pharm / Non-Pharm ad hoc types (inactive; old form, old rules). */
+    private const OLD_AD_HOC = ['AD_HOC_PHARM', 'AD_HOC_NON_PHARM'];
+
+    private const ALL_SECTIONS = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
     /** code => [allowed sections, required sections] */
     private const PROFILES = [
-        // Every section allowed; what is required is decided by AdHocReadiness.
-        self::AD_HOC => [
-            ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
-            [],
-        ],
-        // Old types (inactive except TENDER_EXCESS): unchanged.
+        // The request form: every section allowed; what is required is decided
+        // by RequestSections (AD_HOC by its own slice F1 rules).
+        self::AD_HOC => [self::ALL_SECTIONS, []],
+        self::AD_HOC_EMERGENCY => [self::ALL_SECTIONS, []],
+        self::AD_HOC_TENDER_UNABLE => [self::ALL_SECTIONS, []],
+        self::AD_HOC_NOT_AWARDED => [self::ALL_SECTIONS, []],
+        self::TENDER_EXCESS => [self::ALL_SECTIONS, []],
+        self::TENDER_VARIATION => [self::ALL_SECTIONS, []],
+        // Old types (inactive): unchanged.
         'AD_HOC_PHARM' => [
             ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
             ['quotations'],
@@ -32,12 +63,6 @@ final readonly class ProcurementTypeProfile
             ['quotations'],
             ['quotations'],
         ],
-        'TENDER_EXCESS' => [
-            ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
-            ['quotations', 'tender_awards', 'purchase_orders'],
-        ],
-        // Inactive: drafts cannot be created (CreateDraftCase checks is_active).
-        'TENDER_VARIATION' => [[], []],
     ];
 
     /**
@@ -69,15 +94,21 @@ final readonly class ProcurementTypeProfile
         return in_array($section, $this->requiredSections, true);
     }
 
-    /** The single Ad Hoc form (AD_HOC). */
+    /** The one request form: the five request types (V2-1) and the old AD_HOC (F1). */
     public function isAdHocForm(): bool
     {
-        return $this->code === self::AD_HOC;
+        return $this->isRequestType() || $this->code === self::AD_HOC;
     }
 
-    /** The old Pharm / Non-Pharm ad hoc types (AD_HOC_*), not AD_HOC itself. */
+    /** One of the five request types of slice V2-1. */
+    public function isRequestType(): bool
+    {
+        return in_array($this->code, self::REQUEST_TYPES, true);
+    }
+
+    /** The old Pharm / Non-Pharm ad hoc types (AD_HOC_PHARM, AD_HOC_NON_PHARM). */
     public function isAdHoc(): bool
     {
-        return str_starts_with($this->code, 'AD_HOC_');
+        return in_array($this->code, self::OLD_AD_HOC, true);
     }
 }

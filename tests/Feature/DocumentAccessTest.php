@@ -73,7 +73,7 @@ function expectNoDocumentSecrets(array $props, array $secrets = []): void
 // 7. Visibility -----------------------------------------------------------------
 
 it('lists a pending document only to its uploader until it is clean', function () {
-    [$case, $uploader] = newDraft('AD_HOC');
+    [$case, $uploader] = newDraft('AD_HOC_TENDER_UNABLE');
     $colleague = otherVendorInOrg($uploader);
     $document = makeDocument($case, 'bids', ['scan_status' => ScanStatus::PENDING, 'released_at' => null, 'uploaded_by' => $uploader->id]);
 
@@ -88,7 +88,7 @@ it('lists a pending document only to its uploader until it is clean', function (
 });
 
 it('shows an infected document only to its uploader, as Rejected', function () {
-    [$case, $uploader] = newDraft('AD_HOC');
+    [$case, $uploader] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids', [
         'scan_status' => ScanStatus::INFECTED, 'scan_detail' => 'Eicar-Test-Signature', 'released_at' => null, 'uploaded_by' => $uploader->id,
     ]);
@@ -101,7 +101,7 @@ it('shows an infected document only to its uploader, as Rejected', function () {
 });
 
 it('hides withdrawn and superseded documents from the lists', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $withdrawn = makeDocument($case, 'bids', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => 'Wrong']);
     $old = makeDocument($case, 'regulatory');
     $new = makeDocument($case, 'regulatory', ['version' => 2, 'supersedes_id' => $old->id]);
@@ -114,7 +114,7 @@ it('hides withdrawn and superseded documents from the lists', function () {
 
 // Slice F1: AD_HOC has three categories (was seven purposes for AD_HOC_PHARM).
 it('lists the AD_HOC categories with label, hint and required flag', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $props = editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"));
 
@@ -129,7 +129,7 @@ it('lists the AD_HOC categories with label, hint and required flag', function ()
 });
 
 it('shows documents of a category the type no longer uses as read-only earlier uploads', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $earlier = makeDocument($case, 'original_rfq', ['uploaded_by' => $vendor->id]);
     $bids = makeDocument($case, 'bids', ['uploaded_by' => $vendor->id]);
 
@@ -143,7 +143,7 @@ it('shows documents of a category the type no longer uses as read-only earlier u
 });
 
 it('shows documents read-only on the show page', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
 
     $response = $this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk();
@@ -154,7 +154,7 @@ it('shows documents read-only on the show page', function () {
 });
 
 it('gives another organisation 404 on every document URL', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
     $outsider = vendorUser(vendorOrg());
 
@@ -168,7 +168,7 @@ it('gives another organisation 404 on every document URL', function () {
 // 10. Downloads -----------------------------------------------------------------
 
 it('audits the download, then redirects to a short-lived signed link', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
     $this->freezeTime();
 
@@ -185,7 +185,7 @@ it('audits the download, then redirects to a short-lived signed link', function 
 });
 
 it('streams the exact bytes with safe headers', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $bytes = pngBytes();
     $document = makeDocument($case, 'bids', ['_bytes' => $bytes, 'mime' => 'image/png', 'original_name' => 'scan.pdf']);
 
@@ -201,7 +201,7 @@ it('streams the exact bytes with safe headers', function () {
 });
 
 it('rejects a tampered signature, an expired link and another user', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
@@ -213,7 +213,7 @@ it('rejects a tampered signature, an expired link and another user', function ()
 });
 
 it('redirects a guest to login on both routes', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
@@ -222,7 +222,7 @@ it('redirects a guest to login on both routes', function () {
 });
 
 it('refuses to serve a document that is not clean or is withdrawn', function (array $state) {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
@@ -255,7 +255,7 @@ function documentErrors(ProcurementCase $case): array
 // Slice F1: AD_HOC requires one category (Bids) instead of six; the scan-state
 // rules at submit are unchanged. Counts changed on purpose (6/5 -> 1/0).
 it('reports the required Bids category by state', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
 
     expect(documentErrors($case))->toBe(['documents.bids' => 'Required document missing: Bids']);
 
@@ -273,7 +273,7 @@ it('reports the required Bids category by state', function () {
 });
 
 it('does not require the optional Regulatory and Evidence categories', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
     makeDocument($case, 'bids');
 
     expect(documentErrors($case))->toBe([])
@@ -281,7 +281,7 @@ it('does not require the optional Regulatory and Evidence categories', function 
 });
 
 it('does not count withdrawn or superseded documents', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     makeDocument($case, 'bids', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => null]);
     makeDocument($case, 'regulatory'); // a clean optional file does not stand in for Bids
 
@@ -294,14 +294,14 @@ it('does not count withdrawn or superseded documents', function () {
 });
 
 it('counts only files in the type\'s categories (earlier uploads do not satisfy Bids)', function () {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
     makeDocument($case, 'original_rfq');
 
     expect(documentErrors($case))->toBe(['documents.bids' => 'Required document missing: Bids']);
 });
 
 it('is ready with the complete fixture and one clean Bids file', function () {
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
     saveCompleteAdHoc($case, $vendor);
     attachRequiredDocuments($case);
 
@@ -312,10 +312,10 @@ it('is ready with the complete fixture and one clean Bids file', function () {
         ->and($report->isReady())->toBeTrue();
 });
 
-it('does not require optional documents', function () {
-    [$case] = newDraft('TENDER_EXCESS');
-    attachRequiredDocuments($case);
+// Slice V2-1: no file is required for Tender Excess or Tender Variation.
+it('requires no file for Tender Excess and Tender Variation', function (string $code) {
+    [$case] = newDraft($code);
 
-    expect(documentErrors($case))->toBe([])
-        ->and(requiredPurposes($case))->toBe(['signed_request', 'stock_evidence']);
-});
+    expect(requiredPurposes($case))->toBe([])
+        ->and(documentErrors($case))->toBe([]);
+})->with(['TENDER_EXCESS', 'TENDER_VARIATION']);

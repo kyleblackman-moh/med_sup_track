@@ -64,7 +64,7 @@ it('reports the complete fixtures as ready with no warnings', function (string $
 })->with([
     'AD_HOC_NON_PHARM' => ['AD_HOC_NON_PHARM', fn () => nonPharmPayload()],
     'AD_HOC_PHARM' => ['AD_HOC_PHARM', fn () => pharmPayload()],
-    'TENDER_EXCESS' => ['TENDER_EXCESS', fn () => tenderExcessPayload()],
+    'AD_HOC_PHARM, every section' => ['AD_HOC_PHARM', fn () => pharmAllSectionsPayload()],
 ]);
 
 it('reports each missing required item with its exact key', function (Closure $mutate, string $key) {
@@ -186,20 +186,8 @@ it('requires a DIN for PHARM types only', function () {
         ->and(errorKeys(readinessOf('AD_HOC_NON_PHARM', nonPharmPayload())))->toBe([]);
 });
 
-it('does not require rfq or tender_outcome where the type does not', function () {
-    expect(errorKeys(readinessOf('TENDER_EXCESS', tenderExcessPayload())))->toBe([])
-        ->and(errorKeys(readinessOf('AD_HOC_PHARM', pharmPayload())))->toBe([]);
-});
-
-it('requires tender awards and purchase orders for TENDER_EXCESS', function (string $section) {
-    $report = readinessOf('TENDER_EXCESS', tenderExcessPayload(), function ($p) use ($section) {
-        $p[$section] = [];
-
-        return $p;
-    });
-
-    expect(errorKeys($report))->toBe([$section]);
-})->with(['tender_awards', 'purchase_orders']);
+// Slice V2-1: the old-rule tests for TENDER_EXCESS (no rfq, required awards and
+// orders) were removed; TENDER_EXCESS uses the request form (RequestSectionsTest).
 
 it('compares quantities exactly', function (string $recommended, bool $ok) {
     $report = readinessOf('AD_HOC_NON_PHARM', nonPharmPayload(), function ($p) use ($recommended) {

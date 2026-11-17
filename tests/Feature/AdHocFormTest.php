@@ -13,6 +13,7 @@ use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Submissions\AdHocReadiness;
 use App\Submissions\Exceptions\SubmissionNotReady;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
@@ -44,7 +45,7 @@ afterEach(function () {
 
 function adHocType()
 {
-    return procurementTypeByCode('AD_HOC');
+    return procurementTypeByCode('AD_HOC_TENDER_UNABLE');
 }
 
 /** Validation errors (dotted key => first message) for an AD_HOC payload; [] when valid. */
@@ -443,7 +444,7 @@ it('shows coverage (stock / consumption) to staff only', function () {
     $vendorView = pageProps($this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk())['case'];
 
     expect($staff['requisition']['derived'])->toBe(['stock_on_hand' => '200.50', 'coverage_months' => '0.40']) // 200.50 / 500
-        ->and($staff['category'])->toBeNull()
+        ->and($staff['category'])->toBe('AD_HOC')
         ->and($staff['figures'])->toBe($vendorView['figures'])
         ->and($vendorView['requisition']['derived'])->not->toHaveKey('coverage_months');
 });
@@ -695,8 +696,8 @@ it('discards nothing when a not-awarded submit is refused', function () {
         ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1);
 });
 
-it('renders an AD_HOC draft on the new page, never the old one', function () {
-    [$case, $vendor] = newDraft();
+it('renders a draft of each request type on the new page, never the old one', function (string $code) {
+    [$case, $vendor] = newDraft($code);
 
     $this->actingAs($vendor)->get("/requests/{$case->id}/edit")->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('requests/ad-hoc/edit')
@@ -706,14 +707,14 @@ it('renders an AD_HOC draft on the new page, never the old one', function () {
             ->where('hardcopy_notice', RequestReceipt::HARDCOPY_NOTICE)
             ->where('can.submit', true)
             ->where('can.requests', true));
-});
+})->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('keeps the old page for every other type', function (string $code) {
+it('keeps the old page for the old Pharm / Non-Pharm types', function (string $code) {
     [$case, $vendor] = draftOf($code);
 
     $this->actingAs($vendor)->get("/requests/{$case->id}/edit")->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('requests/edit')->has('readiness'));
-})->with(['TENDER_EXCESS', 'AD_HOC_PHARM', 'AD_HOC_NON_PHARM']);
+})->with(['AD_HOC_PHARM', 'AD_HOC_NON_PHARM']);
 
 it('groups readiness by section, in form order, with plain-English issues and field keys', function () {
     [$case, $vendor] = newDraft();

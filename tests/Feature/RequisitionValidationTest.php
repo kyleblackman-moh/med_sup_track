@@ -31,7 +31,7 @@ it('accepts an empty payload', function (string $code) {
 it('accepts the complete fixtures', function () {
     expect(validationErrors(nonPharmPayload(), 'AD_HOC_NON_PHARM'))->toBe([])
         ->and(validationErrors(pharmPayload(), 'AD_HOC_PHARM'))->toBe([])
-        ->and(validationErrors(tenderExcessPayload(), 'TENDER_EXCESS'))->toBe([]);
+        ->and(validationErrors(pharmAllSectionsPayload(), 'AD_HOC_PHARM'))->toBe([]);
 });
 
 it('allows or prohibits sections per procurement type', function (string $code, string $section, bool $allowed) {
@@ -127,7 +127,7 @@ it('validates types, lengths, dates and enums', function (array $payload, string
 it('requires the NOT NULL columns on each child row', function (string $section, array $row, string $missing) {
     unset($row[$missing]);
 
-    expect(validationErrors([$section => [$row]], 'TENDER_EXCESS'))->toContain("{$section}.0.{$missing}");
+    expect(validationErrors([$section => [$row]], 'AD_HOC_PHARM'))->toContain("{$section}.0.{$missing}");
 })->with([
     ['quotations', ['supplier_name' => 'S', 'unit_price' => '1', 'quantity_offered' => '1'], 'supplier_name'],
     ['quotations', ['supplier_name' => 'S', 'unit_price' => '1', 'quantity_offered' => '1'], 'unit_price'],

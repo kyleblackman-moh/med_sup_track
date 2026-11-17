@@ -33,7 +33,7 @@ afterEach(function () {
 
 function pendingDocument(): Document
 {
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
 
     return makeDocument($case, 'bids', ['scan_status' => ScanStatus::PENDING, 'scanned_at' => null, 'released_at' => null]);
 }
@@ -124,7 +124,7 @@ it('treats a scanner exception as an error, never CLEAN', function () {
 
 it('does nothing for a document that is no longer PENDING', function (ScanStatus $status) {
     $scanner = useScanner(new FakeScanner(ScanResult::clean()));
-    [$case] = newDraft('AD_HOC');
+    [$case] = newDraft('AD_HOC_TENDER_UNABLE');
     $document = makeDocument($case, 'bids', ['scan_status' => $status]);
 
     runScan($document->id);
@@ -137,7 +137,7 @@ it('does nothing for a document that is no longer PENDING', function (ScanStatus
 it('runs end to end through the queue with the dev scanner', function () {
     config(['documents.scanner' => 'eicar_dev']);
     app()->forgetInstance(Scanner::class);
-    [$case, $vendor] = newDraft('AD_HOC');
+    [$case, $vendor] = newDraft('AD_HOC_TENDER_UNABLE');
 
     $clean = app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::bids, upload('a.pdf', pdfBytes()));
     $infected = app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::regulatory, upload('b.pdf', pdfBytes().EICAR));

@@ -8,8 +8,10 @@ use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
+use App\Models\ProcurementType;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftNotEditable;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use Database\Seeders\ProcurementTypeSeeder;
@@ -60,7 +62,7 @@ function rawCase(ProcurementCase $case): object
 it('creates a draft for a vendor user, owned by the user\'s organisation', function () {
     $org = vendorOrg();
     $vendor = vendorUser($org);
-    $type = procurementTypeByCode('AD_HOC');
+    $type = procurementTypeByCode('AD_HOC_TENDER_UNABLE');
 
     $case = app(CreateDraftCase::class)->handle($vendor, $type);
 
@@ -75,13 +77,13 @@ it('creates a draft for a vendor user, owned by the user\'s organisation', funct
 
     $audit = auditFor($case->id, 'case.created')->sole();
     expect((int) $audit->actor_user_id)->toBe($vendor->id)
-        ->and(json_decode($audit->metadata, true))->toBe(['procurement_type' => 'AD_HOC']);
+        ->and(json_decode($audit->metadata, true))->toBe(['procurement_type' => 'AD_HOC_TENDER_UNABLE']);
 });
 
 it('refuses staff users and writes nothing', function (Role $role) {
     $user = caseUser($role);
 
-    expect(fn () => app(CreateDraftCase::class)->handle($user, procurementTypeByCode('AD_HOC')))
+    expect(fn () => app(CreateDraftCase::class)->handle($user, procurementTypeByCode('AD_HOC_TENDER_UNABLE')))
         ->toThrow(AuthorizationException::class);
     expect(casesCreatedBy($user->id))->toBe(0);
 })->with([Role::Cmo, Role::Technocrat, Role::SystemAdmin, Role::Auditor]);
@@ -89,16 +91,37 @@ it('refuses staff users and writes nothing', function (Role $role) {
 it('refuses a vendor user without an organisation', function () {
     $vendor = vendorUser(null);
 
-    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode('AD_HOC')))
+    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode('AD_HOC_TENDER_UNABLE')))
         ->toThrow(AuthorizationException::class);
     expect(casesCreatedBy($vendor->id))->toBe(0);
 });
 
-it('refuses an inactive procurement type with a validation error', function () {
+// Slice V2-1: exactly the five request types.
+it('creates a draft of each of the five request types', function (string $code) {
+    [$case] = newDraft($code);
+
+    expect($case->procurementType->code)->toBe($code)
+        ->and($case->status)->toBe(CaseStatus::DRAFT);
+})->with(ProcurementTypeProfile::REQUEST_TYPES);
+
+it('refuses an inactive procurement type with a validation error', function (string $code) {
     $vendor = vendorUser(vendorOrg());
 
-    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode('TENDER_VARIATION')))
+    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode($code)))
         ->toThrow(ValidationException::class);
+    expect(casesCreatedBy($vendor->id))->toBe(0);
+})->with(['AD_HOC', 'AD_HOC_PHARM', 'AD_HOC_NON_PHARM']);
+
+it('refuses an active type that is not one of the five request types', function () {
+    $vendor = vendorUser(vendorOrg());
+    $other = ProcurementType::create(['code' => 'OTHER_ACTIVE', 'name' => 'Other', 'is_active' => true, 'sort_order' => 999]);
+
+    expect(fn () => app(CreateDraftCase::class)->handle($vendor, $other))->toThrow(ValidationException::class);
+    expect(casesCreatedBy($vendor->id))->toBe(0);
+
+    // The New request page posts a type id; the same rule applies there.
+    $this->actingAs($vendor)->post(route('requests.store'), ['procurement_type_id' => $other->id])
+        ->assertSessionHasErrors('procurement_type');
     expect(casesCreatedBy($vendor->id))->toBe(0);
 });
 
@@ -107,7 +130,7 @@ it('rolls back the draft and requisition when the audit write fails', function (
     $requisitionsBefore = DB::table('case_requisitions')->count();
     failAuditWrites();
 
-    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode('AD_HOC')))
+    expect(fn () => app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode('AD_HOC_TENDER_UNABLE')))
         ->toThrow(RuntimeException::class, 'audit store unavailable');
 
     expect(casesCreatedBy($vendor->id))->toBe(0)
@@ -145,7 +168,8 @@ it('saves requisition fields and child rows', function () {
 
 it('replaces a child section on each save, in array order', function () {
     [$case, $vendor] = newDraft('TENDER_EXCESS');
-    saveDraft($case, $vendor, tenderExcessPayload() + ['stock_expiries' => [
+    saveCompleteAdHoc($case, $vendor);
+    saveDraft($case, $vendor, ['stock_expiries' => [
         ['quantity' => '10', 'expiry_date' => '2027-01-31'],
         ['quantity' => '20', 'expiry_date' => '2027-02-28'],
         ['quantity' => '30', 'expiry_date' => '2027-03-31'],
@@ -162,7 +186,7 @@ it('replaces a child section on each save, in array order', function () {
         // Sections absent from the second payload are untouched.
         ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2)
         ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1)
-        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(1);
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(2);
 
     $awards = DB::table('case_tender_awards')->where('case_id', $case->id)->orderBy('sort_order')->pluck('supplier_name')->all();
     expect($awards)->toBe(['Supplier A', 'Supplier B']);

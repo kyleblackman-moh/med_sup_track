@@ -82,14 +82,15 @@ function pharmPayload(): array
     return $payload;
 }
 
-/** Complete TENDER_EXCESS payload: quotations, tender awards and purchase orders. */
-function tenderExcessPayload(): array
+/**
+ * Complete old-form AD_HOC_PHARM payload with every section filled: one
+ * quotation, two tender awards and one purchase order. (Was the TENDER_EXCESS
+ * fixture; TENDER_EXCESS uses the request form since slice V2-1.)
+ */
+function pharmAllSectionsPayload(): array
 {
-    $requisition = pharmPayload()['requisition'];
-    unset($requisition['rfq_date'], $requisition['rfq_audience']);
-
     return [
-        'requisition' => $requisition,
+        'requisition' => pharmPayload()['requisition'],
         'quotations' => [
             quoteRow('Supplier A', '1.5975', ['is_recommended' => true, 'recommended_quantity' => '2800']),
         ],
@@ -186,7 +187,7 @@ function saveCompleteAdHoc(ProcurementCase $case, User $vendor): ProcurementCase
 }
 
 /** A vendor user and a fresh draft of $code created through CreateDraftCase (active types only). */
-function newDraft(string $code = 'AD_HOC', ?User $vendor = null): array
+function newDraft(string $code = 'AD_HOC_TENDER_UNABLE', ?User $vendor = null): array
 {
     $vendor ??= vendorUser(vendorOrg());
     $case = app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode($code));
@@ -238,13 +239,12 @@ function saveDraft(ProcurementCase $case, User $vendor, array $payload): Procure
  * A draft that is ready to submit (slice 8d): complete request content plus a
  * CLEAN document for every required purpose. Needs Storage::fake('documents').
  */
-function readyDraft(string $code = 'AD_HOC', ?User $vendor = null): array
+function readyDraft(string $code = 'AD_HOC_TENDER_UNABLE', ?User $vendor = null): array
 {
     [$case, $vendor] = draftOf($code, $vendor);
     match ($code) {
-        'AD_HOC' => saveCompleteAdHoc($case, $vendor),
+        'AD_HOC_TENDER_UNABLE', 'AD_HOC_EMERGENCY', 'AD_HOC_NOT_AWARDED', 'TENDER_EXCESS', 'TENDER_VARIATION' => saveCompleteAdHoc($case, $vendor),
         'AD_HOC_PHARM' => saveDraft($case, $vendor, pharmPayload()),
-        'TENDER_EXCESS' => saveDraft($case, $vendor, tenderExcessPayload()),
         default => saveDraft($case, $vendor, nonPharmPayload()),
     };
     attachRequiredDocuments($case);

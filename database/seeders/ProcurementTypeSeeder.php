@@ -60,14 +60,26 @@ class ProcurementTypeSeeder extends Seeder
         $otherSupporting = [D::other_supporting, 'Other supporting justification', false, null];
         $supplierCorrespondence = [D::supplier_correspondence, 'Supplier correspondence and lead-time confirmation', false, null];
 
+        // Slice V2-1: the three drop-zone categories of the request form. Hints are
+        // guidance only and enforce nothing (open question for the CMO's office).
+        $formDocuments = fn (bool $bidsRequired) => [
+            [D::bids, 'Bids', $bidsRequired, 'For example the RFQ, the comparison sheet and the supplier quotations.'],
+            [D::regulatory, 'Regulatory documents', false, 'For example registration and product specifications.'],
+            [D::evidence, 'Evidence', false, 'For example stock and usage records, correspondence and sample reports.'],
+        ];
+
         return [
-            // The single Ad Hoc form (slice F1). No Pharm / Non-Pharm category.
-            // Hints are guidance only and enforce nothing (open question for the CMO's office).
-            ['AD_HOC', 'Ad hoc purchase', null, true, [
-                [D::bids, 'Bids', true, 'For example the RFQ, the comparison sheet and the supplier quotations.'],
-                [D::regulatory, 'Regulatory documents', false, 'For example registration and product specifications.'],
-                [D::evidence, 'Evidence', false, 'For example stock and usage records, correspondence and sample reports.'],
-            ]],
+            // Slice V2-1: the five request types, all on the one request form.
+            // Bids is required for the three Ad Hoc types; no file for Excess or Variation.
+            ['AD_HOC_EMERGENCY', 'Ad Hoc - Emergency', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
+            ['AD_HOC_TENDER_UNABLE', 'Ad Hoc - Tender unable to supply', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
+            ['AD_HOC_NOT_AWARDED', 'Ad Hoc - Not awarded', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
+            // Existing row, kept by code.
+            ['TENDER_EXCESS', 'Tender Excess', null, true, $formDocuments(false)],
+            ['TENDER_VARIATION', 'Tender Variation', null, true, $formDocuments(false)],
+            // The single Ad Hoc form of slice F1. Replaced by the three Ad Hoc types;
+            // inactive, kept (with its documents) so its cases stay readable.
+            ['AD_HOC', 'Ad hoc purchase', null, false, $formDocuments(true)],
             // Replaced by AD_HOC; inactive, kept for their existing cases.
             ['AD_HOC_PHARM', 'Ad hoc purchase (Pharm)', ProcurementCategory::PHARM, false, [
                 ...$adHocRequired,
@@ -80,19 +92,6 @@ class ProcurementTypeSeeder extends Seeder
                 $supplierCorrespondence,
                 $otherSupporting,
             ]],
-            ['TENDER_EXCESS', 'Purchase in excess of tender', ProcurementCategory::PHARM, true, [
-                [D::signed_request, 'Signed request from the applicant', true, null],
-                [D::stock_evidence, 'Stock position and consumption evidence', true, null],
-                [D::supplier_confirmation, 'Supplier confirmation / revalidation of bid', false, null],
-                [D::tender_pricing_confirmation, 'Quotation or tender pricing confirmation', false, null],
-                [D::purchase_orders_delivery, 'Purchase orders and delivery records', false, null],
-                [D::outstanding_order_status, 'Outstanding order / shipment status', false, null],
-                $supplierCorrespondence,
-                $otherSupporting,
-            ]],
-            // Inactive. The category is a placeholder: there is no template for
-            // tender variations yet, so no documents either.
-            ['TENDER_VARIATION', 'Tender variation', ProcurementCategory::PHARM, false, []],
         ];
     }
 }

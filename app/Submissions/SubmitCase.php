@@ -96,7 +96,7 @@ final class SubmitCase
      */
     private function discardRowsWhenNothingAwarded(ProcurementCase $case, User $actor): void
     {
-        if ($case->procurementType()->value('code') !== ProcurementTypeProfile::AD_HOC) {
+        if (! ProcurementTypeProfile::for((string) $case->procurementType()->value('code'))->isAdHocForm()) {
             return;
         }
 

@@ -160,7 +160,7 @@ it('renders the receipt after submission with only vendor-safe fields', function
         ->component('requests/receipt')
         ->where('receipt.reference_no', $row->reference_no)
         ->where('receipt.organisation_name', $vendor->organisation()->first()->name)
-        ->where('receipt.procurement_type', 'Ad hoc purchase')
+        ->where('receipt.procurement_type', 'Ad Hoc - Tender unable to supply')
         ->where('receipt.item_description', 'Infant feeding tube, size 6Fr')
         ->where('receipt.submitted_by', $vendor->name)
         ->where('receipt.submitted_at', fn ($v) => str_ends_with($v, 'Z'))

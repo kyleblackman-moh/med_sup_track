@@ -133,7 +133,7 @@ final class RequisitionRules
      */
     public static function requisitionFields(?string $code = null): array
     {
-        if ($code === ProcurementTypeProfile::AD_HOC) {
+        if (ProcurementTypeProfile::for((string) $code)->isAdHocForm()) {
             return self::adHocRequisitionFields();
         }
 
@@ -166,7 +166,7 @@ final class RequisitionRules
     /** @return array<string, array<string, mixed>> */
     public static function rowFields(string $section, ?string $code = null): array
     {
-        if ($code === ProcurementTypeProfile::AD_HOC) {
+        if (ProcurementTypeProfile::for((string) $code)->isAdHocForm()) {
             return self::adHocRowFields($section);
         }
 

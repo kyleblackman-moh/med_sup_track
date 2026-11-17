@@ -64,7 +64,7 @@ class RequestDetailResource extends JsonResource
         $requisition = $case->requisition;
         $percentages = $case->tenderAwardPercentages();
         $code = $case->procurementType?->code;
-        $adHoc = $code === ProcurementTypeProfile::AD_HOC;
+        $adHoc = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
 
         return [
             'requisition' => [
