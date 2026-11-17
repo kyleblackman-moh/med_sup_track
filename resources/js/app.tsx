@@ -1,6 +1,5 @@
-// Self-hosted fonts (design.md section 4): bundled by Vite, no font CDN.
-// Roboto (sans) is declared latin-only in app.css; JetBrains Mono is for references.
-import '@fontsource-variable/jetbrains-mono';
+// Self-hosted fonts (design.md section 4): Roboto and JetBrains Mono are both
+// declared latin-only in app.css and bundled by Vite. No font CDN.
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
@@ -24,7 +23,8 @@ createInertiaApp({
         root.render(<App {...props} />);
     },
     progress: {
-        color: '#4B5563',
+        // A token, not a hex value (design.md section 2): Inertia puts it into CSS as is.
+        color: 'var(--primary)',
     },
 });
 

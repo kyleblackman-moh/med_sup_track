@@ -6,8 +6,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Roboto, self-hosted from @fontsource-variable/roboto: the latin subset only
-   (the package's own CSS loads every subset). Same block as its wght.css. */
+/* Self-hosted fonts (design.md sections 1 and 4): the latin subset only, from the
+   installed @fontsource-variable packages (their own CSS loads every subset).
+   Same blocks as each package's wght.css. No font CDN. */
 @font-face {
     font-family: 'Roboto Variable';
     font-style: normal;
@@ -19,15 +20,33 @@
         U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+@font-face {
+    font-family: 'JetBrains Mono Variable';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 800;
+    src: url('../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @theme {
-    /* Self-hosted, no font CDN: Roboto above; JetBrains Mono imported in resources/js/app.tsx. */
     --font-sans:
         'Roboto Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-    --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
+    /* design.md section 5: --radius 0.75rem; controls rounded-lg (8px), cards
+       rounded-xl (12px), panels rounded-2xl (16px). */
+    --radius-sm: calc(var(--radius) - 8px);
+    --radius-md: calc(var(--radius) - 6px);
+    --radius-lg: calc(var(--radius) - 4px);
+    --radius-xl: var(--radius);
+    --radius-2xl: calc(var(--radius) + 4px);
+
+    /* design.md section 2: short shadows only. */
+    --shadow-xs: 0 1px 2px rgb(13 27 42 / 0.04);
+    --shadow-primary: 0 1px 2px rgb(0 111 186 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.18);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -40,6 +59,7 @@
 
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-strong: var(--primary-strong);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -52,10 +72,23 @@
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-text: var(--destructive-text);
+    --color-destructive-wash: var(--destructive-wash);
 
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+    --color-ring-wash: var(--ring-wash);
+
+    --color-selected: var(--selected);
+    --color-subtle: var(--subtle);
+    --color-strip: var(--strip);
+    --color-divider: var(--divider);
+
+    /* Brand fills (design.md section 2). Sky and lime are FILLS ONLY, never text. */
+    --color-brand-sky: var(--brand-sky);
+    --color-brand-lime: var(--brand-lime);
+    --color-brand-forest: var(--brand-forest);
 
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
@@ -103,51 +136,65 @@
 }
 
 /*
-  Enterprise Mod 2 (design.md section 2), light only. Values converted by hand
-  from the design hex (in the comments); each converts back to the same hex.
-  Do not install the theme from a registry.
+  Ministry of Health palette, "Layered Surface Theme" (design.md section 2,
+  version 0.5), light only. Values converted by hand from the design hex (in
+  the comments); each converts back to the same hex. Do not install a theme
+  from a registry. Surfaces: L0 --background, L1 --card, L2 --muted, L3 --card.
 */
 :root {
-    --background: hsl(240, 100%, 99.6%); /* #fdfdff */
-    --foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
-    --card: hsl(0, 0%, 100%); /* #ffffff */
-    --card-foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
+    --background: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
+    --foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --card: hsl(0, 0%, 100%); /* #ffffff L1, L3 */
+    --card-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
     --popover: hsl(0, 0%, 100%); /* #ffffff */
-    --popover-foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
-    --primary: hsl(219.2, 99.2%, 52.7%); /* #0f62fe */
+    --popover-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --primary: hsl(204.2, 100%, 36.5%); /* #006fba MOH blue */
     --primary-foreground: hsl(0, 0%, 100%); /* #ffffff */
-    --secondary: hsl(246, 100%, 96.1%); /* #edebff */
-    --secondary-foreground: hsl(248.5, 39%, 39.2%); /* #483d8b */
-    --muted: hsl(240, 33.3%, 95.9%); /* #f1f1f8 */
-    --muted-foreground: hsl(240, 10.9%, 43.1%); /* #62627a */
-    --accent: hsl(232, 100%, 97.1%); /* #f0f2ff */
-    --accent-foreground: hsl(252, 100%, 63.7%); /* #6b46ff */
+    --primary-strong: hsl(204.7, 100%, 30%); /* #005a99 */
+    --secondary: hsl(85.3, 51.4%, 92.7%); /* #eef6e3 */
+    --secondary-foreground: hsl(87.3, 62.2%, 24.9%); /* #436718 */
+    --muted: hsl(210, 41.7%, 95.3%); /* #eef3f8 L2 */
+    --muted-foreground: hsl(213.3, 13%, 40.6%); /* #5a6675 */
+    --accent: hsl(194.4, 86.2%, 94.3%); /* #e4f7fd */
+    --accent-foreground: hsl(196.1, 100%, 27.1%); /* #00658a */
     --destructive: hsl(0, 72.2%, 50.6%); /* #dc2626 */
     --destructive-foreground: hsl(0, 0%, 100%); /* #ffffff */
-    --border: hsl(240, 26.1%, 91%); /* #e2e2ee */
-    --input: hsl(240, 12.4%, 57.5%); /* #8585a0 */
-    --ring: hsl(219.2, 99.2%, 52.7%); /* #0f62fe */
-    --chart-1: hsl(252, 100%, 63.7%); /* #6b46ff */
-    --chart-2: hsl(226.7, 100%, 64.5%); /* #4a72ff */
-    --chart-3: hsl(186.9, 96.4%, 43.9%); /* #04c3dc */
-    --chart-4: hsl(169.9, 88.1%, 46.1%); /* #0eddba */
-    --chart-5: hsl(165, 100%, 36.1%); /* #00b88a */
+    --destructive-text: hsl(0, 73.7%, 41.8%); /* #b91c1c */
+    --destructive-wash: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
+    --border: hsl(211.8, 33.3%, 90%); /* #dde5ee decorative */
+    --input: hsl(212.3, 11.3%, 54.9%); /* #7f8b99 form-field borders */
+    --ring: hsl(204.2, 100%, 36.5%); /* #006fba */
+    --ring-wash: hsl(207, 66.7%, 94.1%); /* #e6f1fa */
+    --selected: hsl(207.3, 73.3%, 97.1%); /* #f2f8fd */
+    --subtle: hsl(216, 55.6%, 98.2%); /* #f8fafd */
+    --strip: hsl(210, 50%, 97.6%); /* #f6f9fc */
+    --divider: hsl(210, 35.3%, 93.3%); /* #e8eef4 */
+    --brand-sky: hsl(193.6, 90.6%, 54.1%); /* #20c4f4 fill only */
+    --brand-lime: hsl(83.5, 55.6%, 51.4%); /* #92c83e fill only */
+    --brand-forest: hsl(87.3, 62.2%, 24.9%); /* #436718 */
+    --chart-1: hsl(196.1, 100%, 27.1%); /* #00658a */
+    --chart-2: hsl(193.6, 90.6%, 54.1%); /* #20c4f4 */
+    --chart-3: hsl(83.5, 55.6%, 51.4%); /* #92c83e */
+    --chart-4: hsl(87.3, 62.2%, 24.9%); /* #436718 */
+    --chart-5: hsl(206.7, 82.1%, 22%); /* #0a3d66 */
     --radius: 0.75rem;
-    --sidebar-background: hsl(240, 100%, 99.6%); /* #fdfdff */
-    --sidebar-foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
-    --sidebar-primary: hsl(219.2, 99.2%, 52.7%); /* #0f62fe */
+    /* The sidebar sits on L0 with no colour of its own: the same value as
+       --background (not "transparent", so the mobile sheet stays opaque). */
+    --sidebar-background: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
+    --sidebar-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --sidebar-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
     --sidebar-primary-foreground: hsl(0, 0%, 100%); /* #ffffff */
-    --sidebar-accent: hsl(232, 100%, 97.1%); /* #f0f2ff */
-    --sidebar-accent-foreground: hsl(240, 16.1%, 6.1%); /* #0d0d12 */
-    --sidebar-border: hsl(240, 26.1%, 91%); /* #e2e2ee */
-    --sidebar-ring: hsl(217.2, 91.2%, 59.8%); /* not in design.md; unchanged */
-    /* Status badge tones (design.md section 3). Each pair is 5.2:1 or better. */
-    --status-neutral: hsl(240, 33.3%, 95.9%); /* #f1f1f8 */
-    --status-neutral-foreground: hsl(240, 10.9%, 43.1%); /* #62627a */
-    --status-info: hsl(219.1, 100%, 95.5%); /* #e8f0ff */
-    --status-info-foreground: hsl(219.7, 89.7%, 38%); /* #0a45b8 */
-    --status-success: hsl(140.6, 84.2%, 92.5%); /* #dcfce7 */
-    --status-success-foreground: hsl(142.8, 64.2%, 24.1%); /* #166534 */
+    --sidebar-accent: hsl(0, 0%, 100%); /* #ffffff (hover uses it at 60%) */
+    --sidebar-accent-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --sidebar-border: hsl(211.8, 33.3%, 90%); /* #dde5ee */
+    --sidebar-ring: hsl(204.2, 100%, 36.5%); /* #006fba */
+    /* Status pill tones (design.md section 3). Each pair is 5.2:1 or better. */
+    --status-neutral: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
+    --status-neutral-foreground: hsl(213.3, 13%, 40.6%); /* #5a6675 */
+    --status-info: hsl(207, 66.7%, 94.1%); /* #e6f1fa */
+    --status-info-foreground: hsl(204.7, 100%, 30%); /* #005a99 */
+    --status-success: hsl(85.3, 51.4%, 92.7%); /* #eef6e3 */
+    --status-success-foreground: hsl(87.5, 62.1%, 22.7%); /* #3d5e16 */
     --status-warning: hsl(48, 96.5%, 88.8%); /* #fef3c7 */
     --status-warning-foreground: hsl(22.7, 82.5%, 31.4%); /* #92400e */
     --status-danger: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
