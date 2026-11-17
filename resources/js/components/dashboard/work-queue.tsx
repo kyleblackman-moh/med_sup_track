@@ -1,10 +1,11 @@
 import { StatusBadge } from '@/components/cases/status-badge';
 import { Button } from '@/components/ui/button';
+import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { CircleCheck } from 'lucide-react';
-import { type MouseEvent, useState } from 'react';
+import { useState } from 'react';
 
 export interface WorkQueueItem {
     id: string;
@@ -30,12 +31,6 @@ function waitingLabel(days: number | null): string {
     if (days === null) return '—';
     if (days === 0) return 'Today';
     return days === 1 ? '1 day' : `${days} days`;
-}
-
-function openCase(e: MouseEvent<HTMLTableRowElement>, item: WorkQueueItem) {
-    if ((e.target as HTMLElement).closest('a, button, input, select, textarea, label')) return;
-    if (window.getSelection()?.toString()) return;
-    router.visit(route('cases.show', item.case_id));
 }
 
 /** "Needs my action": built on the server (WorkQueue), oldest first. Each row opens the case, where the action is taken. */
@@ -111,11 +106,11 @@ export function WorkQueue({ queue }: { queue: WorkQueueData }) {
                                     {items.map((item) => (
                                         <tr
                                             key={item.id}
-                                            onClick={(e) => openCase(e, item)}
-                                            className="hover:bg-muted/60 focus-within:bg-muted/60 cursor-pointer"
+                                            // The action link covers the row (rowLink); no onClick on the row.
+                                            className="hover:bg-muted/60 focus-within:bg-muted/60 relative"
                                         >
                                             <td className={cell}>
-                                                <Button asChild size="sm" className="h-8">
+                                                <Button asChild size="sm" className={cn('h-8', rowLink)}>
                                                     <Link href={route('cases.show', item.case_id)}>
                                                         {item.action}
                                                         <span className="sr-only"> for {item.reference_no ?? 'this case'}</span>

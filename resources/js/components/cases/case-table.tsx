@@ -2,11 +2,11 @@ import { StatusBadge } from '@/components/cases/status-badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
-import { type CaseFilters, type CaseListPage, type StaffCaseListRow } from '@/types/cases';
-import { Link, router } from '@inertiajs/react';
+import { type CaseFilters, type CaseListPage } from '@/types/cases';
+import { Link } from '@inertiajs/react';
 import { ChevronDown, ChevronsUpDown, ChevronUp, SearchX } from 'lucide-react';
-import { type MouseEvent } from 'react';
 
 /** Short labels for the seeded procurement type names; any other name shows in full. */
 const TYPE_SHORT: Record<string, string> = {
@@ -39,13 +39,6 @@ const typeLabel = (name: string | null) => (name ? (TYPE_SHORT[name] ?? name) : 
 
 const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'America/Port_of_Spain', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-
-/** Row clicks open the case, except clicks on controls inside the row or while selecting text. */
-function openCase(e: MouseEvent<HTMLTableRowElement>, row: StaffCaseListRow) {
-    if ((e.target as HTMLElement).closest('a, button, input, select, textarea, label')) return;
-    if (window.getSelection()?.toString()) return;
-    router.visit(route('cases.show', row.id));
-}
 
 export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, filtersActive, onClearFilters }: Props) {
     const columns: Column[] = [
@@ -132,13 +125,13 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                     : rows.map((row) => (
                                           <TableRow
                                               key={row.id}
-                                              onClick={(e) => openCase(e, row)}
-                                              className="hover:bg-muted/60 focus-within:bg-muted/60 cursor-pointer border-0"
+                                              // The reference link covers the row (rowLink); no onClick on the row.
+                                              className="hover:bg-muted/60 focus-within:bg-muted/60 relative border-0"
                                           >
                                               <TableCell className={cell}>
                                                   <Link
                                                       href={route('cases.show', row.id)}
-                                                      className="focus-visible:ring-ring rounded-sm font-mono text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                                                      className={cn('font-mono text-[13px] font-medium', rowLink)}
                                                   >
                                                       {row.reference_no ?? '—'}
                                                   </Link>

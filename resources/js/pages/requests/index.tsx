@@ -2,6 +2,8 @@ import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import { rowLink } from '@/lib/row-link';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { type RequestSummary } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
@@ -74,7 +76,7 @@ export default function Index({ requests, can }: Props) {
                             </thead>
                             <tbody>
                                 {requests.data.map((request) => (
-                                    <tr key={request.id} className="border-t">
+                                    <tr key={request.id} className="hover:bg-muted/60 focus-within:bg-muted/60 relative border-t">
                                         <td className="px-4 py-2">
                                             <StatusBadge label={request.status_label} group={request.status_group} />
                                         </td>
@@ -86,11 +88,11 @@ export default function Index({ requests, can }: Props) {
                                         <td className="px-4 py-2">{formatDate(request.updated_at)}</td>
                                         <td className="px-4 py-2 text-right">
                                             {request.can.edit ? (
-                                                <Link href={route('requests.edit', request.id)} className="underline">
+                                                <Link href={route('requests.edit', request.id)} className={cn('underline', rowLink)}>
                                                     Edit<span className="sr-only"> {request.item_description ?? 'draft'}</span>
                                                 </Link>
                                             ) : (
-                                                <Link href={route('requests.show', request.id)} className="underline">
+                                                <Link href={route('requests.show', request.id)} className={cn('underline', rowLink)}>
                                                     View<span className="sr-only"> {request.item_description ?? 'request'}</span>
                                                 </Link>
                                             )}
