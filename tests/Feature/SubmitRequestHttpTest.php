@@ -187,7 +187,7 @@ it('shows the submit failure reasons on the show page props after a failed submi
 // Slice F1: the receipt lists every category that has files (was: required ones only).
 it('lists every category with files on the receipt, in the type order, earlier uploads last', function () {
     [$case, $vendor] = readyDraft(); // one CLEAN Bids file
-    makeDocument($case, 'evidence', ['original_name' => 'usage.xlsx']);
+    makeDocument($case, 'evidence', ['original_name' => 'usage.pdf']);
     makeDocument($case, 'regulatory', ['original_name' => 'registration.pdf']);
     makeDocument($case, 'original_rfq', ['original_name' => 'old-rfq.pdf']);
     makeDocument($case, 'regulatory', ['original_name' => 'still-scanning.pdf', 'scan_status' => 'PENDING', 'released_at' => null]);
@@ -198,7 +198,7 @@ it('lists every category with files on the receipt, in the type order, earlier u
     expect(collect($documents)->map(fn ($d) => [$d['label'], $d['display_name']])->all())->toBe([
         ['Bids', 'bids.pdf'],
         ['Regulatory documents', 'registration.pdf'],
-        ['Evidence', 'usage.xlsx'],
+        ['Evidence', 'usage.pdf'],
         ['Earlier uploads', 'old-rfq.pdf'],
     ]);
 });

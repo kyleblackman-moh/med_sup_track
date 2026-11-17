@@ -8,7 +8,9 @@ use App\Enums\CaseStatus;
 use App\Enums\DocumentPurpose;
 use App\Enums\Role;
 use App\Enums\ScanStatus;
+use App\Http\Resources\Requests\RequestDocuments;
 use App\Models\Document;
+use App\Models\ProcurementTypeDocument;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -364,6 +366,33 @@ it('reports a rejected upload as a validation error on file', function () {
         ->assertSessionHasErrors('file');
     $this->actingAs($vendor)->post("/requests/{$case->id}/documents", ['purpose' => 'not_a_purpose', 'file' => upload('x.pdf', pdfBytes())])
         ->assertSessionHasErrors('purpose');
+});
+
+// UI-3: PDF only, for every request type and every document category.
+it('rejects every non-PDF upload with one message and stores nothing', function (string $code, string $name, Closure $bytes) {
+    [$case, $vendor] = draftOf($code);
+    $purposes = ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)
+        ->pluck('purpose')->map(fn ($p) => $p instanceof DocumentPurpose ? $p->value : $p)->all();
+
+    expect($purposes)->not->toBeEmpty();
+
+    foreach ($purposes as $purpose) {
+        $this->actingAs($vendor)->post("/requests/{$case->id}/documents", ['purpose' => $purpose, 'file' => upload($name, $bytes())])
+            ->assertSessionHasErrors(['file' => 'Only PDF files are accepted.']);
+    }
+
+    expect(DB::table('documents')->where('case_id', $case->id)->count())->toBe(0)
+        ->and(documentAudits($case->id, 'document.validation_rejected'))->toHaveCount(count($purposes));
+})->with(['AD_HOC', 'TENDER_EXCESS'])->with([
+    'docx' => ['letter.docx', fn () => zipBytes('docx')],
+    'xlsx' => ['prices.xlsx', fn () => zipBytes('xlsx')],
+    'jpg' => ['photo.jpg', fn () => jpegBytes()],
+    'png' => ['scan.png', fn () => pngBytes()],
+    'png named .pdf' => ['scan.pdf', fn () => pngBytes()],
+]);
+
+it('sends PDF-only upload rules to the form', function () {
+    expect(RequestDocuments::uploadRules())->toBe(['extensions' => ['pdf'], 'max_size_kb' => 25600]);
 });
 
 // 12. Throttle and rescan ---------------------------------------------------------

@@ -6,7 +6,7 @@ namespace App\Documents;
 final readonly class InspectedFile
 {
     public function __construct(
-        public string $type,        // pdf | png | jpeg | docx | xlsx
+        public string $type,        // pdf (UI-3: new uploads are PDF only)
         public string $mime,        // detected, used as the download Content-Type
         public string $extension,   // normalised, lowercase
         public string $displayName, // sanitised; never used in a storage path

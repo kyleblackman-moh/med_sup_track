@@ -3,8 +3,8 @@
 use App\Documents\UploadRejected;
 use App\Documents\UploadValidator;
 
-// Slice 8c: UploadValidator. Type by content, extension allow-list, OOXML and
-// zip safety, display-name sanitising. No database or disk writes.
+// Slice 8c, UI-3: UploadValidator. PDF only (name, %PDF- signature and detected
+// MIME), size limit, display-name sanitising. No database or disk writes.
 
 function inspectUpload(string $name, string $bytes)
 {
@@ -22,37 +22,46 @@ function rejectionOf(string $name, string $bytes): ?string
     }
 }
 
-it('accepts each allowed type detected by content', function (string $name, Closure $bytes, string $type, string $mime) {
-    $file = inspectUpload($name, $bytes());
+it('accepts a PDF detected by its bytes and MIME', function (string $name) {
+    $file = inspectUpload($name, pdfBytes());
 
-    expect($file->type)->toBe($type)
-        ->and($file->mime)->toBe($mime);
-})->with([
-    'pdf' => ['quote.pdf', fn () => pdfBytes(), 'pdf', 'application/pdf'],
-    'png' => ['scan.png', fn () => pngBytes(), 'png', 'image/png'],
-    'jpg' => ['photo.jpg', fn () => jpegBytes(), 'jpeg', 'image/jpeg'],
-    'jpeg' => ['photo.JPEG', fn () => jpegBytes(), 'jpeg', 'image/jpeg'],
-    'docx' => ['letter.docx', fn () => zipBytes('docx'), 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-    'xlsx' => ['prices.XLSX', fn () => zipBytes('xlsx'), 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-]);
+    expect($file->type)->toBe('pdf')
+        ->and($file->mime)->toBe('application/pdf')
+        ->and($file->extension)->toBe('pdf');
+})->with(['quote.pdf', 'QUOTE.PDF']);
 
-it('rejects unsafe or mismatched files', function (string $name, Closure $bytes, string $reason) {
-    expect(rejectionOf($name, $bytes()))->toBe($reason);
+it('rejects every other type, whatever it is named, with one message', function (string $name, Closure $bytes, string $reason) {
+    try {
+        inspectUpload($name, $bytes());
+        $this->fail('accepted');
+    } catch (UploadRejected $e) {
+        expect($e->reason)->toBe($reason)
+            ->and($e->getMessage())->toBe('Only PDF files are accepted.');
+    }
 })->with([
+    // UI-3: types that were accepted before, under their own names.
+    'docx' => ['letter.docx', fn () => zipBytes('docx'), 'extension_not_allowed'],
+    'xlsx' => ['prices.xlsx', fn () => zipBytes('xlsx'), 'extension_not_allowed'],
+    'jpg' => ['photo.jpg', fn () => jpegBytes(), 'extension_not_allowed'],
+    'jpeg' => ['photo.jpeg', fn () => jpegBytes(), 'extension_not_allowed'],
+    'png' => ['scan.png', fn () => pngBytes(), 'extension_not_allowed'],
+    // ...and the same bytes renamed to .pdf.
+    'docx named .pdf' => ['letter.pdf', fn () => zipBytes('docx'), 'unknown_type'],
+    'xlsx named .pdf' => ['prices.pdf', fn () => zipBytes('xlsx'), 'unknown_type'],
+    'jpg named .pdf' => ['photo.pdf', fn () => jpegBytes(), 'unknown_type'],
+    'png named .pdf' => ['scan.pdf', fn () => pngBytes(), 'unknown_type'],
     'executable named .pdf' => ['setup.pdf', fn () => "MZ\x90\x00\x03\x00\x00\x00This program cannot be run in DOS mode", 'unknown_type'],
-    'pdf bytes named .png' => ['image.png', fn () => pdfBytes(), 'type_mismatch'],
-    'docx bytes named .xlsx' => ['sheet.xlsx', fn () => zipBytes('docx'), 'type_mismatch'],
-    'docm' => ['macro.docm', fn () => zipBytes('docx'), 'extension_not_allowed'],
-    'xlsm' => ['macro.xlsm', fn () => zipBytes('xlsx'), 'extension_not_allowed'],
-    'vbaProject.bin' => ['macro.docx', fn () => zipBytes('docx', ['word/vbaProject.bin' => 'macro']), 'macro_content'],
-    'plain zip' => ['archive.docx', fn () => zipBytes('plain'), 'not_office_document'],
-    'empty' => ['empty.pdf', fn () => '', 'empty'],
+    'pdf bytes named .png' => ['image.png', fn () => pdfBytes(), 'extension_not_allowed'],
     'double extension' => ['a.pdf.exe', fn () => pdfBytes(), 'extension_not_allowed'],
     'no extension' => ['README', fn () => pdfBytes(), 'extension_not_allowed'],
+]);
+
+it('rejects empty files and bad names', function (string $name, Closure $bytes, string $reason) {
+    expect(rejectionOf($name, $bytes()))->toBe($reason);
+})->with([
+    'empty' => ['empty.pdf', fn () => '', 'empty'],
     'null byte' => ["a\0.pdf", fn () => pdfBytes(), 'bad_name'],
     'control char' => ["a\x07b.pdf", fn () => pdfBytes(), 'bad_name'],
-    'zip traversal' => ['evil.docx', fn () => zipBytes('docx', ['../evil.txt' => 'x']), 'unsafe_zip_entry'],
-    'zip absolute path' => ['evil.docx', fn () => zipBytes('docx', ['/etc/passwd' => 'x']), 'unsafe_zip_entry'],
 ]);
 
 it('rejects a file over the size limit', function () {
@@ -62,21 +71,9 @@ it('rejects a file over the size limit', function () {
         ->and(rejectionOf('small.pdf', pdfBytes()))->toBeNull();
 });
 
-it('rejects a zip with too many entries', function () {
-    config(['documents.zip_max_entries' => 5]);
-
-    $entries = [];
-    foreach (range(1, 5) as $i) {
-        $entries["word/media/image{$i}.txt"] = 'x';
-    }
-
-    expect(rejectionOf('many.docx', zipBytes('docx', $entries)))->toBe('zip_too_many_entries');
-});
-
-it('rejects a zip whose declared uncompressed size is over the cap', function () {
-    config(['documents.zip_max_uncompressed_bytes' => 1000]);
-
-    expect(rejectionOf('bomb.docx', zipBytes('docx', ['word/big.xml' => str_repeat('A', 5000)])))->toBe('zip_too_large');
+it('keeps the size limit at 25 MB', function () {
+    expect(config('documents.max_size_kb'))->toBe(25600)
+        ->and(config('documents.allowed_extensions'))->toBe(['pdf']);
 });
 
 it('sanitises the display name and never keeps a path', function (string $name, string $expected) {

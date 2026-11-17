@@ -2,32 +2,20 @@
 
 namespace App\Documents;
 
+use finfo;
 use Illuminate\Http\UploadedFile;
-use ZipArchive;
 
 /**
- * Inspects an upload. Never trusts the client's name, extension or mime type:
- * the type is detected from the file's bytes and must agree with the extension.
+ * Inspects an upload. Never trusts the client's name, extension or mime type.
+ *
+ * UI-3: new uploads are PDF only, for every document category and request
+ * type. A file is a PDF when its name ends in .pdf, its bytes start with the
+ * %PDF- signature AND libmagic (fileinfo) detects application/pdf. Documents
+ * of other types uploaded before this rule stay stored and downloadable.
  */
 final class UploadValidator
 {
-    private const MIMES = [
-        'pdf' => 'application/pdf',
-        'png' => 'image/png',
-        'jpeg' => 'image/jpeg',
-        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
-
-    /** extension => detected type it must match */
-    private const EXTENSION_TYPES = [
-        'pdf' => 'pdf',
-        'png' => 'png',
-        'jpg' => 'jpeg',
-        'jpeg' => 'jpeg',
-        'docx' => 'docx',
-        'xlsx' => 'xlsx',
-    ];
+    public const PDF_MIME = 'application/pdf';
 
     /** @throws UploadRejected */
     public function inspect(UploadedFile $file): InspectedFile
@@ -52,17 +40,20 @@ final class UploadValidator
         $extension = self::lastExtension($displayName);
         $allowed = array_map('strtolower', config('documents.allowed_extensions'));
 
-        if ($extension === '' || ! in_array($extension, $allowed, true) || ! isset(self::EXTENSION_TYPES[$extension])) {
+        // Three reasons (kept apart for the rejection audit row), one message: only PDF files are accepted.
+        if ($extension !== 'pdf' || ! in_array($extension, $allowed, true)) {
             throw new UploadRejected('extension_not_allowed');
         }
 
-        $type = $this->detectType($path);
+        if (! str_starts_with((string) file_get_contents($path, false, null, 0, 5), '%PDF-')) {
+            throw new UploadRejected('unknown_type');
+        }
 
-        if (self::EXTENSION_TYPES[$extension] !== $type) {
+        if ((new finfo(FILEINFO_MIME_TYPE))->file($path) !== self::PDF_MIME) {
             throw new UploadRejected('type_mismatch');
         }
 
-        return new InspectedFile($type, self::MIMES[$type], $extension, self::withFallback($displayName, $extension), $size);
+        return new InspectedFile('pdf', self::PDF_MIME, 'pdf', self::withFallback($displayName, 'pdf'), $size);
     }
 
     /** Lowercase extension after the LAST dot ("a.pdf.exe" gives "exe"). */
@@ -102,70 +93,5 @@ final class UploadValidator
         $stem = trim(substr($displayName, 0, (int) strrpos($displayName, '.')), '. ');
 
         return $stem === '' ? "document.{$extension}" : $displayName;
-    }
-
-    private function detectType(string $path): string
-    {
-        $head = (string) file_get_contents($path, false, null, 0, 8);
-
-        return match (true) {
-            str_starts_with($head, '%PDF-') => 'pdf',
-            str_starts_with($head, "\x89PNG\r\n\x1A\n") => 'png',
-            str_starts_with($head, "\xFF\xD8\xFF") => 'jpeg',
-            str_starts_with($head, "PK\x03\x04") => $this->detectOfficeType($path),
-            default => throw new UploadRejected('unknown_type'),
-        };
-    }
-
-    /** DOCX/XLSX are ZIP packages; inspect the central directory without extracting. */
-    private function detectOfficeType(string $path): string
-    {
-        $zip = new ZipArchive;
-
-        if ($zip->open($path, ZipArchive::RDONLY) !== true) {
-            throw new UploadRejected('not_office_document');
-        }
-
-        try {
-            if ($zip->numFiles > (int) config('documents.zip_max_entries')) {
-                throw new UploadRejected('zip_too_many_entries');
-            }
-
-            $names = [];
-            $uncompressed = 0;
-
-            for ($i = 0; $i < $zip->numFiles; $i++) {
-                $stat = $zip->statIndex($i, ZipArchive::FL_UNCHANGED);
-                $name = $stat === false ? null : $stat['name'];
-
-                if ($name === null || str_contains($name, "\0") || str_starts_with($name, '/') || str_starts_with($name, '\\')
-                    || str_starts_with($name, '../') || str_contains($name, '/../') || preg_match('/^[A-Za-z]:/', $name)) {
-                    throw new UploadRejected('unsafe_zip_entry');
-                }
-
-                if (strcasecmp(basename($name), 'vbaProject.bin') === 0) {
-                    throw new UploadRejected('macro_content');
-                }
-
-                $uncompressed += (int) $stat['size'];
-                if ($uncompressed > (int) config('documents.zip_max_uncompressed_bytes')) {
-                    throw new UploadRejected('zip_too_large');
-                }
-
-                $names[$name] = true;
-            }
-        } finally {
-            $zip->close();
-        }
-
-        if (! isset($names['[Content_Types].xml'])) {
-            throw new UploadRejected('not_office_document');
-        }
-
-        return match (true) {
-            isset($names['word/document.xml']) => 'docx',
-            isset($names['xl/workbook.xml']) => 'xlsx',
-            default => throw new UploadRejected('not_office_document'),
-        };
     }
 }

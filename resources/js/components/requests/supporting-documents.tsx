@@ -62,8 +62,7 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false, r
                 </h2>
                 {!readOnly && rules && (
                     <p className="text-muted-foreground text-sm">
-                        Accepted: {rules.extensions.map((e) => e.toUpperCase()).join(', ')}, up to {Math.round(rules.max_size_kb / 1024)} MB each.
-                        Every file is checked for viruses before it can be used.
+                        PDF only, up to {Math.round(rules.max_size_kb / 1024)} MB each. Every file is checked for viruses before it can be used.
                     </p>
                 )}
             </div>

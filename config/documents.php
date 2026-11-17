@@ -10,16 +10,12 @@ return [
 
     'max_size_kb' => (int) env('DOCUMENTS_MAX_SIZE_KB', 25600),
 
-    'allowed_extensions' => ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'],
+    // UI-3: new uploads are PDF only (UploadValidator also checks the bytes and the detected MIME).
+    'allowed_extensions' => ['pdf'],
 
     'max_files_per_case' => (int) env('DOCUMENTS_MAX_FILES_PER_CASE', 100),
 
     'max_bytes_per_case' => (int) env('DOCUMENTS_MAX_BYTES_PER_CASE', 524288000),
-
-    // Zip-bomb and archive guards for DOCX/XLSX.
-    'zip_max_entries' => (int) env('DOCUMENTS_ZIP_MAX_ENTRIES', 2000),
-
-    'zip_max_uncompressed_bytes' => (int) env('DOCUMENTS_ZIP_MAX_UNCOMPRESSED_BYTES', 209715200),
 
     // clamd (production) or eicar_dev (local/testing only; refuses other environments).
     'scanner' => env('DOCUMENTS_SCANNER', 'clamd'),

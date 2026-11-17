@@ -11,14 +11,10 @@ class UploadRejected extends RuntimeException
         'empty' => 'The file is empty.',
         'too_large' => 'The file is larger than the allowed size.',
         'bad_name' => 'The file name contains characters that are not allowed.',
-        'extension_not_allowed' => 'This type of file is not allowed. Upload a PDF, Word (.docx), Excel (.xlsx), JPEG or PNG file.',
-        'unknown_type' => 'The file content is not a PDF, Word (.docx), Excel (.xlsx), JPEG or PNG file.',
-        'type_mismatch' => 'The file content does not match its extension.',
-        'not_office_document' => 'The file is not a valid Word or Excel document.',
-        'macro_content' => 'Documents containing macros are not allowed.',
-        'unsafe_zip_entry' => 'The document contains unsafe content.',
-        'zip_too_many_entries' => 'The document is too complex to accept.',
-        'zip_too_large' => 'The document expands to more than the allowed size.',
+        // UI-3: PDF only. Not a .pdf name, not PDF bytes, or not detected as application/pdf.
+        'extension_not_allowed' => 'Only PDF files are accepted.',
+        'unknown_type' => 'Only PDF files are accepted.',
+        'type_mismatch' => 'Only PDF files are accepted.',
         'unreadable' => 'The file could not be read.',
     ];
 
