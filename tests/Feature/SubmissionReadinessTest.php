@@ -12,6 +12,10 @@ use Spatie\Permission\PermissionRegistrar;
 
 // Slice 8a: SubmissionReadiness. Drafts are built through CreateDraftCase and
 // SaveRequisition, then evaluated. Read-only: evaluation writes nothing.
+//
+// Slice F1: these are the OLD types' rules (AD_HOC_PHARM, AD_HOC_NON_PHARM,
+// TENDER_EXCESS), which still apply to their drafts. The inactive types' drafts
+// come from legacyDraft() (draftOf). AD_HOC rules: AdHocReadinessTest.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -32,7 +36,7 @@ function readinessOf(string $code, array $payload, ?Closure $mutate = null): Rea
         $payload = $mutate($payload);
     }
 
-    [$case, $vendor] = newDraft($code);
+    [$case, $vendor] = draftOf($code);
     saveDraft($case, $vendor, $payload);
     // Slice 8c: the request-content tests assume the required documents are in place.
     attachRequiredDocuments($case);
@@ -278,7 +282,7 @@ it('does not warn about expiries for PHARM stock when expiry rows exist', functi
 });
 
 it('warns (informational) about a staff-set technical status', function () {
-    [$case, $vendor] = newDraft();
+    [$case, $vendor] = draftOf('AD_HOC_NON_PHARM');
     saveDraft($case, $vendor, nonPharmPayload());
     attachRequiredDocuments($case);
     CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->where('sort_order', 1)->firstOrFail()
@@ -301,7 +305,7 @@ it('gives every error and warning a key and a message', function () {
 });
 
 it('writes nothing while evaluating', function () {
-    [$case, $vendor] = newDraft();
+    [$case, $vendor] = draftOf('AD_HOC_NON_PHARM');
     saveDraft($case, $vendor, nonPharmPayload());
     $queries = [];
     DB::listen(function ($q) use (&$queries) {

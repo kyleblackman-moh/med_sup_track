@@ -7,6 +7,7 @@ use App\Enums\DocumentPurpose;
 use App\Enums\Permission;
 use App\Enums\ReturnKind;
 use App\Enums\UserType;
+use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Models\ProcurementTypeDocument;
@@ -59,8 +60,8 @@ class DevSampleCase extends Command
 
     public const RETURN_REASON = 'Dev sample: clause 4 needs the vendor to clarify the delivery terms.';
 
-    /** Procurement type used for samples (needs no DIN). */
-    public const TYPE_CODE = 'AD_HOC_NON_PHARM';
+    /** Procurement type used for samples: the single Ad Hoc form (slice F1). */
+    public const TYPE_CODE = 'AD_HOC';
 
     /** Stage => the steps it runs (each stage includes all the earlier ones). */
     public const STAGES = [
@@ -205,8 +206,12 @@ class DevSampleCase extends Command
         $type = ProcurementType::where('code', self::TYPE_CODE)->firstOrFail();
         $this->case = app(CreateDraftCase::class)->handle($vendor, $type);
 
-        $data = RequisitionData::validate(self::payload(), $type);
-        app(SaveRequisition::class)->handle($this->case, $vendor, $data);
+        $save = fn (array $payload) => app(SaveRequisition::class)->handle($this->case, $vendor, RequisitionData::validate($payload, $type));
+
+        // Orders point at saved award rows, so they are saved in a second step.
+        $save(self::payload());
+        $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $this->case->getKey())->orderBy('sort_order')->value('id');
+        $save(self::orders((int) $awardId));
     }
 
     /** One small PDF per required purpose, through the same upload service as the UI. */
@@ -236,7 +241,12 @@ class DevSampleCase extends Command
         }
     }
 
-    /** A complete AD_HOC_NON_PHARM request; generic supplier names only. */
+    /**
+     * A complete AD_HOC request; generic supplier names only. Tender partially
+     * awarded (two award rows), a stock batch, two quotations (one not
+     * considered, with a reason; one recommended) and a quantity to purchase.
+     * The order is saved separately (orders()), once the award ids exist.
+     */
     public static function payload(): array
     {
         $today = CarbonImmutable::now('America/Port_of_Spain');
@@ -245,38 +255,56 @@ class DevSampleCase extends Command
             'manufacturer' => 'Generic Manufacturer',
             'brand' => 'Generic Brand',
             'unit_price' => $price,
-            'currency' => 'TTD',
             'quantity_offered' => '3000',
             'lead_time_days' => 30,
-            'price_valid_until' => $today->addYear()->toDateString(),
-            'previous_price_maintained' => 'UNKNOWN',
+            'considered' => true,
             'is_recommended' => false,
             ...$extra,
         ];
 
         return [
             'requisition' => [
-                'vendor_reference' => 'DEV-'.$today->format('Ymd-His'),
-                'request_date' => $today->toDateString(),
-                'need_classification' => 'VITAL',
                 'item_description' => self::TAG.' Infant feeding tube, size 6Fr',
-                'item_code' => 'DEV-IFT-6FR',
-                'unit_of_measure' => 'Each',
-                'purpose' => 'Dev sample for manual testing',
                 'quantity_requested' => '2800',
-                'average_monthly_consumption' => '500',
-                'central_stores_stock' => '0',
-                'rha_stock' => '0',
-                'stock_verified_on' => $today->toDateString(),
-                'urgency_explanation' => 'Dev sample',
+                'unit_of_measure' => 'Each',
                 'tender_reference' => 'DEV-TENDER',
-                'tender_outcome' => 'NOT_AWARDED',
-                'rfq_date' => $today->subDays(7)->toDateString(),
+                'tender_outcome' => 'PARTIALLY_AWARDED',
+                'tender_issue_explanation' => 'Dev sample: the awarded supplier delivered part of the order only.',
+                'stock_location' => 'Central stores',
+                'average_monthly_consumption' => '500',
+                'no_stock_on_hand' => false,
                 'rfq_audience' => 'ALL_REGISTERED',
+                'quantity_to_purchase' => '2800',
+            ],
+            'tender_awards' => [
+                ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '0.6500'],
+                ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '0.7000'],
+            ],
+            'stock_expiries' => [
+                ['quantity' => '150', 'expiry_date' => $today->addMonths(6)->toDateString()],
             ],
             'quotations' => [
-                $quote('Supplier A', '0.67'),
-                $quote('Supplier B', '1.5975', ['is_recommended' => true, 'recommended_quantity' => '2800']),
+                $quote('Supplier C', '0.67', ['considered' => false, 'reason_accepted_excluded' => 'Dev sample: not registered.']),
+                $quote('Supplier D', '1.5975', ['is_recommended' => true]),
+            ],
+        ];
+    }
+
+    /** One purchase order against the given award row. */
+    public static function orders(int $awardId): array
+    {
+        $today = CarbonImmutable::now('America/Port_of_Spain');
+
+        return [
+            'purchase_orders' => [
+                [
+                    'award_id' => $awardId,
+                    'po_number' => 'DEV-PO-1',
+                    'quantity_ordered' => '3000',
+                    'ordered_on' => $today->subMonths(2)->toDateString(),
+                    'quantity_delivered' => '1200',
+                    'delivery_status' => 'Part delivered',
+                ],
             ],
         ];
     }

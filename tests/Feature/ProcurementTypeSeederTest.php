@@ -13,12 +13,15 @@ beforeEach(function () {
     $this->seed(ProcurementTypeSeeder::class);
 });
 
+// Slice F1: AD_HOC (no category) replaces the Pharm / Non-Pharm ad hoc types,
+// which stay listed but inactive. Changed on purpose.
 const EXPECTED_TYPES = [
     // code => [name, category, is_active, sort_order]
-    'AD_HOC_PHARM' => ['Ad hoc purchase (Pharm)', 'PHARM', true, 10],
-    'AD_HOC_NON_PHARM' => ['Ad hoc purchase (Non-Pharm)', 'NON_PHARM', true, 20],
-    'TENDER_EXCESS' => ['Purchase in excess of tender', 'PHARM', true, 30],
-    'TENDER_VARIATION' => ['Tender variation', 'PHARM', false, 40],
+    'AD_HOC' => ['Ad hoc purchase', null, true, 10],
+    'AD_HOC_PHARM' => ['Ad hoc purchase (Pharm)', 'PHARM', false, 20],
+    'AD_HOC_NON_PHARM' => ['Ad hoc purchase (Non-Pharm)', 'NON_PHARM', false, 30],
+    'TENDER_EXCESS' => ['Purchase in excess of tender', 'PHARM', true, 40],
+    'TENDER_VARIATION' => ['Tender variation', 'PHARM', false, 50],
 ];
 
 const AD_HOC_REQUIRED = [
@@ -34,6 +37,11 @@ const AD_HOC_REQUIRED = [
 function expectedDocuments(): array
 {
     return [
+        'AD_HOC' => [
+            ['bids', 'Bids', true],
+            ['regulatory', 'Regulatory documents', false],
+            ['evidence', 'Evidence', false],
+        ],
         'AD_HOC_PHARM' => [
             ...AD_HOC_REQUIRED,
             ['other_supporting', 'Other supporting justification', false],
@@ -75,9 +83,9 @@ function seededCounts(): array
     ];
 }
 
-it('seeds exactly the four procurement types', function () {
+it('seeds exactly the five procurement types', function () {
     $actual = ProcurementType::orderBy('sort_order')->get()->mapWithKeys(fn (ProcurementType $t) => [
-        $t->code => [$t->name, $t->category->value, $t->is_active, $t->sort_order],
+        $t->code => [$t->name, $t->category?->value, $t->is_active, $t->sort_order],
     ])->all();
 
     expect($actual)->toBe(EXPECTED_TYPES);
@@ -94,11 +102,12 @@ it('leaves TENDER_VARIATION inactive with no documents', function () {
         ->and($type->documents()->count())->toBe(0);
 });
 
-it('requires the six ad hoc documents for both ad hoc types and two for TENDER_EXCESS', function () {
+it('requires Bids only for AD_HOC, six documents for the old ad hoc types and two for TENDER_EXCESS', function () {
     $required = fn (string $code) => collect(storedDocuments($code))->filter(fn ($d) => $d[2])->pluck(0)->all();
     $sixRequired = array_column(AD_HOC_REQUIRED, 0);
 
-    expect($required('AD_HOC_PHARM'))->toBe($sixRequired)
+    expect($required('AD_HOC'))->toBe(['bids'])
+        ->and($required('AD_HOC_PHARM'))->toBe($sixRequired)
         ->and($required('AD_HOC_NON_PHARM'))->toBe($sixRequired)
         ->and($required('TENDER_EXCESS'))->toBe(['signed_request', 'stock_evidence']);
 });
@@ -134,13 +143,36 @@ it('corrects a changed label, required flag or type field, and removes unlisted 
     $type = ProcurementType::where('code', 'AD_HOC_PHARM')->firstOrFail();
     $type->documents()->where('purpose', 'original_rfq')->update(['label' => 'Edited', 'is_required' => false]);
     $type->documents()->create(['purpose' => 'purchase_orders_delivery', 'label' => 'Stale', 'is_required' => true, 'sort_order' => 99]);
-    $type->update(['name' => 'Edited name', 'is_active' => false]);
+    $type->update(['name' => 'Edited name', 'is_active' => true]);
 
     $this->seed(ProcurementTypeSeeder::class);
 
+    // Slice F1: AD_HOC_PHARM is inactive now, so the seeder resets it to false (was true).
     expect(storedDocuments('AD_HOC_PHARM'))->toBe(expectedDocuments()['AD_HOC_PHARM'])
         ->and($type->fresh()->name)->toBe('Ad hoc purchase (Pharm)')
-        ->and($type->fresh()->is_active)->toBeTrue();
+        ->and($type->fresh()->is_active)->toBeFalse();
+});
+
+it('gives each AD_HOC category a short hint and the old types none', function () {
+    $hints = fn (string $code) => ProcurementType::where('code', $code)->firstOrFail()->documents
+        ->mapWithKeys(fn (ProcurementTypeDocument $d) => [$d->purpose->value => $d->hint])->all();
+
+    foreach ($hints('AD_HOC') as $hint) {
+        expect($hint)->toBeString()->not->toBe('')
+            ->and(mb_strlen($hint))->toBeLessThanOrEqual(255);
+    }
+    expect(array_filter($hints('AD_HOC_PHARM')))->toBe([]);
+});
+
+it('matches AD_HOC by code: one row, same id, config corrected on every run', function () {
+    $type = ProcurementType::where('code', 'AD_HOC')->sole();
+    $type->documents()->where('purpose', 'bids')->update(['is_required' => false, 'hint' => null]);
+
+    $this->seed(ProcurementTypeSeeder::class);
+
+    expect(ProcurementType::where('code', 'AD_HOC')->pluck('id')->all())->toBe([$type->id])
+        ->and(storedDocuments('AD_HOC'))->toBe(expectedDocuments()['AD_HOC'])
+        ->and($type->documents()->where('purpose', 'bids')->value('hint'))->not->toBeNull();
 });
 
 it('contains no vendor name in the seeder source', function () {

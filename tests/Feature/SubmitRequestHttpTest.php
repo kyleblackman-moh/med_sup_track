@@ -71,7 +71,7 @@ it('redirects back with the reasons when the draft is not ready', function () {
 
     $this->actingAs($vendor)->from("/requests/{$case->id}")->post("/requests/{$case->id}/submit")
         ->assertRedirect("/requests/{$case->id}")
-        ->assertSessionHasErrors(['submit.requisition.vendor_reference', 'submit.documents.original_rfq'])
+        ->assertSessionHasErrors(['submit.requisition.item_description', 'submit.documents.bids'])
         ->assertSessionHas('error');
 
     expect(caseRow($case->id)->status)->toBe('DRAFT')
@@ -116,7 +116,7 @@ it('offers submit on a ready draft and shows the reasons on an incomplete one', 
     $incompleteProps = pageProps($this->actingAs($vendor2)->get("/requests/{$incomplete->id}")->assertOk());
     expect($incompleteProps['can']['submit'])->toBeFalse()
         ->and($incompleteProps['readiness']['is_ready'])->toBeFalse()
-        ->and(collect($incompleteProps['readiness']['errors'])->pluck('key'))->toContain('documents.original_rfq');
+        ->and(collect($incompleteProps['readiness']['errors'])->pluck('key'))->toContain('documents.bids');
 });
 
 it('shows the reference on the index once submitted and nothing for drafts', function () {
@@ -160,7 +160,7 @@ it('renders the receipt after submission with only vendor-safe fields', function
         ->component('requests/receipt')
         ->where('receipt.reference_no', $row->reference_no)
         ->where('receipt.organisation_name', $vendor->organisation()->first()->name)
-        ->where('receipt.procurement_type', 'Ad hoc purchase (Non-Pharm)')
+        ->where('receipt.procurement_type', 'Ad hoc purchase')
         ->where('receipt.item_description', 'Infant feeding tube, size 6Fr')
         ->where('receipt.submitted_by', $vendor->name)
         ->where('receipt.submitted_at', fn ($v) => str_ends_with($v, 'Z'))
@@ -181,5 +181,24 @@ it('shows the submit failure reasons on the show page props after a failed submi
     $this->actingAs($vendor)->from("/requests/{$case->id}")->post("/requests/{$case->id}/submit");
     $props = pageProps($this->actingAs($vendor)->get("/requests/{$case->id}"));
 
-    expect($props['errors'])->toHaveKey('submit.documents.original_rfq');
+    expect($props['errors'])->toHaveKey('submit.documents.bids');
+});
+
+// Slice F1: the receipt lists every category that has files (was: required ones only).
+it('lists every category with files on the receipt, in the type order, earlier uploads last', function () {
+    [$case, $vendor] = readyDraft(); // one CLEAN Bids file
+    makeDocument($case, 'evidence', ['original_name' => 'usage.xlsx']);
+    makeDocument($case, 'regulatory', ['original_name' => 'registration.pdf']);
+    makeDocument($case, 'original_rfq', ['original_name' => 'old-rfq.pdf']);
+    makeDocument($case, 'regulatory', ['original_name' => 'still-scanning.pdf', 'scan_status' => 'PENDING', 'released_at' => null]);
+    $this->actingAs($vendor)->post("/requests/{$case->id}/submit");
+
+    $documents = pageProps($this->actingAs($vendor)->get("/requests/{$case->id}/receipt"))['receipt']['documents'];
+
+    expect(collect($documents)->map(fn ($d) => [$d['label'], $d['display_name']])->all())->toBe([
+        ['Bids', 'bids.pdf'],
+        ['Regulatory documents', 'registration.pdf'],
+        ['Evidence', 'usage.xlsx'],
+        ['Earlier uploads', 'old-rfq.pdf'],
+    ]);
 });

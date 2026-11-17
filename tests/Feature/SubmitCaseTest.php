@@ -7,6 +7,8 @@ use App\Enums\CaseStatus;
 use App\Enums\DocumentPurpose;
 use App\Enums\Role;
 use App\Enums\ScanStatus;
+use App\Enums\TechnicalStatus;
+use App\Models\CaseQuotation;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\Scopes\VisibleToUserScope;
@@ -184,8 +186,8 @@ it('blocks an incomplete draft and changes nothing', function () {
         submitter()->handle($case, $vendor);
         $this->fail('submitted');
     } catch (SubmissionNotReady $e) {
-        expect(collect($e->report->errors)->pluck('key'))->toContain('requisition.vendor_reference')
-            ->toContain('documents.original_rfq');
+        expect(collect($e->report->errors)->pluck('key'))->toContain('requisition.item_description')
+            ->toContain('documents.bids');
     }
 
     $row = rawCaseRow($case);
@@ -199,7 +201,7 @@ it('blocks an incomplete draft and changes nothing', function () {
 
 it('blocks while a required document is still being virus-checked', function () {
     [$case, $vendor] = readyDraft();
-    Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'original_rfq')
+    Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'bids')
         ->update(['scan_status' => 'PENDING']);
 
     try {
@@ -207,8 +209,8 @@ it('blocks while a required document is still being virus-checked', function () 
         $this->fail('submitted');
     } catch (SubmissionNotReady $e) {
         expect($e->report->errors)->toBe([[
-            'key' => 'documents.original_rfq',
-            'message' => 'Original RFQ / procurement request is still being virus-checked. Try again in a moment.',
+            'key' => 'documents.bids',
+            'message' => 'Bids is still being virus-checked. Try again in a moment.',
         ]]);
     }
     expect(rawCaseRow($case)->status)->toBe('DRAFT');
@@ -216,15 +218,26 @@ it('blocks while a required document is still being virus-checked', function () 
 
 it('blocks when a required document failed the security check', function (ScanStatus $status) {
     [$case, $vendor] = readyDraft();
-    Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'signed_request')
+    Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'bids')
         ->update(['scan_status' => $status->value]);
 
     expect(fn () => submitter()->handle($case, $vendor))->toThrow(SubmissionNotReady::class);
     expect(rawCaseRow($case)->status)->toBe('DRAFT')->and(rawCaseRow($case)->reference_no)->toBeNull();
 })->with([ScanStatus::INFECTED, ScanStatus::ERROR]);
 
-it('does not let warnings block submission', function () {
-    [$case, $vendor] = newDraft();
+it('does not let warnings block submission (AD_HOC)', function () {
+    [$case, $vendor] = readyDraft();
+    CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->where('sort_order', 0)->firstOrFail()
+        ->forceFill(['technical_status' => TechnicalStatus::TECHNICALLY_REJECTED])->save();
+
+    submitter()->handle($case, $vendor);
+
+    expect(rawCaseRow($case)->status)->toBe('SUBMITTED');
+});
+
+// Slice F1: old-type drafts made before F1 can still be submitted under their rules.
+it('does not let warnings block submission (old type)', function () {
+    [$case, $vendor] = legacyDraft('AD_HOC_NON_PHARM');
     $payload = nonPharmPayload();
     $payload['requisition']['purpose'] = null; // warning only
     saveDraft($case, $vendor, $payload);
@@ -294,7 +307,7 @@ it('refuses a direct T1 transition with a reference but failing readiness', func
         app(CaseTransitionService::class)->transition($case->fresh() ?? $case, CaseStatus::SUBMITTED, $vendor);
         $this->fail('reached SUBMITTED');
     } catch (GateNotPassed $e) {
-        expect($e->missing)->toContain('requisition.vendor_reference')
+        expect($e->missing)->toContain('requisition.item_description')
             ->not->toContain('reference_no');
     }
 });
@@ -346,14 +359,14 @@ it('lets the registry, CMO and PS Office see a submitted case, and nobody else n
 
 it('freezes the request content and documents once submitted', function () {
     [$case, $vendor] = readyDraft();
-    $document = Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'original_rfq')->firstOrFail();
+    $document = Document::withoutGlobalScopes()->where('case_id', $case->id)->where('purpose', 'bids')->firstOrFail();
     submitter()->handle($case, $vendor);
     $case = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
 
-    expect(fn () => saveDraft($case, $vendor, ['requisition' => ['item_code' => 'LATE']]))->toThrow(DraftNotEditable::class)
-        ->and(fn () => app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::original_rfq, upload('late.pdf', pdfBytes())))
+    expect(fn () => saveDraft($case, $vendor, ['requisition' => ['strength' => 'LATE']]))->toThrow(DraftNotEditable::class)
+        ->and(fn () => app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::bids, upload('late.pdf', pdfBytes())))
         ->toThrow(UploadNotAllowed::class)
-        ->and(fn () => app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::original_rfq, upload('late.pdf', pdfBytes()), $document->id))
+        ->and(fn () => app(DocumentUploadService::class)->store($case, $vendor, DocumentPurpose::bids, upload('late.pdf', pdfBytes()), $document->id))
         ->toThrow(UploadNotAllowed::class)
         ->and(fn () => app(WithdrawDocument::class)->handle($document, $vendor, 'Too late'))
         ->toThrow(UploadNotAllowed::class);

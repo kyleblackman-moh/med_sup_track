@@ -1,14 +1,18 @@
 <?php
 
-// Requisition payload fixtures for the slice 8a tests. Loaded from tests/Pest.php.
+// Requisition payload fixtures (slice 8a; AD_HOC added in slice F1). Loaded from tests/Pest.php.
 // Generic supplier names only; modelled on the form's infant feeding tube example.
 
+use App\Enums\CaseStatus;
+use App\Models\CaseRequisition;
+use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Models\User;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
+use Carbon\CarbonImmutable;
 
 function procurementTypeByCode(string $code): ProcurementType
 {
@@ -99,13 +103,127 @@ function tenderExcessPayload(): array
     ];
 }
 
-/** A vendor user and a fresh draft of $code created through CreateDraftCase. */
-function newDraft(string $code = 'AD_HOC_NON_PHARM', ?User $vendor = null): array
+/*
+ * AD_HOC (slice F1). A complete request: item, tender partially awarded with
+ * two award rows, stock batches, two quotations (one not considered, with a
+ * reason; one recommended), quantity to purchase and both reference prices.
+ * Orders point at award ids, so they are saved in a second step
+ * (adHocOrdersFor).
+ */
+function adHocPayload(): array
+{
+    return [
+        'requisition' => [
+            'item_description' => 'Infant feeding tube, size 6Fr',
+            'strength' => '6Fr',
+            'dosage_form' => 'Tube',
+            'din' => '02345678',
+            'quantity_requested' => '2800',
+            'unit_of_measure' => 'Each',
+            'clinical_note' => 'Neonatal enteral feeding',
+            'tender_reference' => 'TENDER-2026-14 (2026-2027)',
+            'tender_outcome' => 'PARTIALLY_AWARDED',
+            'tender_issue_explanation' => 'The awarded supplier delivered part of the order only.',
+            'stock_location' => 'Central stores',
+            'average_monthly_consumption' => '500',
+            'no_stock_on_hand' => false,
+            'rfq_audience' => 'ALL_REGISTERED',
+            'quantity_to_purchase' => '2800',
+            'tender_price' => '1.2500',
+            'previous_price' => '1.5000',
+            'quoted_price_acceptable' => true,
+            'price_note' => 'Within the expected range.',
+        ],
+        'tender_awards' => [
+            ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '1.2500'],
+            ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '1.3000'],
+        ],
+        'stock_expiries' => [
+            ['quantity' => '120', 'expiry_date' => '2027-03-31'],
+            ['quantity' => '80.5', 'expiry_date' => '2027-06-30'],
+        ],
+        'quotations' => [
+            adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => 'No registration on file.']),
+            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true]),
+        ],
+    ];
+}
+
+/** An AD_HOC quotation row; $overrides replace or add fields. */
+function adHocQuoteRow(string $supplier, string $price, array $overrides = []): array
+{
+    return [
+        'supplier_name' => $supplier,
+        'manufacturer' => 'Generic Manufacturer',
+        'brand' => 'Generic Brand',
+        'unit_price' => $price,
+        'quantity_offered' => '3000',
+        'lead_time_days' => 30,
+        'considered' => true,
+        'is_recommended' => false,
+        ...$overrides,
+    ];
+}
+
+/** One order against the case's first award row (the saved award ids are needed). */
+function adHocOrdersFor(ProcurementCase $case): array
+{
+    $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->id)->orderBy('sort_order')->value('id');
+
+    return [
+        'purchase_orders' => [
+            ['award_id' => (int) $awardId, 'po_number' => 'PO-1001', 'quantity_ordered' => '3000', 'ordered_on' => '2026-06-01', 'quantity_delivered' => '1200', 'delivery_status' => 'Part delivered'],
+        ],
+    ];
+}
+
+/** Saves the complete AD_HOC content in its two steps. */
+function saveCompleteAdHoc(ProcurementCase $case, User $vendor): ProcurementCase
+{
+    saveDraft($case, $vendor, adHocPayload());
+
+    return saveDraft($case, $vendor, adHocOrdersFor($case));
+}
+
+/** A vendor user and a fresh draft of $code created through CreateDraftCase (active types only). */
+function newDraft(string $code = 'AD_HOC', ?User $vendor = null): array
 {
     $vendor ??= vendorUser(vendorOrg());
     $case = app(CreateDraftCase::class)->handle($vendor, procurementTypeByCode($code));
 
     return [$case, $vendor];
+}
+
+/**
+ * A draft of an old, now inactive type (AD_HOC_PHARM, AD_HOC_NON_PHARM), as
+ * drafts made before slice F1 exist. CreateDraftCase refuses inactive types,
+ * so this writes the same rows it would (case and empty requisition), without
+ * its audit row. For tests of the old types' rules only.
+ */
+function legacyDraft(string $code, ?User $vendor = null): array
+{
+    $vendor ??= vendorUser(vendorOrg());
+    $type = procurementTypeByCode($code);
+
+    $case = new ProcurementCase;
+    $case->forceFill([
+        'org_id' => $vendor->org_id,
+        'created_by' => $vendor->getKey(),
+        'procurement_type_id' => $type->getKey(),
+        'title' => $type->name,
+        'status' => CaseStatus::DRAFT,
+        'current_holder_role' => 'vendor_applicant',
+        'status_changed_at' => CarbonImmutable::now('UTC'),
+    ])->save();
+    (new CaseRequisition)->forceFill(['case_id' => $case->getKey()])->save();
+
+    return [ProcurementCase::withoutGlobalScopes()->findOrFail($case->getKey()), $vendor];
+}
+
+/** newDraft for active types, legacyDraft for inactive ones. */
+function draftOf(string $code, ?User $vendor = null): array
+{
+    return procurementTypeByCode($code)->is_active ? newDraft($code, $vendor) : legacyDraft($code, $vendor);
 }
 
 /** Validates and saves $payload on $case as $vendor. */
@@ -120,14 +238,15 @@ function saveDraft(ProcurementCase $case, User $vendor, array $payload): Procure
  * A draft that is ready to submit (slice 8d): complete request content plus a
  * CLEAN document for every required purpose. Needs Storage::fake('documents').
  */
-function readyDraft(string $code = 'AD_HOC_NON_PHARM', ?User $vendor = null): array
+function readyDraft(string $code = 'AD_HOC', ?User $vendor = null): array
 {
-    [$case, $vendor] = newDraft($code, $vendor);
-    saveDraft($case, $vendor, match ($code) {
-        'AD_HOC_PHARM' => pharmPayload(),
-        'TENDER_EXCESS' => tenderExcessPayload(),
-        default => nonPharmPayload(),
-    });
+    [$case, $vendor] = draftOf($code, $vendor);
+    match ($code) {
+        'AD_HOC' => saveCompleteAdHoc($case, $vendor),
+        'AD_HOC_PHARM' => saveDraft($case, $vendor, pharmPayload()),
+        'TENDER_EXCESS' => saveDraft($case, $vendor, tenderExcessPayload()),
+        default => saveDraft($case, $vendor, nonPharmPayload()),
+    };
     attachRequiredDocuments($case);
 
     return [$case->fresh() ?? ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor];

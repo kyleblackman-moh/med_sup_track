@@ -29,10 +29,13 @@ afterEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
-/** A vendor with a draft built from $payload through the 8a actions. */
-function vendorDraft(string $code = 'AD_HOC_NON_PHARM', ?array $payload = null): array
+/**
+ * A vendor with a draft built from $payload through the 8a actions. Slice F1:
+ * AD_HOC by default; inactive old types come from legacyDraft (draftOf).
+ */
+function vendorDraft(string $code = 'AD_HOC', ?array $payload = null): array
 {
-    [$case, $vendor] = newDraft($code);
+    [$case, $vendor] = draftOf($code);
     if ($payload !== null) {
         saveDraft($case, $vendor, $payload);
     }
@@ -61,8 +64,8 @@ it('redirects guests to login on every route', function (string $method, string 
 // 2. Index ----------------------------------------------------------------------
 
 it('lists only the vendor\'s own organisation\'s requests', function () {
-    [$mine, $vendor] = vendorDraft(payload: nonPharmPayload());
-    [$theirs] = vendorDraft(payload: nonPharmPayload());
+    [$mine, $vendor] = vendorDraft(payload: adHocPayload());
+    [$theirs] = vendorDraft(payload: adHocPayload());
 
     $response = $this->actingAs($vendor)->get('/requests')->assertOk();
 
@@ -74,9 +77,10 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('reference_no', null)
             ->where('status_label', 'Draft')
             ->where('status_group', 'DRAFT')
-            ->where('procurement_type', ['code' => 'AD_HOC_NON_PHARM', 'name' => 'Ad hoc purchase (Non-Pharm)', 'category' => 'NON_PHARM'])
+            // Slice F1: AD_HOC has no Pharm / Non-Pharm category and no vendor reference field.
+            ->where('procurement_type', ['code' => 'AD_HOC', 'name' => 'Ad hoc purchase', 'category' => null])
             ->where('item_description', 'Infant feeding tube, size 6Fr')
-            ->where('vendor_reference', 'REQ-2026-001')
+            ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
             ->where('can', ['edit' => true]))
         ->where('can.create', true)
@@ -87,7 +91,7 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
 });
 
 it('never serves request pages to staff users', function (Role $role) {
-    [$case] = vendorDraft(payload: nonPharmPayload());
+    [$case] = vendorDraft(payload: adHocPayload());
     $staff = caseUser($role);
 
     foreach (['/requests', '/requests/create', "/requests/{$case->id}", "/requests/{$case->id}/edit"] as $uri) {
@@ -106,14 +110,14 @@ it('lists only active procurement types on create', function () {
     $this->actingAs($vendor)->get('/requests/create')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('requests/create')
         ->where('types', fn ($types) => collect($types)->pluck('code')->sort()->values()->all()
-            === ['AD_HOC_NON_PHARM', 'AD_HOC_PHARM', 'TENDER_EXCESS'])
+            === ['AD_HOC', 'TENDER_EXCESS']) // slice F1: the Pharm / Non-Pharm types are inactive
         ->has('types.0', fn (Assert $type) => $type->hasAll(['id', 'code', 'name', 'category'])));
 });
 
 it('creates a draft in the user\'s organisation and ignores extra input', function () {
     $org = vendorOrg();
     $vendor = vendorUser($org);
-    $type = procurementTypeByCode('AD_HOC_PHARM');
+    $type = procurementTypeByCode('AD_HOC');
 
     $response = $this->actingAs($vendor)->post('/requests', [
         'procurement_type_id' => $type->id,
@@ -139,6 +143,7 @@ it('rejects an inactive or unknown procurement type and creates nothing', functi
     expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->count())->toBe(0);
 })->with([
     'inactive' => fn () => procurementTypeByCode('TENDER_VARIATION')->id,
+    'inactive (replaced by AD_HOC)' => fn () => procurementTypeByCode('AD_HOC_PHARM')->id,
     'unknown' => fn () => 999999999,
     'missing' => fn () => null,
 ]);
@@ -185,6 +190,8 @@ it('gives each type its own section config', function (string $code, array $allo
         ->where('config.allowed_sections', $allowed)
         ->where('config.is_pharm', $pharm));
 })->with([
+    ['AD_HOC', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'], false],
+    // Old types: drafts made before slice F1 keep their section config.
     ['AD_HOC_NON_PHARM', ['quotations'], false],
     ['AD_HOC_PHARM', ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'], true],
 ]);
@@ -198,7 +205,7 @@ it('redirects edit to show once the case is no longer a draft', function (CaseSt
 })->with([CaseStatus::SUBMITTED, CaseStatus::WITHDRAWN]);
 
 it('returns the same 404 for another org\'s case and a missing case', function (string $suffix) {
-    [$theirs] = vendorDraft(payload: nonPharmPayload());
+    [$theirs] = vendorDraft(payload: adHocPayload());
     $vendor = vendorUser(vendorOrg());
 
     $hidden = $this->actingAs($vendor)->get("/requests/{$theirs->id}{$suffix}");
@@ -216,17 +223,17 @@ it('saves a valid payload and redirects back with a success flash', function () 
     [$case, $vendor] = vendorDraft();
 
     $this->actingAs($vendor)->from("/requests/{$case->id}/edit")
-        ->put("/requests/{$case->id}", [...nonPharmPayload(), '_token' => 'x', '_method' => 'PUT'])
+        ->put("/requests/{$case->id}", [...adHocPayload(), '_token' => 'x', '_method' => 'PUT'])
         ->assertRedirect("/requests/{$case->id}/edit")
         ->assertSessionHas('success');
 
     expect(requisitionOf($case)->item_description)->toBe('Infant feeding tube, size 6Fr')
-        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(6)
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(2)
         ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', 'case.draft_saved')->count())->toBe(1);
 
-    // Replace-all: a second save with two quotations leaves two.
-    $this->actingAs($vendor)->put("/requests/{$case->id}", ['quotations' => array_slice(nonPharmPayload()['quotations'], 0, 2)]);
-    expect(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(2);
+    // Rows missing from the payload are deleted: a second save with one new quotation leaves one.
+    $this->actingAs($vendor)->put("/requests/{$case->id}", ['quotations' => array_slice(adHocPayload()['quotations'], 0, 1)]);
+    expect(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(1);
 });
 
 it('shares the success flash on the next page', function () {
@@ -240,12 +247,12 @@ it('shares the success flash on the next page', function () {
 it('rejects an invalid payload with dotted error keys and saves nothing', function () {
     [$case, $vendor] = vendorDraft();
 
-    $payload = nonPharmPayload();
+    $payload = adHocPayload();
     $payload['quotations'][0]['unit_price'] = '1.59751';
-    $payload['requisition']['request_date'] = 'yesterday';
+    $payload['requisition']['din'] = '0234-5678';
 
     $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)
-        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.request_date']);
+        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.din' => 'Enter the DIN as digits only.']);
 
     expect(requisitionOf($case)->item_description)->toBeNull()
         ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(0);
@@ -280,7 +287,7 @@ it('refuses to update a case that is no longer a draft', function () {
 });
 
 it('returns 404 when updating another org\'s case', function () {
-    [$theirs] = vendorDraft(payload: nonPharmPayload());
+    [$theirs] = vendorDraft(payload: adHocPayload());
 
     $this->actingAs(vendorUser(vendorOrg()))
         ->put("/requests/{$theirs->id}", ['requisition' => ['item_description' => 'Hijacked']])
@@ -290,7 +297,7 @@ it('returns 404 when updating another org\'s case', function () {
 });
 
 it('does not let staff write', function (Role $role) {
-    [$case] = vendorDraft(payload: nonPharmPayload());
+    [$case] = vendorDraft(payload: adHocPayload());
 
     $response = $this->actingAs(caseUser($role))->put("/requests/{$case->id}", ['requisition' => ['item_description' => 'Staff edit']]);
 
@@ -301,17 +308,17 @@ it('does not let staff write', function (Role $role) {
 it('keeps the latest of two quick saves', function () {
     [$case, $vendor] = vendorDraft();
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['item_code' => 'FIRST']]);
-    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['item_code' => 'SECOND']]);
+    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['strength' => 'FIRST']]);
+    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['strength' => 'SECOND']]);
 
-    expect(requisitionOf($case)->item_code)->toBe('SECOND')
+    expect(requisitionOf($case)->strength)->toBe('SECOND')
         ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', 'case.draft_saved')->count())->toBe(2);
 });
 
 // 6. Privacy --------------------------------------------------------------------
 
 it('never sends staff-set technical fields to the vendor', function () {
-    [$case, $vendor] = vendorDraft(payload: nonPharmPayload());
+    [$case, $vendor] = vendorDraft(payload: adHocPayload());
     CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->firstOrFail()->forceFill([
         'technical_status' => TechnicalStatus::TECHNICALLY_REJECTED,
         'technical_status_set_by' => caseUser(Role::Technocrat)->id,
@@ -325,6 +332,7 @@ it('never sends staff-set technical fields to the vendor', function () {
 
 // 7. Derived values -------------------------------------------------------------
 
+// Old type (AD_HOC_PHARM, a legacy draft): its figures are unchanged. AD_HOC figures: AdHocFiguresTest.
 it('shows exact server-computed values', function () {
     $payload = pharmPayload();
     $payload['quotations'][2]['vat_rate'] = '12.5';
@@ -363,11 +371,12 @@ it('shows readiness errors for an empty draft and none for a complete one', func
         ->where('readiness.is_ready', false)
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
-            'requisition.vendor_reference', 'requisition.item_description', 'requisition.quantity_requested',
-            'requisition.tender_outcome', 'quotations', 'quotations.recommended', 'documents.original_rfq',
+            'requisition.item_description', 'requisition.quantity_requested',
+            'requisition.tender_outcome', 'quotations', 'quotations.recommended', 'documents.bids',
         ])->diff(collect($errors)->pluck('key'))->isEmpty()));
 
-    [$complete, $owner] = vendorDraft(payload: nonPharmPayload());
+    [$complete, $owner] = vendorDraft();
+    saveCompleteAdHoc($complete, $owner);
     attachRequiredDocuments($complete);
     $this->actingAs($owner)->get("/requests/{$complete->id}/edit")->assertInertia(fn (Assert $page) => $page
         ->where('readiness.is_ready', true)
@@ -436,11 +445,11 @@ it('throttles write requests at 30 a minute', function () {
     [$case, $vendor] = vendorDraft();
 
     foreach (range(1, 30) as $i) {
-        $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['item_code' => "C{$i}"]])->assertRedirect();
+        $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['strength' => "C{$i}"]])->assertRedirect();
     }
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['item_code' => 'C31']])->assertStatus(429);
-    expect(requisitionOf($case)->item_code)->toBe('C30');
+    $this->actingAs($vendor)->put("/requests/{$case->id}", ['requisition' => ['strength' => 'C31']])->assertStatus(429);
+    expect(requisitionOf($case)->strength)->toBe('C30');
 });
 
 it('shares can.requests only with users who hold the vendor permission', function (Closure $user, bool $expected) {

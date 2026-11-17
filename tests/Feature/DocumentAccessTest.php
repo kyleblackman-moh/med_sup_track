@@ -73,9 +73,9 @@ function expectNoDocumentSecrets(array $props, array $secrets = []): void
 // 7. Visibility -----------------------------------------------------------------
 
 it('lists a pending document only to its uploader until it is clean', function () {
-    [$case, $uploader] = newDraft('AD_HOC_PHARM');
+    [$case, $uploader] = newDraft('AD_HOC');
     $colleague = otherVendorInOrg($uploader);
-    $document = makeDocument($case, 'original_rfq', ['scan_status' => ScanStatus::PENDING, 'released_at' => null, 'uploaded_by' => $uploader->id]);
+    $document = makeDocument($case, 'bids', ['scan_status' => ScanStatus::PENDING, 'released_at' => null, 'uploaded_by' => $uploader->id]);
 
     $mine = editProps($this->actingAs($uploader)->get("/requests/{$case->id}/edit"));
     expect(listedDocument($mine, $document->id))->toMatchArray(['status_label' => 'Scanning', 'can_download' => false])
@@ -88,8 +88,8 @@ it('lists a pending document only to its uploader until it is clean', function (
 });
 
 it('shows an infected document only to its uploader, as Rejected', function () {
-    [$case, $uploader] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq', [
+    [$case, $uploader] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids', [
         'scan_status' => ScanStatus::INFECTED, 'scan_detail' => 'Eicar-Test-Signature', 'released_at' => null, 'uploaded_by' => $uploader->id,
     ]);
 
@@ -101,10 +101,10 @@ it('shows an infected document only to its uploader, as Rejected', function () {
 });
 
 it('hides withdrawn and superseded documents from the lists', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $withdrawn = makeDocument($case, 'original_rfq', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => 'Wrong']);
-    $old = makeDocument($case, 'supplier_quotations');
-    $new = makeDocument($case, 'supplier_quotations', ['version' => 2, 'supersedes_id' => $old->id]);
+    [$case, $vendor] = newDraft('AD_HOC');
+    $withdrawn = makeDocument($case, 'bids', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => 'Wrong']);
+    $old = makeDocument($case, 'regulatory');
+    $new = makeDocument($case, 'regulatory', ['version' => 2, 'supersedes_id' => $old->id]);
 
     $props = editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"));
 
@@ -112,20 +112,39 @@ it('hides withdrawn and superseded documents from the lists', function () {
     expectNoDocumentSecrets($props, ['Wrong']);
 });
 
-it('lists every configured purpose with its label and required flag', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
+// Slice F1: AD_HOC has three categories (was seven purposes for AD_HOC_PHARM).
+it('lists the AD_HOC categories with label, hint and required flag', function () {
+    [$case, $vendor] = newDraft('AD_HOC');
 
     $props = editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"));
 
-    expect(collect($props['documents'])->pluck('purpose')->all())->toBe([
-        'original_rfq', 'supplier_quotations', 'evaluation_report', 'technical_evidence', 'signed_request', 'stock_evidence', 'other_supporting',
-    ])->and($props['documents'][0])->toMatchArray(['label' => 'Original RFQ / procurement request', 'is_required' => true])
-        ->and($props['documents'][6]['is_required'])->toBeFalse();
+    expect(collect($props['documents'])->map(fn ($g) => [$g['purpose'], $g['label'], $g['is_required'], $g['read_only']])->all())->toBe([
+        ['bids', 'Bids', true, false],
+        ['regulatory', 'Regulatory documents', false, false],
+        ['evidence', 'Evidence', false, false],
+    ]);
+    foreach ($props['documents'] as $group) {
+        expect($group['hint'])->toBeString()->not->toBe('');
+    }
+});
+
+it('shows documents of a category the type no longer uses as read-only earlier uploads', function () {
+    [$case, $vendor] = newDraft('AD_HOC');
+    $earlier = makeDocument($case, 'original_rfq', ['uploaded_by' => $vendor->id]);
+    $bids = makeDocument($case, 'bids', ['uploaded_by' => $vendor->id]);
+
+    $groups = collect(editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"))['documents'])->keyBy('purpose');
+
+    expect($groups->keys()->all())->toBe(['bids', 'regulatory', 'evidence', 'earlier'])
+        ->and($groups['earlier'])->toMatchArray(['label' => 'Earlier uploads', 'is_required' => false, 'read_only' => true])
+        ->and(collect($groups['earlier']['documents'])->pluck('id')->all())->toBe([$earlier->id])
+        ->and($groups['earlier']['documents'][0])->toMatchArray(['can_download' => true, 'can_replace' => false, 'can_withdraw' => false])
+        ->and($groups['bids']['documents'][0])->toMatchArray(['id' => $bids->id, 'can_replace' => true, 'can_withdraw' => true]);
 });
 
 it('shows documents read-only on the show page', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case, $vendor] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
 
     $response = $this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk();
     $props = $response->viewData('page')['props'];
@@ -135,8 +154,8 @@ it('shows documents read-only on the show page', function () {
 });
 
 it('gives another organisation 404 on every document URL', function () {
-    [$case] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
     $outsider = vendorUser(vendorOrg());
 
     $this->actingAs($outsider)->get("/documents/{$document->id}/download")->assertNotFound();
@@ -149,8 +168,8 @@ it('gives another organisation 404 on every document URL', function () {
 // 10. Downloads -----------------------------------------------------------------
 
 it('audits the download, then redirects to a short-lived signed link', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case, $vendor] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
     $this->freezeTime();
 
     $response = $this->actingAs($vendor)->get("/documents/{$document->id}/download");
@@ -166,9 +185,9 @@ it('audits the download, then redirects to a short-lived signed link', function 
 });
 
 it('streams the exact bytes with safe headers', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
+    [$case, $vendor] = newDraft('AD_HOC');
     $bytes = pngBytes();
-    $document = makeDocument($case, 'original_rfq', ['_bytes' => $bytes, 'mime' => 'image/png', 'original_name' => 'scan.pdf']);
+    $document = makeDocument($case, 'bids', ['_bytes' => $bytes, 'mime' => 'image/png', 'original_name' => 'scan.pdf']);
 
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
     $response = $this->actingAs($vendor)->get($url)->assertOk();
@@ -182,8 +201,8 @@ it('streams the exact bytes with safe headers', function () {
 });
 
 it('rejects a tampered signature, an expired link and another user', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case, $vendor] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
     $this->actingAs($vendor)->get(preg_replace('/signature=[0-9a-f]+/', 'signature='.str_repeat('0', 64), $url))->assertForbidden();
@@ -194,8 +213,8 @@ it('rejects a tampered signature, an expired link and another user', function ()
 });
 
 it('redirects a guest to login on both routes', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case, $vendor] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
     $this->get("/documents/{$document->id}/download")->assertRedirect('/login');
@@ -203,8 +222,8 @@ it('redirects a guest to login on both routes', function () {
 });
 
 it('refuses to serve a document that is not clean or is withdrawn', function (array $state) {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    $document = makeDocument($case, 'original_rfq');
+    [$case, $vendor] = newDraft('AD_HOC');
+    $document = makeDocument($case, 'bids');
     $url = app(DocumentDownloadLinks::class)->issue($document, $vendor);
 
     DB::table('documents')->where('id', $document->id)->update($state);
@@ -233,40 +252,57 @@ function documentErrors(ProcurementCase $case): array
         ->mapWithKeys(fn ($e) => [$e['key'] => $e['message']])->all();
 }
 
-it('reports each required document by state', function () {
-    [$case] = newDraft('AD_HOC_PHARM');
-    $label = 'Original RFQ / procurement request';
+// Slice F1: AD_HOC requires one category (Bids) instead of six; the scan-state
+// rules at submit are unchanged. Counts changed on purpose (6/5 -> 1/0).
+it('reports the required Bids category by state', function () {
+    [$case] = newDraft('AD_HOC');
 
-    expect(documentErrors($case))->toHaveCount(6)
-        ->and(documentErrors($case)['documents.original_rfq'])->toBe("Required document missing: {$label}");
+    expect(documentErrors($case))->toBe(['documents.bids' => 'Required document missing: Bids']);
 
-    $document = makeDocument($case, 'original_rfq', ['scan_status' => ScanStatus::PENDING, 'released_at' => null]);
-    expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} is still being virus-checked. Try again in a moment."); // wording changed in slice 8d
+    $document = makeDocument($case, 'bids', ['scan_status' => ScanStatus::PENDING, 'released_at' => null]);
+    expect(documentErrors($case)['documents.bids'])->toBe('Bids is still being virus-checked. Try again in a moment.'); // wording changed in slice 8d
 
     DB::table('documents')->where('id', $document->id)->update(['scan_status' => 'INFECTED']);
-    expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} failed the security check; upload a replacement");
+    expect(documentErrors($case)['documents.bids'])->toBe('Bids failed the security check; upload a replacement');
 
     DB::table('documents')->where('id', $document->id)->update(['scan_status' => 'ERROR']);
-    expect(documentErrors($case)['documents.original_rfq'])->toBe("{$label} failed the security check; upload a replacement");
+    expect(documentErrors($case)['documents.bids'])->toBe('Bids failed the security check; upload a replacement');
 
     DB::table('documents')->where('id', $document->id)->update(['scan_status' => 'CLEAN']);
-    expect(documentErrors($case))->not->toHaveKey('documents.original_rfq')
-        ->and(documentErrors($case))->toHaveCount(5);
+    expect(documentErrors($case))->toBe([]);
+});
+
+it('does not require the optional Regulatory and Evidence categories', function () {
+    [$case] = newDraft('AD_HOC');
+    makeDocument($case, 'bids');
+
+    expect(documentErrors($case))->toBe([])
+        ->and(requiredPurposes($case))->toBe(['bids']);
 });
 
 it('does not count withdrawn or superseded documents', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    makeDocument($case, 'original_rfq', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => 'x']);
-    $old = makeDocument($case, 'supplier_quotations');
-    makeDocument($case, 'supplier_quotations', ['version' => 2, 'supersedes_id' => $old->id, 'scan_status' => ScanStatus::PENDING]);
+    [$case, $vendor] = newDraft('AD_HOC');
+    makeDocument($case, 'bids', ['withdrawn_at' => now(), 'withdrawn_by' => $vendor->id, 'withdrawn_reason' => null]);
+    makeDocument($case, 'regulatory'); // a clean optional file does not stand in for Bids
 
-    expect(documentErrors($case)['documents.original_rfq'])->toStartWith('Required document missing')
-        ->and(documentErrors($case)['documents.supplier_quotations'])->toEndWith('is still being virus-checked. Try again in a moment.');
+    expect(documentErrors($case)['documents.bids'])->toStartWith('Required document missing');
+
+    $old = makeDocument($case, 'bids');
+    makeDocument($case, 'bids', ['version' => 2, 'supersedes_id' => $old->id, 'scan_status' => ScanStatus::PENDING]);
+
+    expect(documentErrors($case)['documents.bids'])->toEndWith('is still being virus-checked. Try again in a moment.');
 });
 
-it('is ready with the complete fixture and six clean required documents', function () {
-    [$case, $vendor] = newDraft('AD_HOC_PHARM');
-    saveDraft($case, $vendor, pharmPayload());
+it('counts only files in the type\'s categories (earlier uploads do not satisfy Bids)', function () {
+    [$case] = newDraft('AD_HOC');
+    makeDocument($case, 'original_rfq');
+
+    expect(documentErrors($case))->toBe(['documents.bids' => 'Required document missing: Bids']);
+});
+
+it('is ready with the complete fixture and one clean Bids file', function () {
+    [$case, $vendor] = newDraft('AD_HOC');
+    saveCompleteAdHoc($case, $vendor);
     attachRequiredDocuments($case);
 
     $report = app(SubmissionReadiness::class)->evaluate($case);

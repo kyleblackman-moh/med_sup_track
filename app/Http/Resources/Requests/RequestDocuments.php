@@ -58,7 +58,10 @@ final class RequestDocuments
         // Slice F1: current documents in a category the type no longer uses (a
         // draft moved from AD_HOC_PHARM to AD_HOC). Readable, never editable,
         // and not counted by readiness.
-        $earlier = $documents->except($configured->map(fn ($r) => $r->purpose->value)->all())->flatten(1)
+        $purposes = $configured->map(fn (ProcurementTypeDocument $r) => $r->purpose->value)->all();
+        $earlier = $documents->toBase()
+            ->reject(fn ($docs, string $purpose) => in_array($purpose, $purposes, true))
+            ->flatten(1)
             ->sortBy(fn (Document $d) => [$d->uploaded_at, $d->id])->values();
 
         if ($earlier->isNotEmpty()) {
