@@ -10,6 +10,8 @@ export interface FormApi {
     setCell: (section: ChildSection, rowKey: string, name: string, value: Value) => void;
     addRow: (section: ChildSection) => void;
     removeRow: (section: ChildSection, rowKey: string) => void;
+    /** Marks one quotation as recommended and clears the others (exactly one). */
+    chooseRecommended: (rowKey: string) => void;
     /** A request field's problem: a rejected save first, then (after Review) the server's readiness issue. */
     fieldError: (name: string) => string | undefined;
     cellError: (section: ChildSection, row: LocalRow, index: number, name: string) => string | undefined;

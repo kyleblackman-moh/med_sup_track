@@ -12,6 +12,10 @@ interface Props {
     rules?: UploadRules;
     /** Read-only lists (Show page): no upload, replace or remove. */
     readOnly?: boolean;
+    /** Props reloaded while a file is being scanned (the AD_HOC page reloads its sections). */
+    reloadProps?: string[];
+    /** Inside a page section that already has its own heading (AD_HOC form): no h2 of its own. */
+    embedded?: boolean;
 }
 
 const STATUS_VARIANT: Record<RequestDocument['status_label'], 'secondary' | 'default' | 'destructive'> = {
@@ -37,22 +41,23 @@ function formatSize(bytes: number): string {
  * requests through Inertia. While anything is being scanned, the documents and
  * readiness props are reloaded every 5 seconds.
  */
-export function SupportingDocuments({ caseId, groups, rules, readOnly = false }: Props) {
+export function SupportingDocuments({ caseId, groups, rules, readOnly = false, reloadProps = ['documents', 'readiness'], embedded = false }: Props) {
     const scanning = groups.some((group) => group.documents.some((doc) => doc.status_label === 'Scanning'));
+    const reloadKey = reloadProps.join(','); // a stable dependency (the default array is new on every render)
 
     useEffect(() => {
         if (!scanning) {
             return;
         }
-        const timer = window.setInterval(() => router.reload({ only: ['documents', 'readiness'] }), 5000);
+        const timer = window.setInterval(() => router.reload({ only: reloadKey.split(',') }), 5000);
 
         return () => window.clearInterval(timer);
-    }, [scanning]);
+    }, [scanning, reloadKey]);
 
     return (
         <section aria-labelledby="documents-heading" className="space-y-4">
             <div>
-                <h2 id="documents-heading" className="text-lg font-semibold">
+                <h2 id="documents-heading" className={embedded ? 'sr-only' : 'text-lg font-semibold'}>
                     Supporting documents
                 </h2>
                 {!readOnly && rules && (
@@ -113,6 +118,7 @@ function DocumentCard({ caseId, group, rules, readOnly }: { caseId: string; grou
                 </h3>
                 {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-xs">Optional</span>}
             </header>
+            {group.hint && <p className="text-muted-foreground mt-1 text-sm">{group.hint}</p>}
 
             {group.documents.length === 0 ? (
                 <p className="text-muted-foreground mt-2 text-sm">No file uploaded.</p>
