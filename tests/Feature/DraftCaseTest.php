@@ -119,10 +119,9 @@ it('refuses an active type that is not one of the five request types', function 
     expect(fn () => app(CreateDraftCase::class)->handle($vendor, $other))->toThrow(ValidationException::class);
     expect(casesCreatedBy($vendor->id))->toBe(0);
 
-    // The New request page posts a type id; the same rule applies there.
-    $this->actingAs($vendor)->post(route('requests.store'), ['procurement_type_id' => $other->id])
-        ->assertSessionHasErrors('procurement_type');
-    expect(casesCreatedBy($vendor->id))->toBe(0);
+    // Slice V2-1b: New request reads no type at all; the draft starts unselected.
+    $this->actingAs($vendor)->post(route('requests.store'), ['procurement_type_id' => $other->id])->assertRedirect();
+    expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->sole()->procurementType->code)->toBe('NOT_SELECTED');
 });
 
 it('rolls back the draft and requisition when the audit write fails', function () {

@@ -59,7 +59,9 @@ export default function Index({ title, filters, requests, can }: Props) {
                     <h1 className="text-2xl font-semibold">{title}</h1>
                     {can.create && (
                         <Button asChild>
-                            <Link href={route('requests.create')}>New request</Link>
+                            <Link href={route('requests.store')} method="post" as="button">
+                                New request
+                            </Link>
                         </Button>
                     )}
                 </header>

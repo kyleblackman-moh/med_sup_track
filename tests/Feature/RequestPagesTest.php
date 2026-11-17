@@ -11,6 +11,7 @@ use App\Submissions\RequestSections;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,7 +57,6 @@ it('redirects guests to login on every route', function (string $method, string 
     $this->{$method}(str_replace('{id}', (string) Str::ulid(), $uri))->assertRedirect('/login');
 })->with([
     ['get', '/requests'],
-    ['get', '/requests/create'],
     ['post', '/requests'],
     ['get', '/requests/{id}'],
     ['get', '/requests/{id}/edit'],
@@ -96,7 +96,7 @@ it('never serves request pages to staff users', function (Role $role) {
     [$case] = vendorDraft(payload: adHocPayload());
     $staff = caseUser($role);
 
-    foreach (['/requests', '/requests/create', "/requests/{$case->id}", "/requests/{$case->id}/edit"] as $uri) {
+    foreach (['/requests', "/requests/{$case->id}", "/requests/{$case->id}/edit"] as $uri) {
         $response = $this->actingAs($staff)->get($uri);
 
         expect($response->status())->not->toBe(200)
@@ -106,49 +106,40 @@ it('never serves request pages to staff users', function (Role $role) {
 
 // 3. Create / store -------------------------------------------------------------
 
-it('lists only active procurement types on create', function () {
-    $vendor = vendorUser(vendorOrg());
-
-    $this->actingAs($vendor)->get('/requests/create')->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->component('requests/create')
-        // Slice V2-1: the five request types, in order; AD_HOC and the Pharm / Non-Pharm types are inactive.
-        ->where('types', fn ($types) => collect($types)->pluck('code')->all() === ProcurementTypeProfile::REQUEST_TYPES)
-        ->has('types.0', fn (Assert $type) => $type->hasAll(['id', 'code', 'name', 'category'])));
-});
-
-it('creates a draft in the user\'s organisation and ignores extra input', function () {
+// Slice V2-1b: there is no create page; New request posts here and lands on the
+// new, unselected draft's form (the type is chosen there). Changed on purpose.
+it('creates an unselected draft in the user\'s organisation and ignores every input', function () {
     $org = vendorOrg();
     $vendor = vendorUser($org);
-    $type = procurementTypeByCode('AD_HOC_TENDER_UNABLE');
 
-    $response = $this->actingAs($vendor)->post('/requests', [
-        'procurement_type_id' => $type->id,
+    $response = $this->actingAs($vendor)->post(route('requests.store'), [
+        'procurement_type_id' => procurementTypeByCode('AD_HOC_TENDER_UNABLE')->id,
         'org_id' => vendorOrg()->id,
         'status' => 'CLOSED',
         'reference_no' => 'NOR-HACK-1',
     ]);
 
     $case = ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->sole();
-    $response->assertRedirect("/requests/{$case->id}/edit");
+    $response->assertRedirect(route('requests.edit', $case->id));
     expect($case->org_id)->toBe($org->id)
         ->and($case->status)->toBe(CaseStatus::DRAFT)
         ->and($case->reference_no)->toBeNull()
-        ->and((int) $case->procurement_type_id)->toBe($type->id);
+        ->and($case->procurementType->code)->toBe(ProcurementTypeProfile::NOT_SELECTED);
 });
 
-it('rejects an inactive or unknown procurement type and creates nothing', function (Closure $typeId) {
-    $vendor = vendorUser(vendorOrg());
+it('has no create page: GET /requests/create is 404', function () {
+    $this->actingAs(vendorUser(vendorOrg()))->get('/requests/create')->assertNotFound();
 
-    $this->actingAs($vendor)->post('/requests', ['procurement_type_id' => $typeId()])
-        ->assertSessionHasErrors('procurement_type_id');
+    expect(Route::has('requests.create'))->toBeFalse();
+});
 
-    expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->count())->toBe(0);
-})->with([
-    'inactive (replaced by the five request types)' => fn () => procurementTypeByCode('AD_HOC')->id,
-    'inactive (replaced by AD_HOC)' => fn () => procurementTypeByCode('AD_HOC_PHARM')->id,
-    'unknown' => fn () => 999999999,
-    'missing' => fn () => null,
-]);
+it('needs case.submit to start a request, and creates nothing without it', function (Role $role) {
+    $staff = caseUser($role);
+
+    $this->actingAs($staff)->post(route('requests.store'))->assertForbidden();
+
+    expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $staff->id)->count())->toBe(0);
+})->with([Role::Cmo, Role::CmoRegistry, Role::SystemAdmin, Role::Auditor]);
 
 // 4. Edit -----------------------------------------------------------------------
 

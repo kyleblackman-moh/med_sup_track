@@ -84,6 +84,28 @@ it('never lets NOT_SELECTED be passed in as a chosen type', function () {
         ->toThrow(ValidationException::class);
 });
 
+it('starts an unselected draft from New request, which another organisation cannot open', function () {
+    $vendor = vendorUser(vendorOrg());
+
+    $response = $this->actingAs($vendor)->post(route('requests.store'));
+
+    $case = ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->sole();
+    $response->assertRedirect(route('requests.edit', $case->id));
+    expect($case->procurementType->code)->toBe('NOT_SELECTED')
+        ->and($case->org_id)->toBe($vendor->org_id);
+
+    $this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk();
+    $other = vendorUser(vendorOrg());
+    foreach ([route('requests.edit', $case->id), route('requests.show', $case->id)] as $uri) {
+        $this->actingAs($other)->get($uri)->assertNotFound();
+    }
+    $this->actingAs($other)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_EXCESS'])->assertNotFound();
+});
+
+it('has no GET /requests/create any more', function () {
+    $this->actingAs(vendorUser(vendorOrg()))->get('/requests/create')->assertNotFound();
+});
+
 // 2. Choosing the type ----------------------------------------------------------------
 
 it('changes an unselected draft to each of the five types, audited with codes only', function (string $code) {

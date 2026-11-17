@@ -64,7 +64,9 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
                     </div>
                     {abilities.create && (
                         <Button asChild>
-                            <Link href={route('requests.create')}>New request</Link>
+                            <Link href={route('requests.store')} method="post" as="button">
+                                New request
+                            </Link>
                         </Button>
                     )}
                 </header>

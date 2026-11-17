@@ -15,7 +15,6 @@ use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
-use App\Models\ProcurementType;
 use App\Submissions\CaseEraser;
 use App\Submissions\ChangeRequestType;
 use App\Submissions\CreateDraftCase;
@@ -34,7 +33,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -112,30 +110,15 @@ class RequestController extends Controller
         });
     }
 
-    public function create(): Response
-    {
-        return Inertia::render('requests/create', [
-            'types' => ProcurementType::where('is_active', true)->orderBy('sort_order')->get()
-                ->map(fn (ProcurementType $t) => [
-                    'id' => $t->id,
-                    'code' => $t->code,
-                    'name' => $t->name,
-                    'category' => $t->category?->value, // null for AD_HOC
-                ])->all(),
-        ]);
-    }
-
+    /**
+     * POST /requests (requests.store). Slice V2-1b: New request starts a draft
+     * at once, with no type chosen yet (NOT_SELECTED); the vendor chooses it in
+     * the form. Nothing in the request body is read: the organisation comes
+     * from the user. There is no create page any more.
+     */
     public function store(Request $request, CreateDraftCase $createDraft): RedirectResponse
     {
-        // Only the type is read; anything else in the request is ignored.
-        $validated = $request->validate([
-            'procurement_type_id' => [
-                'required', 'integer',
-                Rule::exists('procurement_types', 'id')->where('is_active', true),
-            ],
-        ]);
-
-        $case = $createDraft->handle($request->user(), ProcurementType::findOrFail($validated['procurement_type_id']));
+        $case = $createDraft->handle($request->user());
 
         return to_route('requests.edit', $case);
     }

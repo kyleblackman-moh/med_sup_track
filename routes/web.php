@@ -31,7 +31,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
     ->controller(RequestController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('create', 'create')->name('create');
+        // V2-1b: New request posts here and lands on the new draft's form; there is
+        // no create page (GET /requests/create is 404: no case has that id).
         Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
