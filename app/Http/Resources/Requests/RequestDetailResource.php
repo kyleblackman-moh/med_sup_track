@@ -3,11 +3,13 @@
 namespace App\Http\Resources\Requests;
 
 use App\Enums\CaseStatus;
+use App\Enums\ProcurementCategory;
 use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
+use App\Models\ProcurementType;
 use App\Submissions\ExpiryRisk;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionRules;
@@ -41,7 +43,45 @@ class RequestDetailResource extends JsonResource
             // Slice 10f: once issued, the letter date and reference only. Never the
             // channel dates, who recorded it, or anything earlier in the process.
             'letter' => self::letter($this->resource),
+            ...self::typeChoice($this->resource),
         ];
+    }
+
+    /**
+     * Slice V2-1b: on a request-form DRAFT, its type code and the types it may
+     * change to: the five active request types, in order, with their label and
+     * group ("Ad Hoc" for the three Ad Hoc types, else null). NOT_SELECTED and
+     * inactive types are never offered. Nothing for other cases.
+     *
+     * @return array{request_type?: string, type_options?: list<array{code: string, label: string, group: string|null}>}
+     */
+    private static function typeChoice(ProcurementCase $case): array
+    {
+        $code = (string) $case->procurementType?->code;
+        if ($case->status !== CaseStatus::DRAFT || ! ProcurementTypeProfile::for($code)->isAdHocForm()) {
+            return [];
+        }
+
+        return ['request_type' => $code, 'type_options' => self::typeOptions()];
+    }
+
+    /** @return list<array{code: string, label: string, group: string|null}> */
+    public static function typeOptions(): array
+    {
+        $types = ProcurementType::whereIn('code', ProcurementTypeProfile::REQUEST_TYPES)->where('is_active', true)->get()->keyBy('code');
+
+        $options = [];
+        foreach (ProcurementTypeProfile::REQUEST_TYPES as $code) {
+            if ($type = $types->get($code)) {
+                $options[] = [
+                    'code' => $code,
+                    'label' => $type->name,
+                    'group' => $type->category === ProcurementCategory::AD_HOC ? 'Ad Hoc' : null,
+                ];
+            }
+        }
+
+        return $options;
     }
 
     /** @return array{date: string, reference: string|null}|null */

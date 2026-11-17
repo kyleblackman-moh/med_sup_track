@@ -58,9 +58,20 @@ export interface SavedFlash {
     saved_at: string;
 }
 
+/** V2-1 "request_sections": the sections the draft's type shows, in order (RequestSections). */
+export interface RequestSectionStatus {
+    key: string;
+    label: string;
+    optional: boolean;
+    anchor: string;
+    complete: boolean;
+    issues: SectionIssue[];
+}
+
 export interface AdHocPageProps {
     case: AdHocDetail;
     sections: SectionStatus[];
+    request_sections: RequestSectionStatus[];
     config: AdHocConfig;
     documents: DocumentGroup[];
     saved: SavedFlash | null;

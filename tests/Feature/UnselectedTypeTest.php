@@ -3,6 +3,7 @@
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Role;
+use App\Http\Resources\Requests\RequestDetailResource;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Models\User;
@@ -195,3 +196,54 @@ it('never shows an unselected draft to staff', function (Role $role) {
     $this->actingAs($staff)->get(route('cases.show', $case->id))->assertNotFound();
     expect(ProcurementCase::query()->whereKey($case->id)->exists())->toBeFalse(); // the visibility scope, as that user
 })->with([Role::CmoRegistry, Role::Cmo, Role::PsOffice, Role::Auditor]);
+
+// 5. The draft DTO and the temporary type control --------------------------------------
+
+it('gives a draft its type code and the five types it may change to, in order', function (?string $code) {
+    [$case, $vendor] = $code === null ? unselectedDraft() : newDraft($code);
+
+    $detail = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['case'];
+
+    expect($detail['request_type'])->toBe($code ?? 'NOT_SELECTED')
+        ->and($detail['type_options'])->toBe([
+            ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc'],
+            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender unable to supply', 'group' => 'Ad Hoc'],
+            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not awarded', 'group' => 'Ad Hoc'],
+            ['code' => 'TENDER_EXCESS', 'label' => 'Tender Excess', 'group' => null],
+            ['code' => 'TENDER_VARIATION', 'label' => 'Tender Variation', 'group' => null],
+        ]);
+})->with([null, 'TENDER_VARIATION']);
+
+it('never offers NOT_SELECTED, even if it were made active', function () {
+    ProcurementType::where('code', 'NOT_SELECTED')->update(['is_active' => true]);
+
+    expect(array_column(RequestDetailResource::typeOptions(), 'code'))->toBe(ProcurementTypeProfile::REQUEST_TYPES);
+});
+
+it('sends no type choice once the request is submitted', function () {
+    [$case, $vendor] = readyDraft();
+    app(SubmitCase::class)->handle($case, $vendor);
+
+    $detail = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk())['case'];
+
+    expect($detail)->not->toHaveKey('request_type')->not->toHaveKey('type_options');
+});
+
+it('reloads the form sections for the new type after a change', function () {
+    [$case, $vendor] = unselectedDraft();
+    $keys = fn () => array_column(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id)))['request_sections'], 'key');
+
+    expect($keys())->not->toContain('variation_details');
+    $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_VARIATION'])->assertRedirect(route('requests.edit', $case->id));
+    expect($keys())->toContain('variation_details');
+    $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_EXCESS']);
+    expect($keys())->not->toContain('variation_details'); // the page shows the "may hide sections" note
+});
+
+it('never names NOT_SELECTED in the vendor-facing code', function () {
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS));
+
+    foreach ($files as $file) {
+        expect(str_contains(file_get_contents($file->getPathname()), 'NOT_SELECTED'))->toBeFalse($file->getPathname());
+    }
+});

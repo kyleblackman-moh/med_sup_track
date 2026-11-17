@@ -13,6 +13,14 @@ export interface ProcurementTypeSummary {
     selected: boolean;
 }
 
+/** V2-1b: a type a request-form draft may change to (RequestDetailResource type_options). */
+export interface RequestTypeOption {
+    code: string;
+    label: string;
+    /** "Ad Hoc" for the three Ad Hoc types, else null. */
+    group: string | null;
+}
+
 export interface RequestSummary {
     id: string;
     reference_no: string | null;
@@ -40,6 +48,9 @@ export interface RequestDetail extends RequestSummary {
     hardcopy_received_on: string | null;
     /** Slice 10f: once the letter is issued, its date (Y-m-d) and reference; null before. */
     letter: { date: string; reference: string | null } | null;
+    /** V2-1b: request-form drafts only. The current type code and the types it may change to. */
+    request_type?: string;
+    type_options?: RequestTypeOption[];
 }
 
 export interface ReadinessItem {

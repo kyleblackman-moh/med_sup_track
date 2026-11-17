@@ -9,6 +9,7 @@ import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/a
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { TenderSection } from '@/components/requests/ad-hoc/tender-section';
+import { TypeChoice } from '@/components/requests/ad-hoc/type-choice';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
@@ -32,7 +33,7 @@ type Review = 'none' | 'issues' | 'ready';
  * what is complete (the "sections" prop). Issues show only after Review and
  * submit, which saves first, then asks the server.
  */
-export default function AdHocEdit({ case: detail, sections, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
+export default function AdHocEdit({ case: detail, sections, request_sections, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
     const [state, setState] = useState<FormState>(() => initialState(detail));
     const stateRef = useRef(state);
     stateRef.current = state;
@@ -44,6 +45,37 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
     const [confirming, setConfirming] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [changingType, setChangingType] = useState(false);
+    const [typeHidSections, setTypeHidSections] = useState(false);
+
+    /**
+     * V2-1b (temporary until V2-2): save what was typed, then change the type
+     * through the server and reload only the form's props. The note shows when
+     * a section that was visible before the change is not visible after it.
+     */
+    const changeType = async (code: string) => {
+        const before = request_sections.map((section) => section.key);
+        if (!(await autosave.flush())) {
+            setReviewFailed(true);
+
+            return;
+        }
+        router.put(
+            route('requests.type', detail.id),
+            { procurement_type: code },
+            {
+                preserveScroll: true,
+                only: ['case', 'sections', 'request_sections', 'documents'],
+                onStart: () => setChangingType(true),
+                onSuccess: (page) => {
+                    const after = (page.props as unknown as { request_sections: { key: string }[] }).request_sections.map((s) => s.key);
+                    setTypeHidSections(before.some((key) => !after.includes(key)));
+                    setReview('none');
+                },
+                onFinish: () => setChangingType(false),
+            },
+        );
+    };
     const panelRef = useRef<HTMLElement | null>(null);
 
     const autosave = useAutosave({
@@ -213,6 +245,17 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                     </div>
 
                     <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
+                        {detail.type_options && (
+                            <TypeChoice
+                                value={detail.request_type ?? ''}
+                                options={detail.type_options}
+                                onChange={(code) => void changeType(code)}
+                                disabled={changingType}
+                                error={errors?.procurement_type}
+                                showHiddenNote={typeHidSections}
+                            />
+                        )}
+
                         {sections.map((section, i) => (
                             <FormSection
                                 key={section.key}
