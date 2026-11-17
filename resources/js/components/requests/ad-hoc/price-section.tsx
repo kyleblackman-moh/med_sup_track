@@ -45,7 +45,7 @@ export function PriceSection({ api }: { api: FormApi }) {
     }
 
     return (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
             <div className="grid gap-4 md:grid-cols-2">
                 <TextField
                     id={fieldId.requisition('tender_price')}

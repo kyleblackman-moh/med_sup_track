@@ -13,7 +13,7 @@ export function ItemSection({ api }: { api: FormApi }) {
     });
 
     return (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
             <TextField {...field('item_description')} label="Item description" maxLength={500} />
 
             <div className="grid gap-4 md:grid-cols-3">

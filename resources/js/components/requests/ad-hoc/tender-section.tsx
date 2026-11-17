@@ -2,10 +2,10 @@ import { cn } from '@/lib/utils';
 import { controlHeight, Figure, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId, serverRow } from './form-state';
-import { RowTable, type CellContext, type Column } from './row-table';
+import { CellError, CellLabel, RowTable, type CellContext, type Column } from './row-table';
 
 const selectClass =
-    'border-input bg-background focus-visible:ring-ring ring-offset-background w-full min-w-40 rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
+    'border-input bg-background focus-visible:ring-ring ring-offset-background w-full min-w-0 rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
 
 /** Section 2, Tender background, with the award and order tables when something was awarded. */
 export function TenderSection({ api }: { api: FormApi }) {
@@ -20,10 +20,10 @@ export function TenderSection({ api }: { api: FormApi }) {
     const awaitingSave = awards.some((row) => row.id === null && text(row.values.supplier_name).trim() !== '');
 
     const awardColumns: Column[] = [
-        { name: 'supplier_name', label: 'Supplier', kind: 'text', width: 'min-w-44' },
-        { name: 'manufacturer', label: 'Manufacturer', kind: 'text', optional: true, width: 'min-w-40' },
-        { name: 'brand', label: 'Brand', kind: 'text', optional: true, width: 'min-w-36' },
-        { name: 'quantity_awarded', label: 'Quantity awarded', kind: 'decimal', width: 'min-w-32' },
+        { name: 'supplier_name', label: 'Supplier', kind: 'text' },
+        { name: 'manufacturer', label: 'Manufacturer', kind: 'text', optional: true },
+        { name: 'brand', label: 'Brand', kind: 'text', optional: true },
+        { name: 'quantity_awarded', label: 'Quantity awarded', kind: 'decimal' },
         {
             name: 'percentage',
             label: '% awarded',
@@ -33,7 +33,7 @@ export function TenderSection({ api }: { api: FormApi }) {
                 return value ? `${value}%` : '—';
             },
         },
-        { name: 'unit_cost', label: 'Unit cost', kind: 'decimal', width: 'min-w-28' },
+        { name: 'unit_cost', label: 'Unit cost', kind: 'decimal' },
         {
             name: 'total',
             label: 'Total cost',
@@ -42,17 +42,15 @@ export function TenderSection({ api }: { api: FormApi }) {
         },
     ];
 
-    const supplierCell = ({ row, id, label, error, errorId }: CellContext) => {
+    const supplierCell = ({ row, id, rowText, error, errorId }: CellContext) => {
         const hintId = `${id}-hint`;
         const disabled = choosable.length === 0;
         const current = text(row.values.award_id);
         const valid = choosable.some((award) => String(award.id) === current);
 
         return (
-            <div className="grid gap-1">
-                <label htmlFor={id} className="sr-only">
-                    {label}
-                </label>
+            <div className="grid min-w-0 content-start gap-1.5">
+                <CellLabel htmlFor={id} text="Supplier" rowText={rowText} />
                 <select
                     id={id}
                     className={cn(selectClass, controlHeight)}
@@ -74,48 +72,44 @@ export function TenderSection({ api }: { api: FormApi }) {
                         {awaitingSave ? 'Saving...' : 'Add a supplier above'}
                     </p>
                 )}
-                {error && (
-                    <p id={errorId} className="text-destructive text-xs">
-                        {error}
-                    </p>
-                )}
+                <CellError id={errorId} message={error} />
             </div>
         );
     };
 
-    const deliveryCell = ({ row, id, label }: CellContext) => (
-        <div className="grid min-w-44 gap-1">
-            <label htmlFor={`${id}-date`} className="sr-only">
-                Delivery date, {label.split(', ').slice(1).join(', ')}
-            </label>
-            <input
-                id={`${id}-date`}
-                type="date"
-                value={text(row.values.delivery_eta)}
-                className={cn(selectClass, controlHeight)}
-                onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
-            />
-            <label htmlFor={id} className="sr-only">
-                Delivery status, {label.split(', ').slice(1).join(', ')}
-            </label>
-            <input
-                id={id}
-                type="text"
-                maxLength={120}
-                placeholder="Status"
-                value={text(row.values.delivery_status)}
-                className={cn(selectClass, controlHeight)}
-                onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
-            />
-        </div>
+    // Two grid items, one per control, each with its own label.
+    const deliveryCell = ({ row, id, rowText }: CellContext) => (
+        <>
+            <div className="grid min-w-0 content-start gap-1.5">
+                <CellLabel htmlFor={`${id}-date`} text="Delivery date" rowText={rowText} optional />
+                <input
+                    id={`${id}-date`}
+                    type="date"
+                    value={text(row.values.delivery_eta)}
+                    className={cn(selectClass, controlHeight)}
+                    onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
+                />
+            </div>
+            <div className="grid min-w-0 content-start gap-1.5">
+                <CellLabel htmlFor={id} text="Delivery status" rowText={rowText} optional />
+                <input
+                    id={id}
+                    type="text"
+                    maxLength={120}
+                    value={text(row.values.delivery_status)}
+                    className={cn(selectClass, controlHeight)}
+                    onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
+                />
+            </div>
+        </>
     );
 
     const orderColumns: Column[] = [
-        { name: 'award_id', label: 'Supplier', kind: 'custom', render: supplierCell, width: 'min-w-44' },
-        { name: 'po_number', label: 'PO #', kind: 'text', width: 'min-w-28' },
-        { name: 'quantity_ordered', label: 'Quantity ordered', kind: 'decimal', width: 'min-w-32' },
-        { name: 'ordered_on', label: 'Date ordered', kind: 'date', optional: true, width: 'min-w-36' },
-        { name: 'quantity_delivered', label: 'Quantity delivered', kind: 'decimal', optional: true, width: 'min-w-32' },
+        { name: 'award_id', label: 'Supplier', kind: 'custom', render: supplierCell },
+        { name: 'po_number', label: 'PO #', kind: 'text' },
+        { name: 'quantity_ordered', label: 'Quantity ordered', kind: 'decimal' },
+        { name: 'ordered_on', label: 'Date ordered', kind: 'date', optional: true },
+        { name: 'quantity_delivered', label: 'Quantity delivered', kind: 'decimal', optional: true },
         {
             name: 'quantity_outstanding',
             label: 'Quantity outstanding',
@@ -126,7 +120,7 @@ export function TenderSection({ api }: { api: FormApi }) {
     ];
 
     return (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
             <p className="text-sm">
                 <span className="text-muted-foreground">Item: </span>
                 {description || <span className="text-muted-foreground">Not described yet (section 1)</span>}

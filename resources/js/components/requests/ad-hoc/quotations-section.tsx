@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { controlHeight, Figure, RadioGroupField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
-import { RowTable, type CellContext, type Column } from './row-table';
+import { CellError, CellLabel, RowTable, type CellContext, type Column } from './row-table';
 
 const boxClass = 'focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2';
 
@@ -17,71 +17,69 @@ export function QuotationsSection({ api }: { api: FormApi }) {
     const unit = text(state.requisition.unit_of_measure).trim();
     const figures = detail.figures;
 
-    const consideredCell = ({ row, id, label }: CellContext) => (
-        <div className="flex min-h-11 items-center md:min-h-9">
-            <label htmlFor={id} className="sr-only">
-                {label}
-            </label>
-            <input
-                id={id}
-                type="checkbox"
-                className={boxClass}
-                checked={row.values.considered === true}
-                onChange={(e) => api.setCell('quotations', row.key, 'considered', e.target.checked)}
-            />
-        </div>
-    );
-
-    const recommendedCell = ({ row, id, label }: CellContext) => (
-        <div className="flex min-h-11 items-center md:min-h-9">
-            <label htmlFor={id} className="sr-only">
-                {label}
-            </label>
-            <input
-                id={id}
-                type="radio"
-                name="recommended-quotation"
-                className={boxClass}
-                checked={row.values.is_recommended === true}
-                onChange={() => api.chooseRecommended(row.key)}
-            />
-        </div>
-    );
-
-    const reasonCell = ({ row, id, label, error, errorId }: CellContext) =>
-        row.values.considered === true ? (
-            <span className="text-muted-foreground block py-2" aria-hidden>
-                —
+    // A checkbox or radio sits beside its visible label, aligned with the other fields' controls.
+    const consideredCell = ({ row, id, rowText }: CellContext) => (
+        <div className="grid min-w-0 content-start gap-1.5">
+            <span aria-hidden className="invisible text-sm leading-none">
+                Considered
             </span>
-        ) : (
-            <div className="grid min-w-52 gap-1">
-                <label htmlFor={id} className="sr-only">
-                    {label}
-                </label>
+            <div className="flex min-h-11 items-center gap-2 md:min-h-9">
+                <input
+                    id={id}
+                    type="checkbox"
+                    className={boxClass}
+                    checked={row.values.considered === true}
+                    onChange={(e) => api.setCell('quotations', row.key, 'considered', e.target.checked)}
+                />
+                <CellLabel htmlFor={id} text="Considered" rowText={rowText} />
+            </div>
+        </div>
+    );
+
+    const recommendedCell = ({ row, id, rowText }: CellContext) => (
+        <div className="grid min-w-0 content-start gap-1.5">
+            <span aria-hidden className="invisible text-sm leading-none">
+                Recommended
+            </span>
+            <div className="flex min-h-11 items-center gap-2 md:min-h-9">
+                <input
+                    id={id}
+                    type="radio"
+                    name="recommended-quotation"
+                    className={boxClass}
+                    checked={row.values.is_recommended === true}
+                    onChange={() => api.chooseRecommended(row.key)}
+                />
+                <CellLabel htmlFor={id} text="Recommended" rowText={rowText} />
+            </div>
+        </div>
+    );
+
+    // Only asked when the quotation was not considered.
+    const reasonCell = ({ row, id, rowText, error, errorId }: CellContext) =>
+        row.values.considered === true ? null : (
+            <div className="grid min-w-0 content-start gap-1.5">
+                <CellLabel htmlFor={id} text="Reason not considered" rowText={rowText} />
                 <Input
                     id={id}
                     maxLength={config.max_lengths.reason_accepted_excluded}
                     value={text(row.values.reason_accepted_excluded)}
-                    className={cn(controlHeight)}
+                    className={cn(controlHeight, 'w-full min-w-0')}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? errorId : undefined}
                     onChange={(e) => api.setCell('quotations', row.key, 'reason_accepted_excluded', e.target.value)}
                 />
-                {error && (
-                    <p id={errorId} className="text-destructive text-xs">
-                        {error}
-                    </p>
-                )}
+                <CellError id={errorId} message={error} />
             </div>
         );
 
     const columns: Column[] = [
-        { name: 'supplier_name', label: 'Supplier', kind: 'text', width: 'min-w-44' },
-        { name: 'manufacturer', label: 'Manufacturer', kind: 'text', optional: true, width: 'min-w-40' },
-        { name: 'brand', label: 'Brand', kind: 'text', optional: true, width: 'min-w-36' },
-        { name: 'unit_price', label: 'Unit price', kind: 'decimal', width: 'min-w-28' },
-        { name: 'quantity_offered', label: 'Quantity offered', kind: 'decimal', width: 'min-w-32' },
-        { name: 'lead_time_days', label: 'Lead time (days)', kind: 'integer', optional: true, width: 'min-w-28' },
+        { name: 'supplier_name', label: 'Supplier', kind: 'text' },
+        { name: 'manufacturer', label: 'Manufacturer', kind: 'text', optional: true },
+        { name: 'brand', label: 'Brand', kind: 'text', optional: true },
+        { name: 'unit_price', label: 'Unit price', kind: 'decimal' },
+        { name: 'quantity_offered', label: 'Quantity offered', kind: 'decimal' },
+        { name: 'lead_time_days', label: 'Lead time (days)', kind: 'integer', optional: true },
         { name: 'considered', label: 'Considered', kind: 'custom', render: consideredCell },
         { name: 'is_recommended', label: 'Recommended', kind: 'custom', render: recommendedCell },
         { name: 'reason_accepted_excluded', label: 'Reason not considered', kind: 'custom', render: reasonCell },
@@ -90,7 +88,7 @@ export function QuotationsSection({ api }: { api: FormApi }) {
     const recommendedError = api.tableError('quotations.recommended');
 
     return (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
             <RadioGroupField
                 id={fieldId.requisition('rfq_audience')}
                 legend="RFQ sent to"

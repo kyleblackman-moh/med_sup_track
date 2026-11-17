@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils';
 import { type SectionKey, type SectionStatus } from '@/types/ad-hoc';
 import { Check } from 'lucide-react';
 
@@ -7,15 +6,20 @@ interface ProgressRailProps {
     onJump: (key: SectionKey) => void;
 }
 
+/** Visible status text, so the marker's shape is never the only signal. */
+const statusText = (section: SectionStatus) => (section.complete ? 'Complete' : section.optional ? 'Optional' : 'Not complete');
+
 /**
- * Section navigation in form order: a sticky column on desktop, a compact
- * scrolling bar on mobile. A tick only where the server marks the section
- * complete; a neutral dot otherwise. No counts and no error colours here.
+ * Section navigation in form order. From 1280px it sits in its own grid column
+ * and sticks inside that column, so it can never cover the form; below that it
+ * is a compact bar above the sections. A check icon only where the server marks
+ * the section complete, a small hollow circle otherwise, each with visible text.
+ * No counts and no error colours here.
  */
 export function ProgressRail({ sections, onJump }: ProgressRailProps) {
     return (
-        <nav aria-label="Form sections" className="bg-background sticky top-16 z-10 -mx-4 border-b px-4 py-2 lg:top-20 lg:mx-0 lg:border-0 lg:p-0">
-            <ol className="flex gap-2 overflow-x-auto lg:flex-col lg:gap-1">
+        <nav aria-label="Form sections" className="xl:sticky xl:top-6">
+            <ol className="flex gap-2 overflow-x-auto xl:flex-col xl:gap-1 xl:overflow-visible">
                 {sections.map((section, i) => (
                     <li key={section.key} className="shrink-0">
                         <a
@@ -24,22 +28,24 @@ export function ProgressRail({ sections, onJump }: ProgressRailProps) {
                                 e.preventDefault();
                                 onJump(section.key);
                             }}
-                            className="hover:bg-accent focus-visible:ring-ring flex min-h-11 items-center gap-2 rounded-md px-2 text-sm focus-visible:ring-2 focus-visible:outline-hidden md:min-h-9"
+                            className="hover:bg-accent focus-visible:ring-ring flex min-h-11 items-start gap-2 rounded-md px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-hidden md:min-h-9"
                         >
-                            <span
-                                aria-hidden
-                                className={cn(
-                                    'flex size-5 shrink-0 items-center justify-center rounded-full border text-xs',
-                                    section.complete ? 'bg-primary border-primary text-primary-foreground' : 'border-input',
+                            <span aria-hidden className="flex h-5 w-4 shrink-0 items-center justify-center">
+                                {section.complete ? (
+                                    <Check className="text-primary size-4" strokeWidth={2.5} />
+                                ) : (
+                                    <span className="border-muted-foreground size-2 rounded-full border" />
                                 )}
-                            >
-                                {section.complete ? <Check className="size-3" /> : <span className="bg-muted-foreground size-1.5 rounded-full" />}
                             </span>
-                            <span>
-                                <span className="lg:hidden">{i + 1}. </span>
-                                {section.label}
-                                {section.optional && <span className="text-muted-foreground"> (optional)</span>}
-                                <span className="sr-only">{section.complete ? ', complete' : ', not complete'}</span>
+                            <span className="grid leading-5">
+                                <span>
+                                    <span className="xl:hidden">{i + 1}. </span>
+                                    {section.label}
+                                </span>
+                                <span className="text-muted-foreground text-xs leading-4">
+                                    <span className="sr-only">, </span>
+                                    {statusText(section)}
+                                </span>
                             </span>
                         </a>
                     </li>

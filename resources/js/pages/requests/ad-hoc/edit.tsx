@@ -180,7 +180,7 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ad hoc request" />
 
-            <div className="mx-auto w-full max-w-6xl px-4 pt-4 pb-12">
+            <div className="mx-auto w-full max-w-[96rem] min-w-0 px-4 pt-4 pb-12 md:px-6">
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="text-lg font-semibold">Ad hoc purchase request</h1>
@@ -212,12 +212,15 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                     )}
                 </div>
 
-                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
-                    <div className="lg:col-start-2 lg:row-start-1">
+                {/* Two columns from 1280px: the form, then the rail in its own column (it sticks
+                    inside that column, so it cannot cover the form). min-w-0 stops wide content
+                    from widening the form column. Below 1280px the rail is a bar above the form. */}
+                <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_15rem]">
+                    <div className="bg-background sticky top-0 z-10 -mx-4 min-w-0 border-b px-4 py-2 md:-mx-6 md:px-6 xl:static xl:col-start-2 xl:row-start-1 xl:mx-0 xl:border-0 xl:p-0">
                         <ProgressRail sections={sections} onJump={(key) => jump(key)} />
                     </div>
 
-                    <div className="space-y-4 lg:col-start-1 lg:row-start-1">
+                    <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
                         {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={sections} state={state} onJump={jump} />}
                         {review === 'ready' && (
                             <SummaryPanel

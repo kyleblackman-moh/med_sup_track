@@ -14,12 +14,12 @@ export function StockSection({ api }: { api: FormApi }) {
     const noStock = state.requisition.no_stock_on_hand === true;
 
     const columns: Column[] = [
-        { name: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity', kind: 'decimal', width: 'min-w-32' },
-        { name: 'expiry_date', label: 'Expiry date', kind: 'date', width: 'min-w-36' },
+        { name: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity', kind: 'decimal' },
+        { name: 'expiry_date', label: 'Expiry date', kind: 'date' },
     ];
 
     return (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
             <TextField
                 id={fieldId.requisition('stock_location')}
                 label="Location"
