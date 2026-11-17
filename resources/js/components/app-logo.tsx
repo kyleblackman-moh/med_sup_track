@@ -1,5 +1,11 @@
 import AppLogoIcon from './app-logo-icon';
 
+/** The system name and descriptor shown next to the logo. Change them here only. */
+export const APP_BRAND = {
+    name: 'Medication Procurement',
+    descriptor: 'Ministry of Health',
+} as const;
+
 export default function AppLogo() {
     return (
         <>
@@ -7,7 +13,8 @@ export default function AppLogo() {
                 <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
             </div>
             <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-none font-semibold">Laravel Starter Kit</span>
+                <span className="mb-0.5 truncate leading-none font-semibold">{APP_BRAND.name}</span>
+                <span className="text-muted-foreground truncate text-xs leading-none">{APP_BRAND.descriptor}</span>
             </div>
         </>
     );
