@@ -13,8 +13,17 @@ final readonly class ProcurementTypeProfile
 {
     public const SECTIONS = ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'];
 
+    /** The single Ad Hoc form (slice F1). */
+    public const AD_HOC = 'AD_HOC';
+
     /** code => [allowed sections, required sections] */
     private const PROFILES = [
+        // Every section allowed; what is required is decided by AdHocReadiness.
+        self::AD_HOC => [
+            ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
+            [],
+        ],
+        // Old types (inactive except TENDER_EXCESS): unchanged.
         'AD_HOC_PHARM' => [
             ['quotations', 'tender_awards', 'purchase_orders', 'stock_expiries'],
             ['quotations'],
@@ -60,6 +69,13 @@ final readonly class ProcurementTypeProfile
         return in_array($section, $this->requiredSections, true);
     }
 
+    /** The single Ad Hoc form (AD_HOC). */
+    public function isAdHocForm(): bool
+    {
+        return $this->code === self::AD_HOC;
+    }
+
+    /** The old Pharm / Non-Pharm ad hoc types (AD_HOC_*), not AD_HOC itself. */
     public function isAdHoc(): bool
     {
         return str_starts_with($this->code, 'AD_HOC_');

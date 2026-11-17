@@ -33,6 +33,8 @@ final class SubmissionReadiness
 
     private array $warnings = [];
 
+    public function __construct(private readonly AdHocReadiness $adHoc = new AdHocReadiness) {}
+
     public function evaluate(ProcurementCase $case): ReadinessReport
     {
         $this->errors = [];
@@ -50,6 +52,22 @@ final class SubmissionReadiness
             'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->get(),
         ];
 
+        if ($profile->isAdHocForm()) {
+            // Slice F1: the single Ad Hoc form has its own rules (AdHocReadiness).
+            $this->errors = $this->adHoc->errors($requisition, $rows);
+
+            foreach ($rows['quotations'] as $i => $q) {
+                if ($q->technical_status !== TechnicalStatus::PENDING) {
+                    $this->warning("quotations.{$i}.technical_status", 'MOH has already assessed this quotation.');
+                }
+            }
+
+            $this->checkDocuments($type, $caseId);
+
+            return new ReadinessReport($this->errors, $this->warnings, []);
+        }
+
+        // Old types (AD_HOC_PHARM, AD_HOC_NON_PHARM, TENDER_EXCESS): unchanged.
         $this->checkRequisition($requisition, $type->category, $profile);
 
         foreach ($profile->requiredSections as $section) {

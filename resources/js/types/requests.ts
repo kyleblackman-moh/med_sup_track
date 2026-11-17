@@ -8,7 +8,7 @@ export type OptionList = { value: string; label: string }[];
 export interface ProcurementTypeSummary {
     code: string;
     name: string;
-    category: 'PHARM' | 'NON_PHARM';
+    category: 'PHARM' | 'NON_PHARM' | null; // null for AD_HOC
 }
 
 export interface RequestSummary {

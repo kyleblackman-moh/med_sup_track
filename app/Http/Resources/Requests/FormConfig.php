@@ -25,7 +25,7 @@ final class FormConfig
             'procurement_type' => [
                 'code' => $type->code,
                 'name' => $type->name,
-                'category' => $type->category->value,
+                'category' => $type->category?->value, // null for AD_HOC
             ],
             'is_pharm' => $type->category === ProcurementCategory::PHARM,
             'allowed_sections' => $profile->allowedSections,

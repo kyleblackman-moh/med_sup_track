@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use LogicException;
 
 /**
@@ -164,13 +165,15 @@ class ProcurementCase extends Model
     /**
      * Each award's share of the total awarded quantity, as a 2-decimal percentage
      * string keyed by award id. Empty when there are no awards or they sum to zero.
-     * Computed from the awards the current user can see (VisibleViaCaseScope).
+     * Rows without a quantity (a partial draft row) are left out of the sum and
+     * get no percentage. Computed from the awards the current user can see
+     * (VisibleViaCaseScope).
      *
      * @return array<int, string>
      */
     public function tenderAwardPercentages(): array
     {
-        $awards = $this->tenderAwards;
+        $awards = $this->tenderAwards->filter(fn (CaseTenderAward $a) => $a->quantity_awarded !== null);
         $sum = $awards->reduce(fn (string $carry, CaseTenderAward $a) => Decimal::add($carry, $a->quantity_awarded), '0');
 
         if (Decimal::compare($sum, '0') <= 0) {
@@ -180,5 +183,101 @@ class ProcurementCase extends Model
         return $awards->mapWithKeys(fn (CaseTenderAward $a) => [
             $a->id => Decimal::round2(Decimal::div(Decimal::mul($a->quantity_awarded, '100'), $sum)),
         ])->all();
+    }
+
+    /*
+     * AD_HOC figures (slice F1). Computed on the server from the saved rows,
+     * never stored and never computed in React. Expect the relations loaded
+     * (they load lazily otherwise).
+     */
+
+    /** Distinct supplier names on the award rows (trimmed, case-insensitive). */
+    public function suppliersAwarded(): int
+    {
+        return $this->tenderAwards
+            ->map(fn (CaseTenderAward $a) => mb_strtolower(trim((string) $a->supplier_name)))
+            ->filter(fn (string $name) => $name !== '')
+            ->unique()
+            ->count();
+    }
+
+    /**
+     * Stock on hand for AD_HOC: 0 when "no stock on hand" is ticked, else the
+     * sum of the batch quantities; null when neither is given.
+     */
+    public function batchStockOnHand(): ?string
+    {
+        if ($this->requisition?->no_stock_on_hand) {
+            return '0.00';
+        }
+
+        $quantities = $this->stockExpiries->pluck('quantity')->filter(fn ($q) => $q !== null);
+
+        return $quantities->isEmpty()
+            ? null
+            : Decimal::round2($quantities->reduce(fn (string $carry, string $q) => Decimal::add($carry, $q), '0'));
+    }
+
+    /** batchStockOnHand / average monthly consumption, in months; null if not computable. Staff only. */
+    public function batchCoverageMonths(): ?string
+    {
+        $stock = $this->batchStockOnHand();
+        $consumption = $this->requisition?->average_monthly_consumption;
+
+        if ($stock === null || $consumption === null || Decimal::compare($consumption, '0') <= 0) {
+            return null;
+        }
+
+        return Decimal::round2(Decimal::div($stock, $consumption));
+    }
+
+    /** Quotation rows that name a supplier (blank starter rows are not "received"). */
+    public function quotationsReceived(): int
+    {
+        return $this->receivedQuotations()->count();
+    }
+
+    public function quotationsConsidered(): int
+    {
+        return $this->receivedQuotations()->filter(fn (CaseQuotation $q) => $q->considered)->count();
+    }
+
+    /** The recommended quotation; null when none or more than one is marked. */
+    public function recommendedQuotation(): ?CaseQuotation
+    {
+        $recommended = $this->quotations->filter(fn (CaseQuotation $q) => $q->is_recommended);
+
+        return $recommended->count() === 1 ? $recommended->first() : null;
+    }
+
+    /** Recommended unit price x quantity to purchase, 2 decimals; null if either is missing. */
+    public function totalCost(): ?string
+    {
+        $price = $this->recommendedQuotation()?->unit_price;
+        $quantity = $this->requisition?->quantity_to_purchase;
+
+        return $price === null || $quantity === null ? null : Decimal::round2(Decimal::mul($price, $quantity));
+    }
+
+    /**
+     * (quoted - reference) / reference x 100, 2 decimals, where the quoted price
+     * is the recommended quotation's unit price. Null when the reference price
+     * is not entered (or is zero) or there is no single recommended quotation.
+     */
+    public function priceChangePercent(?string $reference): ?string
+    {
+        $quoted = $this->recommendedQuotation()?->unit_price;
+
+        if ($quoted === null || $reference === null || Decimal::compare($reference, '0') <= 0) {
+            return null;
+        }
+
+        return Decimal::round2(Decimal::div(Decimal::mul(Decimal::sub($quoted, $reference), '100'), $reference));
+    }
+
+    /** @return Collection<int, CaseQuotation> */
+    private function receivedQuotations()
+    {
+        return $this->quotations->filter(fn (CaseQuotation $q) => trim((string) $q->supplier_name) !== '');
     }
 }

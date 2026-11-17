@@ -27,9 +27,9 @@ final readonly class RequisitionData
     /** @throws ValidationException */
     public static function validate(array $payload, ProcurementType $type): self
     {
-        $validator = Validator::make($payload, RequisitionRules::for($type));
-        $validator->after(function ($validator) use ($payload) {
-            foreach (RequisitionRules::unknownKeyErrors($payload) as $key => $message) {
+        $validator = Validator::make($payload, RequisitionRules::for($type), RequisitionRules::MESSAGES);
+        $validator->after(function ($validator) use ($payload, $type) {
+            foreach (RequisitionRules::unknownKeyErrors($payload, $type->code) as $key => $message) {
                 $validator->errors()->add($key, $message);
             }
         });
@@ -37,13 +37,13 @@ final readonly class RequisitionData
 
         // Valid from here on: every key is known and every value well formed.
         $requisition = array_key_exists('requisition', $payload)
-            ? self::normalise($payload['requisition'], RequisitionRules::requisitionFields())
+            ? self::normalise($payload['requisition'], RequisitionRules::requisitionFields($type->code))
             : null;
 
         $sections = [];
         foreach (ProcurementTypeProfile::SECTIONS as $section) {
             if (array_key_exists($section, $payload)) {
-                $fields = RequisitionRules::rowFields($section);
+                $fields = RequisitionRules::rowFields($section, $type->code);
                 $sections[$section] = array_map(fn (array $row) => self::normalise($row, $fields), $payload[$section]);
             }
         }
@@ -65,7 +65,7 @@ final readonly class RequisitionData
             $out[$key] = $value === null ? null : match ($fields[$key]['type']) {
                 'qty', 'price', 'rate' => (string) $value,
                 'enum' => $fields[$key]['enum']::from($value),
-                'smallint' => (int) $value,
+                'smallint', 'rowid' => (int) $value,
                 'bool' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
                 default => (string) $value,
             };

@@ -8,6 +8,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionRules;
 use App\Support\Decimal;
 use BackedEnum;
@@ -58,21 +59,26 @@ class RequestDetailResource extends JsonResource
      * view (slice 9a) so both show the same figures. Vendor-supplied columns
      * only; never technical_status or other staff-set columns.
      */
-    public static function requisitionContent(ProcurementCase $case): array
+    public static function requisitionContent(ProcurementCase $case, bool $forStaff = false): array
     {
         $requisition = $case->requisition;
         $percentages = $case->tenderAwardPercentages();
+        $code = $case->procurementType?->code;
+        $adHoc = $code === ProcurementTypeProfile::AD_HOC;
 
         return [
             'requisition' => [
-                ...self::values($requisition, array_keys(RequisitionRules::requisitionFields())),
-                'derived' => [
-                    'stock_on_hand' => $requisition?->stockOnHand(),
-                    'coverage_months' => $requisition?->coverageMonths(),
-                ],
+                ...self::values($requisition, array_keys(RequisitionRules::requisitionFields($code))),
+                'derived' => $adHoc
+                    // Slice F1: stock is the sum of the batches; coverage is staff-side only.
+                    ? ['stock_on_hand' => $case->batchStockOnHand(), ...($forStaff ? ['coverage_months' => $case->batchCoverageMonths()] : [])]
+                    : [
+                        'stock_on_hand' => $requisition?->stockOnHand(),
+                        'coverage_months' => $requisition?->coverageMonths(),
+                    ],
             ],
             'quotations' => $case->quotations->map(fn (CaseQuotation $q) => [
-                ...self::row($q, 'quotations'),
+                ...self::row($q, 'quotations', $code),
                 'derived' => [
                     'offered_total' => $q->offeredTotal(),
                     'recommended_total' => $q->recommendedTotal(),
@@ -81,21 +87,43 @@ class RequestDetailResource extends JsonResource
                 ],
             ])->values()->all(),
             'tender_awards' => $case->tenderAwards->map(fn (CaseTenderAward $a) => [
-                ...self::row($a, 'tender_awards'),
+                ...self::row($a, 'tender_awards', $code),
                 'derived' => [
                     'total' => $a->total(),
                     'percentage' => $percentages[$a->id] ?? null,
                 ],
             ])->values()->all(),
             'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
-                ...self::row($po, 'purchase_orders'),
+                ...self::row($po, 'purchase_orders', $code),
                 'derived' => [
                     'quantity_outstanding' => $po->quantityOutstanding(),
+                    // AD_HOC: the supplier comes from the linked award row (typed once).
+                    ...($adHoc ? ['supplier_name' => $case->tenderAwards->firstWhere('id', $po->award_id)?->supplier_name] : []),
                 ],
             ])->values()->all(),
-            'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries'))
+            'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries', $code))
                 ->values()->all(),
             'totals' => self::totals($case),
+            'figures' => $adHoc ? self::adHocFigures($case) : null,
+        ];
+    }
+
+    /**
+     * AD_HOC figures (slice F1), all computed by ProcurementCase on the server.
+     * Price changes are null unless the reference price is entered.
+     */
+    private static function adHocFigures(ProcurementCase $case): array
+    {
+        $requisition = $case->requisition;
+
+        return [
+            'suppliers_awarded' => $case->suppliersAwarded(),
+            'quotations_received' => $case->quotationsReceived(),
+            'quotations_considered' => $case->quotationsConsidered(),
+            'recommended_unit_price' => $case->recommendedQuotation()?->unit_price,
+            'total_cost' => $case->totalCost(),
+            'price_change_vs_tender_percent' => $case->priceChangePercent($requisition?->tender_price),
+            'price_change_vs_previous_percent' => $case->priceChangePercent($requisition?->previous_price),
         ];
     }
 
@@ -127,9 +155,9 @@ class RequestDetailResource extends JsonResource
     }
 
     /** The row id plus its vendor-supplied fields. */
-    private static function row(Model $row, string $section): array
+    private static function row(Model $row, string $section, ?string $code = null): array
     {
-        return ['id' => $row->getKey(), ...self::values($row, array_keys(RequisitionRules::rowFields($section)))];
+        return ['id' => $row->getKey(), ...self::values($row, array_keys(RequisitionRules::rowFields($section, $code)))];
     }
 
     /** @param  list<string>  $fields */

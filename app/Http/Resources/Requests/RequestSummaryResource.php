@@ -37,7 +37,7 @@ class RequestSummaryResource extends JsonResource
             'procurement_type' => [
                 'code' => $type->code,
                 'name' => $type->name,
-                'category' => $type->category->value,
+                'category' => $type->category?->value, // null for AD_HOC
             ],
             'item_description' => $requisition?->item_description,
             'vendor_reference' => $requisition?->vendor_reference,

@@ -75,10 +75,10 @@ final class StaffCaseDetail
             'case' => [
                 ...StaffCaseSummary::fields($case),
                 'item_description' => $case->requisition?->item_description,
-                'category' => $case->procurementType?->category->value,
+                'category' => $case->procurementType?->category?->value, // null for AD_HOC
                 // Slice 10c: staff only (the vendor DTOs never carry it).
                 'file_no' => $case->file_no,
-                ...RequestDetailResource::requisitionContent($case),
+                ...RequestDetailResource::requisitionContent($case, forStaff: true),
             ],
             // Slice 10c: the prepare-file form's starting value (config cases.file_no_prefix).
             // Slice 10e: the case's existing file number when it has one (a second round), else the config prefix.

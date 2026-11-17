@@ -19,6 +19,11 @@ use Illuminate\Validation\Rule;
  * field is nullable (a draft saves incomplete). Child rows must carry the
  * columns the database requires. Unknown keys fail at every level
  * (unknownKeyErrors), so system columns can never be supplied.
+ *
+ * AD_HOC (slice F1) has its own field sets: every field is optional at save
+ * (a draft saves partial data and partial rows); completeness is checked at
+ * submit by AdHocReadiness. Child rows may carry their row id, so a save
+ * updates rows in place (SaveRequisition). The other types keep their rules.
  */
 final class RequisitionRules
 {
@@ -28,6 +33,11 @@ final class RequisitionRules
         'technical_status', 'technical_status_set_by', 'technical_status_set_at',
         'technical_track', 'funding_track', 'hardcopy_received_at', 'hardcopy_received_by',
         'hardcopy_receipt_method', 'sort_order',
+    ];
+
+    /** Plain messages for rules whose default message would be unclear. */
+    public const MESSAGES = [
+        'requisition.din.regex' => 'Enter the DIN as digits only.',
     ];
 
     public const ROW_CAPS = [
@@ -51,7 +61,7 @@ final class RequisitionRules
         $profile = ProcurementTypeProfile::for($type);
         $rules = ['requisition' => ['sometimes', 'array']];
 
-        foreach (self::requisitionFields() as $field => $spec) {
+        foreach (self::requisitionFields($type->code) as $field => $spec) {
             $rules["requisition.{$field}"] = self::rulesFor($spec);
         }
 
@@ -65,8 +75,12 @@ final class RequisitionRules
             $rules[$section] = ['sometimes', 'array', 'list', 'max:'.self::ROW_CAPS[$section]];
             $rules["{$section}.*"] = ['array'];
 
-            foreach (self::rowFields($section) as $field => $spec) {
+            foreach (self::rowFields($section, $type->code) as $field => $spec) {
                 $rules["{$section}.*.{$field}"] = self::rulesFor($spec);
+            }
+
+            if (array_key_exists('id', self::rowFields($section, $type->code))) {
+                $rules["{$section}.*.id"][] = 'distinct';
             }
         }
 
@@ -78,7 +92,7 @@ final class RequisitionRules
      *
      * @return array<string, string> dotted path => message
      */
-    public static function unknownKeyErrors(array $payload): array
+    public static function unknownKeyErrors(array $payload, ?string $code = null): array
     {
         $errors = [];
         $check = function (array $data, array $allowed, string $prefix) use (&$errors) {
@@ -94,13 +108,13 @@ final class RequisitionRules
         $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS], '');
 
         if (is_array($payload['requisition'] ?? null)) {
-            $check($payload['requisition'], array_keys(self::requisitionFields()), 'requisition.');
+            $check($payload['requisition'], array_keys(self::requisitionFields($code)), 'requisition.');
         }
 
         foreach (ProcurementTypeProfile::SECTIONS as $section) {
             foreach (is_array($payload[$section] ?? null) ? $payload[$section] : [] as $i => $row) {
                 if (is_array($row)) {
-                    $check($row, array_keys(self::rowFields($section)), "{$section}.{$i}.");
+                    $check($row, array_keys(self::rowFields($section, $code)), "{$section}.{$i}.");
                 }
             }
         }
@@ -115,8 +129,12 @@ final class RequisitionRules
      *
      * @return array<string, array{type: string, max?: int, enum?: class-string, required?: bool, default?: bool}>
      */
-    public static function requisitionFields(): array
+    public static function requisitionFields(?string $code = null): array
     {
+        if ($code === ProcurementTypeProfile::AD_HOC) {
+            return self::adHocRequisitionFields();
+        }
+
         return [
             'vendor_reference' => self::str(64),
             'request_date' => ['type' => 'date'],
@@ -144,8 +162,12 @@ final class RequisitionRules
     }
 
     /** @return array<string, array<string, mixed>> */
-    public static function rowFields(string $section): array
+    public static function rowFields(string $section, ?string $code = null): array
     {
+        if ($code === ProcurementTypeProfile::AD_HOC) {
+            return self::adHocRowFields($section);
+        }
+
         return match ($section) {
             'quotations' => [
                 'supplier_name' => self::str(200, required: true),
@@ -187,6 +209,93 @@ final class RequisitionRules
         };
     }
 
+    /**
+     * AD_HOC request fields (adhoc-form-spec). All optional at save. There is no
+     * separate consumption unit: unit_of_measure is the unit for quantity, stock
+     * and average monthly consumption.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function adHocRequisitionFields(): array
+    {
+        return [
+            // 1 Item
+            'item_description' => self::str(500),
+            'strength' => self::str(100),
+            'dosage_form' => self::str(100),
+            'din' => ['type' => 'digits', 'max' => 32], // digits only, no length rule (open question)
+            'quantity_requested' => ['type' => 'qty'],
+            'unit_of_measure' => self::str(32),
+            'clinical_note' => ['type' => 'text', 'max' => 2000],
+            // 2 Tender
+            'tender_reference' => self::str(120),
+            'tender_outcome' => ['type' => 'enum', 'enum' => TenderOutcome::class],
+            'tender_issue_explanation' => ['type' => 'text'],
+            // 3 Stock
+            'stock_location' => self::str(200),
+            'average_monthly_consumption' => ['type' => 'qty'],
+            'no_stock_on_hand' => ['type' => 'bool', 'default' => true],
+            // 4 Quotations
+            'rfq_audience' => ['type' => 'enum', 'enum' => RfqAudience::class],
+            'quantity_to_purchase' => ['type' => 'qty'],
+            // 5 Price comparison
+            'tender_price' => ['type' => 'price'],
+            'previous_price' => ['type' => 'price'],
+            'quoted_price_acceptable' => ['type' => 'bool'],
+            'price_note' => ['type' => 'text', 'max' => 1000],
+        ];
+    }
+
+    /**
+     * AD_HOC child rows: every column optional at save. "id" is the row's own id
+     * (absent on a new row); orders point at an award row by award_id, which
+     * SaveRequisition checks belongs to the case.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function adHocRowFields(string $section): array
+    {
+        $id = ['type' => 'rowid'];
+
+        return match ($section) {
+            'quotations' => [
+                'id' => $id,
+                'supplier_name' => self::str(200),
+                'manufacturer' => self::str(200),
+                'brand' => self::str(200),
+                'unit_price' => ['type' => 'price'],
+                'quantity_offered' => ['type' => 'qty'],
+                'lead_time_days' => ['type' => 'smallint'],
+                'considered' => ['type' => 'bool', 'default' => true],
+                'reason_accepted_excluded' => self::str(500),
+                'is_recommended' => ['type' => 'bool', 'default' => true],
+            ],
+            'tender_awards' => [
+                'id' => $id,
+                'supplier_name' => self::str(200),
+                'manufacturer' => self::str(200),
+                'brand' => self::str(200),
+                'quantity_awarded' => ['type' => 'qty'],
+                'unit_cost' => ['type' => 'price'],
+            ],
+            'purchase_orders' => [
+                'id' => $id,
+                'award_id' => ['type' => 'rowid'],
+                'po_number' => self::str(64),
+                'quantity_ordered' => ['type' => 'qty'],
+                'ordered_on' => ['type' => 'date'],
+                'quantity_delivered' => ['type' => 'qty'],
+                'delivery_eta' => ['type' => 'date'],
+                'delivery_status' => self::str(120),
+            ],
+            'stock_expiries' => [
+                'id' => $id,
+                'quantity' => ['type' => 'qty'],
+                'expiry_date' => ['type' => 'date'],
+            ],
+        };
+    }
+
     private static function str(int $max, bool $required = false): array
     {
         return ['type' => 'string', 'max' => $max, 'required' => $required];
@@ -203,7 +312,10 @@ final class RequisitionRules
 
         return [...$presence, ...match ($spec['type']) {
             'string' => ['string', 'max:'.$spec['max']],
-            'text' => ['string'],
+            'text' => isset($spec['max']) ? ['string', 'max:'.$spec['max']] : ['string'],
+            // A string, so leading zeros are kept.
+            'digits' => ['string', 'max:'.$spec['max'], 'regex:/^\d+$/'],
+            'rowid' => ['integer', 'min:1'],
             'date' => ['date_format:Y-m-d'],
             'enum' => [Rule::enum($spec['enum'])],
             'qty' => ['numeric', 'regex:'.self::QTY],

@@ -10,7 +10,7 @@ interface ProcurementTypeOption {
     id: number;
     code: string;
     name: string;
-    category: 'PHARM' | 'NON_PHARM';
+    category: 'PHARM' | 'NON_PHARM' | null; // null for AD_HOC
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -56,7 +56,7 @@ export default function Create({ types }: { types: ProcurementTypeOption[] }) {
                             />
                             <span>
                                 <span className="block font-medium">{type.name}</span>
-                                <span className="text-muted-foreground block text-sm">{CATEGORY_LABELS[type.category]}</span>
+                                {type.category && <span className="text-muted-foreground block text-sm">{CATEGORY_LABELS[type.category]}</span>}
                             </span>
                         </label>
                     ))}

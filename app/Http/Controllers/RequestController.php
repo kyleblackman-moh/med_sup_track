@@ -62,7 +62,7 @@ class RequestController extends Controller
                     'id' => $t->id,
                     'code' => $t->code,
                     'name' => $t->name,
-                    'category' => $t->category->value,
+                    'category' => $t->category?->value, // null for AD_HOC
                 ])->all(),
         ]);
     }
