@@ -30,26 +30,53 @@ final class RequestDocuments
             ->filter(fn (Document $d) => $gate->allows('view', $d))
             ->groupBy(fn (Document $d) => $d->purpose->value);
 
-        return ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)
-            ->orderBy('sort_order')->get()
-            ->map(fn (ProcurementTypeDocument $requirement) => [
-                'purpose' => $requirement->purpose->value,
-                'label' => $requirement->label,
-                'is_required' => $requirement->is_required,
-                'documents' => $documents->get($requirement->purpose->value, collect())
-                    ->map(fn (Document $d) => [
-                        'id' => $d->id,
-                        'display_name' => $d->original_name,
-                        'size_bytes' => $d->size_bytes,
-                        'uploaded_at' => $d->uploaded_at?->copy()->utc()->toIso8601ZuluString(),
-                        'version' => $d->version,
-                        'status_label' => $d->scan_status->label(),
-                        'can_download' => $gate->allows('download', $d),
-                        'can_replace' => $canChange,
-                        'can_withdraw' => $canChange,
-                    ])->values()->all(),
-            ])->all();
+        $configured = ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)
+            ->orderBy('sort_order')->get();
+
+        $row = fn (Document $d, bool $editable) => [
+            'id' => $d->id,
+            'display_name' => $d->original_name,
+            'size_bytes' => $d->size_bytes,
+            'uploaded_at' => $d->uploaded_at?->copy()->utc()->toIso8601ZuluString(),
+            'version' => $d->version,
+            'status_label' => $d->scan_status->label(),
+            'can_download' => $gate->allows('download', $d),
+            'can_replace' => $editable,
+            'can_withdraw' => $editable,
+        ];
+
+        $groups = $configured->map(fn (ProcurementTypeDocument $requirement) => [
+            'purpose' => $requirement->purpose->value,
+            'label' => $requirement->label,
+            'hint' => $requirement->hint,
+            'is_required' => $requirement->is_required,
+            'read_only' => false,
+            'documents' => $documents->get($requirement->purpose->value, collect())
+                ->map(fn (Document $d) => $row($d, $canChange))->values()->all(),
+        ])->all();
+
+        // Slice F1: current documents in a category the type no longer uses (a
+        // draft moved from AD_HOC_PHARM to AD_HOC). Readable, never editable,
+        // and not counted by readiness.
+        $earlier = $documents->except($configured->map(fn ($r) => $r->purpose->value)->all())->flatten(1)
+            ->sortBy(fn (Document $d) => [$d->uploaded_at, $d->id])->values();
+
+        if ($earlier->isNotEmpty()) {
+            $groups[] = [
+                'purpose' => self::EARLIER,
+                'label' => 'Earlier uploads',
+                'hint' => null,
+                'is_required' => false,
+                'read_only' => true,
+                'documents' => $earlier->map(fn (Document $d) => $row($d, false))->all(),
+            ];
+        }
+
+        return $groups;
     }
+
+    /** Group key for documents outside the type's categories. Not a DocumentPurpose. */
+    public const EARLIER = 'earlier';
 
     /** Helper text for the upload form; the server enforces these. */
     public static function uploadRules(): array

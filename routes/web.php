@@ -48,7 +48,7 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
     ->group(function () {
         Route::scopeBindings()->group(function () {
             Route::post('requests/{procurementCase}/documents', 'store')
-                ->middleware('throttle:20,1')->name('requests.documents.store');
+                ->middleware('throttle:60,1')->name('requests.documents.store'); // F1: one request per file
             Route::post('requests/{procurementCase}/documents/{document}/withdraw', 'withdraw')
                 ->middleware('throttle:30,1')->name('requests.documents.withdraw');
         });

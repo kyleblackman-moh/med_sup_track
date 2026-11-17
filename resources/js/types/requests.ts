@@ -76,7 +76,10 @@ export interface RequestDocument {
 export interface DocumentGroup {
     purpose: string;
     label: string;
+    hint?: string | null;
     is_required: boolean;
+    /** Documents outside the type's categories ("Earlier uploads"): readable, never editable. */
+    read_only?: boolean;
     documents: RequestDocument[];
 }
 

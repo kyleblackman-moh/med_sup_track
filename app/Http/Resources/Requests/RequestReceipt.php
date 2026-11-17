@@ -29,18 +29,20 @@ final class RequestReceipt
             ->with('actor')
             ->first();
 
+        // Slice F1: every category that has files, not only the required ones, in
+        // the type's order; files outside the type's categories come last.
         $labels = ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)
-            ->where('is_required', true)->orderBy('sort_order')->get()
+            ->orderBy('sort_order')->get()
             ->mapWithKeys(fn (ProcurementTypeDocument $d) => [$d->purpose->value => $d->label]);
+        $order = $labels->keys();
 
         $documents = Document::withoutGlobalScopes()->current()
             ->where('case_id', $case->getKey())
             ->where('scan_status', ScanStatus::CLEAN->value)
-            ->whereIn('purpose', $labels->keys()->all())
-            ->orderBy('uploaded_at')->get()
-            ->sortBy(fn (Document $d) => $labels->keys()->search($d->purpose->value))
+            ->orderBy('uploaded_at')->orderBy('id')->get()
+            ->sortBy(fn (Document $d) => $order->search($d->purpose->value) === false ? $order->count() : $order->search($d->purpose->value))
             ->map(fn (Document $d) => [
-                'label' => $labels[$d->purpose->value],
+                'label' => $labels[$d->purpose->value] ?? 'Earlier uploads',
                 'display_name' => $d->original_name,
                 'version' => $d->version,
                 'uploaded_at' => $d->uploaded_at?->copy()->utc()->toIso8601ZuluString(),

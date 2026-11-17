@@ -48,10 +48,10 @@ class DocumentController extends Controller
 
     public function withdraw(Request $request, ProcurementCase $procurementCase, Document $document, WithdrawDocument $withdraw): RedirectResponse
     {
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]); // optional (slice F1)
 
         try {
-            $withdraw->handle($document, $request->user(), $validated['reason']);
+            $withdraw->handle($document, $request->user(), $validated['reason'] ?? null);
         } catch (UploadNotAllowed $e) {
             return back()->with('error', $e->getMessage());
         }

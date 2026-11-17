@@ -64,7 +64,7 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false }:
             </div>
 
             {groups.map((group) => (
-                <DocumentCard key={group.purpose} caseId={caseId} group={group} rules={rules} readOnly={readOnly} />
+                <DocumentCard key={group.purpose} caseId={caseId} group={group} rules={rules} readOnly={readOnly || group.read_only === true} />
             ))}
         </section>
     );

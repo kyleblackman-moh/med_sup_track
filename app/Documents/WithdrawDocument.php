@@ -11,17 +11,21 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-/** Withdraws a document from a draft. The row and the file are kept. */
+/**
+ * Withdraws (removes) a document from a draft. The row and the file are kept.
+ * The reason is optional (slice F1: the drop zones send none); when given it is
+ * stored on the row only, never in the audit payload.
+ */
 final class WithdrawDocument
 {
-    public function handle(Document $document, User $user, string $reason): Document
+    public function handle(Document $document, User $user, ?string $reason = null): Document
     {
         $case = ProcurementCase::withoutGlobalScopes()->findOrFail($document->case_id);
         DocumentAccess::authoriseChange($case, $user);
 
-        $reason = trim($reason);
-        if ($reason === '' || mb_strlen($reason) > 500) {
-            throw ValidationException::withMessages(['reason' => 'Give a reason of up to 500 characters.']);
+        $reason = $reason === null || trim($reason) === '' ? null : trim($reason);
+        if ($reason !== null && mb_strlen($reason) > 500) {
+            throw ValidationException::withMessages(['reason' => 'Keep the reason to 500 characters or fewer.']);
         }
 
         return DB::transaction(function () use ($document, $user, $reason) {
