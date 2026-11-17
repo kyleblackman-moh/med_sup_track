@@ -684,7 +684,7 @@ it('renders an AD_HOC draft on the new page, never the old one', function () {
     [$case, $vendor] = newDraft();
 
     $this->actingAs($vendor)->get("/requests/{$case->id}/edit")->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('requests/ad-hoc/edit', false)
+        ->assertInertia(fn (Assert $page) => $page->component('requests/ad-hoc/edit')
             ->missing('readiness')
             ->has('sections', 6)
             ->where('config.options.tender_outcome.2.label', 'Awarded but supplier unable to supply')

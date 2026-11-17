@@ -438,7 +438,12 @@ it('keeps the request pages free of ad hoc network and storage calls', function 
     $files = [
         ...glob(resource_path('js/pages/requests/*.tsx')),
         ...glob(resource_path('js/components/requests/*.tsx')),
+        // Slice F2: the AD_HOC page and its components.
+        ...glob(resource_path('js/pages/requests/ad-hoc/*.tsx')),
+        ...glob(resource_path('js/components/requests/ad-hoc/*.{ts,tsx}'), GLOB_BRACE),
     ];
+
+    expect($files)->toContain(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
 
     expect($files)->not->toBeEmpty();
 
