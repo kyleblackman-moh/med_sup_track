@@ -183,31 +183,16 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
             <Head title="Ad hoc request" />
 
             <div className="mx-auto w-full max-w-[96rem] min-w-0 px-4 pt-4 pb-12 md:px-6">
+                {/* Status only: the form's actions are in the footer row at the bottom (CLAUDE.md, UI). */}
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="text-lg font-semibold">Ad hoc purchase request</h1>
                         <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                            {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : <span>Draft</span>}
+                            {detail.reference_no && <span className="font-mono text-xs">{detail.reference_no}</span>}
                             <StatusBadge label={detail.status_label} group={detail.status_group} />
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
-                        {can.edit && (
-                            <Button type="button" variant="ghost" className="text-destructive h-11 md:h-9" onClick={() => setDeleting(true)}>
-                                Delete draft
-                            </Button>
-                        )}
-                        {/* One primary action per view: once the summary is up, Submit is the primary one. */}
-                        <Button
-                            type="button"
-                            variant={review === 'ready' ? 'outline' : 'default'}
-                            className="h-11 md:h-9"
-                            onClick={() => void startReview()}
-                        >
-                            Review and submit
-                        </Button>
-                    </div>
+                    <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
                 </header>
 
                 <div className="mt-4 space-y-2">
@@ -228,6 +213,20 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                     </div>
 
                     <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
+                        {sections.map((section, i) => (
+                            <FormSection
+                                key={section.key}
+                                number={i + 1}
+                                status={section}
+                                open={open[section.key]}
+                                onOpenChange={(next) => setSectionOpen(section.key, next)}
+                                showIssues={showIssues}
+                            >
+                                {body[section.key]}
+                            </FormSection>
+                        ))}
+
+                        {/* The review result sits just above the footer that asked for it. */}
                         {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={sections} state={state} onJump={jump} />}
                         {review === 'ready' && (
                             <SummaryPanel
@@ -239,17 +238,30 @@ export default function AdHocEdit({ case: detail, sections, config, documents, h
                             />
                         )}
 
-                        {sections.map((section) => (
-                            <FormSection
-                                key={section.key}
-                                status={section}
-                                open={open[section.key]}
-                                onOpenChange={(next) => setSectionOpen(section.key, next)}
-                                showIssues={showIssues}
+                        {/* Footer row: the form's actions, below the Documents section. */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+                            {can.edit ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive h-11 md:h-9"
+                                    onClick={() => setDeleting(true)}
+                                >
+                                    Delete draft
+                                </Button>
+                            ) : (
+                                <span />
+                            )}
+                            {/* One primary action per view: once the summary is up, Submit is the primary one. */}
+                            <Button
+                                type="button"
+                                variant={review === 'ready' ? 'outline' : 'default'}
+                                className="h-11 md:h-9"
+                                onClick={() => void startReview()}
                             >
-                                {body[section.key]}
-                            </FormSection>
-                        ))}
+                                Review and submit
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

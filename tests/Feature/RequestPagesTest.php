@@ -475,3 +475,33 @@ it('shares can.requests only with users who hold the vendor permission', functio
     'vendor' => [fn () => vendorUser(vendorOrg()), true],
     'cmo' => [fn () => caseUser(Role::Cmo), false],
 ]);
+
+// UI-3 -------------------------------------------------------------------------
+
+it('gives an AD_HOC request page the summary labels, and no other type', function (string $code, bool $summary) {
+    [$case, $vendor] = vendorDraft($code);
+
+    $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk());
+
+    if ($summary) {
+        expect(array_keys($props['summary_config']))->toBe(['options', 'not_awarded'])
+            ->and(array_keys($props['summary_config']['options']))->toBe(['tender_outcome', 'rfq_audience'])
+            ->and($props['case']['figures'])->not->toBeNull();
+    } else {
+        expect($props['summary_config'])->toBeNull();
+    }
+})->with([
+    ['AD_HOC', true],
+    ['TENDER_EXCESS', false],
+]);
+
+it('keeps form actions out of the request form headers', function () {
+    // CLAUDE.md, UI: form actions go in a footer row, never in the header.
+    foreach (['js/pages/requests/ad-hoc/edit.tsx', 'js/pages/requests/edit.tsx'] as $path) {
+        $source = file_get_contents(resource_path($path));
+        preg_match('/<header\b.*?<\/header>/s', $source, $header);
+
+        expect($header)->not->toBeEmpty("{$path} has no header")
+            ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/', "{$path} has an action in its header");
+    }
+});

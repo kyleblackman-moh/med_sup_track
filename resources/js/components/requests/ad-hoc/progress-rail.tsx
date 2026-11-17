@@ -39,8 +39,7 @@ export function ProgressRail({ sections, onJump }: ProgressRailProps) {
                             </span>
                             <span className="grid leading-5">
                                 <span>
-                                    <span className="xl:hidden">{i + 1}. </span>
-                                    {section.label}
+                                    {i + 1}. {section.label}
                                 </span>
                                 <span className="text-muted-foreground text-xs leading-4">
                                     <span className="sr-only">, </span>

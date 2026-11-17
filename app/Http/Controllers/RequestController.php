@@ -26,6 +26,7 @@ use App\Submissions\SubmissionReadiness;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -102,6 +103,10 @@ class RequestController extends Controller
             'documents' => RequestDocuments::for($procurementCase, $request->user()),
             // Drafts only: the reasons a submit would be refused right now.
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
+            // UI-3: an AD_HOC request shows the same summary as Review and submit, which needs the option labels.
+            'summary_config' => $procurementCase->procurementType->code === ProcurementTypeProfile::AD_HOC
+                ? Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded'])
+                : null,
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),

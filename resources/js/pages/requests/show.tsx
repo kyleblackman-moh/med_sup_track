@@ -1,3 +1,4 @@
+import { AdHocSummary } from '@/components/requests/ad-hoc/review';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { StatusBadge } from '@/components/requests/status-badge';
@@ -6,6 +7,7 @@ import { SupportingDocuments } from '@/components/requests/supporting-documents'
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { type AdHocConfig, type AdHocDetail } from '@/types/ad-hoc';
 import { type DocumentGroup, type Readiness, type RequestDetail } from '@/types/requests';
 import { Head, Link } from '@inertiajs/react';
 
@@ -14,6 +16,8 @@ interface Props {
     documents: DocumentGroup[];
     readiness: Readiness | null;
     can: { submit: boolean };
+    /** AD_HOC only: the option labels its summary needs (the same summary as Review and submit). */
+    summary_config: Pick<AdHocConfig, 'options' | 'not_awarded'> | null;
 }
 
 /** A calendar date (Y-m-d), shown as-is: no time zone shift. */
@@ -21,7 +25,7 @@ function formatDay(day: string): string {
     return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function Show({ case: detail, documents, readiness, can }: Props) {
+export default function Show({ case: detail, documents, readiness, can, summary_config }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         { title: detail.reference_no ?? 'Draft', href: route('requests.show', detail.id) },
@@ -85,7 +89,16 @@ export default function Show({ case: detail, documents, readiness, can }: Props)
 
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
-                <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
+                {summary_config ? (
+                    <section aria-labelledby="request-summary-heading" className="space-y-4">
+                        <h2 id="request-summary-heading" className="text-lg font-semibold">
+                            Your request
+                        </h2>
+                        <AdHocSummary detail={detail as AdHocDetail} config={summary_config} documents={documents} />
+                    </section>
+                ) : (
+                    <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
+                )}
 
                 <SupportingDocuments caseId={detail.id} groups={documents} readOnly />
             </div>

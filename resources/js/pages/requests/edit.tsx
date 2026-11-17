@@ -15,7 +15,6 @@ import { buildTabs, FormTabs } from '@/components/requests/form-tabs';
 import { RowList } from '@/components/requests/row-list';
 import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type UploadRules } from '@/types/requests';
@@ -140,22 +139,21 @@ export default function Edit({ case: detail, readiness, config, documents, can }
             <Head title="Edit draft request" />
 
             <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pt-4">
+                {/* Status only: the form's actions are in the footer row at the bottom (CLAUDE.md, UI). */}
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New request'}</h1>
                         <p className="text-muted-foreground text-sm">
-                            {config.procurement_type.name} ·{' '}
-                            {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : 'Draft'}
+                            {config.procurement_type.name}
+                            {detail.reference_no && (
+                                <>
+                                    {' · '}
+                                    <span className="font-mono text-xs">{detail.reference_no}</span>
+                                </>
+                            )}
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <StatusBadge label={detail.status_label} group={detail.status_group} />
-                        {can.edit && (
-                            <Button type="button" variant="ghost" className="text-destructive h-11 md:h-9" onClick={() => setDeleting(true)}>
-                                Delete draft
-                            </Button>
-                        )}
-                    </div>
+                    <StatusBadge label={detail.status_label} group={detail.status_group} />
                 </header>
 
                 <FormTabs tabs={tabs} active={active} readiness={readiness} onSelect={select} />
@@ -234,6 +232,7 @@ export default function Edit({ case: detail, readiness, config, documents, can }
                     onBack={goBack}
                     onSave={() => saveThen()}
                     onNext={goNext}
+                    onDelete={can.edit ? () => setDeleting(true) : undefined}
                 />
             </div>
             <DeleteDraftDialog caseId={deleting ? detail.id : null} onClose={() => setDeleting(false)} />

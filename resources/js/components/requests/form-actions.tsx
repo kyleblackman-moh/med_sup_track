@@ -8,13 +8,30 @@ interface FormActionsProps {
     onBack: () => void;
     onSave: () => void;
     onNext: () => void;
+    /** Opens the shared delete confirmation; omitted when the draft cannot be deleted. */
+    onDelete?: () => void;
 }
 
-/** Back / Save draft / Next, pinned to the bottom of the screen on every tab. */
-export function FormActions({ isFirst, isLast, dirty, processing, onBack, onSave, onNext }: FormActionsProps) {
+/**
+ * The form's footer row, pinned to the bottom of the screen on every tab:
+ * Delete draft on the left, then Back / Save draft / Next. Form actions never
+ * go in the page header (CLAUDE.md, UI).
+ */
+export function FormActions({ isFirst, isLast, dirty, processing, onBack, onSave, onNext, onDelete }: FormActionsProps) {
     return (
         <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 z-10 -mx-4 border-t px-4 py-3 backdrop-blur">
             <div className="flex flex-wrap items-center gap-2">
+                {onDelete && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={onDelete}
+                        disabled={processing}
+                    >
+                        Delete draft
+                    </Button>
+                )}
                 <Button type="button" variant="outline" onClick={onBack} disabled={isFirst || processing}>
                     Back
                 </Button>

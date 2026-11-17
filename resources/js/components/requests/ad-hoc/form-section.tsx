@@ -5,6 +5,8 @@ import { ChevronDown } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface FormSectionProps {
+    /** Position in the form (1-6), part of the heading text. */
+    number: number;
     status: SectionStatus;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -19,7 +21,7 @@ interface FormSectionProps {
  * (Radix sets aria-expanded and aria-controls). Collapsed, it shows the
  * server's one-line summary. Issues appear only after Review and submit.
  */
-export function FormSection({ status, open, onOpenChange, showIssues, children }: FormSectionProps) {
+export function FormSection({ number, status, open, onOpenChange, showIssues, children }: FormSectionProps) {
     const headingId = `section-${status.key}-heading`;
     const issues = showIssues ? status.issues : [];
 
@@ -34,7 +36,7 @@ export function FormSection({ status, open, onOpenChange, showIssues, children }
                         >
                             <span className="flex-1">
                                 <span className="block">
-                                    {status.label}
+                                    {number}. {status.label}
                                     {status.optional && <span className="text-muted-foreground font-normal"> (optional)</span>}
                                 </span>
                                 {!open && <span className="text-muted-foreground block text-sm font-normal">{status.summary}</span>}

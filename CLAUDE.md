@@ -40,6 +40,7 @@ workflow, permissions or screens.
 - Read design.md first. Theme tokens only: no hex, font or radius values in components.
 - Badge tone comes from the server (`status_tone`); React maps tone → classes.
 - Page props may be named `can` for page-level action flags (existing convention). Never add keys to the shared `can`; nav-only flags live under `nav`.
+- Form actions (Submit, Review and submit, Save, Delete draft) go in a footer row at the bottom of the form, never in the header. The header may show status only.
 
 ## Working rules
 - Ask Kyle before installing any package, including `npx shadcn add`.

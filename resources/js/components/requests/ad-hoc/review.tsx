@@ -126,16 +126,18 @@ function Rows({ caption, rows, columns }: { caption: string; rows: Row[]; column
     );
 }
 
-interface SummaryPanelProps {
-    panelRef: RefObject<HTMLElement | null>;
+interface AdHocSummaryProps {
     detail: AdHocDetail;
-    config: AdHocConfig;
+    config: Pick<AdHocConfig, 'options' | 'not_awarded'>;
     documents: DocumentGroup[];
-    onSubmit: () => void;
 }
 
-/** A read-only summary of everything saved (the server's copy), then Submit. */
-export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: SummaryPanelProps) {
+/**
+ * Everything the vendor entered, section by section in form order, from the
+ * server's saved copy: the Review and submit panel and the request page after
+ * submitting show this same summary. Document names and scan states included.
+ */
+export function AdHocSummary({ detail, config, documents }: AdHocSummaryProps) {
     const r = detail.requisition;
     const unit = r.unit_of_measure ? ` ${r.unit_of_measure}` : '';
     const label = (options: { value: string; label: string }[], value: FieldValue) => options.find((o) => o.value === value)?.label ?? show(value);
@@ -144,19 +146,7 @@ export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: 
     const f = detail.figures;
 
     return (
-        <section
-            ref={panelRef}
-            tabIndex={-1}
-            aria-labelledby="review-summary-heading"
-            className="bg-card focus-visible:ring-ring space-y-6 rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
-        >
-            <div>
-                <h2 id="review-summary-heading" className="text-base font-semibold">
-                    Review your request
-                </h2>
-                <p className="text-muted-foreground text-sm">Everything below is saved. Check it, then submit.</p>
-            </div>
-
+        <div className="space-y-6">
             <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Item</h3>
                 <dl className="space-y-1">
@@ -168,6 +158,7 @@ export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: 
                         {show(r.quantity_requested)}
                         {unit}
                     </Item>
+                    <Item label="Unit of measure">{show(r.unit_of_measure)}</Item>
                     <Item label="Clinical importance">{show(r.clinical_note)}</Item>
                 </dl>
             </div>
@@ -269,6 +260,7 @@ export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: 
                     </Item>
                     <Item label="Quotations received">{f?.quotations_received ?? 0}</Item>
                     <Item label="Quotations considered">{f?.quotations_considered ?? 0}</Item>
+                    <Item label="Recommended unit price">{show(f?.recommended_unit_price)}</Item>
                     <Item label="Total cost (recommended)">{show(f?.total_cost)}</Item>
                 </dl>
             </div>
@@ -306,6 +298,35 @@ export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: 
                     ))}
                 </dl>
             </div>
+        </div>
+    );
+}
+
+interface SummaryPanelProps {
+    panelRef: RefObject<HTMLElement | null>;
+    detail: AdHocDetail;
+    config: AdHocConfig;
+    documents: DocumentGroup[];
+    onSubmit: () => void;
+}
+
+/** A read-only summary of everything saved (the server's copy), then Submit. */
+export function SummaryPanel({ panelRef, detail, config, documents, onSubmit }: SummaryPanelProps) {
+    return (
+        <section
+            ref={panelRef}
+            tabIndex={-1}
+            aria-labelledby="review-summary-heading"
+            className="bg-card focus-visible:ring-ring space-y-6 rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
+        >
+            <div>
+                <h2 id="review-summary-heading" className="text-base font-semibold">
+                    Review your request
+                </h2>
+                <p className="text-muted-foreground text-sm">Everything below is saved. Check it, then submit.</p>
+            </div>
+
+            <AdHocSummary detail={detail} config={config} documents={documents} />
 
             <div>
                 <Button type="button" className="h-11 md:h-9" onClick={onSubmit}>
