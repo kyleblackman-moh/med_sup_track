@@ -37,10 +37,10 @@ final class RequestSections
     ];
 
     public const LABELS = [
-        'item_tender' => 'Item and tender',
+        'item_tender' => 'Item and tender details',
         'variation_details' => 'Variation details',
         'awarded_supplier' => 'Awarded supplier',
-        'existing_arrangement' => 'Existing arrangement',
+        'existing_arrangement' => 'Existing approved arrangement',
         'stock' => 'Stock',
         'quotation_comparison' => 'Quotation comparison',
         'documents' => 'Documents',
@@ -168,6 +168,76 @@ final class RequestSections
         }
 
         return $sections;
+    }
+
+    /**
+     * Slice V2-2: per section, whether each field the form shows must be filled
+     * in before a draft of $code can be submitted (true) or may stay empty
+     * (false: the form says "(optional)"). Read from the same REQUIRES,
+     * ROW_FIELDS and VARIATION_FIELDS that errors() checks. Row columns are
+     * keyed "<section>.<column>" and are required whenever a row is entered;
+     * the variation's fields are keyed "variation.<field>". Until a type is
+     * chosen (V2-1c) nothing that depends on the type is optional.
+     *
+     * Two fields sit in a different section on the V2-2 screen than in
+     * SECTION_FIELDS: the tender issues text (under Existing arrangement) and
+     * the quantity on order (under Stock). Neither has a rule.
+     *
+     * @return array<string, array<string, bool>>
+     */
+    public static function requiredFields(string $code): array
+    {
+        $requires = self::REQUIRES[$code] ?? null;
+        $byType = fn (string $flag): bool => $requires === null || $requires[$flag];
+        $rows = function (string $section, array $columns): array {
+            $out = [];
+            foreach ($columns as $column) {
+                $out["{$section}.{$column}"] = array_key_exists($column, self::ROW_FIELDS[$section][1]);
+            }
+
+            return $out;
+        };
+
+        return [
+            'item_tender' => [
+                'item_description' => true,
+                'strength' => false,
+                'dosage_form' => false,
+                'din' => true,
+                'quantity_requested' => true,
+                'unit_of_measure' => true,
+                'tender_reference' => $byType('contract_reference'),
+                'tender_cycle_start' => true,
+                'tender_cycle_end' => true,
+                'clinical_note' => false,
+            ],
+            'variation_details' => array_fill_keys(
+                array_map(fn (string $field) => "variation.{$field}", array_keys(self::VARIATION_FIELDS)),
+                $byType('variation'),
+            ),
+            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
+            'existing_arrangement' => [
+                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_eta', 'delivery_status']),
+                'tender_issue_explanation' => false,
+            ],
+            'stock' => [
+                'stock_location' => false,
+                'average_monthly_consumption' => $byType('stock'),
+                'quantity_on_order' => false,
+                ...$rows('stock_expiries', ['quantity', 'expiry_date']),
+            ],
+            'quotation_comparison' => [
+                'rfq_audience' => false,
+                ...$rows('quotations', ['supplier_name', 'quantity_offered', 'unit_price', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks']),
+                // Asked only on a row that was not considered, and then required.
+                'quotations.reason_accepted_excluded' => true,
+                'quantity_to_purchase' => $byType('quotations'),
+                'tender_price' => false,
+                'previous_price' => false,
+                'price_note' => false,
+            ],
+            'documents' => [],
+        ];
     }
 
     /** True for a type-dependent section of a draft whose type is not one of the five (V2-1c). */

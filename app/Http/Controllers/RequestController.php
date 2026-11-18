@@ -11,6 +11,7 @@ use App\Http\Resources\Requests\FormConfig;
 use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
+use App\Http\Resources\Requests\RequestFormView;
 use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
@@ -332,6 +333,13 @@ class RequestController extends Controller
                 $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
 
                 return AdHocSections::requestSections($case, $report);
+            },
+            // Slice V2-2: numbered sections with states and required flags, display strings, the expiry warning.
+            'form' => function () use ($case, $evaluate) {
+                $report = $evaluate();
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+
+                return RequestFormView::for($case, $report);
             },
             'config' => fn () => [...AdHocFormConfig::for(), 'uploads' => RequestDocuments::uploadRules()],
             'documents' => fn () => RequestDocuments::for($case, $request->user()),
