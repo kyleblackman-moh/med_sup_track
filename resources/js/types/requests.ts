@@ -1,6 +1,8 @@
 // Shapes of the vendor request props (app/Http/Resources/Requests). Display only:
 // the server decides what is allowed and validates every save.
 
+import { type StatusTone } from './cases';
+
 export type Section = 'quotations' | 'tender_awards' | 'purchase_orders' | 'stock_expiries';
 
 export type OptionList = { value: string; label: string }[];
@@ -26,6 +28,8 @@ export interface RequestSummary {
     reference_no: string | null;
     status_label: string;
     status_group: string;
+    /** UI-4: the pill's tone, decided by the server (CaseStatus::vendorTone). */
+    status_tone: StatusTone;
     procurement_type: ProcurementTypeSummary;
     item_description: string | null;
     vendor_reference: string | null;

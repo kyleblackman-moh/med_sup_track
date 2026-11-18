@@ -1,10 +1,10 @@
 import { AdHocSummary } from '@/components/requests/ad-hoc/review';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
-import { StatusBadge } from '@/components/requests/status-badge';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocConfig, type AdHocDetail } from '@/types/ad-hoc';
@@ -45,7 +45,7 @@ export default function Show({ case: detail, documents, readiness, can, summary_
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <StatusBadge label={detail.status_label} group={detail.status_group} />
+                        <StatusPill label={detail.status_label} tone={detail.status_tone} />
                         {detail.can.edit && (
                             <Button asChild variant="outline" size="sm">
                                 <Link href={route('requests.edit', detail.id)}>Edit draft</Link>

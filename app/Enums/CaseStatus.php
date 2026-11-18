@@ -51,13 +51,30 @@ enum CaseStatus: string
      */
     public function tone(): string
     {
+        // UI-4: the design.md 0.5 section 3 table (was: the in-progress stages neutral,
+        // CLOSED success and WITHDRAWN danger). Changed on purpose.
         return match ($this) {
-            self::DRAFT, self::SUBMITTED, self::CMO_INTAKE, self::IN_REVIEW,
-            self::READY_FOR_FILE, self::FILE_PREPARED => 'neutral',
+            self::DRAFT, self::CLOSED, self::WITHDRAWN => 'neutral',
+            self::SUBMITTED, self::CMO_INTAKE, self::IN_REVIEW, self::READY_FOR_FILE,
+            self::FILE_PREPARED, self::WITH_LEGAL, self::WITH_PS => 'info',
+            self::NON_OBJECTION_GRANTED, self::LETTER_ISSUED => 'success',
             self::RETURNED_TO_CMO => 'warning',
-            self::WITH_LEGAL, self::WITH_PS => 'info',
-            self::NON_OBJECTION_GRANTED, self::LETTER_ISSUED, self::CLOSED => 'success',
-            self::REJECTED_FINAL, self::WITHDRAWN => 'danger',
+            self::REJECTED_FINAL => 'danger',
+        };
+    }
+
+    /**
+     * UI-4: the vendor pill's tone, from the vendor group (design.md section 3), so
+     * the vendor never sees an internal stage through a colour: every internal
+     * stage is "Under review" (info), including a return to the CMO.
+     */
+    public function vendorTone(): string
+    {
+        return match ($this->vendorGroup()) {
+            'DRAFT', 'WITHDRAWN' => 'neutral',
+            'SUBMITTED', 'UNDER_REVIEW' => 'info',
+            'LETTER_ISSUED', 'CLOSED' => 'success',
+            'NOT_APPROVED' => 'danger',
         };
     }
 

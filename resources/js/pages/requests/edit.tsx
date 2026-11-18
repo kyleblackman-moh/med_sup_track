@@ -13,8 +13,8 @@ import { FlashMessages } from '@/components/requests/flash-messages';
 import { FormActions } from '@/components/requests/form-actions';
 import { buildTabs, FormTabs } from '@/components/requests/form-tabs';
 import { RowList } from '@/components/requests/row-list';
-import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
+import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type UploadRules } from '@/types/requests';
@@ -153,7 +153,7 @@ export default function Edit({ case: detail, readiness, config, documents, can }
                             )}
                         </p>
                     </div>
-                    <StatusBadge label={detail.status_label} group={detail.status_group} />
+                    <StatusPill label={detail.status_label} tone={detail.status_tone} />
                 </header>
 
                 <FormTabs tabs={tabs} active={active} readiness={readiness} onSelect={select} />

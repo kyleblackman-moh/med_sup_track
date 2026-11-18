@@ -1,0 +1,54 @@
+import { cn } from '@/lib/utils';
+import { type ReactNode, useId } from 'react';
+
+interface SectionPanelProps {
+    title: string;
+    description?: ReactNode;
+    /**
+     * "split": the title in a left column (max 300px) and the white card on the
+     * right, for a card that holds only fields. "stacked": the title above a
+     * full-width card, for tables and entry rows (design.md section 7).
+     */
+    variant?: 'stacked' | 'split';
+    /** The section's anchor (for a progress strip link). */
+    id?: string;
+    /** Extra content beside the title (for example a count). */
+    aside?: ReactNode;
+    children: ReactNode;
+    className?: string;
+}
+
+/**
+ * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
+ * white card (1px border, 12px radius, shadow-xs, 20px padding).
+ */
+export function SectionPanel({ title, description, variant = 'stacked', id, aside, children, className }: SectionPanelProps) {
+    const headingId = useId();
+
+    const heading = (
+        <div className="min-w-0 space-y-1">
+            <div className="flex items-start justify-between gap-2">
+                <h2 id={headingId} className="text-sm font-semibold">
+                    {title}
+                </h2>
+                {aside}
+            </div>
+            {description && <div className="text-muted-foreground text-[13px]">{description}</div>}
+        </div>
+    );
+
+    return (
+        <section
+            id={id}
+            aria-labelledby={headingId}
+            className={cn(
+                'bg-muted scroll-mt-28 rounded-2xl p-4',
+                variant === 'split' ? 'grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]' : 'space-y-4',
+                className,
+            )}
+        >
+            {heading}
+            <div className="bg-card min-w-0 rounded-xl border p-5 shadow-xs">{children}</div>
+        </section>
+    );
+}

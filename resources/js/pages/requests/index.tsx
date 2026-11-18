@@ -1,9 +1,9 @@
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
-import { StatusBadge } from '@/components/requests/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { StatusPill } from '@/components/ui/status-pill';
 import { useLiveSearch } from '@/hooks/use-live-search';
 import AppLayout from '@/layouts/app-layout';
 import { rowLink } from '@/lib/row-link';
@@ -131,7 +131,7 @@ export default function Index({ title, filters, requests, can }: Props) {
                                             {request.item_description ?? <span className="text-muted-foreground">Not described yet</span>}
                                         </td>
                                         <td className="px-4 py-2">
-                                            <StatusBadge label={request.status_label} group={request.status_group} />
+                                            <StatusPill label={request.status_label} tone={request.status_tone} />
                                         </td>
                                         <td className="px-4 py-2 text-right whitespace-nowrap">
                                             {request.can.edit ? (

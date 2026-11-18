@@ -35,6 +35,8 @@ class RequestSummaryResource extends JsonResource
             'reference_no' => $case->reference_no,
             'status_label' => $case->status->vendorLabel(),
             'status_group' => $case->status->vendorGroup(),
+            'status_tone' => $case->status->vendorTone(), // UI-4: the pill's tone, decided here
+
             'procurement_type' => [
                 'code' => $type->code,
                 'name' => $type->name, // "Not selected" for a new draft (V2-1b)

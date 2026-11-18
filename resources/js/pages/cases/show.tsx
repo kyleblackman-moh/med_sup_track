@@ -3,12 +3,12 @@ import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
-import { StatusBadge } from '@/components/cases/status-badge';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -156,7 +156,7 @@ export default function CaseShow({
                     <div className="flex flex-wrap items-center gap-3">
                         {/* The reference is the page title here: mono, but kept at heading size. */}
                         <h1 className="font-mono text-2xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
-                        <StatusBadge label={detail.status_label} tone={detail.status_tone} />
+                        <StatusPill label={detail.status_label} tone={detail.status_tone} />
                     </div>
                     <p className="text-muted-foreground">{detail.item_description ?? 'No item description'}</p>
                 </header>

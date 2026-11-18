@@ -152,7 +152,7 @@ it('sends each row with exactly the list columns', function () {
     $rows = pageProps($this->actingAs($vendor)->get(route('requests.index'))->assertOk())['requests']['data'];
 
     expect(array_keys($rows[0]))->toBe([
-        'id', 'reference_no', 'status_label', 'status_group', 'procurement_type',
+        'id', 'reference_no', 'status_label', 'status_group', 'status_tone', 'procurement_type',
         'item_description', 'vendor_reference', 'updated_at', 'can',
     ])
         ->and(collect($rows)->firstWhere('reference_no', null))->not->toBeNull(); // drafts: "Not assigned" on screen

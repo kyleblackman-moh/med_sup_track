@@ -13,9 +13,9 @@ import { TypeChoice } from '@/components/requests/ad-hoc/type-choice';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
-import { StatusBadge } from '@/components/requests/status-badge';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type SavedFlash, type SectionKey, type SectionStatus } from '@/types/ad-hoc';
@@ -221,7 +221,7 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
                         <h1 className="text-lg font-semibold">Ad hoc purchase request</h1>
                         <p className="text-muted-foreground flex items-center gap-2 text-sm">
                             {detail.reference_no && <span className="font-mono text-xs">{detail.reference_no}</span>}
-                            <StatusBadge label={detail.status_label} group={detail.status_group} />
+                            <StatusPill label={detail.status_label} tone={detail.status_tone} />
                         </p>
                     </div>
                     <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />

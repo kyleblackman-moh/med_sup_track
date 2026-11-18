@@ -1,6 +1,6 @@
-import { StatusBadge } from '@/components/cases/status-badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatusPill } from '@/components/ui/status-pill';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
@@ -144,7 +144,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                   <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.organisation ?? '—'}</TableCell>
                                               )}
                                               <TableCell className={cell}>
-                                                  <StatusBadge label={row.status_label} tone={row.status_tone} hasOpenQuery={row.has_open_query} />
+                                                  <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} />
                                               </TableCell>
                                               <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.holder_label ?? '—'}</TableCell>
                                               <TableCell className={cn(cell, 'tabular-nums')}>{formatDate(row.submitted_at)}</TableCell>
@@ -173,7 +173,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                       >
                                           <span className="flex items-center justify-between gap-2">
                                               <span className="font-mono text-[13px] font-medium">{row.reference_no ?? '—'}</span>
-                                              <StatusBadge label={row.status_label} tone={row.status_tone} hasOpenQuery={row.has_open_query} />
+                                              <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} />
                                           </span>
                                           <span className="block truncate text-sm">{row.item_description ?? '—'}</span>
                                           <span className="text-muted-foreground block text-xs">

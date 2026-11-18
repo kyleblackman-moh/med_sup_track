@@ -1,5 +1,5 @@
-import { StatusBadge } from '@/components/cases/status-badge';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/ui/status-pill';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
@@ -123,7 +123,7 @@ export function WorkQueue({ queue }: { queue: WorkQueueData }) {
                                             </td>
                                             <td className={cn(cell, 'hidden lg:table-cell')}>{item.organisation ?? '—'}</td>
                                             <td className={cell}>
-                                                <StatusBadge label={item.status_label} tone={item.status_tone} />
+                                                <StatusPill label={item.status_label} tone={item.status_tone} />
                                             </td>
                                             <td className={cn(cell, 'text-right tabular-nums')}>{waitingLabel(item.days_waiting)}</td>
                                         </tr>
