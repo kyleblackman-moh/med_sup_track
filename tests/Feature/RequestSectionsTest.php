@@ -1,24 +1,22 @@
 <?php
 
-use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Role;
 use App\Models\CaseRequisition;
-use App\Models\CaseVariation;
+use App\Models\CaseVariationRow;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Submissions\ChangeRequestType;
 use App\Submissions\Exceptions\DraftNotEditable;
-use App\Submissions\Exceptions\SubmissionNotReady;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequestSections;
-use App\Submissions\RequisitionData;
 use App\Submissions\SubmissionReadiness;
 use App\Submissions\SubmitCase;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -66,7 +64,7 @@ function v2Draft(string $code, ?Closure $mutate = null, bool $variation = true, 
     if ($code === 'TENDER_VARIATION' && $variation) {
         // V2-5: the variation details show (and are required) when the answer is Yes.
         $payload['previous_request_in_cycle'] = true;
-        $payload['variation'] = variationEntry();
+        $payload['variation_rows'] = [variationEntry()];
     }
     saveDraft($case, $vendor, $mutate ? $mutate($payload) : $payload);
 
@@ -152,7 +150,8 @@ it('puts every readiness key in a section', function (string $key, string $secti
     ['requisition.tender_cycle_end', 'request_type'],
     ['requisition.din', 'item_tender'],
     ['requisition.tender_reference', 'item_tender'],
-    ['variation.effective_date', 'variation_details'],
+    ['variation_rows', 'variation_details'],
+    ['variation_rows.0.effective_detail', 'variation_details'],
     ['tender_awards', 'awarded_supplier'],
     ['tender_awards.0.unit_cost', 'awarded_supplier'],
     ['purchase_orders.1.po_number', 'existing_arrangement'],
@@ -193,7 +192,7 @@ dataset('requirements', [
     'a recommended quotation' => ['quotes', fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier D', '1.5975')]], true, true, ['quotations.recommended'], 'quotation_comparison'],
     'quantity to purchase' => ['quotes', fn ($p) => withRequisition($p, ['quantity_to_purchase' => null]), true, true, ['requisition.quantity_to_purchase'], 'quotation_comparison'],
     // V2-5: every type, once the answer is Yes.
-    'variation details' => [null, fn ($p) => [...$p, 'previous_request_in_cycle' => true], false, true, ['variation.variation_type', 'variation.existing_detail', 'variation.proposed_detail', 'variation.effective_date'], 'variation_details'],
+    'variation details' => [null, fn ($p) => [...$p, 'previous_request_in_cycle' => true], false, true, ['variation_rows'], 'variation_details'],
     'Bids file' => ['bids', null, true, false, ['documents.bids'], 'documents'],
 ]);
 
@@ -291,95 +290,9 @@ it('asks an old AD_HOC draft to choose one of the five types first', function ()
     expect(v2Report(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->errors)->toBe([]);
 });
 
-// 3. Hidden data is discarded at submit -------------------------------------------
+// 3. Hidden data and the variation rows: VariationRowsTest (V2-5) ---------------------
 
-it('discards the variation entry at submit for every type but Tender Variation', function (string $code) {
-    [$case, $vendor] = readyDraft($code);
-    saveDraft($case, $vendor, ['variation' => variationEntry()]);
-    expect(CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->exists())->toBeTrue(); // kept in the draft
-
-    app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
-
-    $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->sole();
-    expect(CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->exists())->toBeFalse()
-        ->and(json_decode($audit->metadata, true))->toBe(['reason' => 'section_hidden', 'counts' => ['variation_details' => 1]])
-        // Nothing else is discarded: awards and orders stay whatever the type.
-        ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2)
-        ->and(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1);
-})->with(['AD_HOC_EMERGENCY', 'AD_HOC_TENDER_UNABLE', 'AD_HOC_NOT_AWARDED', 'TENDER_EXCESS']);
-
-it('keeps the variation entry of a Tender Variation at submit, and discards nothing', function () {
-    [$case, $vendor] = readyDraft('TENDER_VARIATION');
-
-    app(SubmitCase::class)->handle($case, $vendor);
-
-    expect(CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->value('variation_type'))->toBe('Price')
-        ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->exists())->toBeFalse();
-});
-
-it('keeps the variation entry if the submit is refused', function () {
-    [$case, $vendor] = v2Draft('AD_HOC_EMERGENCY', fn ($p) => [...withRequisition($p, ['item_description' => null]), 'variation' => variationEntry()]);
-
-    expect(fn () => app(SubmitCase::class)->handle($case, $vendor))->toThrow(SubmissionNotReady::class);
-
-    expect(CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->exists())->toBeTrue();
-});
-
-// 4. The variation entry and the new fields on save --------------------------------
-
-it('upserts one variation row: partial saves merge, a blank entry is not kept, null clears it', function () {
-    [$case, $vendor] = newDraft('TENDER_VARIATION');
-    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]); // V2-5: shown (and checked) only when Yes
-    $row = fn () => CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->get();
-
-    saveDraft($case, $vendor, ['variation' => ['variation_type' => '', 'existing_detail' => null]]);
-    expect($row())->toHaveCount(0); // blank: ignored
-
-    saveDraft($case, $vendor, ['variation' => ['variation_type' => 'Price']]);
-    $id = $row()->sole()->id;
-    saveDraft($case, $vendor, ['variation' => ['effective_date' => '2027-01-01']]);
-    expect($row()->sole()->id)->toBe($id)
-        ->and($row()->sole()->variation_type)->toBe('Price')
-        ->and($row()->sole()->effective_date->toDateString())->toBe('2027-01-01');
-
-    // A partial entry saves; it is an error at submit only.
-    expect(v2Keys(v2Report($case)))->toContain('variation.existing_detail', 'variation.proposed_detail')
-        ->not->toContain('variation.variation_type', 'variation.effective_date');
-
-    saveDraft($case, $vendor, ['variation' => ['variation_type' => ' ', 'effective_date' => null]]);
-    expect($row())->toHaveCount(0); // cleared to blank: deleted
-
-    saveDraft($case, $vendor, ['variation' => variationEntry()]);
-    saveDraft($case, $vendor, ['variation' => null]);
-    expect($row())->toHaveCount(0);
-});
-
-it('validates the variation entry and refuses it for the old types', function (string $code, array $payload, string $key) {
-    [$case] = draftOf($code);
-
-    try {
-        RequisitionData::validate($payload, $case->procurementType()->firstOrFail());
-        $this->fail('accepted');
-    } catch (ValidationException $e) {
-        expect($e->errors())->toHaveKey($key);
-    }
-})->with([
-    ['TENDER_VARIATION', ['variation' => ['variation_type' => str_repeat('x', 101)]], 'variation.variation_type'],
-    ['TENDER_VARIATION', ['variation' => ['existing_detail' => str_repeat('x', 501)]], 'variation.existing_detail'],
-    ['TENDER_VARIATION', ['variation' => ['effective_date' => '01/01/2027']], 'variation.effective_date'],
-    ['TENDER_VARIATION', ['variation' => ['case_id' => 'x']], 'variation.case_id'],
-    ['TENDER_VARIATION', ['variation' => 'text'], 'variation'],
-    ['AD_HOC_PHARM', ['variation' => variationEntry()], 'variation'],
-]);
-
-it('audits a save with the variation by count only, never its text', function () {
-    [$case, $vendor] = newDraft('TENDER_VARIATION');
-    saveDraft($case, $vendor, ['variation' => variationEntry()]);
-
-    $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftSaved->value)->latest('id')->first();
-    expect(json_decode($audit->metadata, true))->toBe(['sections' => ['variation'], 'counts' => ['variation' => 1]])
-        ->and($audit->metadata)->not->toContain('Unit Cost')->not->toContain('Price');
-});
+// 4. The new fields on save ------------------------------------------------------------
 
 it('saves and returns the new V2-1 fields', function () {
     [$case, $vendor] = v2Draft('TENDER_VARIATION');
@@ -393,12 +306,12 @@ it('saves and returns the new V2-1 fields', function () {
         ->and($detail['tender_awards'][0]['country_of_origin'])->toBe('Country A')
         ->and($detail['quotations'][1])->toMatchArray(['ex_stock' => true, 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.'])
         ->and($detail['quotations'][0]['ex_stock'])->toBeNull()
-        ->and($detail['variation'])->toBe(variationEntry());
+        ->and(collect($detail['variation_rows'])->map(fn ($r) => Arr::except($r, 'id'))->all())->toBe([variationEntry()]);
 
     // Staff see the same content once submitted.
     app(SubmitCase::class)->handle($case, $vendor);
     $staff = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk())['case'];
-    expect($staff['variation'])->toBe(variationEntry())
+    expect(collect($staff['variation_rows'])->map(fn ($r) => Arr::except($r, 'id'))->all())->toBe([variationEntry()])
         ->and($staff['requisition']['tender_cycle_end'])->toBe('2027-12-31');
 });
 
@@ -419,8 +332,8 @@ it('changes the type of a draft and audits the two codes only', function () {
         ->and(json_decode($audit->metadata, true))->toBe(['from' => 'TENDER_VARIATION', 'to' => 'AD_HOC_EMERGENCY'])
         ->and((int) $audit->actor_user_id)->toBe($vendor->id)
         ->and($audit->metadata)->not->toContain($typed)
-        // Hidden now, but kept until submit: the type may change back.
-        ->and(CaseVariation::withoutGlobalScopes()->where('case_id', $case->id)->exists())->toBeTrue();
+        // V2-5: the variation rows depend on the answer, not the type; kept (and still shown).
+        ->and(CaseVariationRow::withoutGlobalScopes()->where('case_id', $case->id)->exists())->toBeTrue();
 });
 
 it('writes nothing when the type does not change', function () {

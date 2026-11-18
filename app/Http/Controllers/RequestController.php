@@ -318,21 +318,21 @@ class RequestController extends Controller
             'case' => fn () => $this->detail($request, $case),
             'sections' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return AdHocSections::for($case, $report);
             },
             // Slice V2-1: the sections this type shows, in order, with their issues (the V2-2 screen).
             'request_sections' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return AdHocSections::requestSections($case, $report);
             },
             // Slice V2-2: numbered sections with states and required flags, display strings, the expiry warning.
             'form' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return RequestFormView::for($case, $report);
             },
@@ -351,7 +351,7 @@ class RequestController extends Controller
 
     private function detail(Request $request, ProcurementCase $case): array
     {
-        $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+        $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
         return (new RequestDetailResource($case))->resolve($request);
     }

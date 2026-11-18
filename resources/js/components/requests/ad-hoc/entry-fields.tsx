@@ -2,7 +2,7 @@ import { EntryCell } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
-import { controlHeight } from './fields';
+import { controlHeight, textareaClass } from './fields';
 
 // V2-2: the cells of the form's entry tables (EntryTable). Each control's
 // accessible name is "<column>, <row label>", so a screen reader user always
@@ -44,6 +44,43 @@ export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text'
                 maxLength={maxLength}
                 value={value}
                 className={cn(controlHeight, 'w-full min-w-0')}
+                aria-label={`${label}, ${rowLabel}`}
+                aria-required={required ? true : undefined}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
+                onChange={(e) => onChange(e.target.value)}
+            />
+            <CellError id={errorId} message={error} />
+        </EntryCell>
+    );
+}
+
+interface EntryTextAreaProps {
+    id: string;
+    label: string;
+    rowLabel: string;
+    value: string;
+    onChange: (value: string) => void;
+    error?: string;
+    maxLength?: number;
+    /** Visible rows (V2-5: 2 for the variation details). */
+    rows?: number;
+    className?: string;
+    required?: boolean;
+}
+
+/** V2-5: a short textarea cell, named "<column>, <row label>" like EntryInput. */
+export function EntryTextArea({ id, label, rowLabel, value, onChange, error, maxLength, rows = 2, className, required }: EntryTextAreaProps) {
+    const errorId = `${id}-error`;
+
+    return (
+        <EntryCell label={label} htmlFor={id} className={className}>
+            <textarea
+                id={id}
+                rows={rows}
+                maxLength={maxLength}
+                value={value}
+                className={cn(textareaClass, 'min-h-0 w-full min-w-0')}
                 aria-label={`${label}, ${rowLabel}`}
                 aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}

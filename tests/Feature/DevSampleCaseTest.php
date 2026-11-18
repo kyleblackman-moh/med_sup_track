@@ -91,7 +91,7 @@ it('submits a sample of each request type, with a variation entry for a Tender V
     $case = latestSample();
     expect($case->status)->toBe(CaseStatus::SUBMITTED)
         ->and($case->procurementType->code)->toBe($type)
-        ->and(DB::table('case_variations')->where('case_id', $case->id)->exists())->toBe($type === 'TENDER_VARIATION');
+        ->and(DB::table('case_variation_rows')->where('case_id', $case->id)->exists())->toBe($type === 'TENDER_VARIATION');
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('uses Ad Hoc - Tender unable to supply by default', function () {

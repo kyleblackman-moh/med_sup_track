@@ -162,7 +162,6 @@ export default function AdHocEdit({
         config,
         form,
         setField: (name, value) => update((current) => ({ ...current, requisition: { ...current.requisition, [name]: value } })),
-        setVariation: (name, value) => update((current) => ({ ...current, variation: { ...current.variation, [name]: value } })),
         setPreviousRequest: (value) => {
             if (state.previousRequest === true && value === false) {
                 setVariationHidden(true);

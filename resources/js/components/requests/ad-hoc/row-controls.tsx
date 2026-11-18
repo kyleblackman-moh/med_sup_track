@@ -2,11 +2,27 @@ import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
+interface AddRowButtonProps {
+    label: string;
+    onClick: () => void;
+    disabled: boolean;
+    cap: number;
+    /** V2-5: "text" is a text (link-style) button, as "Add Another Variation". Default: outline. */
+    variant?: 'outline' | 'text';
+}
+
 /** V2-2: the "Add ..." button at the bottom of an entry table, left aligned. */
-export function AddRowButton({ label, onClick, disabled, cap }: { label: string; onClick: () => void; disabled: boolean; cap: number }) {
+export function AddRowButton({ label, onClick, disabled, cap, variant = 'outline' }: AddRowButtonProps) {
     return (
         <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="outline" size="sm" onClick={onClick} disabled={disabled}>
+            <Button
+                type="button"
+                variant={variant === 'text' ? 'link' : 'outline'}
+                size="sm"
+                className={variant === 'text' ? 'px-0 font-semibold' : undefined}
+                onClick={onClick}
+                disabled={disabled}
+            >
                 <Plus aria-hidden />
                 {label}
             </Button>

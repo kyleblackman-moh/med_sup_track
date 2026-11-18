@@ -91,12 +91,14 @@ it('shows Details of Variation Requested only when the answer is Yes (a complete
     $summary = summaryOf($case, $vendor);
 
     if ($code === 'TENDER_VARIATION') {
+        $table = summaryTable($summary, 'variation_details', 'Details of Variation Requested');
         expect(summarySection($summary, 'variation_details')['number'])->toBe(3)
-            ->and(summaryFields($summary, 'variation_details'))->toBe([
-                'Variation Type' => 'Price',
-                'Existing Approved Detail' => 'Unit cost 1.25 under the current contract.',
-                'Proposed Revised Detail' => 'Unit cost 1.40 from the next delivery.',
-                'Effective Date' => '1 Jan 2027',
+            ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1'])
+            ->and($table['rows'][0]['cells'])->toBe([
+                'variation_type' => 'Price',
+                'existing_detail' => 'Unit cost 1.25 under the current contract.',
+                'proposed_detail' => 'Unit cost 1.40 from the next delivery.',
+                'effective_detail' => 'From 1 Jan 2027, PO-2207',
             ]);
     } else {
         expect(summarySection($summary, 'variation_details'))->toBeNull();

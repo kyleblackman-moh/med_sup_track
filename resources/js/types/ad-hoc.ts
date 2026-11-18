@@ -1,10 +1,10 @@
 // Props of the AD_HOC single-page form (slice F2). Display only: the server
 // validates every save, computes every figure and decides what is complete.
 
-import { type DocumentGroup, type FieldValue, type OptionList, type RequestDetail, type UploadRules } from './requests';
+import { type DocumentGroup, type OptionList, type RequestDetail, type Row, type UploadRules } from './requests';
 import { type RequestSummaryView } from './summary';
 
-export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations';
+export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations' | 'variation_rows';
 
 export interface SectionIssue {
     /** Readiness key, for example "tender_awards.0.unit_cost". */
@@ -32,8 +32,8 @@ export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
     figures: AdHocFigures | null;
     /** V2-5: "Was a request previously made for this drug in this current tender cycle?"; null = not answered. */
     previous_request_in_cycle: boolean | null;
-    /** V2-1: the Tender Variation entry; null when none is saved. */
-    variation: Record<string, FieldValue> | null;
+    /** V2-5: Details of Variation Requested, in saved order. */
+    variation_rows: Row[];
 };
 
 export interface AdHocConfig {

@@ -224,7 +224,7 @@ class DevSampleCase extends Command
         // V2-5: every sample answers the previous-request question; a Tender Variation
         // answers Yes and gets its variation entry, the other types answer No.
         $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION
-            ? ['previous_request_in_cycle' => true, 'variation' => self::variation()]
+            ? ['previous_request_in_cycle' => true, 'variation_rows' => [self::variation()]]
             : ['previous_request_in_cycle' => false];
         $save([...self::payload(), ...$variation]);
         $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $this->case->getKey())->orderBy('sort_order')->value('id');
@@ -310,14 +310,14 @@ class DevSampleCase extends Command
         ];
     }
 
-    /** The variation entry of a Tender Variation sample (slice V2-1). */
+    /** A variation row of a Tender Variation sample (V2-5: one row of Details of Variation Requested). */
     public static function variation(): array
     {
         return [
             'variation_type' => 'Price',
             'existing_detail' => 'Dev sample: unit cost 0.65 under the current contract.',
             'proposed_detail' => 'Dev sample: unit cost 0.72 from the next delivery.',
-            'effective_date' => CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->toDateString(),
+            'effective_detail' => 'From '.CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->format('j M Y'),
         ];
     }
 

@@ -158,14 +158,14 @@ function adHocPayload(): array
     ];
 }
 
-/** A complete Tender Variation entry (slice V2-1); $overrides replace or add fields. */
+/** A complete variation row (V2-5, Details of Variation Requested); $overrides replace or add fields. */
 function variationEntry(array $overrides = []): array
 {
     return [
         'variation_type' => 'Price',
         'existing_detail' => 'Unit cost 1.25 under the current contract.',
         'proposed_detail' => 'Unit cost 1.40 from the next delivery.',
-        'effective_date' => '2027-01-01',
+        'effective_detail' => 'From 1 Jan 2027, PO-2207',
         ...$overrides,
     ];
 }
@@ -206,7 +206,7 @@ function saveCompleteAdHoc(ProcurementCase $case, User $vendor): ProcurementCase
 {
     // V2-5: a Tender Variation answers Yes and gives its variation details.
     $variation = $case->procurementType()->value('code') === 'TENDER_VARIATION'
-        ? ['previous_request_in_cycle' => true, 'variation' => variationEntry()]
+        ? ['previous_request_in_cycle' => true, 'variation_rows' => [variationEntry()]]
         : [];
     saveDraft($case, $vendor, [...adHocPayload(), ...$variation]);
 

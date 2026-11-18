@@ -7,7 +7,7 @@ use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Models\CaseAssignment;
 use App\Models\CaseTransition;
-use App\Models\CaseVariation;
+use App\Models\CaseVariationRow;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\Exceptions\SubmissionNotReady;
@@ -103,7 +103,7 @@ final class SubmitCase
         $counts = [];
         foreach (RequestSections::discardedAtSubmit($code, SubmissionReadiness::previousRequest($case)) as $section) {
             $counts[$section] = match ($section) {
-                'variation_details' => CaseVariation::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
+                'variation_details' => CaseVariationRow::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
             };
         }
 

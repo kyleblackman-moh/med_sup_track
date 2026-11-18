@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  *
  *   ['requisition' => [...], 'quotations' => [rows], 'tender_awards' => [rows],
  *    'purchase_orders' => [rows], 'stock_expiries' => [rows],
- *    'variation' => [...]]   (request form only, slice V2-1)
+ *    'previous_request_in_cycle' => bool|null, 'variation_rows' => [rows]]   (request form only, V2-5)
  *
  * Field types, lengths and ranges follow the slice 6b columns. Every requisition
  * field is nullable (a draft saves incomplete). Child rows must carry the
@@ -43,9 +43,16 @@ final class RequisitionRules
         'requisition.din.regex' => 'Enter the DIN using letters and numbers only.',
     ];
 
+    /**
+     * V2-5: row sections of the request form only (not in ProcurementTypeProfile::SECTIONS,
+     * so the old types never accept them). Saved exactly like the award rows.
+     */
+    public const FORM_SECTIONS = ['variation_rows'];
+
     public const ROW_CAPS = [
         'quotations' => 50,
         'tender_awards' => 20,
+        'variation_rows' => 20, // V2-5: the award rows' cap
         'purchase_orders' => 20,
         'stock_expiries' => 20,
     ];
@@ -91,33 +98,24 @@ final class RequisitionRules
         // V2-5: the previous-request answer (a case column); request form only. Null clears it.
         $rules['previous_request_in_cycle'] = $profile->isAdHocForm() ? ['sometimes', 'nullable', 'boolean'] : ['missing'];
 
-        // Slice V2-1: the variation entry (one object, not a list); request form only.
-        if ($profile->isAdHocForm()) {
-            $rules['variation'] = ['sometimes', 'nullable', 'array'];
-            foreach (self::variationFields() as $field => $spec) {
-                $rules["variation.{$field}"] = self::rulesFor($spec);
+        // V2-5: the variation rows, request form only; the same list rules as the award rows.
+        foreach (self::FORM_SECTIONS as $section) {
+            if (! $profile->isAdHocForm()) {
+                $rules[$section] = ['missing'];
+
+                continue;
             }
-        } else {
-            $rules['variation'] = ['missing'];
+
+            $rules[$section] = ['sometimes', 'array', 'list', 'max:'.self::ROW_CAPS[$section]];
+            $rules["{$section}.*"] = ['array'];
+            foreach (self::rowFields($section, $type->code) as $field => $spec) {
+                $rules["{$section}.*.{$field}"] = self::rulesFor($spec);
+            }
+            $rules["{$section}.*.id"][] = 'distinct';
+            $rules["{$section}.*.client_key"][] = 'distinct';
         }
 
         return $rules;
-    }
-
-    /**
-     * The Tender Variation entry (slice V2-1): one row per case, every field
-     * optional at save; required at submit for TENDER_VARIATION (RequestSections).
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function variationFields(): array
-    {
-        return [
-            'variation_type' => self::str(100),
-            'existing_detail' => self::str(500),
-            'proposed_detail' => self::str(500),
-            'effective_date' => ['type' => 'date'],
-        ];
     }
 
     /**
@@ -139,17 +137,13 @@ final class RequisitionRules
         };
 
         $formType = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
-        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['variation', 'previous_request_in_cycle'] : [])], '');
+        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['previous_request_in_cycle', ...self::FORM_SECTIONS] : [])], '');
 
         if (is_array($payload['requisition'] ?? null)) {
             $check($payload['requisition'], array_keys(self::requisitionFields($code)), 'requisition.');
         }
 
-        if ($formType && is_array($payload['variation'] ?? null)) {
-            $check($payload['variation'], array_keys(self::variationFields()), 'variation.');
-        }
-
-        foreach (ProcurementTypeProfile::SECTIONS as $section) {
+        foreach ([...ProcurementTypeProfile::SECTIONS, ...($formType ? self::FORM_SECTIONS : [])] as $section) {
             foreach (is_array($payload[$section] ?? null) ? $payload[$section] : [] as $i => $row) {
                 if (is_array($row)) {
                     $check($row, array_keys(self::rowFields($section, $code)), "{$section}.{$i}.");
@@ -382,6 +376,15 @@ final class RequisitionRules
                 'id' => $id,
                 'quantity' => ['type' => 'qty'],
                 'expiry_date' => ['type' => 'date'],
+            ],
+            // V2-5: Details of Variation Requested. The effective date or application
+            // P.O. is one free-text field (assumption, see the V2-5 report).
+            'variation_rows' => [
+                'id' => $id,
+                'variation_type' => self::str(100),
+                'existing_detail' => self::str(500),
+                'proposed_detail' => self::str(500),
+                'effective_detail' => self::str(100),
             ],
         };
     }

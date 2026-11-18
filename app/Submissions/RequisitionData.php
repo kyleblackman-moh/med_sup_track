@@ -13,9 +13,9 @@ use Illuminate\Validation\ValidationException;
  * strings, integers and booleans as such. Only keys present in the payload are
  * kept: an absent key means "unchanged", null means "clear".
  *
- * Slice V2-1: the variation entry (request form only). hasVariation is false
- * when the payload has no "variation" key; $variation is null when it was sent
- * as null (clear it), else the fields sent.
+ * V2-5: the previous-request answer (request form only): hasPreviousRequest is
+ * false when the payload has no such key. The variation rows are a section like
+ * the award rows (RequisitionRules::FORM_SECTIONS).
  */
 final readonly class RequisitionData
 {
@@ -27,8 +27,6 @@ final readonly class RequisitionData
     private function __construct(
         public ?array $requisition,
         public array $sections,
-        public bool $hasVariation = false,
-        public ?array $variation = null,
         public bool $hasPreviousRequest = false,
         public ?bool $previousRequest = null,
     ) {}
@@ -52,17 +50,13 @@ final readonly class RequisitionData
             : null;
 
         $sections = [];
-        foreach (ProcurementTypeProfile::SECTIONS as $section) {
+        // Validation has refused FORM_SECTIONS for the old types ("missing").
+        foreach ([...ProcurementTypeProfile::SECTIONS, ...RequisitionRules::FORM_SECTIONS] as $section) {
             if (array_key_exists($section, $payload)) {
                 $fields = RequisitionRules::rowFields($section, $type->code);
                 $sections[$section] = array_map(fn (array $row) => self::normalise($row, $fields), $payload[$section]);
             }
         }
-
-        $hasVariation = array_key_exists('variation', $payload);
-        $variation = $hasVariation && $payload['variation'] !== null
-            ? self::normalise($payload['variation'], RequisitionRules::variationFields())
-            : null;
 
         // V2-5: the previous-request answer; absent = unchanged, null = not answered.
         $hasPreviousRequest = array_key_exists('previous_request_in_cycle', $payload);
@@ -70,7 +64,7 @@ final readonly class RequisitionData
             ? filter_var($payload['previous_request_in_cycle'], FILTER_VALIDATE_BOOLEAN)
             : null;
 
-        return new self($requisition, $sections, $hasVariation, $variation, $hasPreviousRequest, $previousRequest);
+        return new self($requisition, $sections, $hasPreviousRequest, $previousRequest);
     }
 
     /**

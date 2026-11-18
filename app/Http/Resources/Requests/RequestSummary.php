@@ -8,6 +8,7 @@ use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\CaseVariationRow;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
@@ -58,7 +59,7 @@ final class RequestSummary
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
     public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true): ?array
     {
-        $case->loadMissing(['procurementType', 'requisition', 'variation', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+        $case->loadMissing(['procurementType', 'requisition', 'variationRows', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
         $code = (string) $case->procurementType?->code;
 
         if (! ProcurementTypeProfile::for($code)->isAdHocForm()) {
@@ -122,16 +123,24 @@ final class RequestSummary
         ])];
     }
 
+    /**
+     * V2-5: Details of Variation Requested as a table ("Variation Row N"; an
+     * empty value is a dash; no rows is "None entered"). Only reached when the
+     * section is visible (the answer is Yes): hidden rows are never shown.
+     */
     private static function variation(ProcurementCase $case): array
     {
-        $v = $case->variation;
-
-        return [self::fields([
-            'Variation Type' => Display::text($v?->variation_type),
-            'Existing Approved Detail' => Display::text($v?->existing_detail),
-            'Proposed Revised Detail' => Display::text($v?->proposed_detail),
-            'Effective Date' => self::date($v?->effective_date),
-        ])];
+        return [self::table('Details of Variation Requested', 'Variation Row', [
+            'variation_type' => 'Variation Type',
+            'existing_detail' => 'Existing Approved Detail',
+            'proposed_detail' => 'Proposed Revised Detail',
+            'effective_detail' => 'Effective Date / Application P.O.',
+        ], $case->variationRows->map(fn (CaseVariationRow $v) => [
+            'variation_type' => Display::text($v->variation_type),
+            'existing_detail' => Display::text($v->existing_detail),
+            'proposed_detail' => Display::text($v->proposed_detail),
+            'effective_detail' => Display::text($v->effective_detail),
+        ])->values()->all())];
     }
 
     private static function awards(ProcurementCase $case): array

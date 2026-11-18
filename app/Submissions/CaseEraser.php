@@ -41,7 +41,8 @@ final class CaseEraser
         'tender_awards' => 'case_tender_awards',
         'quotations' => 'case_quotations',
         'stock_expiries' => 'case_stock_expiries',
-        'variations' => 'case_variations', // slice V2-1
+        'variations' => 'case_variations', // slice V2-1 (unused since V2-5; old drafts may still have a row)
+        'variation_rows' => 'case_variation_rows', // V2-5
         'requisitions' => 'case_requisitions',
         'documents' => 'documents',
     ];

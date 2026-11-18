@@ -9,7 +9,6 @@ export interface FormApi {
     /** V2-2: the server's sections, display strings and expiry warning. */
     form: RequestFormView;
     setField: (name: string, value: Value) => void;
-    setVariation: (name: string, value: Value) => void;
     /** V2-5: answers the previous-request question (saved by the autosave). */
     setPreviousRequest: (value: boolean) => void;
     setCell: (section: ChildSection, rowKey: string, name: string, value: Value) => void;
@@ -27,7 +26,7 @@ export interface FormApi {
     /** A request field's problem: a rejected save first, then (after Review) the server's readiness issue. */
     fieldError: (name: string) => string | undefined;
     cellError: (section: ChildSection, row: LocalRow, index: number, name: string) => string | undefined;
-    /** A problem by its full key ("tender_awards", "quotations.recommended", "variation.effective_date"). */
+    /** A problem by its full key ("tender_awards", "quotations.recommended", "variation_rows"). */
     tableError: (key: string) => string | undefined;
 }
 

@@ -20,7 +20,7 @@ export const controlHeight = 'h-11 md:h-10 bg-input-bg aria-invalid:border-destr
 /** The field label (15px/600). */
 export const fieldLabel = 'text-[15px] leading-snug font-semibold';
 
-const textareaClass =
+export const textareaClass =
     'border-input bg-input-bg aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive-wash placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
 
 /** Error text, linked from the control with aria-describedby. */

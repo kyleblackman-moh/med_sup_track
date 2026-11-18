@@ -20,10 +20,7 @@ export function targetFor(issue: SectionIssue, state: FormState): string {
     if (first === 'documents') {
         return fieldId.table('documents');
     }
-    // V2-2: the variation's fields, and the type cards ("Choose a request type").
-    if (first === 'variation') {
-        return fieldId.variation(second);
-    }
+    // The type cards ("Choose a request type"). V2-5: the variation rows are a row section (below).
     if (first === 'request_type') {
         return 'request-type';
     }

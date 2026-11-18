@@ -5,7 +5,6 @@ namespace App\Submissions;
 use App\Enums\ScanStatus;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
-use App\Models\CaseVariation;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
@@ -22,7 +21,7 @@ use Illuminate\Support\Collection;
  * Interim rules until the CMO's office confirms them. Read-only.
  *
  * Errors are keyed like the payload ("requisition.din", "tender_awards",
- * "quotations.0.unit_price", "variation.effective_date"), so the form can link
+ * "quotations.0.unit_price", "variation_rows.0.effective_detail"), so the form can link
  * to the field; sectionOf() maps a key to its section. Rows are re-indexed
  * from 0 in saved order. A completely blank row never reaches here
  * (SaveRequisition drops it); every saved row must be complete.
@@ -85,7 +84,7 @@ final class RequestSections
             'clinical_note', 'tender_reference', 'tender_issue_explanation',
             'tender_outcome', // unused since V2-1; the old screen still shows it until V2-2
         ],
-        'variation_details' => ['variation'],
+        'variation_details' => ['variation_rows'],
         'awarded_supplier' => ['tender_awards'],
         'existing_arrangement' => ['purchase_orders', 'quantity_on_order'],
         'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
@@ -121,15 +120,17 @@ final class RequestSections
             'unit_price' => 'enter the unit price',
             'quantity_offered' => 'enter the quantity offered',
         ]],
+        // V2-5: every column of a variation row is required once the row is entered.
+        'variation_rows' => ['Variation row', [
+            'variation_type' => 'enter the variation type',
+            'existing_detail' => 'enter the existing approved detail',
+            'proposed_detail' => 'enter the proposed revised detail',
+            'effective_detail' => 'enter the effective date or application P.O', // checkRows adds the final "."
+        ]],
     ];
 
-    /** Variation fields that must be filled in (when the previous-request answer is Yes): field => message. */
-    public const VARIATION_FIELDS = [
-        'variation_type' => 'Enter the type of variation.',
-        'existing_detail' => 'Describe the existing arrangement.',
-        'proposed_detail' => 'Describe the proposed change.',
-        'effective_date' => 'Enter the date the variation takes effect.',
-    ];
+    /** V2-5: when the answer is Yes, at least one complete variation row. */
+    public const VARIATION_ROW_NEEDED = 'Add at least one variation.';
 
     public const REQUEST_TYPE_NEEDED = 'Choose a request type';
 
@@ -204,10 +205,10 @@ final class RequestSections
     /**
      * Slice V2-2: per section, whether each field the form shows must be filled
      * in before a draft of $code can be submitted (true) or may stay empty
-     * (false; the form marks true fields aria-required). Read from the same REQUIRES,
-     * ROW_FIELDS and VARIATION_FIELDS that errors() checks. Row columns are
-     * keyed "<section>.<column>" and are required whenever a row is entered;
-     * the variation's fields are keyed "variation.<field>". Until a type is
+     * (false; the form marks true fields aria-required). Read from the same REQUIRES
+     * and ROW_FIELDS that errors() checks. Row columns are keyed
+     * "<section>.<column>" and are required whenever a row is entered (V2-5:
+     * the variation rows too, "variation_rows.<column>"). Until a type is
      * chosen (V2-1c) nothing that depends on the type is optional.
      *
      * Two fields sit in a different section on the V2-2 screen than in
@@ -245,11 +246,8 @@ final class RequestSections
                 'tender_reference' => $byType('contract_reference'),
                 'clinical_note' => false,
             ],
-            // V2-5: shown only when the answer is Yes, and then required.
-            'variation_details' => array_fill_keys(
-                array_map(fn (string $field) => "variation.{$field}", array_keys(self::VARIATION_FIELDS)),
-                true,
-            ),
+            // V2-5: shown only when the answer is Yes; every column of an entered row is required.
+            'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
             'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
             'existing_arrangement' => [
                 ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_eta', 'delivery_status']),
@@ -357,8 +355,7 @@ final class RequestSections
                 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
                 'clinical_note', 'tender_reference',
             ]),
-            'variation_details' => $case->variation !== null && collect(array_keys(self::VARIATION_FIELDS))
-                ->contains(fn (string $field) => ! self::blank($case->variation->{$field})),
+            'variation_details' => $case->variationRows->isNotEmpty(),
             'awarded_supplier' => $case->tenderAwards->isNotEmpty(),
             'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
             'stock' => $case->stockExpiries->isNotEmpty() || (bool) $r?->no_stock_on_hand
@@ -394,10 +391,10 @@ final class RequestSections
      * Content errors for a draft of $code (documents are checked by
      * SubmissionReadiness from the type's document configuration).
      *
-     * @param  array{quotations: Collection<int, CaseQuotation>, tender_awards: Collection<int, Model>, purchase_orders: Collection<int, Model>, stock_expiries: Collection<int, Model>}  $rows
+     * @param  array{quotations: Collection<int, CaseQuotation>, tender_awards: Collection<int, Model>, purchase_orders: Collection<int, Model>, stock_expiries: Collection<int, Model>, variation_rows: Collection<int, Model>}  $rows
      * @return list<array{key: string, message: string}>
      */
-    public function errors(string $code, CaseRequisition $r, array $rows, ?CaseVariation $variation, ?bool $previousRequest = null): array
+    public function errors(string $code, CaseRequisition $r, array $rows, ?bool $previousRequest = null): array
     {
         $errors = [];
         $add = function (string $key, string $message) use (&$errors) {
@@ -415,13 +412,13 @@ final class RequestSections
         $this->requestType($r, $previousRequest, $add);
         $this->itemAndTender($r, $requires['contract_reference'], $add);
 
-        // V2-5: required whenever the answer is Yes (any type); hidden and ignored otherwise.
+        // V2-5: when the answer is Yes (any type), at least one row, and every saved row
+        // complete; hidden and ignored otherwise (and discarded at submit).
         if (self::isVisible($code, 'variation_details', $previousRequest)) {
-            foreach (self::VARIATION_FIELDS as $field => $message) {
-                if (self::blank($variation?->{$field})) {
-                    $add("variation.{$field}", $message);
-                }
+            if ($rows['variation_rows']->isEmpty()) {
+                $add('variation_rows', self::VARIATION_ROW_NEEDED);
             }
+            self::checkRows('variation_rows', $rows['variation_rows'], $add);
         }
 
         // Awarded supplier: at least one complete row when required; every saved row complete.

@@ -8,6 +8,7 @@ use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\CaseVariationRow;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Submissions\ExpiryRisk;
@@ -161,10 +162,10 @@ class RequestDetailResource extends JsonResource
                 ->values()->all(),
             // V2-5: the previous-request answer (request form only); null = not answered.
             'previous_request_in_cycle' => $adHoc ? $case->previous_request_in_cycle : null,
-            // Slice V2-1: the variation entry (request form only); null when none is saved.
-            'variation' => $adHoc && $case->variation !== null
-                ? self::values($case->variation, array_keys(RequisitionRules::variationFields()))
-                : null,
+            // V2-5: Details of Variation Requested (request form only), in saved order.
+            'variation_rows' => $adHoc
+                ? $case->variationRows->map(fn (CaseVariationRow $v) => self::row($v, 'variation_rows', $code))->values()->all()
+                : [],
             'totals' => self::totals($case),
             'figures' => $adHoc ? self::adHocFigures($case) : null,
         ];

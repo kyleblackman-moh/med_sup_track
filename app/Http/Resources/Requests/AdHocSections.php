@@ -44,7 +44,7 @@ final class AdHocSections
         'item' => ['request_type', 'previous_request_in_cycle', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
         'tender' => [
             'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_outcome', 'tender_issue_explanation',
-            'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation',
+            'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation_rows',
         ],
         'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
         'quotations' => ['rfq_audience', 'quotations', 'quantity_to_purchase'],
@@ -189,6 +189,7 @@ final class AdHocSections
                 'purchase_orders' => $case->purchaseOrders,
                 'stock_expiries' => $case->stockExpiries,
                 'quotations' => $case->quotations,
+                'variation_rows' => $case->variationRows, // V2-5
                 default => null,
             };
             $rowId = $relation?->values()->get((int) $parts[1])?->getKey();
