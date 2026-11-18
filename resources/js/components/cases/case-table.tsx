@@ -6,7 +6,7 @@ import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type CaseFilters, type CaseListPage } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { ChevronDown, ChevronsUpDown, ChevronUp, SearchX } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 
 /** Short labels for the seeded procurement type names; any other name shows in full. */
 const TYPE_SHORT: Record<string, string> = {
@@ -52,15 +52,14 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
         { key: 'days', label: 'Days', sort: 'days', className: 'text-right' },
     ];
 
-    const cell = 'h-12 border-b border-border px-3 py-0 whitespace-nowrap';
+    const cell = 'h-12 border-b border-divider px-3 py-0 whitespace-nowrap';
     const rows = page.data;
 
     return (
-        <div className="bg-card border-border rounded-lg border shadow-sm">
+        <div className="bg-card rounded-xl border shadow-xs">
             {!loading && rows.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-                    <SearchX className="text-muted-foreground size-8" aria-hidden="true" />
-                    <p className="text-sm font-medium">{filtersActive ? 'No cases match these filters' : 'No cases yet'}</p>
+                    <p className="text-muted-foreground text-sm">{filtersActive ? 'No cases match these filters' : 'No cases yet'}</p>
                     {filtersActive && (
                         <Button variant="outline" size="sm" onClick={onClearFilters}>
                             Clear filters
@@ -83,11 +82,11 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                 key={col.key}
                                                 scope="col"
                                                 aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                                                // Opaque card base under a muted/60 layer, so rows never show through the sticky header.
+                                                // NEXT: the header on --subtle (opaque, so rows never show through the sticky header).
                                                 className={cn(
-                                                    'bg-card from-muted/60 to-muted/60 text-muted-foreground border-border sticky top-0 z-10 h-10 border-b bg-linear-to-r px-3 text-xs font-medium whitespace-nowrap',
-                                                    i === 0 && 'rounded-tl-lg',
-                                                    i === columns.length - 1 && 'rounded-tr-lg',
+                                                    'bg-subtle text-muted-foreground border-divider sticky top-0 z-10 h-10 border-b px-3 text-xs font-medium whitespace-nowrap',
+                                                    i === 0 && 'rounded-tl-xl',
+                                                    i === columns.length - 1 && 'rounded-tr-xl',
                                                     col.className,
                                                 )}
                                             >
@@ -161,7 +160,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                     </div>
 
                     {/* Below md: stacked cards. */}
-                    <ul className="divide-border divide-y md:hidden" aria-busy={loading}>
+                    <ul className="divide-divider divide-y md:hidden" aria-busy={loading}>
                         {loading
                             ? Array.from({ length: 5 }, (_, r) => (
                                   <li key={r} className="space-y-2 p-4">
@@ -197,7 +196,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
             )}
 
             {page.total > 0 && (
-                <nav aria-label="Case list pages" className="border-border flex items-center justify-between gap-3 border-t px-3 py-2.5 text-sm">
+                <nav aria-label="Case list pages" className="flex items-center justify-between gap-3 border-t px-3 py-2.5 text-sm">
                     <span className="text-muted-foreground tabular-nums">
                         Showing {page.from}–{page.to} of {page.total}
                     </span>
