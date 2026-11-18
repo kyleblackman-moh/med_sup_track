@@ -24,6 +24,8 @@ export interface NavItem {
     url: string;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** The server's nav.section under which this item is active (URL prefix). */
+    section?: string;
 }
 
 export interface SharedData {
@@ -32,7 +34,7 @@ export interface SharedData {
     auth: Auth;
     can: { requests: boolean; cases: boolean };
     /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
-    nav: { cmo_office: boolean };
+    nav: { cmo_office: boolean; section: string | null };
     flash: { success: string | null; error: string | null; info: string | null };
     [key: string]: unknown;
 }

@@ -80,9 +80,14 @@ class HandleInertiaRequests extends Middleware
              * cmo_office: file.prepare stands in for "the CMO's office". The flag
              * only shows the Office of the CMO links; the /cases routes and
              * CasePolicy still guard every page and action behind them.
+             *
+             * section: the sidebar item to show as active, by URL prefix, so
+             * /requests/{id}/edit activates Requests and /cases/{id} the cases
+             * item. Display only.
              */
             'nav' => [
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
+                'section' => self::navSection($request),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
@@ -90,5 +95,16 @@ class HandleInertiaRequests extends Middleware
                 'info' => $request->session()->get('info'),
             ],
         ]);
+    }
+
+    /** The sidebar sections, by the first segment of the URL path. */
+    private const NAV_SECTIONS = ['dashboard', 'requests', 'cases'];
+
+    /** The section the current URL falls under (the path itself or anything below it), else null. */
+    public static function navSection(Request $request): ?string
+    {
+        $first = explode('/', trim($request->path(), '/'))[0];
+
+        return in_array($first, self::NAV_SECTIONS, true) ? $first : null;
     }
 }
