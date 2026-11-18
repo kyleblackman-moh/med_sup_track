@@ -188,7 +188,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                                                     {request.item_description ?? <span className="text-muted-foreground">Not described yet</span>}
                                                 </td>
                                                 <td className="px-4 py-2.5">
-                                                    <StatusPill label={request.status_label} tone={request.status_tone} />
+                                                    <StatusPill label={request.status_label} tone={request.status_tone} inColumn />
                                                 </td>
                                                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
                                                     {request.can.edit ? (

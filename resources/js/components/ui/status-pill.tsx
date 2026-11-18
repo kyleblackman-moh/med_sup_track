@@ -19,19 +19,22 @@ interface StatusPillProps {
     tone: StatusTone;
     /** Staff lists: a second marker for an open query; the label stays the main signal. */
     openQuery?: boolean;
+    /** V2-2c: in a table column, every pill shares a 96px min-width so the column lines up. Never in a page header. */
+    inColumn?: boolean;
     className?: string;
 }
 
 /**
  * UI-4: the one status pill (design.md sections 3 and 7): 24px high, full
- * radius, 12px/500, a 6px dot in the text colour, always a text label. A
- * shared min-width (96px) keeps pills in a column lined up.
+ * radius, 12px/500, a 6px dot in the text colour, always a text label. In a
+ * table column (inColumn) a shared min-width (96px) keeps the pills lined up.
  */
-export function StatusPill({ label, tone, openQuery = false, className }: StatusPillProps) {
+export function StatusPill({ label, tone, openQuery = false, inColumn = false, className }: StatusPillProps) {
     return (
         <span
             className={cn(
-                'inline-flex h-6 min-w-24 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap',
+                'inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap',
+                inColumn && 'min-w-24',
                 TONE_CLASSES[tone] ?? TONE_CLASSES.neutral,
                 className,
             )}

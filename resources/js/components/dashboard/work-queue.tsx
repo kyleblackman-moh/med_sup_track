@@ -123,7 +123,7 @@ export function WorkQueue({ queue }: { queue: WorkQueueData }) {
                                             </td>
                                             <td className={cn(cell, 'hidden lg:table-cell')}>{item.organisation ?? '—'}</td>
                                             <td className={cell}>
-                                                <StatusPill label={item.status_label} tone={item.status_tone} />
+                                                <StatusPill label={item.status_label} tone={item.status_tone} inColumn />
                                             </td>
                                             <td className={cn(cell, 'text-right tabular-nums')}>{waitingLabel(item.days_waiting)}</td>
                                         </tr>

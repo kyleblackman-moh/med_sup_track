@@ -144,7 +144,12 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                   <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.organisation ?? '—'}</TableCell>
                                               )}
                                               <TableCell className={cell}>
-                                                  <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} />
+                                                  <StatusPill
+                                                      label={row.status_label}
+                                                      tone={row.status_tone}
+                                                      openQuery={row.has_open_query}
+                                                      inColumn
+                                                  />
                                               </TableCell>
                                               <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.holder_label ?? '—'}</TableCell>
                                               <TableCell className={cn(cell, 'tabular-nums')}>{formatDate(row.submitted_at)}</TableCell>
@@ -173,7 +178,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                       >
                                           <span className="flex items-center justify-between gap-2">
                                               <span className="font-mono text-[13px] font-medium">{row.reference_no ?? '—'}</span>
-                                              <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} />
+                                              <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} inColumn />
                                           </span>
                                           <span className="block truncate text-sm">{row.item_description ?? '—'}</span>
                                           <span className="text-muted-foreground block text-xs">
