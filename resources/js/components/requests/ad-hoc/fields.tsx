@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils';
 import { type OptionList } from '@/types/requests';
 import { type ReactNode } from 'react';
 
-// Labelled native controls for the AD_HOC form (slice F2). 36px high, 44px
+// Labelled native controls for the AD_HOC form (slice F2). 40px high (V2-2b), 44px
 // below md. Only optional fields say "(optional)"; nothing is marked with an
 // asterisk or red text until there is an actual problem.
 
-export const controlHeight = 'h-11 md:h-9';
+export const controlHeight = 'h-11 md:h-10';
 
 const textareaClass =
     'border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
@@ -64,7 +64,7 @@ export function TextField({
     const errorId = `${id}-error`;
 
     return (
-        <div className={cn('grid content-start gap-1.5', className)}>
+        <div className={cn('grid content-start gap-2', className)}>
             <Label htmlFor={id}>
                 {label}
                 {optional && <Optional />}
@@ -84,7 +84,7 @@ export function TextField({
                 {suffix && <span className="text-muted-foreground shrink-0 text-sm">{suffix}</span>}
             </div>
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-xs">
+                <p id={hintId} className="text-muted-foreground text-[13px]">
                     {hint}
                 </p>
             )}
@@ -111,7 +111,7 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
     const errorId = `${id}-error`;
 
     return (
-        <div className="grid gap-1.5">
+        <div className="grid gap-2">
             <Label htmlFor={id}>
                 {label}
                 {optional && <Optional />}
@@ -127,7 +127,7 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
                 onChange={(e) => onChange(e.target.value)}
             />
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-xs">
+                <p id={hintId} className="text-muted-foreground text-[13px]">
                     {hint}
                 </p>
             )}
@@ -157,7 +157,7 @@ export function RadioGroupField({ id, legend, options, value, onChange, error }:
                 const optionId = `${id}-${i}`;
 
                 return (
-                    <div key={option.value} className="flex min-h-11 items-center gap-2 md:min-h-9">
+                    <div key={option.value} className="flex min-h-11 items-center gap-2 md:min-h-10">
                         <input
                             id={optionId}
                             type="radio"
@@ -191,7 +191,7 @@ export function CheckboxField({ id, label, checked, onChange, hint }: CheckboxFi
 
     return (
         <div className="grid gap-1">
-            <div className="flex min-h-11 items-center gap-2 md:min-h-9">
+            <div className="flex min-h-11 items-center gap-2 md:min-h-10">
                 <input
                     id={id}
                     type="checkbox"
@@ -205,7 +205,7 @@ export function CheckboxField({ id, label, checked, onChange, hint }: CheckboxFi
                 </Label>
             </div>
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-xs">
+                <p id={hintId} className="text-muted-foreground text-[13px]">
                     {hint}
                 </p>
             )}
@@ -217,7 +217,7 @@ export function CheckboxField({ id, label, checked, onChange, hint }: CheckboxFi
 export function Figure({ label, value, suffix }: { label: string; value: ReactNode; suffix?: ReactNode }) {
     return (
         <div className="grid gap-0.5">
-            <dt className="text-muted-foreground text-xs">{label}</dt>
+            <dt className="text-muted-foreground text-[13px]">{label}</dt>
             <dd className="text-sm font-medium tabular-nums">
                 {value === null || value === undefined || value === '' ? '—' : value}
                 {suffix && value !== null && value !== undefined && value !== '' && (

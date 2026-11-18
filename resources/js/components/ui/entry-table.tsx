@@ -85,7 +85,7 @@ export function EntryTable({
     return (
         <TableContext.Provider value={{ breakpoint, narrowRowLabel }}>
             <div role="group" aria-label={caption} className={cn('bg-card overflow-hidden rounded-xl border shadow-xs', className)}>
-                <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-xs font-medium', layout.header)}>
+                <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
                     <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : 'Row'}</span>
                     {columns.map((column) => (
                         <span key={column.key} className={cn('min-w-0 flex-1', column.className)}>
@@ -160,8 +160,8 @@ export function EntryCell({ label, htmlFor, className, children }: EntryCellProp
     const layout = LAYOUT[useContext(TableContext).breakpoint];
 
     return (
-        <div className={cn('grid min-w-0 gap-1', layout.cell, className)}>
-            <label htmlFor={htmlFor} className={cn('text-muted-foreground text-xs font-medium', layout.cellLabel)}>
+        <div className={cn('grid min-w-0 gap-2', layout.cell, className)}>
+            <label htmlFor={htmlFor} className={cn('text-sm font-medium', layout.cellLabel)}>
                 {label}
             </label>
             {children}

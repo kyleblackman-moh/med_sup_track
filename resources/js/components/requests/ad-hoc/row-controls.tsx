@@ -10,7 +10,7 @@ export function AddRowButton({ label, onClick, disabled, cap }: { label: string;
                 <Plus aria-hidden />
                 {label}
             </Button>
-            {disabled && <span className="text-muted-foreground text-xs">This list is full ({cap} rows).</span>}
+            {disabled && <span className="text-muted-foreground text-[13px]">This list is full ({cap} rows).</span>}
         </div>
     );
 }

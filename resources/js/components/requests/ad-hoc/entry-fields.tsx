@@ -14,7 +14,7 @@ export const columnLabel = (label: string, optional: boolean) => (optional ? `${
 
 export function CellError({ id, message }: { id: string; message?: string }) {
     return message ? (
-        <p id={id} className="text-destructive text-xs">
+        <p id={id} className="text-destructive text-[13px]">
             {message}
         </p>
     ) : null;
@@ -59,7 +59,7 @@ export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text'
 export function EntryValue({ label, rowLabel, value, className }: { label: string; rowLabel: string; value: ReactNode; className?: string }) {
     return (
         <EntryCell label={label} className={className}>
-            <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-9">
+            <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-10">
                 <span className="sr-only">
                     {label}, {rowLabel}:{' '}
                 </span>
@@ -85,7 +85,7 @@ interface EntryCheckProps {
 export function EntryCheck({ id, label, rowLabel, type, name, checked, onChange, className }: EntryCheckProps) {
     return (
         <EntryCell label={label} htmlFor={id} className={className}>
-            <span className="flex min-h-11 items-center md:min-h-9">
+            <span className="flex min-h-11 items-center md:min-h-10">
                 <input
                     id={id}
                     type={type}

@@ -95,7 +95,7 @@ function DocumentCard({ caseId, group, rules, readOnly, reloadProps, onBusyChang
                 <h3 id={titleId} className="font-medium">
                     {group.label}
                 </h3>
-                {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-xs">Optional</span>}
+                {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-[13px]">Optional</span>}
             </header>
             {group.hint && <p className="text-muted-foreground mt-1 text-sm">{group.hint}</p>}
 
@@ -137,7 +137,7 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                     <p className="font-medium break-all">{doc.display_name}</p>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground text-[13px]">
                         Version {doc.version} · {formatSize(doc.size_bytes)}
                         {doc.uploaded_at && ` · ${new Date(doc.uploaded_at).toLocaleString('en-TT', { timeZone: 'America/Port_of_Spain' })}`}
                     </p>

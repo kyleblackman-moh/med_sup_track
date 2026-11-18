@@ -19,7 +19,7 @@ export function StickyActionBar({ left, right, className }: StickyActionBarProps
     return (
         <div
             className={cn(
-                'bg-card/92 sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-6 print:hidden',
+                'bg-card/92 shadow-card sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-6 print:hidden',
                 className,
             )}
         >

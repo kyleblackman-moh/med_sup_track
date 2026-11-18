@@ -36,10 +36,10 @@ export function StockSection({ api }: { api: FormApi }) {
     ];
 
     return (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-5">
             <TextField {...field('stock_location')} label="Location" maxLength={200} hint="Where the stock is held, for example Central stores." />
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
                 <TextField
                     {...field('average_monthly_consumption')}
                     label="Average monthly consumption"
@@ -102,7 +102,7 @@ export function StockSection({ api }: { api: FormApi }) {
                 </div>
             )}
 
-            <dl className="grid gap-4 sm:grid-cols-2">
+            <dl className="grid gap-5 sm:grid-cols-2">
                 <Figure label="Stock total" value={form.display.stock_total} suffix={unit || undefined} />
                 <Figure label="Days on hand" value={form.expiry.days_on_hand} />
             </dl>

@@ -45,8 +45,8 @@ export function PriceSection({ api }: { api: FormApi }) {
     }
 
     return (
-        <div className="grid grid-cols-1 gap-6">
-            <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5">
+            <div className="grid gap-5 md:grid-cols-2">
                 <TextField
                     id={fieldId.requisition('tender_price')}
                     label="Tender price"
@@ -69,7 +69,7 @@ export function PriceSection({ api }: { api: FormApi }) {
                 />
             </div>
 
-            <dl className="grid gap-4 sm:grid-cols-3">
+            <dl className="grid gap-5 sm:grid-cols-3">
                 <Figure label="Quoted price (recommended quotation)" value={figures?.recommended_unit_price} />
                 <Figure label="Change against tender price" value={percent(figures?.price_change_vs_tender_percent)} />
                 <Figure label="Change against previous price" value={percent(figures?.price_change_vs_previous_percent)} />

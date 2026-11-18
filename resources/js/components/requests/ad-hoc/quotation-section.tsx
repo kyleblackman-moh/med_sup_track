@@ -38,7 +38,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
     return (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-5">
             <RadioGroupField
                 id={fieldId.requisition('rfq_audience')}
                 legend={columnLabel('RFQ sent to', optional('rfq_audience'))}
@@ -49,7 +49,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
             />
 
             <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                <p className="text-muted-foreground text-xs">Choose one recommended quotation. Give a reason for any quotation not considered.</p>
+                <p className="text-muted-foreground text-[13px]">Choose one recommended quotation. Give a reason for any quotation not considered.</p>
                 {tableError && <p className="text-destructive text-sm">{tableError}</p>}
                 <EntryTable
                     caption="Quotations received"
@@ -147,7 +147,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 </EntryTable>
             </div>
 
-            <div className="grid items-start gap-4 md:grid-cols-2">
+            <div className="grid items-start gap-5 md:grid-cols-2">
                 <TextField
                     id={fieldId.requisition('quantity_to_purchase')}
                     label="Quantity to purchase"
@@ -162,7 +162,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                     <Figure label="Total cost (recommended quotation)" value={form.display.total_cost} />
                 </dl>
             </div>
-            <p className="text-muted-foreground -mt-4 text-xs">The total is worked out by the system and updates after each save.</p>
+            <p className="text-muted-foreground -mt-3 text-[13px]">The total is worked out by the system and updates after each save.</p>
 
             <PriceSection api={api} />
         </div>

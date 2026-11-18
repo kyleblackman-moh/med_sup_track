@@ -316,7 +316,7 @@ export const UploadDropZone = forwardRef<UploadDropZoneHandle, Props>(function U
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="min-w-0">
                                     <p className="text-sm font-medium break-all">{item.file.name}</p>
-                                    <p className="text-muted-foreground text-xs">
+                                    <p className="text-muted-foreground text-[13px]">
                                         {formatSize(item.file.size)}
                                         {item.replaces && ` · replaces ${item.replaces.display_name}`}
                                         {' · '}

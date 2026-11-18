@@ -22,7 +22,7 @@ interface SectionPanelProps {
 
 /**
  * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
- * white card (1px border, 12px radius, shadow-xs, 20px padding).
+ * white card (1px border, 12px radius, --shadow-card, 24px padding, 20px below md).
  */
 export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, children, className }: SectionPanelProps) {
     const headingId = useId();
@@ -50,7 +50,7 @@ export function SectionPanel({ title, description, variant = 'stacked', id, asid
             )}
         >
             {heading}
-            <div className="bg-card min-w-0 rounded-xl border p-5 shadow-xs">{children}</div>
+            <div className="bg-card shadow-card min-w-0 rounded-xl border p-5 md:p-6">{children}</div>
         </section>
     );
 }

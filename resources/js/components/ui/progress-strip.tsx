@@ -46,11 +46,11 @@ export function ProgressStrip({ items, label = 'Form progress' }: { items: Progr
                                 aria-hidden="true"
                                 className={cn('h-1 w-full rounded-full', item.state === 'complete' || item.state === 'current' ? 'bg-primary' : 'bg-muted')}
                             />
-                            <span className="flex items-center gap-1.5 text-xs">
+                            <span className="flex items-center gap-1.5 text-[13px]">
                                 <span
                                     aria-hidden="true"
                                     className={cn(
-                                        'flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none font-semibold tabular-nums',
+                                        'flex size-5 shrink-0 items-center justify-center rounded-full border text-[13px] leading-none font-semibold tabular-nums',
                                         item.state === 'complete' && 'border-primary bg-primary text-primary-foreground',
                                         item.state === 'current' && 'border-primary text-primary',
                                         (item.state === 'incomplete' || item.state === 'optional') && 'border-input text-muted-foreground',

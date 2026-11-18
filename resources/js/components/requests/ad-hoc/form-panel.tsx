@@ -52,7 +52,7 @@ export function FormPanel({ section, issues, children }: FormPanelProps) {
                 )
             }
         >
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-5">
                 {issues.length > 0 && (
                     <ul className="text-destructive list-disc space-y-0.5 pl-5 text-sm" aria-label={`${section.label}: things to fix`}>
                         {issues.map((issue) => (

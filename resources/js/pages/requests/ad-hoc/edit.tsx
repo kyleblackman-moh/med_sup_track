@@ -272,7 +272,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                     <ProgressStrip items={progress} label="Form sections" />
                 </div>
 
-                <div className="mt-4 space-y-4">
+                <div className="mt-6 space-y-6">
                     {detail.type_options && (
                         <TypeCards
                             value={detail.request_type ?? ''}
