@@ -20,9 +20,11 @@ import { Button } from '@/components/ui/button';
 import { ProgressStrip, type ProgressItem } from '@/components/ui/progress-strip';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
+import { ArrowRight, Save, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 
 type Review = 'none' | 'issues' | 'ready';
@@ -73,6 +75,8 @@ export default function AdHocEdit({
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [changingType, setChangingType] = useState(false);
+    // V2-4: Save draft is pending while it waits for the autosave to finish.
+    const [savingDraft, setSavingDraft] = useState(false);
     const [typeHidSections, setTypeHidSections] = useState(false);
     const panelRef = useRef<HTMLElement | null>(null);
 
@@ -166,6 +170,19 @@ export default function AdHocEdit({
             updateRows('quotations', (rows) => rows.map((row) => ({ ...row, values: { ...row.values, is_recommended: row.key === rowKey } }))),
         optional: (section, field) => sectionByKey.get(section)?.required[field] === false,
         ...errorLookups({ saveErrors: errors ?? {}, sections: request_sections, showIssues }),
+    };
+
+    /**
+     * V2-4: Save draft saves now through the same autosave (the same update
+     * route and validation). A failure shows in the save chip with its retry.
+     */
+    const saveDraft = async () => {
+        setSavingDraft(true);
+        try {
+            await autosave.flush();
+        } finally {
+            setSavingDraft(false);
+        }
     };
 
     /** Save everything, then ask the server what (if anything) still needs doing. */
@@ -305,28 +322,56 @@ export default function AdHocEdit({
                     {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={request_sections} state={state} onJump={focusTarget} />}
                     {review === 'ready' && summary && <SummaryPanel panelRef={panelRef} summary={summary} onSubmit={() => setConfirming(true)} />}
                 </div>
-            </PageContent>
 
-            <StickyActionBar
-                left={
-                    can.edit && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="text-destructive-text border-destructive hover:bg-destructive/10 hover:text-destructive-text md:h-10"
-                            onClick={() => setDeleting(true)}
-                        >
-                            Delete draft
-                        </Button>
-                    )
-                }
-                right={
-                    // One primary action per view: once the summary is up, Submit is the primary one.
-                    <Button type="button" variant={review === 'ready' ? 'outline' : 'default'} className="md:h-10" onClick={() => void startReview()}>
-                        Review and submit
-                    </Button>
-                }
-            />
+                {/* V2-4: the white card action bar at the end of the content (design.md section 7). */}
+                <StickyActionBar
+                    left={
+                        can.edit && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text px-4 text-[15px] font-semibold"
+                                onClick={() => setDeleting(true)}
+                            >
+                                <Trash2 aria-hidden="true" />
+                                Delete draft
+                            </Button>
+                        )
+                    }
+                    right={
+                        <>
+                            {can.edit && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="lg"
+                                    className="text-primary hover:text-primary-strong px-4 text-[15px] font-semibold"
+                                    disabled={savingDraft}
+                                    onClick={() => void saveDraft()}
+                                >
+                                    <Save aria-hidden="true" />
+                                    {savingDraft ? 'Saving…' : 'Save draft'}
+                                </Button>
+                            )}
+                            {/* One primary action per view: once the summary is up, Submit is the primary one. */}
+                            <Button
+                                type="button"
+                                variant={review === 'ready' ? 'outline' : 'default'}
+                                size="lg"
+                                className={cn(
+                                    'px-5 text-[15px] font-semibold',
+                                    review !== 'ready' && 'bg-primary-deep border-primary-deep hover:bg-primary-strong',
+                                )}
+                                onClick={() => void startReview()}
+                            >
+                                Review and submit
+                                <ArrowRight aria-hidden="true" />
+                            </Button>
+                        </>
+                    }
+                />
+            </PageContent>
 
             <DeleteDraftDialog
                 caseId={deleting ? detail.id : null}

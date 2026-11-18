@@ -587,3 +587,15 @@ it('gives a submitted request a hero with its reference and "Submitted on"', fun
         ->and(json_encode($hero))->not->toContain(CaseHero::DRAFT_DATE_LABEL);
     expectVendorSafe($props);
 });
+
+it('keeps the vendor form actions in the action bar at the end of the content', function () {
+    $source = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
+    preg_match('/<StickyActionBar\b.*?\n\s{16}\/>/s', $source, $bar);
+
+    expect($bar)->not->toBeEmpty()
+        ->and($bar[0])->toContain('Delete draft')
+        ->and($bar[0])->toContain('Save draft')
+        ->and($bar[0])->toContain('Review and submit')
+        // Inside the page content, so its bottom padding keeps the last field clear.
+        ->and(strpos($source, '<StickyActionBar'))->toBeLessThan(strrpos($source, '</PageContent>'));
+});
