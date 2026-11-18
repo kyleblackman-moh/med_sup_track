@@ -251,3 +251,55 @@ function v2DraftForForm(string $code): array
 
     return [ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor];
 }
+
+// 5. The edit page (V2-2 part 6) ---------------------------------------------------------
+
+it('renders the request form with the form prop for every type', function (string $code) {
+    [$case, $vendor] = newDraft($code);
+
+    $this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk()
+        ->assertInertia(fn ($page) => $page->component('requests/ad-hoc/edit')
+            ->has('form.sections', count(RequestSections::ORDER))
+            ->has('form.display.rows')
+            ->has('form.expiry.at_risk')
+            ->where('case.request_type', $code)
+            ->has('request_sections'));
+})->with(ProcurementTypeProfile::REQUEST_TYPES);
+
+it('returns the form prop alone on a partial reload', function () {
+    [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
+    $version = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->viewData('page')['version'];
+
+    $props = $this->actingAs($vendor)->get(route('requests.edit', $case->id), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $version,
+        'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
+        'X-Inertia-Partial-Data' => 'form',
+    ])->assertOk()->json('props');
+
+    expect($props)->toHaveKey('form')
+        ->and($props)->not->toHaveKey('case')
+        ->and($props)->not->toHaveKey('request_sections');
+});
+
+it('gives a vendor of another organisation 404 for the form', function () {
+    [$case] = newDraft('TENDER_EXCESS');
+    $other = vendorUser(vendorOrg());
+
+    $this->actingAs($other)->get(route('requests.edit', $case->id))->assertNotFound();
+});
+
+it('has no fetch or axios in the request form code', function () {
+    $files = [
+        ...glob(resource_path('js/components/requests/ad-hoc/*.ts*')),
+        ...glob(resource_path('js/pages/requests/ad-hoc/*.tsx')),
+        resource_path('js/components/ui/entry-table.tsx'),
+        resource_path('js/components/ui/progress-strip.tsx'),
+    ];
+    expect(count($files))->toBeGreaterThan(15);
+
+    $hits = collect($files)->filter(fn (string $file) => preg_match('/\bfetch\s*\(|axios|XMLHttpRequest/', file_get_contents($file)) === 1)
+        ->map(fn (string $file) => basename($file))->values()->all();
+
+    expect($hits)->toBe([]);
+});
