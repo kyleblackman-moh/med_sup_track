@@ -1,47 +1,54 @@
+import { EntryRow, EntryTable } from '@/components/ui/entry-table';
+import { type FormExpiry } from '@/types/ad-hoc';
+import { TriangleAlert } from 'lucide-react';
+import { columnLabel, EntryInput } from './entry-fields';
 import { CheckboxField, Figure, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
-import { RowTable, type Column } from './row-table';
+import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
- * Section 3, Stock. The unit of measure from section 1 is shown as static text
- * next to every quantity: one unit for the item. "No stock on hand" hides the
- * batches (the server then ignores them).
+ * V2-2 section "Stock". The unit of measure from section 1 is shown beside the
+ * quantities. "No stock on hand" hides the batches (the server then ignores
+ * them). The stock total, days on hand and the expiry warning are the
+ * server's; the warning never blocks a submit.
  */
 export function StockSection({ api }: { api: FormApi }) {
-    const { state, detail, config } = api;
+    const { state, config, form } = api;
     const unit = text(state.requisition.unit_of_measure).trim();
     const noStock = state.requisition.no_stock_on_hand === true;
+    const rows = state.rows.stock_expiries;
+    const optional = (name: string) => api.optional('stock', name);
+    const cap = config.row_caps.stock_expiries;
+    const tableError = api.tableError('stock_expiries');
 
-    const columns: Column[] = [
-        { name: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity', kind: 'decimal' },
-        { name: 'expiry_date', label: 'Expiry date', kind: 'date' },
+    const field = (name: string) => ({
+        id: fieldId.requisition(name),
+        value: text(state.requisition[name]),
+        onChange: (value: string) => api.setField(name, value),
+        error: api.fieldError(name),
+        optional: optional(name),
+    });
+
+    const columns = [
+        { key: 'quantity', label: columnLabel(unit ? `Quantity (${unit})` : 'Quantity', optional('stock_expiries.quantity')) },
+        { key: 'expiry_date', label: columnLabel('Expiry date', optional('stock_expiries.expiry_date')) },
     ];
 
     return (
         <div className="grid grid-cols-1 gap-6">
-            <TextField
-                id={fieldId.requisition('stock_location')}
-                label="Location"
-                optional
-                maxLength={200}
-                value={text(state.requisition.stock_location)}
-                onChange={(value) => api.setField('stock_location', value)}
-                error={api.fieldError('stock_location')}
-                hint="Where the stock is held, for example Central stores."
-            />
+            <TextField {...field('stock_location')} label="Location" maxLength={200} hint="Where the stock is held, for example Central stores." />
 
-            <TextField
-                id={fieldId.requisition('average_monthly_consumption')}
-                label="Average monthly consumption"
-                inputMode="decimal"
-                value={text(state.requisition.average_monthly_consumption)}
-                onChange={(value) => api.setField('average_monthly_consumption', value)}
-                error={api.fieldError('average_monthly_consumption')}
-                hint="Enter 0 if the item has not been used."
-                suffix={unit || undefined}
-                className="max-w-sm"
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                    {...field('average_monthly_consumption')}
+                    label="Average monthly consumption"
+                    inputMode="decimal"
+                    hint="Enter 0 if the item has not been used."
+                    suffix={unit || undefined}
+                />
+                <TextField {...field('quantity_on_order')} label="Quantity on order" inputMode="decimal" suffix={unit || undefined} />
+            </div>
 
             <CheckboxField
                 id={fieldId.requisition('no_stock_on_hand')}
@@ -52,25 +59,85 @@ export function StockSection({ api }: { api: FormApi }) {
             />
 
             {!noStock && (
-                <RowTable
-                    section="stock_expiries"
-                    title="Stock batches"
-                    rowLabel="Batch"
-                    addLabel="Add batch"
-                    rows={state.rows.stock_expiries}
-                    columns={columns}
-                    cap={config.row_caps.stock_expiries}
-                    onChange={(key, name, value) => api.setCell('stock_expiries', key, name, value)}
-                    onAdd={() => api.addRow('stock_expiries')}
-                    onRemove={(key) => api.removeRow('stock_expiries', key)}
-                    cellError={(row, index, name) => api.cellError('stock_expiries', row, index, name)}
-                    tableError={api.tableError('stock_expiries')}
-                />
+                <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">
+                    {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+                    <EntryTable
+                        caption="Stock batches"
+                        columns={columns}
+                        empty={rows.length === 0 && <RowsNote>No batches yet.</RowsNote>}
+                        addAction={
+                            <AddRowButton label="Add batch" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('stock_expiries')} />
+                        }
+                    >
+                        {rows.map((row, index) => {
+                            const rowLabel = `Batch ${index + 1}`;
+
+                            return (
+                                <EntryRow
+                                    key={row.key}
+                                    label={rowLabel}
+                                    remove={
+                                        <RemoveRowButton
+                                            label={`Remove batch ${index + 1}`}
+                                            onClick={() => api.removeRow('stock_expiries', row.key)}
+                                        />
+                                    }
+                                >
+                                    {columns.map((column) => (
+                                        <EntryInput
+                                            key={column.key}
+                                            id={fieldId.cell('stock_expiries', row.key, column.key)}
+                                            label={column.label}
+                                            rowLabel={rowLabel}
+                                            kind={column.key === 'expiry_date' ? 'date' : 'decimal'}
+                                            value={text(row.values[column.key])}
+                                            onChange={(value) => api.setCell('stock_expiries', row.key, column.key, value)}
+                                            error={api.cellError('stock_expiries', row, index, column.key)}
+                                        />
+                                    ))}
+                                </EntryRow>
+                            );
+                        })}
+                    </EntryTable>
+                </div>
             )}
 
-            <dl>
-                <Figure label="Stock on hand" value={detail.requisition.derived.stock_on_hand} suffix={unit || undefined} />
+            <dl className="grid gap-4 sm:grid-cols-2">
+                <Figure label="Stock total" value={form.display.stock_total} suffix={unit || undefined} />
+                <Figure label="Days on hand" value={form.expiry.days_on_hand} />
             </dl>
+
+            <ExpiryBanner expiry={form.expiry} />
+        </div>
+    );
+}
+
+/** The expiry warning (warning tone, not blocking). Every word of it comes from the server's items. */
+function ExpiryBanner({ expiry }: { expiry: FormExpiry }) {
+    if (expiry.at_risk.length === 0 && expiry.expired.length === 0) {
+        return null;
+    }
+
+    return (
+        <div
+            role="status"
+            className="bg-status-warning text-status-warning-foreground border-status-warning-foreground/30 flex gap-3 rounded-lg border p-4 text-sm"
+        >
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div className="space-y-1">
+                <p className="font-semibold">Some stock may expire before it is used</p>
+                <ul className="space-y-0.5">
+                    {expiry.at_risk.map((item) => (
+                        <li key={`risk-${item.batch}`}>
+                            Batch expiring {item.expiry_date}: about {item.cover_days} days of cover, expires in {item.days_to_expiry} days
+                        </li>
+                    ))}
+                    {expiry.expired.map((item) => (
+                        <li key={`expired-${item.batch}`}>Batch expiring {item.expiry_date} has expired</li>
+                    ))}
+                </ul>
+                <p>You can still submit this request.</p>
+            </div>
         </div>
     );
 }

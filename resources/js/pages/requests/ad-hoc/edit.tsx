@@ -4,8 +4,7 @@ import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-ap
 import { FormPanel } from '@/components/requests/ad-hoc/form-panel';
 import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } from '@/components/requests/ad-hoc/form-state';
 import { ItemTenderSection } from '@/components/requests/ad-hoc/item-tender-section';
-import { PriceSection } from '@/components/requests/ad-hoc/price-section';
-import { QuotationsSection } from '@/components/requests/ad-hoc/quotations-section';
+import { QuotationSection } from '@/components/requests/ad-hoc/quotation-section';
 import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
@@ -204,21 +203,12 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
 
     const body: Record<FormSectionKey, { variant: 'stacked' | 'split'; content: ReactNode }> = {
-        // V2-2 part 4: the earlier stock and quotation bodies until part 5 replaces them.
         item_tender: { variant: 'split', content: <ItemTenderSection api={api} /> },
         variation_details: { variant: 'stacked', content: <VariationSection api={api} /> },
         awarded_supplier: { variant: 'stacked', content: <AwardedSupplierSection api={api} /> },
         existing_arrangement: { variant: 'stacked', content: <ExistingArrangementSection api={api} /> },
         stock: { variant: 'stacked', content: <StockSection api={api} /> },
-        quotation_comparison: {
-            variant: 'stacked',
-            content: (
-                <>
-                    <QuotationsSection api={api} />
-                    <PriceSection api={api} />
-                </>
-            ),
-        },
+        quotation_comparison: { variant: 'stacked', content: <QuotationSection api={api} /> },
         documents: {
             variant: 'stacked',
             content: (
