@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { ProgressStrip, type ProgressItem } from '@/components/ui/progress-strip';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
@@ -354,10 +353,7 @@ export default function AdHocEdit({
                                 type="button"
                                 variant={review === 'ready' ? 'outline' : 'default'}
                                 size="lg"
-                                className={cn(
-                                    'px-5 text-[15px] font-semibold',
-                                    review !== 'ready' && 'bg-primary-deep border-primary-deep hover:bg-primary-strong',
-                                )}
+                                className="px-5 text-[15px] font-semibold"
                                 onClick={() => void startReview()}
                             >
                                 Review and submit

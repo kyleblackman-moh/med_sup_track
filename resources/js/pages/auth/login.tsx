@@ -126,7 +126,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             type="submit"
                             disabled={processing}
                             aria-busy={processing}
-                            className="bg-primary text-primary-foreground border-primary-strong shadow-primary hover:bg-primary-strong focus-visible:ring-ring disabled:hover:bg-primary mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:h-9"
+                            className="bg-primary-deep text-primary-foreground border-primary-deep shadow-primary hover:border-primary-strong hover:bg-primary-strong focus-visible:ring-ring disabled:hover:bg-primary-deep mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:h-9"
                         >
                             {processing && (
                                 <svg className="size-4 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none" aria-hidden="true">
