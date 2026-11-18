@@ -1,10 +1,10 @@
 import { CaseFilters, hasActiveFilters } from '@/components/cases/case-filters';
 import { CaseTable } from '@/components/cases/case-table';
-import { Button } from '@/components/ui/button';
+import { NewRequestButton } from '@/components/requests/new-request-button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type CaseListCan, type CaseListOptions, type CaseListPage, type CaseFilters as Filters } from '@/types/cases';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Props {
@@ -62,13 +62,7 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
                             {cases.total} {cases.total === 1 ? 'case' : 'cases'}
                         </span>
                     </div>
-                    {abilities.create && (
-                        <Button asChild>
-                            <Link href={route('requests.store')} method="post" as="button">
-                                New request
-                            </Link>
-                        </Button>
-                    )}
+                    {abilities.create && <NewRequestButton />}
                 </header>
 
                 <CaseFilters filters={filters} options={options} showOrganisation={abilities.see_organisation} errors={errors} onChange={visit} />

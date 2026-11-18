@@ -26,6 +26,7 @@ use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
+use App\Support\RequestGroups;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -54,11 +55,15 @@ class RequestController extends Controller
     public function index(Request $request): Response
     {
         $search = mb_substr(trim((string) $request->query('q', '')), 0, self::SEARCH_MAX);
+        // UI-4: a count card's filter; anything unknown is ignored.
+        $group = (string) $request->query('group', '');
+        $group = array_key_exists($group, RequestGroups::LABELS) ? $group : '';
 
         // The global scope keeps a vendor to its own organisation, search or not.
         $page = ProcurementCase::query()
             ->with(['procurementType', 'requisition'])
             ->when($search !== '', fn ($query) => self::matching($query, $search))
+            ->when($group !== '', fn ($query) => RequestGroups::apply($query, $group))
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->paginate(20)
@@ -66,7 +71,18 @@ class RequestController extends Controller
 
         return Inertia::render('requests/index', [
             'title' => self::listTitle($request->user()->organisation),
-            'filters' => ['q' => $search],
+            'filters' => ['q' => $search, 'group' => $group],
+            // UI-4: the count cards. One grouped query for the user's own organisation;
+            // the search and the card filter never change them. Lazy, so a partial
+            // reload that does not ask for them (the live search) skips the query.
+            'groups' => function () use ($request) {
+                $counts = RequestGroups::counts(ProcurementCase::query()->where('cases.org_id', $request->user()->org_id));
+
+                return array_map(
+                    fn (string $key) => ['key' => $key, 'label' => RequestGroups::LABELS[$key], 'count' => $counts[$key]],
+                    array_keys(RequestGroups::LABELS),
+                );
+            },
             'requests' => [
                 'data' => RequestSummaryResource::collection($page->getCollection())->resolve($request),
                 'current_page' => $page->currentPage(),

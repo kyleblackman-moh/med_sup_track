@@ -88,7 +88,7 @@ it('returns an empty list when nothing matches', function () {
 
     expect($props['requests']['data'])->toBe([])
         ->and($props['requests']['total'])->toBe(0)
-        ->and($props['filters'])->toBe(['q' => 'no such thing']);
+        ->and($props['filters'])->toBe(['q' => 'no such thing', 'group' => '']); // UI-4: the card filter, none here
 });
 
 it('treats LIKE wildcard characters literally', function (string $q, bool $matchesDraft) {
