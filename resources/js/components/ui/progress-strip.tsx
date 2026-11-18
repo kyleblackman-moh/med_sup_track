@@ -28,8 +28,9 @@ const STATE_TEXT: Record<ProgressState, string> = {
 
 /**
  * UI-4: the form progress strip (design.md section 7): one segment per VISIBLE
- * section, a 4px bar, a 16px marker and a 12px label; each segment links to its
- * section. Presentational only: the items and their states come from the server.
+ * section, a marker beside a 4px bar, and a 13px label below that wraps to two
+ * lines; each segment links to its section. Presentational only: the items and
+ * their states come from the server.
  */
 export function ProgressStrip({ items, label = 'Form progress' }: { items: ProgressItem[]; label?: string }) {
     return (
@@ -42,11 +43,8 @@ export function ProgressStrip({ items, label = 'Form progress' }: { items: Progr
                             aria-current={item.state === 'current' ? 'step' : undefined}
                             className="focus-visible:ring-ring group flex flex-col gap-1.5 rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                         >
-                            <span
-                                aria-hidden="true"
-                                className={cn('h-1 w-full rounded-full', item.state === 'complete' || item.state === 'current' ? 'bg-primary' : 'bg-muted')}
-                            />
-                            <span className="flex items-center gap-1.5 text-[13px]">
+                            {/* NEXT: the marker sits beside the bar, so the label below has the segment's full width and wraps to two lines (never truncated). */}
+                            <span className="flex items-center gap-1.5">
                                 <span
                                     aria-hidden="true"
                                     className={cn(
@@ -61,8 +59,14 @@ export function ProgressStrip({ items, label = 'Form progress' }: { items: Progr
                                     {item.state === 'complete' ? <Check className="size-3" strokeWidth={3} /> : (item.number ?? i + 1)}
                                 </span>
                                 <span
+                                    aria-hidden="true"
+                                    className={cn('h-1 min-w-0 flex-1 rounded-full', item.state === 'complete' || item.state === 'current' ? 'bg-primary' : 'bg-muted')}
+                                />
+                            </span>
+                            <span className="text-[13px] leading-snug">
+                                <span
                                     className={cn(
-                                        'truncate group-hover:underline',
+                                        'break-words group-hover:underline',
                                         item.state === 'current' ? 'text-primary font-semibold' : 'text-muted-foreground',
                                         item.state === 'error' && 'text-destructive-text',
                                     )}
