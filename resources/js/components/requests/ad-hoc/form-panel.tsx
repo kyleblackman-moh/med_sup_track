@@ -30,15 +30,17 @@ interface FormPanelProps {
  * V2-2: one numbered section of the request form (never collapsible). The
  * number, label, state and note all come from the server (the "form" prop).
  * The anchor is "section-<key>", the target of the progress strip's links.
- * V2-2b: always the STACKED panel (design.md section 7): "N. Title" at
+ * V2-2b: always the STACKED panel (design.md section 7): the title at
  * 16px/600 with the state text (13px, toned) on the right, above a
- * full-width card.
+ * full-width card. NEXT: the number (of the visible sections) is a 24px
+ * accent badge before the title.
  */
 export function FormPanel({ section, issues, children }: FormPanelProps) {
     return (
         <SectionPanel
             id={`section-${section.key}`}
-            title={`${section.number}. ${section.label}`}
+            title={section.label}
+            number={section.number}
             variant="stacked"
             titleClassName="text-base font-semibold"
             aside={

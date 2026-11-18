@@ -16,6 +16,8 @@ interface SectionPanelProps {
     aside?: ReactNode;
     /** V2-2b: the title's size and weight (default 14px/600; the vendor form uses 16px/600). */
     titleClassName?: string;
+    /** NEXT: a section number shown as a 24px badge before the title (the vendor form). */
+    number?: number | null;
     children: ReactNode;
     className?: string;
 }
@@ -24,13 +26,25 @@ interface SectionPanelProps {
  * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
  * white card (1px border, 12px radius, --shadow-card, 24px padding, 20px below md).
  */
-export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, children, className }: SectionPanelProps) {
+export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, number, children, className }: SectionPanelProps) {
     const headingId = useId();
+    const numbered = number !== undefined && number !== null;
 
     const heading = (
         <div className="min-w-0 space-y-1">
-            <div className="flex items-baseline justify-between gap-2">
-                <h2 id={headingId} className={cn('text-sm font-semibold', titleClassName)}>
+            <div className={cn('flex justify-between gap-2', numbered ? 'items-center' : 'items-baseline')}>
+                <h2 id={headingId} className={cn('text-sm font-semibold', numbered && 'flex items-center gap-2.5', titleClassName)}>
+                    {numbered && (
+                        <>
+                            <span
+                                aria-hidden="true"
+                                className="bg-accent text-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold tabular-nums"
+                            >
+                                {number}
+                            </span>
+                            <span className="sr-only">{number}. </span>
+                        </>
+                    )}
                     {title}
                 </h2>
                 {aside}
