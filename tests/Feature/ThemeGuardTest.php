@@ -80,3 +80,55 @@ it('defines the navy shell tokens and exposes them in the theme', function () {
         // MOH blue stays the primary colour.
         ->and($css)->toMatch('/--primary:\s*hsl\(204\.2, 100%, 36\.5%\);/');
 });
+
+// V2-4 shell guards (static) -------------------------------------------------
+
+/** The navy sidebar and white header components. */
+function shellFiles(): array
+{
+    return array_map(fn (string $path) => resource_path("js/{$path}"), [
+        'components/app-sidebar.tsx', 'components/app-sidebar-header.tsx', 'components/nav-main.tsx',
+        'components/nav-user.tsx', 'components/sidebar-watermark.tsx', 'components/app-logo.tsx',
+        'components/breadcrumbs.tsx', 'components/app-content.tsx', 'components/ui/sidebar.tsx',
+        'layouts/app/app-sidebar-layout.tsx',
+    ]);
+}
+
+it('has no hex colour and no inline colour style in the sidebar and header components', function () {
+    $hex = '/(?<![\w&\/-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/';
+
+    foreach (shellFiles() as $file) {
+        expect(file_exists($file))->toBeTrue($file);
+        expect(themeGuardHits($file, $hex))->toBe([])
+            ->and(file_get_contents($file))->not->toMatch('/style=\{\{[^}]*(?:color|background)/i', basename($file).' sets a colour inline');
+    }
+});
+
+it('marks the active nav link with aria-current and the active style together', function () {
+    $nav = file_get_contents(resource_path('js/components/nav-main.tsx'));
+
+    expect($nav)->toContain('isActive={item.url === activeUrl}')
+        ->and($nav)->toContain("aria-current={item.url === activeUrl ? 'page' : undefined}");
+
+    // The active style carries the white indicator bar, not colour alone (design.md section 2).
+    expect(file_get_contents(resource_path('js/components/ui/sidebar.tsx')))
+        ->toContain('data-[active=true]:before:w-[3px]')
+        ->toContain('data-[active=true]:font-semibold');
+});
+
+it('takes the header title and the tab title from the app name config, never "Laravel"', function () {
+    $header = file_get_contents(resource_path('js/components/app-sidebar-header.tsx'));
+
+    expect($header)->toContain('const { name, auth } = usePage<SharedData>().props;')
+        ->and($header)->toContain('{name}');
+
+    foreach ([...shellFiles(), resource_path('js/app.tsx'), resource_path('views/app.blade.php')] as $file) {
+        expect(file_get_contents($file))->not->toContain('Laravel', basename($file));
+    }
+});
+
+it('never names NOT_SELECTED in frontend code', function () {
+    $hits = collect(themeGuardFiles())->flatMap(fn ($f) => themeGuardHits($f, '/NOT_SELECTED/'))->all();
+
+    expect($hits)->toBe([]);
+});
