@@ -6,6 +6,9 @@
 
         <title inertia>{{ config('app.name') }}</title>
 
+        {{-- V2-4: the shield-plus mark on MOH blue (design.md section 2). --}}
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
         @routes
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])

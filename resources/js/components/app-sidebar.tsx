@@ -43,7 +43,7 @@ const cmoNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { can, nav } = usePage<SharedData>().props;
+    const { can, nav, brand } = usePage<SharedData>().props;
     const page = usePage();
     const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
     const showCmo = Boolean(nav?.cmo_office);
@@ -66,7 +66,7 @@ export function AppSidebar() {
                     prefetch
                     className="ring-sidebar-ring ring-offset-sidebar rounded-lg p-1 outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
-                    <SidebarBrand />
+                    <SidebarBrand logo={brand?.logo} />
                 </Link>
                 <div aria-hidden="true" className="border-navy-border mt-4 border-t group-data-[collapsible=icon]:mt-3" />
             </SidebarHeader>

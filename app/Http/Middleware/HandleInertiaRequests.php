@@ -93,6 +93,14 @@ class HandleInertiaRequests extends Middleware
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
                 'section' => self::navSection($request),
             ],
+            /*
+             * V2-4: the Ministry crest for the sidebar header, only once Kyle has
+             * supplied public/brand/coat-of-arms.png; null until then (the
+             * sidebar shows the shield-plus tile). A top-level prop, never under `can`.
+             */
+            'brand' => [
+                'logo' => self::brandLogo(),
+            ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
@@ -119,6 +127,15 @@ class HandleInertiaRequests extends Middleware
             ->values();
 
         return $labels->isEmpty() ? null : $labels->implode(', ');
+    }
+
+    /** The path of the crest under public/. */
+    public const BRAND_LOGO = 'brand/coat-of-arms.png';
+
+    /** The crest's public URL when the file exists, else null. Never drawn or recreated (design.md section 11). */
+    public static function brandLogo(): ?string
+    {
+        return is_file(public_path(self::BRAND_LOGO)) ? asset(self::BRAND_LOGO) : null;
     }
 
     /** The sidebar sections, by the first segment of the URL path. */

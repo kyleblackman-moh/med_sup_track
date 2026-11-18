@@ -42,14 +42,20 @@ export default function AppLogo() {
 }
 
 /**
- * V2-4: the navy sidebar's header block (design.md section 6): the shield-plus
- * tile, "Ministry of Health" 16px/600 white and "Trinidad & Tobago" 13px
- * --navy-muted, centred. Collapsed to icons, only the mark shows.
+ * V2-4: the navy sidebar's header block (design.md section 6): the Ministry
+ * crest when the server supplies its URL (brand.logo), else the shield-plus
+ * tile; then "Ministry of Health" 16px/600 white and "Trinidad & Tobago" 13px
+ * --navy-muted, centred. Collapsed to icons, only the mark shows. The crest is
+ * decorative here: the text beside it names the Ministry.
  */
-export function SidebarBrand() {
+export function SidebarBrand({ logo }: { logo?: string | null }) {
     return (
         <span className="flex flex-col items-center gap-2 text-center">
-            <AppLogoMark className="bg-nav-active text-nav-active-foreground size-11 group-data-[collapsible=icon]:size-8" />
+            {logo ? (
+                <img src={logo} alt="" className="h-16 w-auto object-contain group-data-[collapsible=icon]:size-8" />
+            ) : (
+                <AppLogoMark className="bg-nav-active text-nav-active-foreground size-11 group-data-[collapsible=icon]:size-8" />
+            )}
             <span className="grid gap-0.5 group-data-[collapsible=icon]:hidden">
                 <span className="text-navy-foreground text-base leading-tight font-semibold">{APP_BRAND.descriptor}</span>
                 <span className="text-navy-muted text-[13px] leading-tight">{APP_BRAND.country}</span>
