@@ -262,6 +262,7 @@ export default function AdHocEdit({
                 {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). */}
                 <PageHeader
                     title="Request"
+                    size="large"
                     subtitle={
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             {typeOption ? <span className="text-foreground">{typeOption.label}</span> : <span>Not selected</span>}

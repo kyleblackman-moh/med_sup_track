@@ -88,7 +88,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
             <Head title={title} />
 
             <PageContent>
-                <PageHeader title={title} actions={can.create && <NewRequestButton />} />
+                <PageHeader title={title} size="large" actions={can.create && <NewRequestButton />} />
 
                 <FlashMessages />
 

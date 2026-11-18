@@ -9,6 +9,8 @@ interface PageHeaderProps {
     actions?: ReactNode;
     /** V2-3: extra classes for the h1 (for example font-mono when the title is a reference). */
     titleClassName?: string;
+    /** NEXT: "large" (vendor form and vendor Requests page): h1 22px, subtitle 14px. */
+    size?: 'default' | 'large';
     className?: string;
 }
 
@@ -17,12 +19,14 @@ interface PageHeaderProps {
  * h1 20px/600, an optional subtitle, actions on the right. Not sticky. One h1
  * per page.
  */
-export function PageHeader({ title, subtitle, actions, titleClassName, className }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, titleClassName, size = 'default', className }: PageHeaderProps) {
+    const large = size === 'large';
+
     return (
         <header className={cn('flex flex-wrap items-start justify-between gap-3', className)}>
             <div className="min-w-0 space-y-1">
-                <h1 className={cn('text-xl font-semibold tracking-[-0.01em]', titleClassName)}>{title}</h1>
-                {subtitle && <div className="text-muted-foreground text-[13px]">{subtitle}</div>}
+                <h1 className={cn('font-semibold tracking-[-0.01em]', large ? 'text-[22px] leading-tight' : 'text-xl', titleClassName)}>{title}</h1>
+                {subtitle && <div className={cn('text-muted-foreground', large ? 'text-sm' : 'text-[13px]')}>{subtitle}</div>}
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </header>
