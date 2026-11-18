@@ -16,7 +16,7 @@ interface SectionPanelProps {
     aside?: ReactNode;
     /** V2-2b: the title's size and weight (default 14px/600; the vendor form uses 16px/600). */
     titleClassName?: string;
-    /** NEXT: a section number shown as a 24px badge before the title (the vendor form). */
+    /** A section number shown as a badge before the title (the vendor form; V2-4: 32px solid --primary circle). */
     number?: number | null;
     children: ReactNode;
     className?: string;
@@ -25,6 +25,7 @@ interface SectionPanelProps {
 /**
  * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
  * white card (1px border, 12px radius, --shadow-card, 24px padding, 20px below md).
+ * V2-4: the panel has a 1px --border, since the workspace and --muted are close.
  */
 export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, number, children, className }: SectionPanelProps) {
     const headingId = useId();
@@ -33,12 +34,12 @@ export function SectionPanel({ title, description, variant = 'stacked', id, asid
     const heading = (
         <div className="min-w-0 space-y-1">
             <div className={cn('flex justify-between gap-2', numbered ? 'items-center' : 'items-baseline')}>
-                <h2 id={headingId} className={cn('text-sm font-semibold', numbered && 'flex items-center gap-2.5', titleClassName)}>
+                <h2 id={headingId} className={cn('text-sm font-semibold', numbered && 'flex items-center gap-3', titleClassName)}>
                     {numbered && (
                         <>
                             <span
                                 aria-hidden="true"
-                                className="bg-accent text-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold tabular-nums"
+                                className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums"
                             >
                                 {number}
                             </span>
@@ -58,7 +59,7 @@ export function SectionPanel({ title, description, variant = 'stacked', id, asid
             id={id}
             aria-labelledby={headingId}
             className={cn(
-                'bg-muted scroll-mt-36 rounded-2xl p-4',
+                'bg-muted scroll-mt-36 rounded-2xl border p-4',
                 variant === 'split' ? 'grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]' : 'space-y-4',
                 className,
             )}

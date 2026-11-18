@@ -8,7 +8,7 @@ import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 const selectClass =
-    'border-input bg-background focus-visible:ring-ring ring-offset-background w-full min-w-0 rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
+    'border-input focus-visible:ring-ring ring-offset-background w-full min-w-0 rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
 
 /**
  * V2-2 section "Existing approved arrangement": the orders placed against the
