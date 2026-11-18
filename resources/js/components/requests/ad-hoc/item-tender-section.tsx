@@ -22,7 +22,7 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
     return (
         <div className="grid grid-cols-1 gap-5">
             <div className="grid gap-5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
-                <TextField {...field('din')} label="DIN" inputMode="numeric" maxLength={32} hint="Digits only." />
+                <TextField {...field('din')} label="DIN" maxLength={32} hint="Letters and numbers only." />
                 <TextField {...field('item_description')} label="Item Description" maxLength={500} />
             </div>
 

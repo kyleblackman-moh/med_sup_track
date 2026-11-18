@@ -125,7 +125,7 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
         ->and(array_column($sections, 'anchor'))->toBe(array_map(fn ($k) => "section-{$k}", array_column($sections, 'key')));
 
     $byKey = collect($sections)->keyBy('key');
-    expect(collect($byKey['item_tender']['issues'])->pluck('key')->all())->toContain('requisition.item_description', 'requisition.din', 'requisition.tender_cycle_start')
+    expect(collect($byKey['item_tender']['issues'])->pluck('key')->all())->toContain('requisition.item_description', 'requisition.tender_cycle_start')
         ->and($byKey['item_tender']['complete'])->toBeFalse()
         // Optional and empty: optional, never complete.
         ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
@@ -172,7 +172,6 @@ it('reports the complete request of each type as ready', function (string $code)
  */
 dataset('requirements', [
     'item description' => [null, fn ($p) => withRequisition($p, ['item_description' => '  ']), true, true, ['requisition.item_description'], 'item_tender'],
-    'DIN' => [null, fn ($p) => withRequisition($p, ['din' => null]), true, true, ['requisition.din'], 'item_tender'],
     'quantity requested' => [null, fn ($p) => withRequisition($p, ['quantity_requested' => '0']), true, true, ['requisition.quantity_requested'], 'item_tender'],
     'unit' => [null, fn ($p) => withRequisition($p, ['unit_of_measure' => null]), true, true, ['requisition.unit_of_measure'], 'item_tender'],
     'tender cycle start' => [null, fn ($p) => withRequisition($p, ['tender_cycle_start' => null]), true, true, ['requisition.tender_cycle_start'], 'item_tender'],
@@ -251,14 +250,14 @@ it('fails a tender cycle that ends before it starts', function (string $code) {
     expect(v2Report($case)->errors)->toBe([['key' => 'requisition.tender_cycle_end', 'message' => RequestSections::CYCLE_END_BEFORE_START]]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('keeps the DIN as digits-only text with its leading zeros', function () {
+it('keeps the DIN as letters-and-digits text with its leading zeros', function () {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['requisition' => ['din' => '000123']]);
 
     expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('000123');
 
-    // (An empty DIN is a blank draft field, not an error at save; readiness requires it.)
-    foreach (['12A4', ' 123', '12.3', '-1', '1 2'] as $din) {
+    // V2-5: letters are allowed; the DIN is optional and never a readiness error.
+    foreach (['12.3', '-1', '1 2', 'AB-12'] as $din) {
         expect(fn () => saveDraft($case, $vendor, ['requisition' => ['din' => $din]]))
             ->toThrow(ValidationException::class);
     }

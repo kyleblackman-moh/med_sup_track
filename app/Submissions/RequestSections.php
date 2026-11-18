@@ -219,7 +219,7 @@ final class RequestSections
                 'item_description' => true,
                 'strength' => false,
                 'dosage_form' => false,
-                'din' => true,
+                'din' => false, // V2-5: optional for every type
                 'quantity_requested' => true,
                 'unit_of_measure' => true,
                 'tender_reference' => $byType('contract_reference'),
@@ -422,10 +422,7 @@ final class RequestSections
             $add('requisition.item_description', 'Describe the item.');
         }
 
-        // Digits only, kept as text (leading zeros); no length rule (open question).
-        if (self::blank($r->din) || preg_match('/^\d+$/', (string) $r->din) !== 1) {
-            $add('requisition.din', 'Enter the DIN (digits only).');
-        }
+        // V2-5: the DIN is optional (its format is checked at save, RequisitionRules).
 
         if ($r->quantity_requested === null || Decimal::compare($r->quantity_requested, '0') <= 0) {
             $add('requisition.quantity_requested', 'Enter a quantity requested greater than zero.');

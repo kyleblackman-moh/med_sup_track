@@ -34,6 +34,8 @@ final readonly class RequisitionData
     /** @throws ValidationException */
     public static function validate(array $payload, ProcurementType $type): self
     {
+        $payload = self::trimText($payload, $type->code);
+
         $validator = Validator::make($payload, RequisitionRules::for($type), RequisitionRules::MESSAGES);
         $validator->after(function ($validator) use ($payload, $type) {
             foreach (RequisitionRules::unknownKeyErrors($payload, $type->code) as $key => $message) {
@@ -61,6 +63,27 @@ final readonly class RequisitionData
             : null;
 
         return new self($requisition, $sections, $hasVariation, $variation);
+    }
+
+    /**
+     * V2-5: text fields of type "alnum" (the DIN) are trimmed before they are
+     * validated, and an empty one becomes null (cleared). Other values are untouched.
+     */
+    private static function trimText(array $payload, string $code): array
+    {
+        if (! is_array($payload['requisition'] ?? null)) {
+            return $payload;
+        }
+
+        foreach (RequisitionRules::requisitionFields($code) as $field => $spec) {
+            $value = $payload['requisition'][$field] ?? null;
+            if ($spec['type'] === 'alnum' && is_string($value)) {
+                $value = trim($value);
+                $payload['requisition'][$field] = $value === '' ? null : $value;
+            }
+        }
+
+        return $payload;
     }
 
     public function hasSection(string $section): bool

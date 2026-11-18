@@ -147,7 +147,7 @@ it('caps the clinical note at 2000 and the price note at 1000 characters', funct
     expect(adHocValidationErrors(['requisition' => ['clinical_note' => str_repeat('x', 2000), 'price_note' => str_repeat('x', 1000)]]))->toBe([]);
 });
 
-it('accepts a DIN of digits only, keeping leading zeros, with no length rule', function (?string $din) {
+it('accepts a DIN of letters and digits, keeping case and leading zeros, with no length rule', function (?string $din) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe([]);
 
     [$case, $vendor] = newDraft();
@@ -159,17 +159,17 @@ it('accepts a DIN of digits only, keeping leading zeros, with no length rule', f
     'one digit' => ['7'],
     'twelve digits' => ['000123456789'],
     '32 digits' => [str_repeat('1', 32)],
+    'letters' => ['ABC123'],
     'cleared' => [null],
 ]);
 
-it('refuses a DIN that is not a string of digits', function (mixed $din, string $message) {
+it('refuses a DIN that is not letters and digits only', function (mixed $din, string $message) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe(['requisition.din' => $message]);
 })->with([
-    'letter' => ['0234567A', 'Enter the DIN as digits only.'],
-    'space' => ['0234 5678', 'Enter the DIN as digits only.'],
-    'dash' => ['0234-5678', 'Enter the DIN as digits only.'],
-    'decimal' => ['123.4', 'Enter the DIN as digits only.'],
-    'negative' => ['-123', 'Enter the DIN as digits only.'],
+    'space' => ['0234 5678', 'Enter the DIN using letters and numbers only.'],
+    'dash' => ['0234-5678', 'Enter the DIN using letters and numbers only.'],
+    'decimal' => ['123.4', 'Enter the DIN using letters and numbers only.'],
+    'negative' => ['-123', 'Enter the DIN using letters and numbers only.'],
     // A number would lose leading zeros, so only text is accepted.
     'number, not text' => [2345678, 'The requisition.din field must be a string.'],
     // max 32 is the column size, not a DIN length rule.
@@ -606,7 +606,7 @@ it('groups readiness by section, in form order, with plain-English issues and fi
         ->and($sections['tender']['summary'])->toBe('1 supplier awarded, 0 orders')
         ->and($sections['stock']['summary'])->toBe('Not started')
         // Slice V2-1: the DIN is required for every type; V2-1 issues are mapped onto the current screen.
-        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.din', 'requisition.quantity_requested', 'requisition.unit_of_measure'])
+        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.quantity_requested', 'requisition.unit_of_measure'])
         ->and(collect($sections['tender']['issues'])->pluck('field')->all())->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'requisition.tender_reference')
         ->and(collect($sections['documents']['issues'])->pluck('message')->all())->toBe(['Required document missing: Bids'])
         ->and(collect($sections['tender']['issues'])->firstWhere('key', 'tender_awards.0.quantity_awarded'))->toBe([
