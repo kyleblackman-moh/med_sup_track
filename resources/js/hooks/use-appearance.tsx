@@ -1,27 +1,9 @@
-import { useState } from 'react';
-
-export type Appearance = 'light' | 'dark' | 'system';
-
 /**
- * Light only for launch (design.md section 1). The .dark variables stay in
- * app.css, but nothing applies the class: no system-preference detection, no
- * saved preference. Any appearance choice resolves to light.
+ * Light only (design.md section 1; NEXT part 4). Nothing reads a system
+ * preference, a cookie or browser storage, and nothing adds the dark class.
+ * initializeTheme() removes the class on start, so a value left in a browser by
+ * an older build has no effect.
  */
-const forceLight = () => {
-    document.documentElement.classList.remove('dark');
-};
-
 export function initializeTheme() {
-    forceLight();
-}
-
-export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('light');
-
-    const updateAppearance = (mode: Appearance) => {
-        setAppearance(mode);
-        forceLight();
-    };
-
-    return { appearance, updateAppearance };
+    document.documentElement.classList.remove('dark');
 }
