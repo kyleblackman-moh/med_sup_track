@@ -31,7 +31,7 @@ export function NavUser() {
                         <SidebarMenuButton
                             size="lg"
                             tooltip={auth.user.name}
-                            className="bg-navy-deep data-[state=open]:bg-sidebar-accent h-auto min-h-14 gap-2.5 px-2.5 py-2 group-data-[collapsible=icon]:min-h-0"
+                            className="bg-navy-deep data-[state=open]:bg-sidebar-accent h-auto min-h-14 gap-2.5 rounded-[14px] px-2.5 py-2 group-data-[collapsible=icon]:min-h-0"
                         >
                             <Avatar className="size-8 shrink-0 overflow-hidden rounded-full">
                                 <AvatarFallback className="bg-ring-wash text-primary-strong rounded-full text-[11px] font-semibold">

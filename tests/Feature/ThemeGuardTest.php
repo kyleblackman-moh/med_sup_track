@@ -144,3 +144,13 @@ it('gives the sidebar item pop a reduced-motion variant and a shadow token', fun
         ->and($base[1])->toContain('motion-safe:hover:shadow-nav-hover')
         ->and(file_get_contents(resource_path('css/app.css')))->toMatch('/--shadow-nav-hover:\s*[^;]+;/');
 });
+
+// V2-4b: the sidebar's rounded right corners come from a token, with the surface clipped to them.
+it('rounds the sidebar through --radius-sidebar and clips its surface', function () {
+    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
+
+    expect(file_get_contents(resource_path('css/app.css')))->toMatch('/--radius-sidebar:\s*24px;/')
+        ->and(substr_count($sidebar, 'rounded-r-sidebar'))->toBe(2) // desktop surface and mobile sheet
+        ->and($sidebar)->toContain('overflow-hidden rounded-r-sidebar')
+        ->and($sidebar)->toContain('data-[active=true]:before:left-1');
+});

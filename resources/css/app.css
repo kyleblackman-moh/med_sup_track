@@ -43,6 +43,8 @@
     --radius-lg: calc(var(--radius) - 4px);
     --radius-xl: var(--radius);
     --radius-2xl: calc(var(--radius) + 4px);
+    /* V2-4b (design.md sections 5 and 6): the sidebar's right corners. */
+    --radius-sidebar: 24px;
 
     /* design.md section 2: short shadows only. */
     --shadow-xs: 0 1px 2px rgb(13 27 42 / 0.04);
