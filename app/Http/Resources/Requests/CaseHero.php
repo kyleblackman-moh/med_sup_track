@@ -14,7 +14,8 @@ use Carbon\CarbonInterface;
  * (design.md section 7). Display only; nothing here decides anything new.
  *
  * - reference: the reference number, or null on a draft (numbers are
- *   allocated at submit by SubmitCase; the hero then shows "Draft").
+ *   allocated at submit by SubmitCase; the hero then shows the heading,
+ *   "New Request" when there is no item description; V2-4b).
  * - title: the item description, or null.
  * - heading: the page's h1 (V2-4b): the item description, else UNTITLED.
  * - type: the type's label and the server-chosen lucide icon name, or null
