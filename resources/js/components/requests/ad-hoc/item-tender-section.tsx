@@ -30,7 +30,12 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
                 <TextField {...field('strength')} label="Strength" maxLength={100} />
                 <TextField {...field('dosage_form')} label="Dosage Form" maxLength={100} />
                 <TextField {...field('quantity_requested')} label="Quantity Requested" inputMode="decimal" hint="In figures, for example 2800." />
-                <TextField {...field('unit_of_measure')} label="Unit of Measure" maxLength={32} hint="For example: each, box of 100, vial." />
+                <TextField
+                    {...field('unit_of_measure')}
+                    label="Unit of Measure"
+                    maxLength={32}
+                    hint="The unit the quantity is counted in, for example: each, box of 100, vial."
+                />
             </div>
 
             <div className="grid gap-5 xl:grid-cols-3">
