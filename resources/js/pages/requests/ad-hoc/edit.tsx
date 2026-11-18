@@ -1,7 +1,7 @@
 import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-api';
 import { FormPanel } from '@/components/requests/ad-hoc/form-panel';
 import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } from '@/components/requests/ad-hoc/form-state';
-import { ItemSection } from '@/components/requests/ad-hoc/item-section';
+import { ItemTenderSection } from '@/components/requests/ad-hoc/item-tender-section';
 import { PriceSection } from '@/components/requests/ad-hoc/price-section';
 import { QuotationsSection } from '@/components/requests/ad-hoc/quotations-section';
 import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
@@ -10,6 +10,7 @@ import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { TenderSection } from '@/components/requests/ad-hoc/tender-section';
 import { TypeCards } from '@/components/requests/ad-hoc/type-cards';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
+import { VariationSection } from '@/components/requests/ad-hoc/variation-section';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
@@ -202,9 +203,9 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
 
     const body: Record<FormSectionKey, { variant: 'stacked' | 'split'; content: ReactNode }> = {
-        // V2-2 part 2: the earlier section bodies until parts 3 to 5 replace them.
-        item_tender: { variant: 'split', content: <ItemSection api={api} /> },
-        variation_details: { variant: 'stacked', content: null },
+        // V2-2 part 3: the earlier section bodies until parts 4 and 5 replace them.
+        item_tender: { variant: 'split', content: <ItemTenderSection api={api} /> },
+        variation_details: { variant: 'stacked', content: <VariationSection api={api} /> },
         awarded_supplier: { variant: 'stacked', content: <TenderSection api={api} /> },
         existing_arrangement: { variant: 'stacked', content: null },
         stock: { variant: 'stacked', content: <StockSection api={api} /> },

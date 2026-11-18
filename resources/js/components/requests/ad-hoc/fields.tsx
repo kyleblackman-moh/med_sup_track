@@ -102,9 +102,11 @@ interface TextAreaFieldProps {
     hint?: string;
     error?: string;
     maxLength?: number;
+    /** Visible rows (default 3). */
+    rows?: number;
 }
 
-export function TextAreaField({ id, label, value, onChange, optional, hint, error, maxLength }: TextAreaFieldProps) {
+export function TextAreaField({ id, label, value, onChange, optional, hint, error, maxLength, rows = 3 }: TextAreaFieldProps) {
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
 
@@ -116,10 +118,10 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
             </Label>
             <textarea
                 id={id}
-                rows={3}
+                rows={rows}
                 maxLength={maxLength}
                 value={value}
-                className={textareaClass}
+                className={cn(textareaClass, rows < 3 && 'min-h-0')}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={describedBy(hint && hintId, error && errorId)}
                 onChange={(e) => onChange(e.target.value)}
