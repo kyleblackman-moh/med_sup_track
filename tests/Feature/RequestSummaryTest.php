@@ -76,20 +76,22 @@ it('lists the type\'s visible sections in form order, numbered among the visible
     [$case, $vendor] = summaryDraft($code);
     $summary = summaryOf($case, $vendor);
 
-    $visible = RequestSections::visible($code);
+    // V2-5: a complete Tender Variation answers Yes (saveCompleteAdHoc); the others answer No.
+    $visible = RequestSections::visible($code, true, $code === 'TENDER_VARIATION');
     expect(array_column($summary['sections'], 'key'))->toBe(array_column($visible, 'key'))
         ->and(array_column($summary['sections'], 'label'))->toBe(array_column($visible, 'label'))
         ->and(array_column($summary['sections'], 'number'))->toBe(range(1, count($visible)))
-        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 7 : 6)
+        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 8 : 7)
+        ->and($summary['sections'][0]['key'])->toBe('request_type')
         ->and($summary['type_label'])->toBe(procurementTypeByCode($code)->name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('shows Variation details only for a Tender Variation', function (string $code) {
+it('shows Details of Variation Requested only when the answer is Yes (a complete Tender Variation here)', function (string $code) {
     [$case, $vendor] = summaryDraft($code);
     $summary = summaryOf($case, $vendor);
 
     if ($code === 'TENDER_VARIATION') {
-        expect(summarySection($summary, 'variation_details')['number'])->toBe(2)
+        expect(summarySection($summary, 'variation_details')['number'])->toBe(3)
             ->and(summaryFields($summary, 'variation_details'))->toBe([
                 'Variation Type' => 'Price',
                 'Existing Approved Detail' => 'Unit cost 1.25 under the current contract.',
@@ -144,13 +146,18 @@ it('includes every V2-1 field', function () {
     $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
     $quotes = summaryTable($summary, 'quotation_comparison', 'Quotations');
 
-    expect($item)->toMatchArray([
+    // V2-5: the type, the tender cycle and the question are section 1.
+    expect(summaryFields($summary, 'request_type'))->toBe([
         'Request Type' => 'Ad Hoc - Tender Unable to Supply',
-        'DIN' => '02345678',
-        'Contract Reference' => 'TENDER-2026-14 (2026-2027)',
         'Tender Cycle Start' => '1 Jan 2026',
         'Tender Cycle End' => '31 Dec 2027',
+        RequestSummary::PREVIOUS_REQUEST_LABEL => 'No',
     ])
+        ->and($item)->toMatchArray([
+            'DIN' => '02345678',
+            'Contract Reference' => 'TENDER-2026-14 (2026-2027)',
+        ])
+        ->and($item)->not->toHaveKey('Tender Cycle Start')
         ->and(summaryFields($summary, 'stock')['Quantity on Order'])->toBe('1,800 Each')
         ->and($awards['rows'][0]['cells']['country_of_origin'])->toBe('Country A')
         ->and($awards['rows'][1]['cells']['country_of_origin'])->toBe(Display::EMPTY)
@@ -257,13 +264,13 @@ it('gives the staff case page and the vendor page the same summary of a submitte
 
     // NEXT part 5: neither page repeats the documents (each has its own list), so the two are identical.
     expect($staffSummary)->toBe($vendorSummary)
-        ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(2);
+        ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(3);
 });
 
 it('lists documents only on the Review step, never on the request page or the case page', function (string $code) {
     [$case, $vendor] = readyDraft($code);
     makeDocument($case, 'bids', ['original_name' => 'bids.pdf']);
-    $visible = RequestSections::visible($code);
+    $visible = RequestSections::visible($code, true, $code === 'TENDER_VARIATION');
     $numbers = array_combine(array_column($visible, 'key'), range(1, count($visible)));
 
     // Review and submit: the summary is a partial reload of the edit page; Documents is the last section.

@@ -50,6 +50,9 @@ final class RequestSummary
 {
     public const NONE = 'None entered';
 
+    /** V2-5: the summary label of the previous-request question. */
+    public const PREVIOUS_REQUEST_LABEL = 'Previous Request in This Tender Cycle';
+
     private const TIMEZONE = 'America/Port_of_Spain';
 
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
@@ -63,7 +66,7 @@ final class RequestSummary
         }
 
         $sections = [];
-        foreach (RequestSections::visible($code) as $i => $section) {
+        foreach (RequestSections::visible($code, true, $case->previous_request_in_cycle) as $i => $section) {
             // The number is the section's place among ALL visible sections, so leaving
             // Documents out never renumbers the others.
             if (! $withDocuments && $section['key'] === 'documents') {
@@ -74,6 +77,7 @@ final class RequestSummary
                 'number' => $i + 1,
                 'label' => $section['label'],
                 'blocks' => match ($section['key']) {
+                    'request_type' => self::requestType($case),
                     'item_tender' => self::itemTender($case),
                     'variation_details' => self::variation($case),
                     'awarded_supplier' => self::awards($case),
@@ -88,13 +92,25 @@ final class RequestSummary
         return ['type_label' => (string) $case->procurementType?->name, 'sections' => $sections];
     }
 
+    /** V2-5: the type, the tender cycle and the previous-request answer (Yes, No, or a dash). */
+    private static function requestType(ProcurementCase $case): array
+    {
+        $r = $case->requisition;
+
+        return [self::fields([
+            'Request Type' => (string) $case->procurementType?->name,
+            'Tender Cycle Start' => self::date($r?->tender_cycle_start),
+            'Tender Cycle End' => self::date($r?->tender_cycle_end),
+            self::PREVIOUS_REQUEST_LABEL => Display::yesNo($case->previous_request_in_cycle),
+        ])];
+    }
+
     private static function itemTender(ProcurementCase $case): array
     {
         $r = $case->requisition;
         $unit = self::unit($case);
 
         return [self::fields([
-            'Request Type' => (string) $case->procurementType?->name,
             'DIN' => Display::text($r?->din),
             'Item Description' => Display::text($r?->item_description),
             'Strength' => Display::text($r?->strength),
@@ -102,8 +118,6 @@ final class RequestSummary
             'Quantity Requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),
             'Unit of Measure' => Display::text($r?->unit_of_measure),
             'Contract Reference' => Display::text($r?->tender_reference),
-            'Tender Cycle Start' => self::date($r?->tender_cycle_start),
-            'Tender Cycle End' => self::date($r?->tender_cycle_end),
             'Clinical Importance' => Display::text($r?->clinical_note),
         ])];
     }

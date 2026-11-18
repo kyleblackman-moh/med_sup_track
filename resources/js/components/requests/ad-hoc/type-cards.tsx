@@ -69,43 +69,40 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
         );
     };
 
+    // V2-5: inside section 1 "Request Type" (the numbered panel is the card); the legend repeats the title for screen readers.
     return (
-        <section className="bg-muted rounded-2xl p-4">
-            <div className="bg-card shadow-card rounded-xl border p-5 md:p-6">
-                <fieldset id={ID} className="space-y-3" aria-describedby={describedBy} disabled={disabled}>
-                    <legend className="text-base font-semibold">Request Type</legend>
+        <fieldset id={ID} className="space-y-3" aria-describedby={describedBy} disabled={disabled}>
+            <legend className="sr-only">Request Type</legend>
 
-                    {unselected && (
-                        <p id={`${ID}-choose`} className="text-muted-foreground text-sm">
-                            Choose a request type to continue.
-                        </p>
-                    )}
+            {unselected && (
+                <p id={`${ID}-choose`} className="text-muted-foreground text-sm">
+                    Choose a request type to continue.
+                </p>
+            )}
 
-                    {groups.map((group, g) =>
-                        group.label ? (
-                            <fieldset key={group.label} className="space-y-2">
-                                <legend className="text-muted-foreground text-[13px] font-medium">{group.label}</legend>
-                                <div className={GRID}>{group.options.map(card)}</div>
-                            </fieldset>
-                        ) : (
-                            <div key={`group-${g}`} className={GRID}>
-                                {group.options.map(card)}
-                            </div>
-                        ),
-                    )}
+            {groups.map((group, g) =>
+                group.label ? (
+                    <fieldset key={group.label} className="space-y-2">
+                        <legend className="text-muted-foreground text-[13px] font-medium">{group.label}</legend>
+                        <div className={GRID}>{group.options.map(card)}</div>
+                    </fieldset>
+                ) : (
+                    <div key={`group-${g}`} className={GRID}>
+                        {group.options.map(card)}
+                    </div>
+                ),
+            )}
 
-                    {error && (
-                        <p id={`${ID}-error`} role="alert" className="text-destructive text-sm">
-                            {error}
-                        </p>
-                    )}
-                    {showHiddenNote && (
-                        <p id={`${ID}-note`} role="status" className="text-muted-foreground text-sm">
-                            Changing the type may hide sections. What you entered there is kept until you submit.
-                        </p>
-                    )}
-                </fieldset>
-            </div>
-        </section>
+            {error && (
+                <p id={`${ID}-error`} role="alert" className="text-destructive text-sm">
+                    {error}
+                </p>
+            )}
+            {showHiddenNote && (
+                <p id={`${ID}-note`} role="status" className="text-muted-foreground text-sm">
+                    Changing the type may hide sections. What you entered there is kept until you submit.
+                </p>
+            )}
+        </fieldset>
     );
 }

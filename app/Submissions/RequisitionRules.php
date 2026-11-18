@@ -88,6 +88,9 @@ final class RequisitionRules
             }
         }
 
+        // V2-5: the previous-request answer (a case column); request form only. Null clears it.
+        $rules['previous_request_in_cycle'] = $profile->isAdHocForm() ? ['sometimes', 'nullable', 'boolean'] : ['missing'];
+
         // Slice V2-1: the variation entry (one object, not a list); request form only.
         if ($profile->isAdHocForm()) {
             $rules['variation'] = ['sometimes', 'nullable', 'array'];
@@ -136,7 +139,7 @@ final class RequisitionRules
         };
 
         $formType = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
-        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['variation'] : [])], '');
+        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['variation', 'previous_request_in_cycle'] : [])], '');
 
         if (is_array($payload['requisition'] ?? null)) {
             $check($payload['requisition'], array_keys(self::requisitionFields($code)), 'requisition.');

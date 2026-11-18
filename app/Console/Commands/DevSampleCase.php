@@ -221,8 +221,11 @@ class DevSampleCase extends Command
         $save = fn (array $payload) => app(SaveRequisition::class)->handle($this->case, $vendor, RequisitionData::validate($payload, $type));
 
         // Orders point at saved award rows, so they are saved in a second step.
-        // A Tender Variation also gets its variation entry.
-        $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION ? ['variation' => self::variation()] : [];
+        // V2-5: every sample answers the previous-request question; a Tender Variation
+        // answers Yes and gets its variation entry, the other types answer No.
+        $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION
+            ? ['previous_request_in_cycle' => true, 'variation' => self::variation()]
+            : ['previous_request_in_cycle' => false];
         $save([...self::payload(), ...$variation]);
         $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $this->case->getKey())->orderBy('sort_order')->value('id');
         $save(self::orders((int) $awardId));

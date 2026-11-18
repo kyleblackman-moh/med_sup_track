@@ -285,7 +285,7 @@ it('audits a save with section names and counts but no field values', function (
 
     $audit = auditFor($case->id, 'case.draft_saved')->sole();
     expect(json_decode($audit->metadata, true))->toBe([
-        'sections' => ['requisition', 'quotations', 'tender_awards', 'stock_expiries'],
+        'sections' => ['requisition', 'previous_request_in_cycle', 'quotations', 'tender_awards', 'stock_expiries'],
         'counts' => ['quotations' => 2, 'tender_awards' => 2, 'stock_expiries' => 2],
     ])->and((int) $audit->actor_user_id)->toBe($vendor->id)
         ->and($audit->metadata)->not->toContain('Infant feeding tube')

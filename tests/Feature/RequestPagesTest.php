@@ -261,7 +261,7 @@ it('rejects an invalid payload with dotted error keys and saves nothing', functi
     $payload['requisition']['din'] = '0234-5678';
 
     $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)
-        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.din' => 'Enter the DIN as digits only.']);
+        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.din' => 'Enter the DIN using letters and numbers only.']);
 
     expect(requisitionOf($case)->item_description)->toBeNull()
         ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(0);
@@ -382,7 +382,7 @@ it('shows readiness errors for an empty draft and none for a complete one', func
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
             'requisition.item_description', 'requisition.quantity_requested',
-            'requisition.din', 'requisition.tender_cycle_start', 'quotations', 'quotations.recommended', 'documents.bids',
+            'previous_request_in_cycle', 'requisition.tender_cycle_start', 'quotations', 'quotations.recommended', 'documents.bids',
         ])->diff(collect($errors)->pluck('key'))->isEmpty()));
 
     [$complete, $owner] = vendorDraft();

@@ -31,6 +31,7 @@ final class RequestSections
 {
     /** Every section, in form order. */
     public const ORDER = [
+        'request_type', // V2-5: the type cards, the tender cycle and the previous-request question
         'item_tender',
         'variation_details',
         'awarded_supplier',
@@ -41,8 +42,9 @@ final class RequestSections
     ];
 
     public const LABELS = [
+        'request_type' => 'Request Type',
         'item_tender' => 'Item and Tender Details',
-        'variation_details' => 'Variation Details',
+        'variation_details' => 'Details of Variation Requested',
         'awarded_supplier' => 'Awarded Supplier',
         'existing_arrangement' => 'Existing Approved Arrangement',
         'stock' => 'Stock',
@@ -50,30 +52,37 @@ final class RequestSections
         'documents' => 'Documents',
     ];
 
-    /** Shown only for these types. Every other section is shown for every type. */
-    private const ONLY_FOR = [
-        'variation_details' => [ProcurementTypeProfile::TENDER_VARIATION],
-    ];
+    /**
+     * V2-5: shown only when the previous-request question is answered Yes, for
+     * any type (no longer tied to Tender Variation). Every other section is
+     * shown for every type.
+     */
+    private const ONLY_WHEN_PREVIOUS_REQUEST = ['variation_details'];
 
     /**
      * What each type requires beyond the rules every type shares.
      * Documents are configured per type in procurement_type_documents.
      *
-     * @var array<string, array{contract_reference: bool, awarded_supplier: bool, stock: bool, quotations: bool, variation: bool}>
+     * V2-5: the variation details are no longer per type; they are required
+     * whenever the previous-request answer is Yes.
+     *
+     * @var array<string, array{contract_reference: bool, awarded_supplier: bool, stock: bool, quotations: bool}>
      */
     private const REQUIRES = [
-        ProcurementTypeProfile::AD_HOC_EMERGENCY => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::AD_HOC_TENDER_UNABLE => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::AD_HOC_NOT_AWARDED => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::TENDER_EXCESS => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::TENDER_VARIATION => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => false, 'quotations' => false, 'variation' => true],
+        ProcurementTypeProfile::AD_HOC_EMERGENCY => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::AD_HOC_TENDER_UNABLE => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::AD_HOC_NOT_AWARDED => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::TENDER_EXCESS => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::TENDER_VARIATION => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => false, 'quotations' => false],
     ];
 
     /** Section => the request fields and child sections shown in it. */
     public const SECTION_FIELDS = [
+        // V2-5: the type, the tender cycle and the previous-request question.
+        'request_type' => ['request_type', 'tender_cycle_start', 'tender_cycle_end', 'previous_request_in_cycle'],
         'item_tender' => [
-            'request_type', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
-            'clinical_note', 'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_issue_explanation',
+            'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
+            'clinical_note', 'tender_reference', 'tender_issue_explanation',
             'tender_outcome', // unused since V2-1; the old screen still shows it until V2-2
         ],
         'variation_details' => ['variation'],
@@ -114,7 +123,7 @@ final class RequestSections
         ]],
     ];
 
-    /** Variation fields that must be filled in (TENDER_VARIATION): field => message. */
+    /** Variation fields that must be filled in (when the previous-request answer is Yes): field => message. */
     public const VARIATION_FIELDS = [
         'variation_type' => 'Enter the type of variation.',
         'existing_detail' => 'Describe the existing arrangement.',
@@ -123,6 +132,9 @@ final class RequestSections
     ];
 
     public const REQUEST_TYPE_NEEDED = 'Choose a request type';
+
+    /** V2-5: the previous-request question (every type) must be answered to submit. */
+    public const PREVIOUS_REQUEST_NEEDED = 'Answer whether a request was previously made for this drug in this tender cycle.';
 
     /** Section states (the form's progress strip and section headers): see state(). */
     public const COMPLETE = 'complete';
@@ -141,7 +153,7 @@ final class RequestSections
      * empty unselected draft shows no section as done.
      */
     public const TYPE_DEPENDENT = [
-        'variation_details', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
+        'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
     ];
 
     public const AWARD_ROW_NEEDED = 'Add at least one awarded supplier.';
@@ -166,13 +178,16 @@ final class RequestSections
      * Documents are optional when the type requires no file ($documentsRequired,
      * from procurement_type_documents: see documentsRequired()).
      *
+     * V2-5: $previousRequest is the case's previous-request answer (null =
+     * not answered); Details of Variation Requested shows only when it is true.
+     *
      * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */
-    public static function visible(string $code, bool $documentsRequired = true): array
+    public static function visible(string $code, bool $documentsRequired = true, ?bool $previousRequest = null): array
     {
         $sections = [];
         foreach (self::ORDER as $key) {
-            if (self::isVisible($code, $key)) {
+            if (self::isVisible($code, $key, $previousRequest)) {
                 $waiting = self::awaitsType($code, $key);
                 $sections[] = [
                     'key' => $key,
@@ -215,6 +230,11 @@ final class RequestSections
         };
 
         return [
+            'request_type' => [
+                'tender_cycle_start' => true,
+                'tender_cycle_end' => true,
+                'previous_request_in_cycle' => true,
+            ],
             'item_tender' => [
                 'item_description' => true,
                 'strength' => false,
@@ -223,13 +243,12 @@ final class RequestSections
                 'quantity_requested' => true,
                 'unit_of_measure' => true,
                 'tender_reference' => $byType('contract_reference'),
-                'tender_cycle_start' => true,
-                'tender_cycle_end' => true,
                 'clinical_note' => false,
             ],
+            // V2-5: shown only when the answer is Yes, and then required.
             'variation_details' => array_fill_keys(
                 array_map(fn (string $field) => "variation.{$field}", array_keys(self::VARIATION_FIELDS)),
-                $byType('variation'),
+                true,
             ),
             'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
             'existing_arrangement' => [
@@ -262,20 +281,21 @@ final class RequestSections
         return ! isset(self::REQUIRES[$code]) && in_array($section, self::TYPE_DEPENDENT, true);
     }
 
-    public static function isVisible(string $code, string $section): bool
+    /** V2-5: the variation section depends on the previous-request answer only, never on the type. */
+    public static function isVisible(string $code, string $section, ?bool $previousRequest = null): bool
     {
-        return ! isset(self::ONLY_FOR[$section]) || in_array($code, self::ONLY_FOR[$section], true);
+        return ! in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true) || $previousRequest === true;
     }
 
     /**
      * Hidden sections whose saved data SubmitCase discards at submit. Data in a
-     * hidden section stays in the draft until then (the type may change back).
+     * hidden section stays in the draft until then (the answer may change back).
      *
      * @return list<string>
      */
-    public static function discardedAtSubmit(string $code): array
+    public static function discardedAtSubmit(string $code, ?bool $previousRequest = null): array
     {
-        return array_values(array_filter(array_keys(self::ONLY_FOR), fn (string $s) => ! self::isVisible($code, $s)));
+        return array_values(array_filter(self::ONLY_WHEN_PREVIOUS_REQUEST, fn (string $s) => ! self::isVisible($code, $s, $previousRequest)));
     }
 
     /** A section with nothing in it that blocks submission for this type. */
@@ -284,8 +304,8 @@ final class RequestSections
         $requires = self::REQUIRES[$code] ?? null;
 
         return match ($section) {
-            'item_tender' => false,
-            'variation_details' => ! ($requires['variation'] ?? false),
+            'request_type', 'item_tender' => false,
+            'variation_details' => false, // V2-5: shown only when the answer is Yes, and then required
             'awarded_supplier' => ! ($requires['awarded_supplier'] ?? false),
             'existing_arrangement' => true, // orders are always optional
             'stock' => ! ($requires['stock'] ?? false),
@@ -331,9 +351,11 @@ final class RequestSections
             && collect($fields)->contains(fn (string $field) => ! self::blank($r->{$field}));
 
         return match ($section) {
+            'request_type' => isset(self::REQUIRES[(string) $case->procurementType?->code])
+                || $case->previous_request_in_cycle !== null || $filled(['tender_cycle_start', 'tender_cycle_end']),
             'item_tender' => $filled([
                 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
-                'clinical_note', 'tender_reference', 'tender_cycle_start', 'tender_cycle_end',
+                'clinical_note', 'tender_reference',
             ]),
             'variation_details' => $case->variation !== null && collect(array_keys(self::VARIATION_FIELDS))
                 ->contains(fn (string $field) => ! self::blank($case->variation->{$field})),
@@ -375,7 +397,7 @@ final class RequestSections
      * @param  array{quotations: Collection<int, CaseQuotation>, tender_awards: Collection<int, Model>, purchase_orders: Collection<int, Model>, stock_expiries: Collection<int, Model>}  $rows
      * @return list<array{key: string, message: string}>
      */
-    public function errors(string $code, CaseRequisition $r, array $rows, ?CaseVariation $variation): array
+    public function errors(string $code, CaseRequisition $r, array $rows, ?CaseVariation $variation, ?bool $previousRequest = null): array
     {
         $errors = [];
         $add = function (string $key, string $message) use (&$errors) {
@@ -387,12 +409,14 @@ final class RequestSections
         $requires = self::REQUIRES[$code] ?? null;
         if ($requires === null) {
             $add('request_type', self::REQUEST_TYPE_NEEDED);
-            $requires = ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => false, 'quotations' => false, 'variation' => false];
+            $requires = ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => false, 'quotations' => false];
         }
 
+        $this->requestType($r, $previousRequest, $add);
         $this->itemAndTender($r, $requires['contract_reference'], $add);
 
-        if ($requires['variation'] && self::isVisible($code, 'variation_details')) {
+        // V2-5: required whenever the answer is Yes (any type); hidden and ignored otherwise.
+        if (self::isVisible($code, 'variation_details', $previousRequest)) {
             foreach (self::VARIATION_FIELDS as $field => $message) {
                 if (self::blank($variation?->{$field})) {
                     $add("variation.{$field}", $message);
@@ -415,6 +439,24 @@ final class RequestSections
         return $errors;
     }
 
+    /** V2-5: the tender cycle and the previous-request answer, required for every type. */
+    private function requestType(CaseRequisition $r, ?bool $previousRequest, callable $add): void
+    {
+        if ($r->tender_cycle_start === null) {
+            $add('requisition.tender_cycle_start', 'Enter the start of the tender cycle.');
+        }
+
+        if ($r->tender_cycle_end === null) {
+            $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
+        } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
+            $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
+        }
+
+        if ($previousRequest === null) {
+            $add('previous_request_in_cycle', self::PREVIOUS_REQUEST_NEEDED);
+        }
+    }
+
     /** Required for every type, plus the contract reference where the type needs it. */
     private function itemAndTender(CaseRequisition $r, bool $contractReference, callable $add): void
     {
@@ -430,16 +472,6 @@ final class RequestSections
 
         if (self::blank($r->unit_of_measure)) {
             $add('requisition.unit_of_measure', 'Enter the unit of measure.');
-        }
-
-        if ($r->tender_cycle_start === null) {
-            $add('requisition.tender_cycle_start', 'Enter the start of the tender cycle.');
-        }
-
-        if ($r->tender_cycle_end === null) {
-            $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
-        } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
-            $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
         }
 
         if ($contractReference && self::blank($r->tender_reference)) {

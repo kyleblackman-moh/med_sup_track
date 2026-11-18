@@ -83,6 +83,8 @@ class ProcurementCase extends Model
     {
         return [
             'status' => CaseStatus::class,
+            // V2-5: the request form's previous-request answer; null = not answered.
+            'previous_request_in_cycle' => 'boolean',
             'technical_track' => TrackStatus::class,
             'funding_track' => TrackStatus::class,
             'hardcopy_received_at' => 'datetime',

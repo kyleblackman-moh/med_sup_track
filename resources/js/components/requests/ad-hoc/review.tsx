@@ -5,6 +5,7 @@ import { type ChildSection, type RequestSectionStatus, type SectionIssue } from 
 import { type RequestSummaryView } from '@/types/summary';
 import { type RefObject } from 'react';
 import { CHILD_SECTIONS, fieldId, type FormState } from './form-state';
+import { PREVIOUS_REQUEST_ID } from './request-type-section';
 
 /** Radio groups are focused on their first option. */
 const RADIO_FIELDS = ['rfq_audience'];
@@ -25,6 +26,10 @@ export function targetFor(issue: SectionIssue, state: FormState): string {
     }
     if (first === 'request_type') {
         return 'request-type';
+    }
+    // V2-5: the previous-request question (its fieldset; the first radio is focused).
+    if (first === 'previous_request_in_cycle') {
+        return PREVIOUS_REQUEST_ID;
     }
     if ((CHILD_SECTIONS as string[]).includes(first)) {
         const section = first as ChildSection;

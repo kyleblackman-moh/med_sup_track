@@ -29,6 +29,8 @@ final readonly class RequisitionData
         public array $sections,
         public bool $hasVariation = false,
         public ?array $variation = null,
+        public bool $hasPreviousRequest = false,
+        public ?bool $previousRequest = null,
     ) {}
 
     /** @throws ValidationException */
@@ -62,7 +64,13 @@ final readonly class RequisitionData
             ? self::normalise($payload['variation'], RequisitionRules::variationFields())
             : null;
 
-        return new self($requisition, $sections, $hasVariation, $variation);
+        // V2-5: the previous-request answer; absent = unchanged, null = not answered.
+        $hasPreviousRequest = array_key_exists('previous_request_in_cycle', $payload);
+        $previousRequest = $hasPreviousRequest && $payload['previous_request_in_cycle'] !== null
+            ? filter_var($payload['previous_request_in_cycle'], FILTER_VALIDATE_BOOLEAN)
+            : null;
+
+        return new self($requisition, $sections, $hasVariation, $variation, $hasPreviousRequest, $previousRequest);
     }
 
     /**

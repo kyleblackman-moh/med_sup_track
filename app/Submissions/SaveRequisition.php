@@ -83,6 +83,12 @@ final class SaveRequisition
                 $saved[] = 'requisition';
             }
 
+            // V2-5: the previous-request answer lives on the case (not mass assignable).
+            if ($data->hasPreviousRequest) {
+                $locked->forceFill(['previous_request_in_cycle' => $data->previousRequest])->save();
+                $saved[] = 'previous_request_in_cycle';
+            }
+
             foreach (self::SECTIONS as $section => [$model, $hasSortOrder]) {
                 if (! $data->hasSection($section)) {
                     continue;

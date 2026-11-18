@@ -23,6 +23,8 @@ export interface FormState {
     rows: Record<ChildSection, LocalRow[]>;
     /** V2-1: the Tender Variation entry (sent on every save; kept while hidden, until submit). */
     variation: Values;
+    /** V2-5: the previous-request answer; null until answered (nothing is preselected). */
+    previousRequest: boolean | null;
 }
 
 export const CHILD_SECTIONS: ChildSection[] = ['tender_awards', 'purchase_orders', 'stock_expiries', 'quotations'];
@@ -140,7 +142,7 @@ export function initialState(detail: AdHocDetail): FormState {
         variation[field] = value === null || value === undefined ? '' : String(value);
     }
 
-    return { requisition, rows, variation };
+    return { requisition, rows, variation, previousRequest: detail.previous_request_in_cycle ?? null };
 }
 
 const blankToNull = (value: Value) => (typeof value === 'string' && value.trim() === '' ? null : value);
@@ -152,7 +154,7 @@ export function toPayload(state: FormState): Record<string, unknown> {
     requisition.no_stock_on_hand = state.requisition.no_stock_on_hand === true;
 
     const variation = Object.fromEntries(Object.entries(state.variation).map(([name, value]) => [name, blankToNull(value)]));
-    const payload: Record<string, unknown> = { requisition, variation };
+    const payload: Record<string, unknown> = { requisition, variation, previous_request_in_cycle: state.previousRequest };
     for (const section of CHILD_SECTIONS) {
         payload[section] = state.rows[section].map((row) => {
             const values: Record<string, unknown> = Object.fromEntries(Object.entries(row.values).map(([name, value]) => [name, blankToNull(value)]));

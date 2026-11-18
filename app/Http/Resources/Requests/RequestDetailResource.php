@@ -159,6 +159,8 @@ class RequestDetailResource extends JsonResource
             ])->values()->all(),
             'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries', $code))
                 ->values()->all(),
+            // V2-5: the previous-request answer (request form only); null = not answered.
+            'previous_request_in_cycle' => $adHoc ? $case->previous_request_in_cycle : null,
             // Slice V2-1: the variation entry (request form only); null when none is saved.
             'variation' => $adHoc && $case->variation !== null
                 ? self::values($case->variation, array_keys(RequisitionRules::variationFields()))

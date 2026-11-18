@@ -41,7 +41,7 @@ final class AdHocSections
 
     /** The current screen's sections: field => section (V2-1 fields included). */
     private const SCREEN_FIELDS = [
-        'item' => ['request_type', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
+        'item' => ['request_type', 'previous_request_in_cycle', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
         'tender' => [
             'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_outcome', 'tender_issue_explanation',
             'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation',
@@ -54,8 +54,8 @@ final class AdHocSections
 
     /** The current screen's sections => the request form sections (RequestSections) each holds. */
     private const SCREEN_TO_REQUEST_SECTIONS = [
-        'item' => ['item_tender'],
-        'tender' => ['item_tender', 'awarded_supplier', 'existing_arrangement', 'variation_details'],
+        'item' => ['request_type', 'item_tender'],
+        'tender' => ['request_type', 'item_tender', 'awarded_supplier', 'existing_arrangement', 'variation_details'],
         'stock' => ['stock'],
         'quotations' => ['quotation_comparison'],
         'price' => ['quotation_comparison'],
@@ -116,6 +116,7 @@ final class AdHocSections
         $visible = RequestSections::visible(
             (string) $case->procurementType?->code,
             RequestSections::documentsRequired($case->procurement_type_id),
+            $case->previous_request_in_cycle,
         );
         $issues = array_fill_keys(array_column($visible, 'key'), []);
 

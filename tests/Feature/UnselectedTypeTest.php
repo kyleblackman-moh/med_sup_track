@@ -135,13 +135,13 @@ it('never changes a draft to NOT_SELECTED', function (?string $from) {
 
 // 3. Readiness ---------------------------------------------------------------------------
 
-it('blocks the submit of an unselected draft with "Choose a request type" in Item and tender', function () {
+it('blocks the submit of an unselected draft with "Choose a request type" in Request Type', function () {
     [$case, $vendor] = unselectedDraft();
     saveCompleteAdHoc($case, $vendor); // every common item filled in
 
     $errors = unselectedReport($case);
     expect($errors)->toBe([['key' => 'request_type', 'message' => 'Choose a request type']])
-        ->and(RequestSections::sectionOf('request_type'))->toBe('item_tender');
+        ->and(RequestSections::sectionOf('request_type'))->toBe('request_type'); // V2-5: section 1
 
     expect(fn () => app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor))
         ->toThrow(SubmissionNotReady::class);
@@ -151,10 +151,11 @@ it('blocks the submit of an unselected draft with "Choose a request type" in Ite
 it('lists only the common items, never per-type ones, while unselected', function () {
     [$case] = unselectedDraft();
 
+    // V2-5: section 1 (type, cycle, question) first; the DIN is optional.
     expect(array_column(unselectedReport($case), 'key'))->toBe([
         'request_type',
-        'requisition.item_description', 'requisition.din', 'requisition.quantity_requested', 'requisition.unit_of_measure',
-        'requisition.tender_cycle_start', 'requisition.tender_cycle_end',
+        'requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'previous_request_in_cycle',
+        'requisition.item_description', 'requisition.quantity_requested', 'requisition.unit_of_measure',
     ]);
 });
 
@@ -231,13 +232,15 @@ it('sends no type choice once the request is submitted', function () {
 
 it('reloads the form sections for the new type after a change', function () {
     [$case, $vendor] = unselectedDraft();
-    $keys = fn () => array_column(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id)))['request_sections'], 'key');
+    $sections = fn () => collect(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id)))['request_sections'])->keyBy('key');
 
-    expect($keys())->not->toContain('variation_details');
+    expect($sections()['stock']['note'])->toBe('Choose a request type');
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_VARIATION'])->assertRedirect(route('requests.edit', $case->id));
-    expect($keys())->toContain('variation_details');
+    expect($sections()['stock']['optional'])->toBeTrue() // a Tender Variation does not require stock
+        // V2-5: the type alone never shows Details of Variation Requested; only the answer Yes does.
+        ->and($sections()->has('variation_details'))->toBeFalse();
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_EXCESS']);
-    expect($keys())->not->toContain('variation_details'); // the page shows the "may hide sections" note
+    expect($sections()['stock']['optional'])->toBeFalse();
 });
 
 it('never names NOT_SELECTED in the vendor-facing code', function () {
@@ -305,6 +308,7 @@ it('applies the Emergency rules once chosen: stock, quotations and documents are
 it('applies the Tender Variation rules once chosen', function () {
     [$case, $vendor] = unselectedDraft();
     app(ChangeRequestType::class)->handle($case, $vendor, 'TENDER_VARIATION');
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]); // V2-5: shows Details of Variation Requested
     [$request] = sectionStates($this, $case, $vendor);
 
     expect($request['variation_details']['complete'])->toBeFalse()

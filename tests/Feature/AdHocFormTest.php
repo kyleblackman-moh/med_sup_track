@@ -605,8 +605,8 @@ it('groups readiness by section, in form order, with plain-English issues and fi
         ->and($sections['item']['summary'])->toBe('Feeding tube')
         ->and($sections['tender']['summary'])->toBe('1 supplier awarded, 0 orders')
         ->and($sections['stock']['summary'])->toBe('Not started')
-        // Slice V2-1: the DIN is required for every type; V2-1 issues are mapped onto the current screen.
-        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.quantity_requested', 'requisition.unit_of_measure'])
+        // V2-1 and V2-5 issues are mapped onto the current screen (the DIN is optional since V2-5).
+        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['previous_request_in_cycle', 'requisition.quantity_requested', 'requisition.unit_of_measure'])
         ->and(collect($sections['tender']['issues'])->pluck('field')->all())->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'requisition.tender_reference')
         ->and(collect($sections['documents']['issues'])->pluck('message')->all())->toBe(['Required document missing: Bids'])
         ->and(collect($sections['tender']['issues'])->firstWhere('key', 'tender_awards.0.quantity_awarded'))->toBe([

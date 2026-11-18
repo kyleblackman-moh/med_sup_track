@@ -6,10 +6,10 @@ import { FormPanel } from '@/components/requests/ad-hoc/form-panel';
 import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } from '@/components/requests/ad-hoc/form-state';
 import { ItemTenderSection } from '@/components/requests/ad-hoc/item-tender-section';
 import { QuotationSection } from '@/components/requests/ad-hoc/quotation-section';
+import { RequestTypeSection } from '@/components/requests/ad-hoc/request-type-section';
 import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
-import { TypeCards } from '@/components/requests/ad-hoc/type-cards';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { VariationSection } from '@/components/requests/ad-hoc/variation-section';
 import { CaseHero } from '@/components/requests/case-hero';
@@ -45,8 +45,8 @@ function focusTarget(id: string) {
 }
 
 /**
- * The request form (slice V2-2): one scrolling page. The type cards, then the
- * sections the server marks visible, numbered and in the server's order, with
+ * The request form (slice V2-2): one scrolling page. The sections the server
+ * marks visible (V2-5: section 1 holds the type cards), numbered and in the server's order, with
  * a sticky progress strip and a sticky action bar. Local state is the source
  * of truth while editing and is autosaved; the server validates every save,
  * computes and formats every figure, and decides what is complete and what
@@ -77,6 +77,8 @@ export default function AdHocEdit({
     // V2-4: Save draft is pending while it waits for the autosave to finish.
     const [savingDraft, setSavingDraft] = useState(false);
     const [typeHidSections, setTypeHidSections] = useState(false);
+    // V2-5: the note after the previous-request answer changes from Yes to No.
+    const [variationHidden, setVariationHidden] = useState(false);
     const panelRef = useRef<HTMLElement | null>(null);
 
     const autosave = useAutosave({
@@ -161,6 +163,14 @@ export default function AdHocEdit({
         form,
         setField: (name, value) => update((current) => ({ ...current, requisition: { ...current.requisition, [name]: value } })),
         setVariation: (name, value) => update((current) => ({ ...current, variation: { ...current.variation, [name]: value } })),
+        setPreviousRequest: (value) => {
+            if (state.previousRequest === true && value === false) {
+                setVariationHidden(true);
+            }
+            update((current) => ({ ...current, previousRequest: value }));
+            // Save now, so the server shows or hides Details of Variation Requested straight away.
+            window.setTimeout(() => void autosave.flush(), 0);
+        },
         setCell: (section, rowKey, name, value) =>
             updateRows(section, (rows) => rows.map((row) => (row.key === rowKey ? { ...row, values: { ...row.values, [name]: value } } : row))),
         addRow,
@@ -237,6 +247,23 @@ export default function AdHocEdit({
 
     // V2-2b: every section is the stacked panel (design.md section 7).
     const body: Record<FormSectionKey, ReactNode> = {
+        // V2-5: section 1, the type cards with the tender cycle and the previous-request question.
+        request_type: (
+            <RequestTypeSection
+                api={api}
+                typeChoice={
+                    detail.type_options && {
+                        value: detail.request_type ?? '',
+                        options: detail.type_options,
+                        onChange: (code) => void changeType(code),
+                        disabled: changingType,
+                        error: errors?.procurement_type,
+                        showHiddenNote: typeHidSections,
+                    }
+                }
+                showVariationHiddenNote={variationHidden}
+            />
+        ),
         item_tender: <ItemTenderSection api={api} />,
         variation_details: <VariationSection api={api} />,
         awarded_supplier: <AwardedSupplierSection api={api} />,
@@ -294,17 +321,6 @@ export default function AdHocEdit({
 
                 {/* 24px between sections (design.md section 5). */}
                 <div className="space-y-6">
-                    {detail.type_options && (
-                        <TypeCards
-                            value={detail.request_type ?? ''}
-                            options={detail.type_options}
-                            onChange={(code) => void changeType(code)}
-                            disabled={changingType}
-                            error={errors?.procurement_type}
-                            showHiddenNote={typeHidSections}
-                        />
-                    )}
-
                     {visible.map((section) => (
                         <FormPanel key={section.key} section={section} issues={issuesOf(section.key)}>
                             {body[section.key]}

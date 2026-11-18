@@ -30,6 +30,8 @@ export interface AdHocFigures {
 export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
     requisition: RequestDetail['requisition'];
     figures: AdHocFigures | null;
+    /** V2-5: "Was a request previously made for this drug in this current tender cycle?"; null = not answered. */
+    previous_request_in_cycle: boolean | null;
     /** V2-1: the Tender Variation entry; null when none is saved. */
     variation: Record<string, FieldValue> | null;
 };
@@ -78,6 +80,7 @@ export interface AdHocPageProps {
 
 /** V2-2: the request form's sections, in form order (RequestFormView). */
 export type FormSectionKey =
+    | 'request_type'
     | 'item_tender'
     | 'variation_details'
     | 'awarded_supplier'

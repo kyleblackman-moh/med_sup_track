@@ -89,9 +89,9 @@ final class SubmitCase
 
     /**
      * Slice V2-1: data in a section the type hides is discarded at submit, so
-     * staff never see stale data (RequestSections::discardedAtSubmit; today the
-     * variation details of any type but TENDER_VARIATION). Until submit it stays
-     * in the draft, in case the type changes back. Audits the counts only.
+     * staff never see stale data (RequestSections::discardedAtSubmit; V2-5: the
+     * variation details unless the previous-request answer is Yes). Until submit
+     * it stays in the draft, in case the answer changes back. Audits the counts only.
      */
     private function discardHiddenSections(ProcurementCase $case, User $actor): void
     {
@@ -101,7 +101,7 @@ final class SubmitCase
         }
 
         $counts = [];
-        foreach (RequestSections::discardedAtSubmit($code) as $section) {
+        foreach (RequestSections::discardedAtSubmit($code, SubmissionReadiness::previousRequest($case)) as $section) {
             $counts[$section] = match ($section) {
                 'variation_details' => CaseVariation::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
             };

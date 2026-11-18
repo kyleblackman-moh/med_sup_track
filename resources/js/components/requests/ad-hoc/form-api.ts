@@ -10,6 +10,8 @@ export interface FormApi {
     form: RequestFormView;
     setField: (name: string, value: Value) => void;
     setVariation: (name: string, value: Value) => void;
+    /** V2-5: answers the previous-request question (saved by the autosave). */
+    setPreviousRequest: (value: boolean) => void;
     setCell: (section: ChildSection, rowKey: string, name: string, value: Value) => void;
     addRow: (section: ChildSection) => void;
     removeRow: (section: ChildSection, rowKey: string) => void;
