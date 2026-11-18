@@ -1,5 +1,4 @@
-import { APP_BRAND } from '@/components/app-logo';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
 import { BrandStripe } from '@/components/brand-stripe';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -35,7 +34,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
  * UI-4: the sign-in page in the Layered Surface Theme (design.md sections 2, 5
  * and 11): a centred white card on the L0 background with the brand stripe on
  * top, token classes only. The product name and logo are the shell's own
- * (APP_BRAND, AppLogoIcon); no logo or tagline is invented here.
+ * (APP_BRAND, AppLogoMark: the sidebar's shield-plus tile); no logo or tagline is invented here.
  */
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
@@ -60,9 +59,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                 <div className="px-6 pt-8 pb-8 sm:px-8">
                     <div className="flex items-center gap-3">
-                        <span className="bg-primary text-primary-foreground flex size-[34px] items-center justify-center rounded-[4px] rounded-bl-2xl">
-                            <AppLogoIcon className="size-5 fill-current" aria-hidden="true" />
-                        </span>
+                        <AppLogoMark />
                         <span className="grid leading-tight">
                             <span className="text-sm font-semibold">{APP_BRAND.name}</span>
                             <span className="text-muted-foreground text-xs">{APP_BRAND.descriptor}</span>
