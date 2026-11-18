@@ -14,6 +14,8 @@ interface SectionPanelProps {
     id?: string;
     /** Extra content beside the title (for example a count). */
     aside?: ReactNode;
+    /** V2-2b: the title's size and weight (default 14px/600; the vendor form uses 16px/600). */
+    titleClassName?: string;
     children: ReactNode;
     className?: string;
 }
@@ -22,13 +24,13 @@ interface SectionPanelProps {
  * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
  * white card (1px border, 12px radius, shadow-xs, 20px padding).
  */
-export function SectionPanel({ title, description, variant = 'stacked', id, aside, children, className }: SectionPanelProps) {
+export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, children, className }: SectionPanelProps) {
     const headingId = useId();
 
     const heading = (
         <div className="min-w-0 space-y-1">
-            <div className="flex items-start justify-between gap-2">
-                <h2 id={headingId} className="text-sm font-semibold">
+            <div className="flex items-baseline justify-between gap-2">
+                <h2 id={headingId} className={cn('text-sm font-semibold', titleClassName)}>
                     {title}
                 </h2>
                 {aside}

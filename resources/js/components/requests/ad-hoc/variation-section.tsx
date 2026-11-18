@@ -20,7 +20,7 @@ export function VariationSection({ api }: { api: FormApi }) {
     });
 
     return (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)]">
             <TextField {...field('variation_type')} label="Variation type" maxLength={MAX.variation_type} hint="For example: price, quantity." />
             <TextAreaField
                 {...field('existing_detail')}

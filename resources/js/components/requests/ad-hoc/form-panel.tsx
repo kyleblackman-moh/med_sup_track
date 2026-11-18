@@ -1,4 +1,5 @@
 import { SectionPanel } from '@/components/ui/section-panel';
+import { cn } from '@/lib/utils';
 import { type FormSectionState, type FormSectionView, type SectionIssue } from '@/types/ad-hoc';
 import { type ReactNode } from 'react';
 
@@ -10,11 +11,18 @@ const STATE_TEXT: Record<FormSectionState, string> = {
     blocked: 'Not available yet',
 };
 
+/** V2-2b: the state text's tone (design.md section 3 text colours; each passes 4.5:1 on the L2 panel). */
+const STATE_TONE: Record<FormSectionState, string> = {
+    complete: 'text-status-success-foreground',
+    incomplete: 'text-status-info-foreground',
+    optional: 'text-status-neutral-foreground',
+    blocked: 'text-status-warning-foreground',
+};
+
 interface FormPanelProps {
     section: FormSectionView;
     /** The server's issues for this section, shown only after Review and submit. */
     issues: SectionIssue[];
-    variant?: 'stacked' | 'split';
     children: ReactNode;
 }
 
@@ -22,14 +30,20 @@ interface FormPanelProps {
  * V2-2: one numbered section of the request form (never collapsible). The
  * number, label, state and note all come from the server (the "form" prop).
  * The anchor is "section-<key>", the target of the progress strip's links.
+ * V2-2b: always the STACKED panel (design.md section 7): "N. Title" at
+ * 16px/600 with the state text (13px, toned) on the right, above a
+ * full-width card.
  */
-export function FormPanel({ section, issues, variant = 'stacked', children }: FormPanelProps) {
+export function FormPanel({ section, issues, children }: FormPanelProps) {
     return (
         <SectionPanel
             id={`section-${section.key}`}
             title={`${section.number}. ${section.label}`}
-            variant={variant}
-            aside={<span className="text-muted-foreground shrink-0 text-xs">{section.note ?? STATE_TEXT[section.state]}</span>}
+            variant="stacked"
+            titleClassName="text-base font-semibold"
+            aside={
+                <span className={cn('shrink-0 text-[13px] font-medium', STATE_TONE[section.state])}>{section.note ?? STATE_TEXT[section.state]}</span>
+            }
             description={
                 issues.length > 0 && (
                     <span className="text-destructive">

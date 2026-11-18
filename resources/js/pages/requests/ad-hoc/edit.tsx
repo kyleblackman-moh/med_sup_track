@@ -202,31 +202,29 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
 
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
 
-    const body: Record<FormSectionKey, { variant: 'stacked' | 'split'; content: ReactNode }> = {
-        item_tender: { variant: 'split', content: <ItemTenderSection api={api} /> },
-        variation_details: { variant: 'stacked', content: <VariationSection api={api} /> },
-        awarded_supplier: { variant: 'stacked', content: <AwardedSupplierSection api={api} /> },
-        existing_arrangement: { variant: 'stacked', content: <ExistingArrangementSection api={api} /> },
-        stock: { variant: 'stacked', content: <StockSection api={api} /> },
-        quotation_comparison: { variant: 'stacked', content: <QuotationSection api={api} /> },
-        documents: {
-            variant: 'stacked',
-            content: (
-                <div
-                    id={fieldId.table('documents')}
-                    tabIndex={-1}
-                    className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-hidden"
-                >
-                    <SupportingDocuments
-                        caseId={detail.id}
-                        groups={documents}
-                        rules={config.uploads}
-                        reloadProps={['documents', 'request_sections', 'form']}
-                        embedded
-                    />
-                </div>
-            ),
-        },
+    // V2-2b: every section is the stacked panel (design.md section 7).
+    const body: Record<FormSectionKey, ReactNode> = {
+        item_tender: <ItemTenderSection api={api} />,
+        variation_details: <VariationSection api={api} />,
+        awarded_supplier: <AwardedSupplierSection api={api} />,
+        existing_arrangement: <ExistingArrangementSection api={api} />,
+        stock: <StockSection api={api} />,
+        quotation_comparison: <QuotationSection api={api} />,
+        documents: (
+            <div
+                id={fieldId.table('documents')}
+                tabIndex={-1}
+                className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-hidden"
+            >
+                <SupportingDocuments
+                    caseId={detail.id}
+                    groups={documents}
+                    rules={config.uploads}
+                    reloadProps={['documents', 'request_sections', 'form']}
+                    embedded
+                />
+            </div>
+        ),
     };
 
     const visible = form.sections.filter((section) => section.visible);
@@ -287,8 +285,8 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                     )}
 
                     {visible.map((section) => (
-                        <FormPanel key={section.key} section={section} issues={issuesOf(section.key)} variant={body[section.key].variant}>
-                            {body[section.key].content}
+                        <FormPanel key={section.key} section={section} issues={issuesOf(section.key)}>
+                            {body[section.key]}
                         </FormPanel>
                     ))}
 

@@ -16,24 +16,25 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
         optional: api.optional('item_tender', name),
     });
 
+    // V2-2b order: DIN, Item description / Strength, Dosage form, Quantity requested,
+    // Unit of measure / Contract reference, Tender cycle start, Tender cycle end /
+    // Clinical importance.
     return (
-        <div className="grid grid-cols-1 gap-4">
-            <TextField {...field('item_description')} label="Item description" maxLength={500} />
-
-            <div className="grid gap-4 md:grid-cols-3">
-                <TextField {...field('strength')} label="Strength" maxLength={100} />
-                <TextField {...field('dosage_form')} label="Dosage form" maxLength={100} />
+        <div className="grid grid-cols-1 gap-5">
+            <div className="grid gap-5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
                 <TextField {...field('din')} label="DIN" inputMode="numeric" maxLength={32} hint="Digits only." />
+                <TextField {...field('item_description')} label="Item description" maxLength={500} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                <TextField {...field('strength')} label="Strength" maxLength={100} />
+                <TextField {...field('dosage_form')} label="Dosage form" maxLength={100} />
                 <TextField {...field('quantity_requested')} label="Quantity requested" inputMode="decimal" hint="In figures, for example 2800." />
                 <TextField {...field('unit_of_measure')} label="Unit of measure" maxLength={32} hint="For example: each, box of 100, vial." />
             </div>
 
-            <TextField {...field('tender_reference')} label="Contract reference" maxLength={120} hint="For example TENDER-2026-14." />
-
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 xl:grid-cols-3">
+                <TextField {...field('tender_reference')} label="Contract reference" maxLength={120} hint="For example TENDER-2026-14." />
                 <TextField {...field('tender_cycle_start')} label="Tender cycle start" type="date" />
                 <TextField {...field('tender_cycle_end')} label="Tender cycle end" type="date" hint="Not before the start." />
             </div>
