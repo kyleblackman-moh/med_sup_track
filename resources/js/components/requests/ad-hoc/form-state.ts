@@ -189,11 +189,6 @@ export function mergeSaved(state: FormState, saved: SavedFlash): FormState {
     return { ...state, rows };
 }
 
-/** The server's copy of a saved row (for its computed values), or undefined for an unsaved row. */
-export function serverRow(detail: AdHocDetail, section: ChildSection, id: number | null): Row | undefined {
-    return id === null ? undefined : (detail[section] as Row[]).find((row) => row.id === id);
-}
-
 /** DOM id of a field: request fields, row cells and table-level targets. */
 export const fieldId = {
     requisition: (name: string) => `f-requisition-${name}`,

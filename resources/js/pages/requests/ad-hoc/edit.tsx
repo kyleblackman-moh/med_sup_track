@@ -1,3 +1,5 @@
+import { AwardedSupplierSection } from '@/components/requests/ad-hoc/awarded-supplier-section';
+import { ExistingArrangementSection } from '@/components/requests/ad-hoc/existing-arrangement-section';
 import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-api';
 import { FormPanel } from '@/components/requests/ad-hoc/form-panel';
 import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } from '@/components/requests/ad-hoc/form-state';
@@ -7,7 +9,6 @@ import { QuotationsSection } from '@/components/requests/ad-hoc/quotations-secti
 import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
-import { TenderSection } from '@/components/requests/ad-hoc/tender-section';
 import { TypeCards } from '@/components/requests/ad-hoc/type-cards';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { VariationSection } from '@/components/requests/ad-hoc/variation-section';
@@ -203,11 +204,11 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
 
     const body: Record<FormSectionKey, { variant: 'stacked' | 'split'; content: ReactNode }> = {
-        // V2-2 part 3: the earlier section bodies until parts 4 and 5 replace them.
+        // V2-2 part 4: the earlier stock and quotation bodies until part 5 replaces them.
         item_tender: { variant: 'split', content: <ItemTenderSection api={api} /> },
         variation_details: { variant: 'stacked', content: <VariationSection api={api} /> },
-        awarded_supplier: { variant: 'stacked', content: <TenderSection api={api} /> },
-        existing_arrangement: { variant: 'stacked', content: null },
+        awarded_supplier: { variant: 'stacked', content: <AwardedSupplierSection api={api} /> },
+        existing_arrangement: { variant: 'stacked', content: <ExistingArrangementSection api={api} /> },
         stock: { variant: 'stacked', content: <StockSection api={api} /> },
         quotation_comparison: {
             variant: 'stacked',
