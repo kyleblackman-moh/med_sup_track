@@ -81,7 +81,7 @@ it('refuses a type that is not one of the five, and creates nothing', function (
     expect(sampleCount())->toBe($before);
 })->with(['AD_HOC', 'AD_HOC_PHARM', 'NOT_A_TYPE']);
 
-it('submits a sample of each request type, with a variation entry for a Tender Variation only', function (string $type) {
+it('submits a sample of each request type: Tender Variation answers Yes with two variation rows, the others No', function (string $type) {
     asLocal();
 
     $this->artisan('dev:sample-case', ['stage' => 'submitted', '--type' => $type])
@@ -89,9 +89,13 @@ it('submits a sample of each request type, with a variation entry for a Tender V
         ->assertSuccessful();
 
     $case = latestSample();
+    $variation = $type === 'TENDER_VARIATION';
     expect($case->status)->toBe(CaseStatus::SUBMITTED)
         ->and($case->procurementType->code)->toBe($type)
-        ->and(DB::table('case_variation_rows')->where('case_id', $case->id)->exists())->toBe($type === 'TENDER_VARIATION');
+        ->and(DB::table('cases')->where('id', $case->id)->value('previous_request_in_cycle'))->not->toBeNull()
+        ->and((bool) DB::table('cases')->where('id', $case->id)->value('previous_request_in_cycle'))->toBe($variation)
+        ->and(DB::table('case_variation_rows')->where('case_id', $case->id)->orderBy('sort_order')->pluck('variation_type')->all())
+        ->toBe($variation ? ['Price', 'Quantity'] : []);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('uses Ad Hoc - Tender unable to supply by default', function () {

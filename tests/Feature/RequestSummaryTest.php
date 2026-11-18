@@ -105,6 +105,59 @@ it('shows Details of Variation Requested only when the answer is Yes (a complete
     }
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
+// V2-5: section 1 and Details of Variation Requested ----------------------------------------
+
+it('shows the previous-request answer in section 1 as Yes, No or a dash', function (?bool $answer, string $shown) {
+    [$case, $vendor] = newDraft('TENDER_EXCESS');
+    saveDraft($case, $vendor, [
+        'previous_request_in_cycle' => $answer,
+        'requisition' => ['tender_cycle_start' => '2026-01-01', 'tender_cycle_end' => '2026-12-31'],
+    ]);
+    $summary = summaryOf($case, $vendor);
+
+    expect($summary['sections'][0])->toMatchArray(['key' => 'request_type', 'number' => 1, 'label' => 'Request Type'])
+        ->and(summaryFields($summary, 'request_type'))->toBe([
+            'Request Type' => 'Tender - Excess',
+            'Tender Cycle Start' => '1 Jan 2026',
+            'Tender Cycle End' => '31 Dec 2026',
+            RequestSummary::PREVIOUS_REQUEST_LABEL => $shown,
+        ]);
+})->with(['yes' => [true, 'Yes'], 'no' => [false, 'No'], 'unanswered' => [null, Display::EMPTY]]);
+
+it('shows the variation rows as a table when the answer is Yes, with a dash for an empty value', function () {
+    [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => true, 'variation_rows' => [
+        variationEntry(),
+        ['variation_type' => 'Quantity', 'proposed_detail' => '3,600 units'],
+    ]]);
+    $table = summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested');
+
+    expect(array_column($table['columns'], 'label'))->toBe(['Variation Type', 'Existing Approved Detail', 'Proposed Revised Detail', 'Effective Date / Application P.O.'])
+        ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1', 'Variation Row 2'])
+        ->and($table['rows'][1]['cells'])->toBe([
+            'variation_type' => 'Quantity', 'existing_detail' => Display::EMPTY,
+            'proposed_detail' => '3,600 units', 'effective_detail' => Display::EMPTY,
+        ])
+        ->and($table['empty'])->toBeNull();
+});
+
+it('says "None entered" for a Yes with no variation rows', function () {
+    [$case, $vendor] = newDraft();
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]);
+
+    expect(summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested'))
+        ->toMatchArray(['rows' => [], 'empty' => RequestSummary::NONE]);
+});
+
+it('never shows the variation rows when the answer is not Yes, even if hidden rows exist', function (?bool $answer) {
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'variation_rows' => [variationEntry()]]);
+    $summary = summaryOf($case, $vendor);
+
+    expect(summarySection($summary, 'variation_details'))->toBeNull()
+        ->and(json_encode($summary))->not->toContain('Unit cost 1.25')->not->toContain('PO-2207');
+})->with(['no' => false, 'unanswered' => null]);
+
 it('is null for a case that is not on the request form', function () {
     [$case, $vendor] = legacyDraft('AD_HOC_PHARM');
 
@@ -239,17 +292,21 @@ it('lists the documents with the existing visibility rules', function () {
 });
 
 it('never contains values from another case', function () {
-    [$mine, $vendor] = summaryDraft();
+    [$mine, $vendor] = summaryDraft('TENDER_VARIATION');
     [$other, $otherVendor] = newDraft('AD_HOC_TENDER_UNABLE');
     saveDraft($other, $otherVendor, [
         'requisition' => ['item_description' => 'Other organisation item', 'din' => '99999999'],
         'tender_awards' => [['supplier_name' => 'Other supplier', 'quantity_awarded' => '5', 'unit_cost' => '9.99']],
+        // V2-5: another case's variation rows never show either.
+        'previous_request_in_cycle' => true,
+        'variation_rows' => [variationEntry(['existing_detail' => 'Other organisation variation'])],
     ]);
     makeDocument($other, 'bids', ['original_name' => 'other-case.pdf']);
 
     $json = json_encode(summaryOf($mine, $vendor));
 
     expect($json)->not->toContain('Other organisation item')
+        ->not->toContain('Other organisation variation')
         ->not->toContain('99999999')
         ->not->toContain('Other supplier')
         ->not->toContain('other-case.pdf');
@@ -266,7 +323,9 @@ it('gives the staff case page and the vendor page the same summary of a submitte
 
     // NEXT part 5: neither page repeats the documents (each has its own list), so the two are identical.
     expect($staffSummary)->toBe($vendorSummary)
-        ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(3);
+        ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(3)
+        ->and(summaryTable($staffSummary, 'variation_details', 'Details of Variation Requested')['rows'][0]['label'])->toBe('Variation Row 1')
+        ->and(summaryFields($staffSummary, 'request_type')[RequestSummary::PREVIOUS_REQUEST_LABEL])->toBe('Yes');
 });
 
 it('lists documents only on the Review step, never on the request page or the case page', function (string $code) {
