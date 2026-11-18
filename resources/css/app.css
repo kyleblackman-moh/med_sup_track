@@ -111,6 +111,25 @@
     --color-status-danger: var(--status-danger);
     --color-status-danger-foreground: var(--status-danger-foreground);
 
+    /* V2-4 (design.md 0.7.2 section 2): the navy application shell. */
+    --color-navy: var(--navy);
+    --color-navy-deep: var(--navy-deep);
+    --color-navy-foreground: var(--navy-foreground);
+    --color-navy-muted: var(--navy-muted);
+    --color-navy-border: var(--navy-border);
+    --color-navy-hover: var(--navy-hover);
+    --color-nav-active: var(--nav-active);
+    --color-nav-active-foreground: var(--nav-active-foreground);
+    --color-header: var(--header);
+    --color-header-foreground: var(--header-foreground);
+    /* Gradient stops: the sidebar surface and the hero icon tile only (section 2). */
+    --color-sidebar-from: var(--sidebar-from);
+    --color-sidebar-to: var(--sidebar-to);
+    --color-tile-from: var(--tile-from);
+    --color-tile-to: var(--tile-to);
+    --color-primary-deep: var(--primary-deep);
+    --color-input-bg: var(--input-bg);
+
     --color-sidebar: var(--sidebar-background);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -140,13 +159,14 @@
 }
 
 /*
-  Ministry of Health palette, "Layered Surface Theme" (design.md section 2,
-  version 0.5), light only. Values converted by hand from the design hex (in
-  the comments); each converts back to the same hex. Do not install a theme
-  from a registry. Surfaces: L0 --background, L1 --card, L2 --muted, L3 --card.
+  Ministry of Health palette with the "Navy & Healthcare Blue" shell (design.md
+  section 2, version 0.7.2), light only. Values converted by hand from the
+  design hex (in the comments); each converts back to the same hex. Do not
+  install a theme from a registry. Surfaces: workspace --background, L2
+  --muted, L3 --card; the shell is --navy (sidebar) and --header.
 */
 :root {
-    --background: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
+    --background: hsl(220, 66.7%, 96.5%); /* #f0f4fc workspace (0.7.2; was #eef3f8) */
     --foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
     --card: hsl(0, 0%, 100%); /* #ffffff L1, L3 */
     --card-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
@@ -182,16 +202,34 @@
     --chart-4: hsl(87.3, 62.2%, 24.9%); /* #436718 */
     --chart-5: hsl(206.7, 82.1%, 22%); /* #0a3d66 */
     --radius: 0.75rem;
-    /* The sidebar sits on L0 with no colour of its own: the same value as
-       --background (not "transparent", so the mobile sheet stays opaque). */
-    --sidebar-background: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
-    --sidebar-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
-    --sidebar-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
-    --sidebar-primary-foreground: hsl(0, 0%, 100%); /* #ffffff */
-    --sidebar-accent: hsl(0, 0%, 100%); /* #ffffff (hover uses it at 60%) */
-    --sidebar-accent-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
-    --sidebar-border: hsl(211.8, 33.3%, 90%); /* #dde5ee */
-    --sidebar-ring: hsl(204.2, 100%, 36.5%); /* #006fba */
+    /* V2-4 (design.md 0.7.2 section 2): the navy application shell. */
+    --navy: hsl(214.5, 78.6%, 16.5%); /* #09254b sidebar (flat fallback) */
+    --navy-deep: hsl(215.3, 71.8%, 13.9%); /* #0a1f3d sidebar user card */
+    --navy-foreground: hsl(0, 0%, 100%); /* #ffffff */
+    --navy-muted: hsl(216, 36.4%, 78.4%); /* #b4c4dc secondary sidebar text */
+    --navy-border: hsl(216, 48.8%, 32.2%); /* #2a4a7a sidebar dividers (decorative) */
+    --navy-hover: hsl(215, 50.8%, 23.1%); /* #1d3659 nav item hover */
+    --nav-active: var(--primary); /* active nav item */
+    --nav-active-foreground: hsl(0, 0%, 100%); /* #ffffff */
+    --header: var(--card); /* application header surface */
+    --header-foreground: var(--foreground);
+    --sidebar-from: hsl(215.6, 80.8%, 14.3%); /* #071f42 sidebar gradient, top */
+    --sidebar-to: hsl(213, 74.8%, 23.3%); /* #0f3768 sidebar gradient, bottom */
+    --primary-deep: hsl(214.2, 100%, 33.3%); /* #0049aa primary BUTTON fill */
+    --tile-from: hsl(207.4, 87.3%, 43.3%); /* #0e77cf hero icon tile, top */
+    --tile-to: hsl(212.4, 100%, 36.7%); /* #0056bb hero icon tile, bottom */
+    --input-bg: hsl(220, 69.2%, 97.5%); /* #f4f7fd input fill (border stays --input) */
+    /* shadcn sidebar variables mapped to the shell (section 2). This file names
+       shadcn's --sidebar "--sidebar-background" (older shadcn naming; the
+       Tailwind colour is still bg-sidebar). */
+    --sidebar-background: var(--navy);
+    --sidebar-foreground: var(--navy-foreground);
+    --sidebar-primary: var(--nav-active);
+    --sidebar-primary-foreground: var(--nav-active-foreground);
+    --sidebar-accent: var(--navy-hover);
+    --sidebar-accent-foreground: var(--navy-foreground);
+    --sidebar-border: var(--navy-border);
+    --sidebar-ring: hsl(0, 0%, 100%); /* white: the MOH-blue ring is nearly invisible on navy */
     /* Status pill tones (design.md section 3). Each pair is 5.2:1 or better. */
     --status-neutral: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
     --status-neutral-foreground: hsl(213.3, 13%, 40.6%); /* #5a6675 */

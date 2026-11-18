@@ -55,3 +55,28 @@ it('loads no font from an external URL in resources/js', function () {
 
     expect($hits)->toBe([]);
 });
+
+// V2-4 (design.md 0.7.2 section 2): the navy shell tokens exist in app.css and
+// are exposed to Tailwind, and the shadcn sidebar variables map onto them.
+it('defines the navy shell tokens and exposes them in the theme', function () {
+    $css = file_get_contents(resource_path('css/app.css'));
+
+    $tokens = [
+        'navy', 'navy-deep', 'navy-foreground', 'navy-muted', 'navy-border', 'navy-hover',
+        'nav-active', 'nav-active-foreground', 'header', 'header-foreground',
+        'sidebar-from', 'sidebar-to', 'primary-deep', 'tile-from', 'tile-to', 'input-bg',
+    ];
+
+    foreach ($tokens as $token) {
+        expect($css)->toMatch('/^\s*--'.preg_quote($token, '/').':\s*[^;]+;/m')
+            ->and($css)->toContain("--color-{$token}: var(--{$token});");
+    }
+
+    expect($css)->toContain('--sidebar-background: var(--navy);')
+        ->and($css)->toContain('--sidebar-accent: var(--navy-hover);')
+        ->and($css)->toContain('--sidebar-primary: var(--nav-active);')
+        ->and($css)->toContain('--sidebar-border: var(--navy-border);')
+        ->and($css)->toMatch('/--sidebar-ring:\s*hsl\(0, 0%, 100%\);/')
+        // MOH blue stays the primary colour.
+        ->and($css)->toMatch('/--primary:\s*hsl\(204\.2, 100%, 36\.5%\);/');
+});
