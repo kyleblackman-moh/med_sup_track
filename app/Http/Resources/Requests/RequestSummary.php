@@ -295,13 +295,13 @@ final class RequestSummary
             'name' => 'Document',
             'category' => 'Category',
             'uploaded' => 'Uploaded',
-            'status' => 'Scan status',
+            'scan_status' => 'Scan status',
             ...($forStaff ? ['visibility' => 'Visibility'] : []),
         ], $documents->map(fn (Document $d) => [
             'name' => (string) $d->original_name,
             'category' => $labels[$d->purpose->value] ?? Str::headline($d->purpose->value),
             'uploaded' => self::date($d->uploaded_at?->copy()->setTimezone(self::TIMEZONE)),
-            'status' => $d->scan_status->label(),
+            'scan_status' => $d->scan_status->label(),
             ...($forStaff ? ['visibility' => $d->visibility === DocumentVisibility::INTERNAL ? 'Internal' : 'External'] : []),
         ])->all())];
     }

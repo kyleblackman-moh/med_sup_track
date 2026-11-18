@@ -473,18 +473,19 @@ it('shares can.requests only with users who hold the vendor permission', functio
 
 // UI-3 -------------------------------------------------------------------------
 
-it('gives an AD_HOC request page the summary labels, and no other type', function (string $code, bool $summary) {
+// V2-3: the one RequestSummary replaces the summary labels (summary_config).
+it('gives a request-form request page the request summary, and no other type', function (string $code, bool $summary) {
     [$case, $vendor] = vendorDraft($code);
 
     $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk());
 
+    expect($props)->not->toHaveKey('summary_config');
     if ($summary) {
-        expect(array_keys($props['summary_config']))->toBe(['options', 'not_awarded', 'sections'])
-            ->and(array_column($props['summary_config']['sections'], 'key'))->toBe(array_column(RequestSections::visible($code), 'key'))
-            ->and(array_keys($props['summary_config']['options']))->toBe(['tender_outcome', 'rfq_audience'])
+        expect(array_keys($props['summary']))->toBe(['type_label', 'sections'])
+            ->and(array_column($props['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible($code), 'key'))
             ->and($props['case']['figures'])->not->toBeNull();
     } else {
-        expect($props['summary_config'])->toBeNull();
+        expect($props['summary'])->toBeNull();
     }
 })->with([
     ['AD_HOC_EMERGENCY', true],
@@ -495,6 +496,21 @@ it('gives an AD_HOC request page the summary labels, and no other type', functio
     ['AD_HOC', true],
     ['AD_HOC_PHARM', false],
 ]);
+
+it('sends the edit page\'s summary only when Review asks for it', function () {
+    [$case, $vendor] = vendorDraft('TENDER_EXCESS');
+    $full = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk();
+    expect($full->viewData('page')['props'])->not->toHaveKey('summary');
+
+    $props = $this->actingAs($vendor)->get(route('requests.edit', $case->id), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $full->viewData('page')['version'],
+        'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
+        'X-Inertia-Partial-Data' => 'summary',
+    ])->assertOk()->json('props');
+
+    expect(array_column($props['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible('TENDER_EXCESS'), 'key'));
+});
 
 it('keeps form actions out of the request form headers', function () {
     // CLAUDE.md, UI: form actions go in a footer row, never in the header.

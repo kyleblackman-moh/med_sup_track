@@ -13,6 +13,7 @@ use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestFormView;
 use App\Http\Resources\Requests\RequestReceipt;
+use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
@@ -23,7 +24,6 @@ use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
 use App\Submissions\ExpiryRisk;
 use App\Submissions\ProcurementTypeProfile;
-use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
@@ -32,7 +32,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -152,14 +151,9 @@ class RequestController extends Controller
             'documents' => RequestDocuments::for($procurementCase, $request->user()),
             // Drafts only: the reasons a submit would be refused right now.
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
-            // UI-3: an AD_HOC request shows the same summary as Review and submit, which needs the option labels.
-            // Slice V2-1: plus the sections the type shows, in order (RequestSections).
-            'summary_config' => ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()
-                ? [
-                    ...Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded']),
-                    'sections' => RequestSections::visible($procurementCase->procurementType->code),
-                ]
-                : null,
+            // V2-3: a request-form case shows the one RequestSummary (as Review and the staff
+            // case page); null for the old Pharm and Non-Pharm types (RequisitionView).
+            'summary' => RequestSummary::for($procurementCase, $request->user()),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
@@ -341,6 +335,8 @@ class RequestController extends Controller
 
                 return RequestFormView::for($case, $report);
             },
+            // V2-3: the read-only summary for Review and submit; sent only when Review asks for it.
+            'summary' => Inertia::optional(fn () => RequestSummary::for($case, $request->user())),
             'config' => fn () => [...AdHocFormConfig::for(), 'uploads' => RequestDocuments::uploadRules()],
             'documents' => fn () => RequestDocuments::for($case, $request->user()),
             'saved' => fn () => $request->session()->get('saved'),

@@ -2,6 +2,7 @@
 // validates every save, computes every figure and decides what is complete.
 
 import { type DocumentGroup, type FieldValue, type OptionList, type RequestDetail, type UploadRules } from './requests';
+import { type RequestSummaryView } from './summary';
 
 export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations';
 
@@ -34,9 +35,8 @@ export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
 };
 
 export interface AdHocConfig {
-    options: { tender_outcome: OptionList; rfq_audience: OptionList };
-    /** The outcome value that hides the award and order tables. */
-    not_awarded: string;
+    /** V2-3: no tender outcome; awards and orders never depend on it. */
+    options: { rfq_audience: OptionList };
     row_caps: Record<ChildSection, number>;
     max_lengths: Record<string, number>;
     uploads: UploadRules;
@@ -66,6 +66,8 @@ export interface AdHocPageProps {
     request_sections: RequestSectionStatus[];
     /** V2-2: numbered sections, display strings and the expiry warning. */
     form: RequestFormView;
+    /** V2-3: the read-only summary; only after Review and submit asks for it (an optional prop). */
+    summary?: RequestSummaryView | null;
     config: AdHocConfig;
     documents: DocumentGroup[];
     saved: SavedFlash | null;

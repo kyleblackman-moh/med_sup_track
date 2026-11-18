@@ -574,7 +574,10 @@ it('renders a draft of each request type on the new page, never the old one', fu
         ->assertInertia(fn (Assert $page) => $page->component('requests/ad-hoc/edit')
             ->missing('readiness')
             ->has('sections', 6)
-            ->where('config.options.tender_outcome.2.label', 'Awarded but supplier unable to supply')
+            // V2-3: the config no longer carries the tender outcome (awards never depend on it).
+            ->where('config.options.rfq_audience.0.label', 'All registered suppliers')
+            ->missing('config.options.tender_outcome')
+            ->missing('config.not_awarded')
             ->where('hardcopy_notice', RequestReceipt::HARDCOPY_NOTICE)
             ->where('can.submit', true)
             ->where('can.requests', true));

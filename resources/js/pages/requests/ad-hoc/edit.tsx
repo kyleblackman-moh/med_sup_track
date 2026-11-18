@@ -51,7 +51,17 @@ function focusTarget(id: string) {
  * computes and formats every figure, and decides what is complete and what
  * is optional (the "form" prop). Issues show only after Review and submit.
  */
-export default function AdHocEdit({ case: detail, request_sections, form, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
+export default function AdHocEdit({
+    case: detail,
+    request_sections,
+    form,
+    summary,
+    config,
+    documents,
+    hardcopy_notice,
+    errors,
+    can,
+}: AdHocPageProps) {
     const [state, setState] = useState<FormState>(() => initialState(detail));
     const stateRef = useRef(state);
     stateRef.current = state;
@@ -168,7 +178,8 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
         }
         setReviewFailed(false);
         router.reload({
-            only: FORM_PROPS,
+            // V2-3: plus the read-only summary (an optional prop, sent only when asked for).
+            only: [...FORM_PROPS, 'summary'],
             onSuccess: (page) => {
                 const latest = (page.props as unknown as AdHocPageProps).request_sections;
                 setShowIssues(true);
@@ -293,15 +304,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
 
                     {/* The review result sits just above the action bar that asked for it. */}
                     {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={request_sections} state={state} onJump={focusTarget} />}
-                    {review === 'ready' && (
-                        <SummaryPanel
-                            panelRef={panelRef}
-                            detail={detail}
-                            config={config}
-                            documents={documents}
-                            onSubmit={() => setConfirming(true)}
-                        />
-                    )}
+                    {review === 'ready' && summary && <SummaryPanel panelRef={panelRef} summary={summary} onSubmit={() => setConfirming(true)} />}
                 </div>
             </PageContent>
 
