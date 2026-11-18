@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, CircleAlert } from 'lucide-react';
 
 // V2-2: 'optional' (nothing required) and 'blocked' (waiting for something else, see note).
 export type ProgressState = 'complete' | 'incomplete' | 'current' | 'error' | 'optional' | 'blocked';
@@ -8,6 +8,8 @@ export interface ProgressItem {
     key: string;
     label: string;
     state: ProgressState;
+    /** V2-4: the server's current section (the first visible incomplete one; at most one). */
+    current?: boolean;
     /** The section's anchor, for example "#section-stock". */
     href: string;
     /** The marker text; defaults to the position in the list. */
@@ -27,57 +29,80 @@ const STATE_TEXT: Record<ProgressState, string> = {
 };
 
 /**
- * UI-4: the form progress strip (design.md section 7): one segment per VISIBLE
- * section, a marker beside a 4px bar, and a 13px label below that wraps to two
- * lines; each segment links to its section. Presentational only: the items and
- * their states come from the server.
+ * The form progress strip (design.md section 7), restyled in place in V2-4:
+ * one column per VISIBLE section with a 36px circular marker, a 3px connector
+ * to the next marker and a 14px/500 centred label below. Complete: solid
+ * --primary with a white check. Current (the server's flag): solid --primary
+ * at 40px with the number, the label bold in --primary. Not complete: a tinted
+ * circle with the number in --muted-foreground. Blocked: a warning-tone ring
+ * with circle-alert. The connector is --primary after a complete section.
+ * Each marker and label is one plain link to its section. Below md only the
+ * markers show, plus the current label. Presentational only: the items, their
+ * order, states and labels come from the server.
  */
 export function ProgressStrip({ items, label = 'Form progress' }: { items: ProgressItem[]; label?: string }) {
     return (
         <nav aria-label={label}>
-            <ol className="flex gap-2 overflow-x-auto">
-                {items.map((item, i) => (
-                    <li key={item.key} className="min-w-28 flex-1">
-                        <a
-                            href={item.href}
-                            aria-current={item.state === 'current' ? 'step' : undefined}
-                            className="focus-visible:ring-ring group flex flex-col gap-1.5 rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                        >
-                            {/* NEXT: the marker sits beside the bar, so the label below has the segment's full width and wraps to two lines (never truncated). */}
-                            <span className="flex items-center gap-1.5">
+            <ol className="flex">
+                {items.map((item, i) => {
+                    const current = item.current === true || item.state === 'current';
+                    const last = i === items.length - 1;
+
+                    return (
+                        <li key={item.key} className="relative min-w-0 flex-1">
+                            {/* The connector to the next marker, centred on the 40px marker row; decorative. */}
+                            {!last && (
                                 <span
                                     aria-hidden="true"
                                     className={cn(
-                                        'flex size-5 shrink-0 items-center justify-center rounded-full border text-[13px] leading-none font-semibold tabular-nums',
-                                        item.state === 'complete' && 'border-primary bg-primary text-primary-foreground',
-                                        item.state === 'current' && 'border-primary text-primary',
-                                        (item.state === 'incomplete' || item.state === 'optional') && 'border-input text-muted-foreground',
-                                        item.state === 'blocked' && 'border-input text-muted-foreground border-dashed',
-                                        item.state === 'error' && 'border-destructive-text text-destructive-text',
+                                        'absolute top-[18.5px] left-1/2 h-[3px] w-full rounded-full',
+                                        item.state === 'complete' ? 'bg-primary' : 'bg-border',
                                     )}
-                                >
-                                    {item.state === 'complete' ? <Check className="size-3" strokeWidth={3} /> : (item.number ?? i + 1)}
-                                </span>
-                                <span
-                                    aria-hidden="true"
-                                    className={cn('h-1 min-w-0 flex-1 rounded-full', item.state === 'complete' || item.state === 'current' ? 'bg-primary' : 'bg-muted')}
                                 />
-                            </span>
-                            <span className="text-[13px] leading-snug">
-                                <span
-                                    className={cn(
-                                        'break-words group-hover:underline',
-                                        item.state === 'current' ? 'text-primary font-semibold' : 'text-muted-foreground',
-                                        item.state === 'error' && 'text-destructive-text',
-                                    )}
-                                >
-                                    {item.label}
+                            )}
+                            <a
+                                href={item.href}
+                                aria-current={current ? 'step' : undefined}
+                                className="focus-visible:ring-ring group relative flex flex-col items-center gap-2 rounded-lg px-1 py-0.5 text-center outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                            >
+                                <span className="flex h-10 items-center justify-center">
+                                    <span
+                                        aria-hidden="true"
+                                        className={cn(
+                                            'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums',
+                                            item.state === 'complete' && 'bg-primary text-primary-foreground',
+                                            (item.state === 'incomplete' || item.state === 'optional') && 'bg-muted text-muted-foreground border',
+                                            item.state === 'blocked' && 'bg-status-warning text-status-warning-foreground border-status-warning-foreground border-2',
+                                            item.state === 'error' && 'bg-card text-destructive-text border-destructive-text border-2',
+                                            current && 'bg-primary text-primary-foreground border-primary size-10 border-0 text-base shadow-xs',
+                                        )}
+                                    >
+                                        {item.state === 'complete' ? (
+                                            <Check className="size-4" strokeWidth={3} />
+                                        ) : item.state === 'blocked' && !current ? (
+                                            <CircleAlert className="size-4" />
+                                        ) : (
+                                            (item.number ?? i + 1)
+                                        )}
+                                    </span>
                                 </span>
-                                <span className="sr-only">, {item.note ?? STATE_TEXT[item.state]}</span>
-                            </span>
-                        </a>
-                    </li>
-                ))}
+                                <span className={cn('text-sm leading-snug font-medium', !current && 'sr-only md:not-sr-only')}>
+                                    <span
+                                        className={cn(
+                                            'break-words group-hover:underline',
+                                            current ? 'text-primary font-bold' : 'text-muted-foreground',
+                                            item.state === 'complete' && !current && 'text-foreground',
+                                            item.state === 'error' && 'text-destructive-text',
+                                        )}
+                                    >
+                                        {item.label}
+                                    </span>
+                                    <span className="sr-only">, {item.note ?? (current ? STATE_TEXT.current : STATE_TEXT[item.state])}</span>
+                                </span>
+                            </a>
+                        </li>
+                    );
+                })}
             </ol>
         </nav>
     );

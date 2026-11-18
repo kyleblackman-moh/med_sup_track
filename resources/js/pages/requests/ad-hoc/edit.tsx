@@ -249,6 +249,8 @@ export default function AdHocEdit({
         number: section.number ?? undefined,
         href: `#section-${section.key}`,
         state: issuesOf(section.key).length > 0 ? 'error' : section.state,
+        // V2-4: the server's current section (first visible incomplete one).
+        current: section.current,
         note: section.note,
     }));
 
@@ -276,7 +278,7 @@ export default function AdHocEdit({
                     </p>
                 )}
 
-                <div className="bg-card/92 sticky top-0 z-10 -mx-4 border-b px-4 py-2 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
+                <div className="bg-background/95 sticky top-0 z-10 -mx-4 px-4 py-3 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
                     <ProgressStrip items={progress} label="Form sections" />
                 </div>
 

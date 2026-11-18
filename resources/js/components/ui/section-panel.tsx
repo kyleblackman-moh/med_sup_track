@@ -58,7 +58,7 @@ export function SectionPanel({ title, description, variant = 'stacked', id, asid
             id={id}
             aria-labelledby={headingId}
             className={cn(
-                'bg-muted scroll-mt-28 rounded-2xl p-4',
+                'bg-muted scroll-mt-36 rounded-2xl p-4',
                 variant === 'split' ? 'grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]' : 'space-y-4',
                 className,
             )}

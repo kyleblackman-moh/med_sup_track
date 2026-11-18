@@ -306,3 +306,39 @@ it('has no fetch or axios in the request form code', function () {
 
     expect($hits)->toBe([]);
 });
+
+// V2-4 Stage B: the progress strip's current marker -------------------------------
+
+it('marks the first visible incomplete section current, and only that one', function () {
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
+    $sections = formProp($this, $case, $vendor)['sections'];
+
+    expect(array_column($sections, 'current', 'key'))->toBe([
+        'item_tender' => true,
+        'variation_details' => false, // also incomplete, but not the first
+        'awarded_supplier' => false,
+        'existing_arrangement' => false,
+        'stock' => false,
+        'quotation_comparison' => false,
+        'documents' => false,
+    ]);
+});
+
+it('marks no section current when nothing is incomplete', function () {
+    [$case, $vendor] = v2DraftForForm('AD_HOC_TENDER_UNABLE');
+    $sections = formProp($this, $case, $vendor)['sections'];
+
+    expect(collect($sections)->where('current', true))->toBeEmpty();
+});
+
+it('never marks a hidden or blocked section current', function () {
+    $vendor = vendorUser(vendorOrg());
+    $this->actingAs($vendor)->post(route('requests.store'))->assertRedirect();
+    $case = ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->latest('created_at')->firstOrFail();
+
+    $sections = collect(formProp($this, $case, $vendor)['sections']);
+
+    expect($sections->where('current', true)->pluck('key')->all())->toBe(['item_tender'])
+        ->and($sections->where('state', 'blocked')->where('current', true))->toBeEmpty()
+        ->and($sections->where('visible', false)->where('current', true))->toBeEmpty();
+});
