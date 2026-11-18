@@ -209,7 +209,8 @@ export default function AdHocEdit({
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        { title: 'Edit draft', href: route('requests.edit', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New request" before there is one.
+        { title: detail.reference_no ?? 'New request', href: route('requests.edit', detail.id) },
     ];
 
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);

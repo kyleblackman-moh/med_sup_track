@@ -253,8 +253,8 @@
     }
 }
 
-/* Print (design.md section 10): no sidebar (nor the space it holds), the canvas
-   full width, black on white. Sticky bars and the brand stripe hide themselves
+/* Print (design.md section 10): no sidebar (nor the space it holds), the workspace
+   full width, black on white. Sticky bars and the header hide themselves
    with print:hidden. */
 @media print {
     [data-variant][data-side] {

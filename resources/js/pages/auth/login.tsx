@@ -1,5 +1,4 @@
 import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
-import { BrandStripe } from '@/components/brand-stripe';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
@@ -52,11 +51,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     return (
         <div className="bg-background text-foreground flex min-h-svh flex-col items-center justify-center px-3 py-10 font-sans antialiased">
-            <Head title={`Sign in - ${APP_BRAND.name}`} />
+            <Head title="Sign in" />
 
             <main className="bg-card w-full max-w-md overflow-hidden rounded-2xl border shadow-xs">
-                <BrandStripe />
-
                 <div className="px-6 pt-8 pb-8 sm:px-8">
                     <div className="flex items-center gap-3">
                         <AppLogoMark />

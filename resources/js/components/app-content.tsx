@@ -9,21 +9,12 @@ interface AppContentProps extends React.ComponentProps<'div'> {
 export function AppContent({ variant = 'header', children, className, ...props }: AppContentProps) {
     if (variant === 'sidebar') {
         // min-w-0: a wide child must not push the content area wider than the screen.
-        // UI-4: the L1 canvas (design.md section 5): white, 1px border, 16px radius,
-        // shadow-xs, clipped, 12px from the L0 page edge. Full width and plain in print.
-        // V2-2b: the sidebar's own 12px padding is the gutter on its right, expanded or
-        // collapsed to icons, so the canvas has no left margin of its own.
+        // V2-4 (design.md section 5): the page sits directly on the workspace
+        // background, below the application header. The L1 canvas card, its 12px
+        // gutter and the brand stripe are retired. Each page's PageContent gives the
+        // 24px workspace padding (16px below md).
         return (
-            <SidebarInset
-                className={cn(
-                    'bg-card min-w-0 overflow-clip outline-none',
-                    'md:peer-data-[variant=inset]:m-3 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:shadow-xs',
-                    'md:peer-data-[variant=inset]:min-h-[calc(100svh-1.5rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0',
-                    'print:m-0! print:min-h-0 print:rounded-none! print:border-0! print:shadow-none!',
-                    className,
-                )}
-                {...props}
-            >
+            <SidebarInset className={cn('bg-background min-h-0 min-w-0 outline-none', className)} {...props}>
                 {children}
             </SidebarInset>
         );

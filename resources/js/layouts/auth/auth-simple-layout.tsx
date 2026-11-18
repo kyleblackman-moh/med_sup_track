@@ -1,5 +1,4 @@
 import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
-import { BrandStripe } from '@/components/brand-stripe';
 import { Link } from '@inertiajs/react';
 
 interface AuthLayoutProps {
@@ -18,8 +17,6 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
     return (
         <div className="bg-background text-foreground flex min-h-svh flex-col items-center justify-center px-3 py-10">
             <main className="bg-card w-full max-w-md overflow-hidden rounded-2xl border shadow-xs">
-                <BrandStripe />
-
                 <div className="flex flex-col gap-6 px-6 pt-8 pb-8 sm:px-8">
                     <Link
                         href={route('home')}

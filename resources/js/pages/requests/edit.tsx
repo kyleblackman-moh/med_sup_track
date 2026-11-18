@@ -80,7 +80,8 @@ export default function Edit({ case: detail, readiness, config, documents, can }
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        { title: 'Edit draft', href: route('requests.edit', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New request" before there is one.
+        { title: detail.reference_no ?? 'New request', href: route('requests.edit', detail.id) },
     ];
 
     const show = (next: TabId) => {

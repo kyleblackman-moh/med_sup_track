@@ -34,11 +34,11 @@ export function PageHeader({ title, subtitle, actions, titleClassName, size = 'd
 }
 
 /**
- * V2-2c: the page's content area on the L1 canvas: 20px at the top and 24px at
- * the sides (16px below md), and a uniform 20px between the page header and the
- * blocks after it (a progress strip, the first section). Used by the pages that
- * have a PageHeader.
+ * V2-4: the page's content area on the workspace: 24px padding (16px below md;
+ * design.md section 5), fluid, and a uniform 20px between the page header and
+ * the blocks after it (a progress strip, the first section). Used by the pages
+ * that have a PageHeader.
  */
 export function PageContent({ children, className }: { children: ReactNode; className?: string }) {
-    return <div className={cn('w-full min-w-0 space-y-5 px-4 pt-5 pb-6 md:px-6', className)}>{children}</div>;
+    return <div className={cn('w-full min-w-0 space-y-5 p-4 md:p-6', className)}>{children}</div>;
 }

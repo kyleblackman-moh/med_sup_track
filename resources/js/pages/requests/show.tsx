@@ -29,7 +29,8 @@ function formatDay(day: string): string {
 export default function Show({ case: detail, documents, readiness, can, summary }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        { title: detail.reference_no ?? 'Draft', href: route('requests.show', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New request" before there is one.
+        { title: detail.reference_no ?? 'New request', href: route('requests.show', detail.id) },
     ];
 
     return (
