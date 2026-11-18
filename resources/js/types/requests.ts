@@ -49,6 +49,8 @@ export interface CaseHeroView {
     reference: string | null;
     /** The item description, or null. */
     title: string | null;
+    /** V2-4b: the page's h1: the item description, else "New Request". */
+    heading: string;
     /** The type's label and lucide icon name; null while no type is chosen. */
     type: { label: string; icon: string } | null;
     /** Shown in place of the type while it is null ("Not chosen yet"). */

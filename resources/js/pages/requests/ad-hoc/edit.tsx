@@ -1,4 +1,4 @@
-import { PageContent, PageHeader } from '@/components/page-header';
+import { PageContent } from '@/components/page-header';
 import { AwardedSupplierSection } from '@/components/requests/ad-hoc/awarded-supplier-section';
 import { ExistingArrangementSection } from '@/components/requests/ad-hoc/existing-arrangement-section';
 import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-api';
@@ -277,15 +277,9 @@ export default function AdHocEdit({
 
             {/* V2-2c: PageContent owns the canvas padding and the 20px between the header, the strip and the first section. */}
             <PageContent>
-                {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). V2-4: the
-                    type, reference and status pill are in the case hero below; the header keeps the autosave state. */}
-                <PageHeader
-                    title="Request"
-                    size="large"
-                    subtitle={<SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />}
-                />
-
-                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. */}
+                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. V2-4b: it
+                    holds the page's one h1; there is no separate page heading. The form's actions and the
+                    autosave state are in the sticky action bar (CLAUDE.md, UI). */}
                 <CaseHero hero={detail.hero} />
 
                 <FlashMessages />
@@ -341,6 +335,7 @@ export default function AdHocEdit({
                     }
                     right={
                         <>
+                            <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
                             {can.edit && (
                                 <Button
                                     type="button"

@@ -16,6 +16,7 @@ use Carbon\CarbonInterface;
  * - reference: the reference number, or null on a draft (numbers are
  *   allocated at submit by SubmitCase; the hero then shows "Draft").
  * - title: the item description, or null.
+ * - heading: the page's h1 (V2-4b): the item description, else UNTITLED.
  * - type: the type's label and the server-chosen lucide icon name, or null
  *   while the vendor has not chosen a type; the hero then shows
  *   type_unset_label (TYPE_UNSET), so the page never names a type code.
@@ -29,6 +30,9 @@ final class CaseHero
 {
     public const TYPE_UNSET = 'Not chosen yet';
 
+    /** V2-4b: the h1 when the request has no item description yet. */
+    public const UNTITLED = 'New Request';
+
     public const DRAFT_DATE_LABEL = 'Last saved';
 
     public const SUBMITTED_DATE_LABEL = 'Submitted on';
@@ -41,7 +45,7 @@ final class CaseHero
     /**
      * Expects procurementType and requisition loaded (or loads them).
      *
-     * @return array{reference: string|null, title: string|null, type: array{label: string, icon: string}|null, type_unset_label: string, status_label: string, status_tone: string, date: array{label: string, value: string}}
+     * @return array{reference: string|null, title: string|null, heading: string, type: array{label: string, icon: string}|null, type_unset_label: string, status_label: string, status_tone: string, date: array{label: string, value: string}}
      */
     public static function for(ProcurementCase $case, ?User $viewer): array
     {
@@ -54,6 +58,7 @@ final class CaseHero
         return [
             'reference' => $case->reference_no,
             'title' => is_string($title) && trim($title) !== '' ? $title : null,
+            'heading' => is_string($title) && trim($title) !== '' ? $title : self::UNTITLED,
             'type' => $type === null || $code === ProcurementTypeProfile::NOT_SELECTED ? null : [
                 'label' => $type->name,
                 'icon' => RequestDetailResource::TYPE_ICONS[$code] ?? self::DEFAULT_TYPE_ICON,

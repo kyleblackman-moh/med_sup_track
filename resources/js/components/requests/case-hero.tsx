@@ -44,7 +44,8 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
                     <div className="min-w-0 space-y-1 md:border-l md:pl-5">
                         <p className="text-muted-foreground text-xs font-medium tracking-[0.08em] uppercase">Request</p>
                         <p className="text-[30px] leading-tight font-bold tracking-[-0.01em] tabular-nums">{hero.reference ?? 'Draft'}</p>
-                        {hero.title && <p className="text-[22px] leading-snug font-semibold break-words">{hero.title}</p>}
+                        {/* V2-4b: the page's one h1 (the item description, else the server's "New Request"). */}
+                        <h1 className="text-[22px] leading-snug font-semibold break-words">{hero.heading}</h1>
                     </div>
                 </div>
 

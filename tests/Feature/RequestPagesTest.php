@@ -519,7 +519,10 @@ it('sends the edit page\'s summary only when Review asks for it', function () {
 
 it('keeps form actions out of the request form headers', function () {
     // CLAUDE.md, UI: form actions go in a footer row, never in the header.
-    foreach (['js/pages/requests/ad-hoc/edit.tsx', 'js/pages/requests/edit.tsx'] as $path) {
+    // V2-4b: the vendor form (ad-hoc/edit.tsx) has no page header at all; its h1 is the case hero's.
+    expect(file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx')))->not->toMatch('/<PageHeader\b|<header\b|<h1\b/');
+
+    foreach (['js/pages/requests/edit.tsx'] as $path) {
         $source = file_get_contents(resource_path($path));
         // V2-2c: the vendor form's header is a PageHeader element (its closing "/>" on its own line).
         preg_match('/<header\b.*?<\/header>|<PageHeader\b.*?\n\s*\/>/s', $source, $header);
@@ -540,6 +543,7 @@ it('gives a draft a hero with "Last saved" and no reference', function () {
 
     expect($hero['reference'])->toBeNull()
         ->and($hero['title'])->toBe('Hero item')
+        ->and($hero['heading'])->toBe('Hero item')
         ->and($hero['type']['label'])->toBe(procurementTypeByCode('TENDER_EXCESS')->name)
         ->and($hero['type']['icon'])->toBe('trending-up')
         ->and($hero['status_label'])->toBe('Draft')
@@ -562,6 +566,9 @@ it('gives an unselected draft a null type and never names NOT_SELECTED in the he
     expect($hero['type'])->toBeNull()
         ->and($hero['type_unset_label'])->toBe(CaseHero::TYPE_UNSET)
         ->and($hero['title'])->toBeNull()
+        // V2-4b: the h1 falls back to "New Request"; the status pill still says Draft.
+        ->and($hero['heading'])->toBe(CaseHero::UNTITLED)
+        ->and($hero['status_label'])->toBe('Draft')
         ->and(json_encode($hero))->not->toContain('NOT_SELECTED');
 });
 

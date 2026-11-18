@@ -1,4 +1,4 @@
-import { PageContent, PageHeader } from '@/components/page-header';
+import { PageContent } from '@/components/page-header';
 import { CaseHero } from '@/components/requests/case-hero';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequestSummary } from '@/components/requests/request-summary';
@@ -38,29 +38,25 @@ export default function Show({ case: detail, documents, readiness, can, summary 
             <Head title={detail.reference_no ?? 'Request'} />
 
             <PageContent>
-                {/* V2-3: PageHeader with the page's links (as they were). V2-4: the reference, item, type,
-                    status pill and date are in the case hero below it. */}
-                <PageHeader
-                    title="Request"
-                    size="large"
-                    actions={
-                        <>
-                            {detail.can.edit && (
-                                <Button asChild variant="outline" size="sm">
-                                    <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
-                                </Button>
-                            )}
-                            {detail.reference_no && (
-                                <Button asChild variant="outline" size="sm">
-                                    <Link href={route('requests.receipt', detail.id)}>Receipt</Link>
-                                </Button>
-                            )}
-                        </>
-                    }
-                />
-
-                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. */}
+                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. V2-4b: it
+                    holds the page's one h1 (the item description, else "New Request"). */}
                 <CaseHero hero={detail.hero} />
+
+                {/* The page's links (as they were), in a row under the hero. */}
+                {(detail.can.edit || detail.reference_no) && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                        {detail.can.edit && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
+                            </Button>
+                        )}
+                        {detail.reference_no && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={route('requests.receipt', detail.id)}>Receipt</Link>
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 <FlashMessages />
 
