@@ -106,11 +106,17 @@ final class AdHocSections
      * Slice V2-1: the sections the case's type shows, in form order, with their
      * issues. Every error lands in a section (an unmapped key would be a bug).
      *
-     * @return list<array{key: string, label: string, optional: bool, anchor: string, complete: bool, issues: list<array<string, mixed>>}>
+     * The state is RequestSections::state (the one rule); complete means that
+     * state is complete.
+     *
+     * @return list<array{key: string, label: string, optional: bool, anchor: string, state: string, complete: bool, issues: list<array<string, mixed>>}>
      */
     public static function requestSections(ProcurementCase $case, ReadinessReport $report): array
     {
-        $visible = RequestSections::visible((string) $case->procurementType?->code);
+        $visible = RequestSections::visible(
+            (string) $case->procurementType?->code,
+            RequestSections::documentsRequired($case->procurement_type_id),
+        );
         $issues = array_fill_keys(array_column($visible, 'key'), []);
 
         foreach ($report->errors as $error) {
@@ -120,13 +126,23 @@ final class AdHocSections
             }
         }
 
-        return array_map(fn (array $section) => [
-            ...$section,
-            'anchor' => "section-{$section['key']}",
-            // V2-1c: a section waiting for the type (it has a note) is never complete.
-            'complete' => $issues[$section['key']] === [] && $section['note'] === null,
-            'issues' => $issues[$section['key']],
-        ], $visible);
+        return array_map(function (array $section) use ($case, $issues) {
+            $state = RequestSections::state(
+                $section['note'],
+                $issues[$section['key']] !== [],
+                $section['optional'],
+                $section['optional'] && RequestSections::hasData($case, $section['key']),
+            );
+
+            return [
+                ...$section,
+                'anchor' => "section-{$section['key']}",
+                'state' => $state,
+                // V2-1c: a section waiting for the type (it has a note) is never complete.
+                'complete' => $state === RequestSections::COMPLETE,
+                'issues' => $issues[$section['key']],
+            ];
+        }, $visible);
     }
 
     /**

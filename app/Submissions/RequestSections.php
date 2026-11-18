@@ -2,9 +2,13 @@
 
 namespace App\Submissions;
 
+use App\Enums\ScanStatus;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseVariation;
+use App\Models\Document;
+use App\Models\ProcurementCase;
+use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -120,6 +124,15 @@ final class RequestSections
 
     public const REQUEST_TYPE_NEEDED = 'Choose a request type';
 
+    /** Section states (the form's progress strip and section headers): see state(). */
+    public const COMPLETE = 'complete';
+
+    public const INCOMPLETE = 'incomplete';
+
+    public const OPTIONAL = 'optional';
+
+    public const BLOCKED = 'blocked';
+
     /**
      * Slice V2-1c: the sections whose requirement depends on the type. Until a
      * type is chosen (NOT_SELECTED, or the old AD_HOC) they are never Complete
@@ -150,9 +163,12 @@ final class RequestSections
      * Slice V2-1c: while no type is chosen, a type-dependent section is never
      * optional and carries the note "Choose a request type" (else note null).
      *
+     * Documents are optional when the type requires no file ($documentsRequired,
+     * from procurement_type_documents: see documentsRequired()).
+     *
      * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */
-    public static function visible(string $code): array
+    public static function visible(string $code, bool $documentsRequired = true): array
     {
         $sections = [];
         foreach (self::ORDER as $key) {
@@ -161,7 +177,7 @@ final class RequestSections
                 $sections[] = [
                     'key' => $key,
                     'label' => self::LABELS[$key],
-                    'optional' => ! $waiting && self::isOptional($code, $key),
+                    'optional' => ! $waiting && self::isOptional($code, $key, $documentsRequired),
                     'note' => $waiting ? self::REQUEST_TYPE_NEEDED : null,
                 ];
             }
@@ -263,7 +279,7 @@ final class RequestSections
     }
 
     /** A section with nothing in it that blocks submission for this type. */
-    private static function isOptional(string $code, string $section): bool
+    private static function isOptional(string $code, string $section, bool $documentsRequired): bool
     {
         $requires = self::REQUIRES[$code] ?? null;
 
@@ -274,7 +290,66 @@ final class RequestSections
             'existing_arrangement' => true, // orders are always optional
             'stock' => ! ($requires['stock'] ?? false),
             'quotation_comparison' => ! ($requires['quotations'] ?? false),
-            'documents' => false, // per type (procurement_type_documents); shown either way
+            'documents' => ! $documentsRequired, // per type (procurement_type_documents); shown either way
+        };
+    }
+
+    /** Whether the type requires at least one file (procurement_type_documents.is_required). */
+    public static function documentsRequired(?int $procurementTypeId): bool
+    {
+        return $procurementTypeId !== null && ProcurementTypeDocument::where('procurement_type_id', $procurementTypeId)
+            ->where('is_required', true)->exists();
+    }
+
+    /**
+     * The one section-state rule. A section waiting for the type is blocked; one
+     * with issues is incomplete. An optional section (nothing in it is required
+     * for this type) reports "optional" while it holds no data, and complete
+     * only once it holds valid data. A section with required content is
+     * complete when that content is satisfied (no issues).
+     */
+    public static function state(?string $note, bool $hasIssues, bool $optional, bool $hasData): string
+    {
+        return match (true) {
+            $note !== null => self::BLOCKED,
+            $hasIssues => self::INCOMPLETE,
+            $optional && ! $hasData => self::OPTIONAL,
+            default => self::COMPLETE,
+        };
+    }
+
+    /**
+     * Whether the section holds anything the vendor entered, grouped as the
+     * form shows it (the tender issues text under Existing arrangement, the
+     * quantity on order under Stock). Documents count current, clean files of
+     * the type's purposes. Reads the case's relations (loaded or lazily).
+     */
+    public static function hasData(ProcurementCase $case, string $section): bool
+    {
+        $r = $case->requisition;
+        $filled = fn (array $fields): bool => $r !== null
+            && collect($fields)->contains(fn (string $field) => ! self::blank($r->{$field}));
+
+        return match ($section) {
+            'item_tender' => $filled([
+                'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
+                'clinical_note', 'tender_reference', 'tender_cycle_start', 'tender_cycle_end',
+            ]),
+            'variation_details' => $case->variation !== null && collect(array_keys(self::VARIATION_FIELDS))
+                ->contains(fn (string $field) => ! self::blank($case->variation->{$field})),
+            'awarded_supplier' => $case->tenderAwards->isNotEmpty(),
+            'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
+            'stock' => $case->stockExpiries->isNotEmpty() || (bool) $r?->no_stock_on_hand
+                || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_order']),
+            'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
+                'rfq_audience', 'quantity_to_purchase', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
+            ]),
+            'documents' => Document::withoutGlobalScopes()->current()
+                ->where('case_id', $case->getKey())
+                ->where('scan_status', ScanStatus::CLEAN)
+                ->whereIn('purpose', ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)->select('purpose'))
+                ->exists(),
+            default => false,
         };
     }
 

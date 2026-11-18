@@ -20,9 +20,9 @@ use App\Support\Display;
  *   label, its number among the VISIBLE sections (null when hidden), whether
  *   it is visible, its state, the note when it waits for the type, and the
  *   field-level required flags (RequestSections::requiredFields). The state
- *   comes from AdHocSections::requestSections (the readiness report):
+ *   comes from AdHocSections::requestSections (RequestSections::state):
  *   blocked (waits for the type), incomplete (has issues), optional (nothing
- *   required for this type), else complete.
+ *   required for this type and nothing entered), else complete.
  * - display: the computed values as display strings (Display), per saved row
  *   by id, so the page does no maths and no formatting.
  * - expiry: the expiry warning from ExpiryRisk as structured items.
@@ -32,13 +32,13 @@ use App\Support\Display;
  */
 final class RequestFormView
 {
-    public const COMPLETE = 'complete';
+    public const COMPLETE = RequestSections::COMPLETE;
 
-    public const INCOMPLETE = 'incomplete';
+    public const INCOMPLETE = RequestSections::INCOMPLETE;
 
-    public const OPTIONAL = 'optional';
+    public const OPTIONAL = RequestSections::OPTIONAL;
 
-    public const BLOCKED = 'blocked';
+    public const BLOCKED = RequestSections::BLOCKED;
 
     /** @return array{sections: list<array<string, mixed>>, display: array<string, mixed>, expiry: array<string, mixed>} */
     public static function for(ProcurementCase $case, ReadinessReport $report): array
@@ -67,13 +67,8 @@ final class RequestFormView
                 'label' => RequestSections::LABELS[$key],
                 'number' => $section === null ? null : ++$number,
                 'visible' => $section !== null,
-                'state' => match (true) {
-                    $section === null => self::OPTIONAL, // hidden: nothing in it is required
-                    $section['note'] !== null => self::BLOCKED,
-                    $section['issues'] !== [] => self::INCOMPLETE,
-                    $section['optional'] => self::OPTIONAL,
-                    default => self::COMPLETE,
-                },
+                // Hidden: nothing in it is required. Else the one rule (RequestSections::state).
+                'state' => $section === null ? self::OPTIONAL : $section['state'],
                 'note' => $section['note'] ?? null,
                 'required' => $required[$key],
             ];

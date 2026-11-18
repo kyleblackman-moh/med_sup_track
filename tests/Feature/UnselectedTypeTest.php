@@ -311,12 +311,17 @@ it('applies the Tender Variation rules once chosen', function () {
         ->and($request['variation_details']['optional'])->toBeFalse()
         ->and($request['awarded_supplier']['complete'])->toBeFalse()
         ->and($request['awarded_supplier']['optional'])->toBeFalse()
-        // The table: stock and quotations optional for a Tender Variation; nothing entered, nothing missing.
+        // The table: stock and quotations optional for a Tender Variation; nothing entered,
+        // so they report "optional", never complete.
         ->and($request['stock']['optional'])->toBeTrue()
-        ->and($request['stock']['complete'])->toBeTrue()
+        ->and($request['stock']['state'])->toBe('optional')
+        ->and($request['stock']['complete'])->toBeFalse()
         ->and($request['quotation_comparison']['optional'])->toBeTrue()
-        ->and($request['quotation_comparison']['complete'])->toBeTrue()
-        // No file is required for a Tender Variation.
-        ->and($request['documents']['complete'])->toBeTrue()
+        ->and($request['quotation_comparison']['state'])->toBe('optional')
+        ->and($request['quotation_comparison']['complete'])->toBeFalse()
+        // No file is required for a Tender Variation, and none is attached.
+        ->and($request['documents']['optional'])->toBeTrue()
+        ->and($request['documents']['state'])->toBe('optional')
+        ->and($request['documents']['complete'])->toBeFalse()
         ->and($request->pluck('note')->filter()->all())->toBe([]);
 });

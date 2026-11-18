@@ -127,7 +127,9 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
     $byKey = collect($sections)->keyBy('key');
     expect(collect($byKey['item_tender']['issues'])->pluck('key')->all())->toContain('requisition.item_description', 'requisition.din', 'requisition.tender_cycle_start')
         ->and($byKey['item_tender']['complete'])->toBeFalse()
-        ->and($byKey['existing_arrangement']['complete'])->toBeTrue();
+        // Optional and empty: optional, never complete.
+        ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
+        ->and($byKey['existing_arrangement']['state'])->toBe('optional');
 
     if ($code === 'TENDER_VARIATION') {
         expect(collect($byKey['variation_details']['issues'])->pluck('key')->all())
@@ -466,3 +468,75 @@ it('refuses a draft that was submitted after it was loaded', function () {
     expect(fn () => app(ChangeRequestType::class)->handle($stale, $vendor, 'TENDER_EXCESS'))
         ->toThrow(DraftNotEditable::class);
 });
+
+// Section states: the one rule (RequestSections::state) -------------------------------
+
+/**
+ * The state of every visible section of an EMPTY draft, per type. A section
+ * with required content is incomplete; one with nothing required for the type
+ * (and nothing entered) is "optional", never complete.
+ */
+const SECTION_STATES_WHEN_EMPTY = [
+    'AD_HOC_EMERGENCY' => [
+        'item_tender' => 'incomplete', 'awarded_supplier' => 'optional', 'existing_arrangement' => 'optional',
+        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+    ],
+    'AD_HOC_TENDER_UNABLE' => [
+        'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete', 'existing_arrangement' => 'optional',
+        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+    ],
+    'AD_HOC_NOT_AWARDED' => [
+        'item_tender' => 'incomplete', 'awarded_supplier' => 'optional', 'existing_arrangement' => 'optional',
+        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+    ],
+    'TENDER_EXCESS' => [
+        'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete', 'existing_arrangement' => 'optional',
+        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'optional',
+    ],
+    'TENDER_VARIATION' => [
+        'item_tender' => 'incomplete', 'variation_details' => 'incomplete', 'awarded_supplier' => 'incomplete',
+        'existing_arrangement' => 'optional', 'stock' => 'optional', 'quotation_comparison' => 'optional',
+        'documents' => 'optional',
+    ],
+];
+
+it('reports each section state per type, empty and filled', function (string $code, bool $filled) {
+    [$case, $vendor] = newDraft($code);
+    if ($filled) {
+        // Every section holds valid data: the required content, an order, and a file
+        // (an optional Evidence file too, so a type that requires none still has one).
+        saveCompleteAdHoc($case, $vendor);
+        attachRequiredDocuments($case);
+        makeDocument($case, 'evidence');
+    }
+
+    $form = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['form'];
+    $states = collect($form['sections'])->where('visible', true)->pluck('state', 'key')->all();
+
+    expect($states)->toBe($filled
+        ? array_fill_keys(array_keys(SECTION_STATES_WHEN_EMPTY[$code]), 'complete')
+        : SECTION_STATES_WHEN_EMPTY[$code]);
+})->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['empty' => false, 'filled' => true]);
+
+it('keeps an optional section optional until it holds data, then complete', function () {
+    // Emergency: the awarded supplier is optional. Empty: optional; one complete row: complete.
+    [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
+    $state = fn () => collect(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['form']['sections'])
+        ->pluck('state', 'key');
+
+    expect($state()['awarded_supplier'])->toBe('optional');
+
+    saveDraft($case, $vendor, ['tender_awards' => adHocPayload()['tender_awards']]);
+    expect($state()['awarded_supplier'])->toBe('complete');
+});
+
+it('applies the state rule in order: blocked, incomplete, optional, complete', function (?string $note, bool $issues, bool $optional, bool $data, string $expected) {
+    expect(RequestSections::state($note, $issues, $optional, $data))->toBe($expected);
+})->with([
+    'waiting for the type' => [RequestSections::REQUEST_TYPE_NEEDED, false, false, false, 'blocked'],
+    'required, with issues' => [null, true, false, true, 'incomplete'],
+    'required, satisfied' => [null, false, false, true, 'complete'],
+    'optional, empty' => [null, false, true, false, 'optional'],
+    'optional, valid data' => [null, false, true, true, 'complete'],
+    'optional, invalid data' => [null, true, true, true, 'incomplete'],
+]);

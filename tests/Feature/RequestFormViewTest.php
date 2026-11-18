@@ -69,7 +69,7 @@ it('gives an empty draft incomplete required sections and optional ones per type
         'existing_arrangement' => 'optional',
         'stock' => 'optional',
         'quotation_comparison' => 'optional',
-        'documents' => 'complete', // a Tender Variation requires no file (procurement_type_documents)
+        'documents' => 'optional', // a Tender Variation requires no file, and none is attached
     ])->and(collect($sections)->pluck('note')->filter()->all())->toBe([]);
 });
 
@@ -80,7 +80,7 @@ it('marks the complete sections complete', function () {
     expect(collect($sections)->where('visible', true)->map(fn ($s) => $s['state'])->all())->toBe([
         'item_tender' => 'complete',
         'awarded_supplier' => 'complete',
-        'existing_arrangement' => 'optional',
+        'existing_arrangement' => 'complete', // optional, and it holds a valid order
         'stock' => 'complete',
         'quotation_comparison' => 'complete',
         'documents' => 'complete',
