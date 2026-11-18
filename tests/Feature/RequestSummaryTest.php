@@ -270,3 +270,43 @@ it('keeps staff away from drafts on the case page, old types included', function
     [$case] = summaryDraft('AD_HOC_EMERGENCY');
     $this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertNotFound();
 });
+
+// 7. Static guards --------------------------------------------------------------------------
+
+it('has no fetch or axios in the summary and the pages that show it', function () {
+    $files = [
+        resource_path('js/components/requests/request-summary.tsx'),
+        resource_path('js/components/requests/ad-hoc/review.tsx'),
+        resource_path('js/pages/requests/show.tsx'),
+        resource_path('js/pages/cases/show.tsx'),
+    ];
+
+    foreach ($files as $file) {
+        expect(preg_match('/\bfetch\s*\(|axios|XMLHttpRequest/', file_get_contents($file)))->toBe(0, basename($file));
+    }
+});
+
+it('never adds a "%" sign to a value in React', function () {
+    // The server formats percentages (Display::percent). Two non-data uses stay: a
+    // skeleton's random CSS width (sidebar) and the browser's own upload progress.
+    $allowed = ['sidebar.tsx', 'upload-drop-zone.tsx'];
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS));
+
+    $hits = [];
+    foreach ($files as $file) {
+        if (! in_array($file->getExtension(), ['ts', 'tsx'], true) || in_array($file->getFilename(), $allowed, true)) {
+            continue;
+        }
+        foreach (preg_split('/\R/', file_get_contents($file->getPathname())) as $i => $line) {
+            $code = trim($line);
+            if (str_starts_with($code, '*') || str_starts_with($code, '//') || str_starts_with($code, '/*')) {
+                continue; // comments
+            }
+            if (preg_match('/\}\s*%|[\'"`]%[\'"`]|\+\s*[\'"]%/', $code)) {
+                $hits[] = $file->getFilename().':'.($i + 1);
+            }
+        }
+    }
+
+    expect($hits)->toBe([]);
+});
