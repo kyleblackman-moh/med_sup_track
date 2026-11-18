@@ -255,12 +255,41 @@ it('gives the staff case page and the vendor page the same summary of a submitte
     $vendorSummary = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk())['summary'];
     $staffSummary = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk())['summary'];
 
-    // Identical apart from the documents, which follow each audience's rules (staff: a Visibility column).
-    $withoutDocuments = fn (array $summary) => collect($summary['sections'])->reject(fn ($s) => $s['key'] === 'documents')->values()->all();
-    expect($withoutDocuments($staffSummary))->toBe($withoutDocuments($vendorSummary))
-        ->and(array_column($staffSummary['sections'], 'number', 'key'))->toBe(array_column($vendorSummary['sections'], 'number', 'key'))
+    // NEXT part 5: neither page repeats the documents (each has its own list), so the two are identical.
+    expect($staffSummary)->toBe($vendorSummary)
         ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(2);
 });
+
+it('lists documents only on the Review step, never on the request page or the case page', function (string $code) {
+    [$case, $vendor] = readyDraft($code);
+    makeDocument($case, 'bids', ['original_name' => 'bids.pdf']);
+    $visible = RequestSections::visible($code);
+    $numbers = array_combine(array_column($visible, 'key'), range(1, count($visible)));
+
+    // Review and submit: the summary is a partial reload of the edit page; Documents is the last section.
+    $version = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->viewData('page')['version'];
+    $review = $this->actingAs($vendor)->get(route('requests.edit', $case->id), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $version,
+        'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
+        'X-Inertia-Partial-Data' => 'summary',
+    ])->assertOk()->json('props.summary');
+
+    expect(array_column($review['sections'], 'number', 'key'))->toBe($numbers)
+        ->and(summarySection($review, 'documents'))->not->toBeNull();
+
+    // The vendor request page and the staff case page: no Documents section, the other numbers unchanged.
+    app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
+    $vendorPage = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk());
+    $staffPage = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk());
+
+    foreach ([$vendorPage['summary'], $staffPage['summary']] as $summary) {
+        expect(summarySection($summary, 'documents'))->toBeNull()
+            ->and(array_column($summary['sections'], 'number', 'key'))->toBe(array_diff_key($numbers, ['documents' => true]));
+    }
+    // Each page still has its own document list.
+    expect($vendorPage['documents'])->not->toBeEmpty();
+})->with(['AD_HOC_TENDER_UNABLE', 'TENDER_VARIATION']);
 
 it('keeps staff away from drafts on the case page, old types included', function () {
     [$legacy] = legacyDraft('AD_HOC_PHARM');

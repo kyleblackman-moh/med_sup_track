@@ -119,7 +119,8 @@ final class StaffCaseDetail
             'documents' => self::documents($case, $user),
             // V2-3: the one RequestSummary (as the vendor sees it, with the staff document rules);
             // null for the old Pharm and Non-Pharm types, which keep RequisitionView.
-            'summary' => RequestSummary::for($case, $user, forStaff: true),
+            // NEXT part 5: without Documents; the case page has its own document list with actions.
+            'summary' => RequestSummary::for($case, $user, forStaff: true, withDocuments: false),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),

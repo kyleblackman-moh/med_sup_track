@@ -41,6 +41,10 @@ use Illuminate\Support\Str;
  * existing visibility: the viewer's document "view" gate, and for staff only
  * CLEAN files (as StaffCaseDetail). Null for a case not on the request form
  * (the old Pharm and Non-Pharm types).
+ *
+ * NEXT part 5: documents are shown once per page. Only the Review step lists
+ * them in the summary; the vendor request page and the staff case page have
+ * their own document lists with actions, so they pass withDocuments: false.
  */
 final class RequestSummary
 {
@@ -49,7 +53,7 @@ final class RequestSummary
     private const TIMEZONE = 'America/Port_of_Spain';
 
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
-    public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false): ?array
+    public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true): ?array
     {
         $case->loadMissing(['procurementType', 'requisition', 'variation', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
         $code = (string) $case->procurementType?->code;
@@ -60,6 +64,11 @@ final class RequestSummary
 
         $sections = [];
         foreach (RequestSections::visible($code) as $i => $section) {
+            // The number is the section's place among ALL visible sections, so leaving
+            // Documents out never renumbers the others.
+            if (! $withDocuments && $section['key'] === 'documents') {
+                continue;
+            }
             $sections[] = [
                 'key' => $section['key'],
                 'number' => $i + 1,

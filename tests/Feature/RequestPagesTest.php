@@ -482,7 +482,9 @@ it('gives a request-form request page the request summary, and no other type', f
     expect($props)->not->toHaveKey('summary_config');
     if ($summary) {
         expect(array_keys($props['summary']))->toBe(['type_label', 'sections'])
-            ->and(array_column($props['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible($code), 'key'))
+            // NEXT part 5: every visible section but Documents (the page has its own document list).
+            ->and(array_column($props['summary']['sections'], 'key'))
+            ->toBe(array_values(array_diff(array_column(RequestSections::visible($code), 'key'), ['documents'])))
             ->and($props['case']['figures'])->not->toBeNull();
     } else {
         expect($props['summary'])->toBeNull();

@@ -153,7 +153,8 @@ class RequestController extends Controller
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
             // V2-3: a request-form case shows the one RequestSummary (as Review and the staff
             // case page); null for the old Pharm and Non-Pharm types (RequisitionView).
-            'summary' => RequestSummary::for($procurementCase, $request->user()),
+            // NEXT part 5: without Documents; this page has its own document list with actions.
+            'summary' => RequestSummary::for($procurementCase, $request->user(), withDocuments: false),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
