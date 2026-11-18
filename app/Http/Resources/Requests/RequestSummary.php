@@ -94,17 +94,17 @@ final class RequestSummary
         $unit = self::unit($case);
 
         return [self::fields([
-            'Request type' => (string) $case->procurementType?->name,
+            'Request Type' => (string) $case->procurementType?->name,
             'DIN' => Display::text($r?->din),
-            'Item description' => Display::text($r?->item_description),
+            'Item Description' => Display::text($r?->item_description),
             'Strength' => Display::text($r?->strength),
-            'Dosage form' => Display::text($r?->dosage_form),
-            'Quantity requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),
-            'Unit of measure' => Display::text($r?->unit_of_measure),
-            'Contract reference' => Display::text($r?->tender_reference),
-            'Tender cycle start' => self::date($r?->tender_cycle_start),
-            'Tender cycle end' => self::date($r?->tender_cycle_end),
-            'Clinical importance' => Display::text($r?->clinical_note),
+            'Dosage Form' => Display::text($r?->dosage_form),
+            'Quantity Requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),
+            'Unit of Measure' => Display::text($r?->unit_of_measure),
+            'Contract Reference' => Display::text($r?->tender_reference),
+            'Tender Cycle Start' => self::date($r?->tender_cycle_start),
+            'Tender Cycle End' => self::date($r?->tender_cycle_end),
+            'Clinical Importance' => Display::text($r?->clinical_note),
         ])];
     }
 
@@ -113,10 +113,10 @@ final class RequestSummary
         $v = $case->variation;
 
         return [self::fields([
-            'Variation type' => Display::text($v?->variation_type),
-            'Existing approved detail' => Display::text($v?->existing_detail),
-            'Proposed revised detail' => Display::text($v?->proposed_detail),
-            'Effective date' => self::date($v?->effective_date),
+            'Variation Type' => Display::text($v?->variation_type),
+            'Existing Approved Detail' => Display::text($v?->existing_detail),
+            'Proposed Revised Detail' => Display::text($v?->proposed_detail),
+            'Effective Date' => self::date($v?->effective_date),
         ])];
     }
 
@@ -125,15 +125,15 @@ final class RequestSummary
         $percentages = $case->tenderAwardPercentages();
         $totals = $case->tenderAwards->map(fn (CaseTenderAward $a) => $a->total())->filter(fn ($t) => $t !== null);
 
-        $table = self::table('Awarded suppliers', 'Supplier row', [
+        $table = self::table('Awarded Suppliers', 'Supplier Row', [
             'supplier_name' => 'Supplier',
             'manufacturer' => 'Manufacturer',
             'brand' => 'Brand',
-            'country_of_origin' => 'Country of origin',
-            'quantity_awarded' => 'Quantity awarded',
-            'unit_cost' => 'Unit cost',
+            'country_of_origin' => 'Country of Origin',
+            'quantity_awarded' => 'Quantity Awarded',
+            'unit_cost' => 'Unit Cost',
             'percentage' => '% awarded',
-            'line_cost' => 'Line cost',
+            'line_cost' => 'Line Cost',
         ], $case->tenderAwards->map(fn (CaseTenderAward $a) => [
             'supplier_name' => Display::text($a->supplier_name),
             'manufacturer' => Display::text($a->manufacturer),
@@ -147,8 +147,8 @@ final class RequestSummary
 
         return [
             self::fields([
-                'Number of suppliers awarded' => (string) $case->suppliersAwarded(),
-                'Total cost of the awards' => $totals->isEmpty()
+                'Number of Suppliers Awarded' => (string) $case->suppliersAwarded(),
+                'Total Cost of the Awards' => $totals->isEmpty()
                     ? Display::EMPTY
                     : Display::money($totals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
             ]),
@@ -161,15 +161,15 @@ final class RequestSummary
         $suppliers = $case->tenderAwards->pluck('supplier_name', 'id');
 
         return [
-            self::table('Orders', 'Order row', [
+            self::table('Orders', 'Order Row', [
                 'supplier' => 'Supplier',
-                'po_number' => 'PO number',
-                'quantity_ordered' => 'Quantity ordered',
-                'ordered_on' => 'Date ordered',
-                'quantity_delivered' => 'Quantity delivered',
-                'delivery_eta' => 'Delivery date',
-                'delivery_status' => 'Delivery status',
-                'quantity_outstanding' => 'Quantity outstanding',
+                'po_number' => 'PO Number',
+                'quantity_ordered' => 'Quantity Ordered',
+                'ordered_on' => 'Date Ordered',
+                'quantity_delivered' => 'Quantity Delivered',
+                'delivery_eta' => 'Delivery Date',
+                'delivery_status' => 'Delivery Status',
+                'quantity_outstanding' => 'Quantity Outstanding',
             ], $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
                 'supplier' => Display::text($suppliers[$po->award_id] ?? null),
                 'po_number' => Display::text($po->po_number),
@@ -180,7 +180,7 @@ final class RequestSummary
                 'delivery_status' => Display::text($po->delivery_status),
                 'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
             ])->values()->all()),
-            self::fields(['Issues affecting the tender quantity' => Display::text($case->requisition?->tender_issue_explanation)]),
+            self::fields(['Issues Affecting the Tender Quantity' => Display::text($case->requisition?->tender_issue_explanation)]),
         ];
     }
 
@@ -193,17 +193,17 @@ final class RequestSummary
 
         $blocks = [self::fields([
             'Location' => Display::text($r?->stock_location),
-            'Average monthly consumption' => self::withUnit(Display::quantity($r?->average_monthly_consumption), $unit),
-            'Quantity on order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
-            'No stock on hand' => Display::yesNo($noStock),
-            'Stock total' => self::withUnit(Display::quantity($case->batchStockOnHand()), $unit),
-            'Days on hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
+            'Average Monthly Consumption' => self::withUnit(Display::quantity($r?->average_monthly_consumption), $unit),
+            'Quantity on Order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
+            'No Stock on Hand' => Display::yesNo($noStock),
+            'Stock Total' => self::withUnit(Display::quantity($case->batchStockOnHand()), $unit),
+            'Days on Hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
         ])];
 
         if (! $noStock) {
-            $blocks[] = self::table('Stock batches', 'Batch', [
+            $blocks[] = self::table('Stock Batches', 'Batch', [
                 'quantity' => 'Quantity',
-                'expiry_date' => 'Expiry date',
+                'expiry_date' => 'Expiry Date',
             ], $case->stockExpiries->map(fn (CaseStockExpiry $b) => [
                 'quantity' => Display::quantity($b->quantity),
                 'expiry_date' => self::date($b->expiry_date),
@@ -232,27 +232,27 @@ final class RequestSummary
 
         $blocks = [
             self::fields([
-                'RFQ sent to' => self::enumLabel($r?->rfq_audience),
-                'Number of quotations' => (string) $case->quotationsReceived(),
-                'Quotations considered' => (string) $case->quotationsConsidered(),
-                'Recommended quotation' => Display::text($recommended?->supplier_name),
-                'Recommended unit price' => Display::price($recommended?->unit_price),
-                'Quantity to purchase' => self::withUnit(Display::quantity($r?->quantity_to_purchase), $unit),
-                'Total cost' => Display::money($case->totalCost()),
+                'RFQ Sent To' => self::enumLabel($r?->rfq_audience),
+                'Number of Quotations' => (string) $case->quotationsReceived(),
+                'Quotations Considered' => (string) $case->quotationsConsidered(),
+                'Recommended Quotation' => Display::text($recommended?->supplier_name),
+                'Recommended Unit Price' => Display::price($recommended?->unit_price),
+                'Quantity to Purchase' => self::withUnit(Display::quantity($r?->quantity_to_purchase), $unit),
+                'Total Cost' => Display::money($case->totalCost()),
             ]),
-            self::table('Quotations', 'Quotation row', [
+            self::table('Quotations', 'Quotation Row', [
                 'considered' => 'Considered',
                 'recommended' => 'Recommended',
                 'supplier_name' => 'Supplier',
                 'quantity_offered' => 'Quantity',
-                'unit_price' => 'Unit price',
-                'ex_stock' => 'Ex stock',
-                'lead_time_days' => 'Lead time (days)',
+                'unit_price' => 'Unit Price',
+                'ex_stock' => 'Ex Stock',
+                'lead_time_days' => 'Lead Time (Days)',
                 'brand' => 'Brand',
                 'manufacturer' => 'Manufacturer',
-                'country_of_origin' => 'Country of origin',
+                'country_of_origin' => 'Country of Origin',
                 'remarks' => 'Remarks',
-                'reason' => 'Reason not considered',
+                'reason' => 'Reason Not Considered',
             ], $case->quotations->map(fn (CaseQuotation $q) => [
                 'considered' => Display::yesNo((bool) $q->considered),
                 'recommended' => $q->is_recommended ? 'Yes' : Display::EMPTY,
@@ -272,12 +272,12 @@ final class RequestSummary
         // The optional price comparison, only once something is entered in it (as on the form).
         if ($r !== null && ($r->tender_price !== null || $r->previous_price !== null || $r->quoted_price_acceptable !== null || filled($r->price_note))) {
             $blocks[] = self::fields([
-                'Tender price' => Display::price($r->tender_price),
-                'Previous price' => Display::price($r->previous_price),
-                'Change against tender price' => Display::percent($case->priceChangePercent($r->tender_price)),
-                'Change against previous price' => Display::percent($case->priceChangePercent($r->previous_price)),
-                'Quoted price is acceptable' => Display::yesNo($r->quoted_price_acceptable === null ? null : (bool) $r->quoted_price_acceptable),
-                'Note on the price' => Display::text($r->price_note),
+                'Tender Price' => Display::price($r->tender_price),
+                'Previous Price' => Display::price($r->previous_price),
+                'Change Against Tender Price' => Display::percent($case->priceChangePercent($r->tender_price)),
+                'Change Against Previous Price' => Display::percent($case->priceChangePercent($r->previous_price)),
+                'Quoted Price Is Acceptable' => Display::yesNo($r->quoted_price_acceptable === null ? null : (bool) $r->quoted_price_acceptable),
+                'Note on the Price' => Display::text($r->price_note),
             ]);
         }
 
@@ -304,7 +304,7 @@ final class RequestSummary
             'name' => 'Document',
             'category' => 'Category',
             'uploaded' => 'Uploaded',
-            'scan_status' => 'Scan status',
+            'scan_status' => 'Scan Status',
             ...($forStaff ? ['visibility' => 'Visibility'] : []),
         ], $documents->map(fn (Document $d) => [
             'name' => (string) $d->original_name,

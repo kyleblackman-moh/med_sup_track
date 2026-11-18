@@ -39,10 +39,10 @@ interface WorkQueueProps {
     casesHref?: string | null;
 }
 
-const HEADERS = ['Reference', 'Request type', 'Action', 'Status', 'Waiting'] as const;
+const HEADERS = ['Reference', 'Request Type', 'Action', 'Status', 'Waiting'] as const;
 
 /**
- * "Needs my action": built on the server (WorkQueue), oldest first. An L3 card
+ * "Needs My Action": built on the server (WorkQueue), oldest first. An L3 card
  * (design.md section 7, data table): a header row with the title and a count
  * chip, the step filter chips, then the table with its header on --subtle. The
  * reference is the row's real link, stretched over the row (rowLink); the row
@@ -75,7 +75,7 @@ export function WorkQueue({ queue, requestTypes, casesHref = null }: WorkQueuePr
         <section aria-labelledby="work-queue-heading" className="bg-card overflow-hidden rounded-xl border shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
                 <h2 id="work-queue-heading" className="flex items-center gap-2 text-base font-semibold">
-                    Needs my action
+                    Needs My Action
                     <span className="bg-primary text-primary-foreground inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums">
                         {queue.items.length}
                         <span className="sr-only"> {queue.items.length === 1 ? 'item' : 'items'}</span>
@@ -96,7 +96,7 @@ export function WorkQueue({ queue, requestTypes, casesHref = null }: WorkQueuePr
                     <p className="text-muted-foreground text-sm">Nothing needs your action right now.</p>
                     {casesHref && (
                         <Link href={casesHref} className="text-primary text-sm font-medium underline-offset-2 hover:underline">
-                            Open file tracking
+                            Open File Tracking
                         </Link>
                     )}
                 </div>
@@ -114,7 +114,7 @@ export function WorkQueue({ queue, requestTypes, casesHref = null }: WorkQueuePr
                                             className={cn(
                                                 'bg-subtle border-divider h-10 border-b px-4 font-medium whitespace-nowrap',
                                                 h === 'Reference' && 'w-full',
-                                                h === 'Request type' && 'hidden lg:table-cell',
+                                                h === 'Request Type' && 'hidden lg:table-cell',
                                                 h === 'Waiting' && 'text-right',
                                             )}
                                         >
@@ -182,7 +182,7 @@ export function WorkQueue({ queue, requestTypes, casesHref = null }: WorkQueuePr
                 <p className="text-muted-foreground border-t px-4 py-2.5 text-sm">
                     Showing the oldest cases only. Use{' '}
                     <Link href={route('cases.index')} className="text-primary underline-offset-2 hover:underline">
-                        File tracking
+                        File Tracking
                     </Link>{' '}
                     for the full list.
                 </p>

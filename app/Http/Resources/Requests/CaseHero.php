@@ -24,7 +24,7 @@ use Carbon\CarbonInterface;
  * - status_label / status_tone: the vendor label and tone (CaseStatus::
  *   vendorLabel and vendorTone) for a vendor viewer, else the staff ones. Flat
  *   keys, as everywhere else: "status" is a key that never reaches a vendor.
- * - date: "Last saved" (updated_at) on a draft, "Submitted on" (submitted_at)
+ * - date: "Last Saved" (updated_at) on a draft, "Submitted On" (submitted_at)
  *   once submitted, formatted by Display in America/Port_of_Spain.
  */
 final class CaseHero
@@ -34,9 +34,9 @@ final class CaseHero
     /** V2-4b: the h1 when the request has no item description yet. */
     public const UNTITLED = 'New Request';
 
-    public const DRAFT_DATE_LABEL = 'Last saved';
+    public const DRAFT_DATE_LABEL = 'Last Saved';
 
-    public const SUBMITTED_DATE_LABEL = 'Submitted on';
+    public const SUBMITTED_DATE_LABEL = 'Submitted On';
 
     /** The icon for a type outside RequestDetailResource::TYPE_ICONS (the old types). */
     public const DEFAULT_TYPE_ICON = 'clipboard-list';

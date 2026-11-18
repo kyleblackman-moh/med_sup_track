@@ -235,7 +235,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                         Page {page + 1} of {pages}
                     </span>
                     <Button type="button" variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= pages - 1}>
-                        Next page
+                        Next Page
                     </Button>
                 </nav>
             )}

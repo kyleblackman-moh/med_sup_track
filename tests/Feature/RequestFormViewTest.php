@@ -55,7 +55,7 @@ it('lists every section in form order, numbering only the visible ones', functio
             'stock' => true, 'quotation_comparison' => true, 'documents' => true,
         ])
         ->and(array_column($form['sections'], 'label', 'key'))->toBe(RequestSections::LABELS)
-        ->and($form['sections'][0]['label'])->toBe('Item and tender details');
+        ->and($form['sections'][0]['label'])->toBe('Item and Tender Details');
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('gives an empty draft incomplete required sections and optional ones per type', function () {

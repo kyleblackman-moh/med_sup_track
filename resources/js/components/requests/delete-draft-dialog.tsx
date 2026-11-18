@@ -53,7 +53,7 @@ export function DeleteDraftDialog({ caseId, onClose, onBeforeDelete }: DeleteDra
                         Cancel
                     </Button>
                     <Button type="button" variant="destructive" className="h-11 md:h-9" onClick={() => void confirm()} disabled={deleting}>
-                        {deleting ? 'Deleting…' : 'Delete draft'}
+                        {deleting ? 'Deleting…' : 'Delete Draft'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

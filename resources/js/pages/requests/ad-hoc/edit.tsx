@@ -229,8 +229,8 @@ export default function AdHocEdit({
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        // V2-4 (design.md section 6): the last crumb is the reference, or "New request" before there is one.
-        { title: detail.reference_no ?? 'New request', href: route('requests.edit', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
+        { title: detail.reference_no ?? 'New Request', href: route('requests.edit', detail.id) },
     ];
 
     const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
@@ -328,7 +328,7 @@ export default function AdHocEdit({
                                 onClick={() => setDeleting(true)}
                             >
                                 <Trash2 aria-hidden="true" />
-                                Delete draft
+                                Delete Draft
                             </Button>
                         )
                     }
@@ -345,7 +345,7 @@ export default function AdHocEdit({
                                     onClick={() => void saveDraft()}
                                 >
                                     <Save aria-hidden="true" />
-                                    {savingDraft ? 'Saving…' : 'Save draft'}
+                                    {savingDraft ? 'Saving…' : 'Save Draft'}
                                 </Button>
                             )}
                             {/* One primary action per view: once the summary is up, Submit is the primary one. */}
@@ -356,7 +356,7 @@ export default function AdHocEdit({
                                 className="px-5 text-[15px] font-semibold"
                                 onClick={() => void startReview()}
                             >
-                                Review and submit
+                                Review and Submit
                                 <ArrowRight aria-hidden="true" />
                             </Button>
                         </>

@@ -10,9 +10,9 @@ import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 
 /** Short labels for the seeded procurement type names; any other name shows in full. */
 const TYPE_SHORT: Record<string, string> = {
-    'Ad hoc purchase (Pharm)': 'Ad hoc · Pharm',
-    'Ad hoc purchase (Non-Pharm)': 'Ad hoc · Non-Pharm',
-    'Purchase in excess of tender': 'Excess of tender',
+    'Ad Hoc Purchase (Pharm)': 'Ad Hoc · Pharm',
+    'Ad Hoc Purchase (Non-Pharm)': 'Ad Hoc · Non-Pharm',
+    'Purchase in Excess of Tender': 'Excess of Tender',
 };
 
 type SortKey = CaseFilters['sort'];
@@ -62,7 +62,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                     <p className="text-muted-foreground text-sm">{filtersActive ? 'No cases match these filters' : 'No cases yet'}</p>
                     {filtersActive && (
                         <Button variant="outline" size="sm" onClick={onClearFilters}>
-                            Clear filters
+                            Clear Filters
                         </Button>
                     )}
                 </div>

@@ -29,8 +29,8 @@ function formatDay(day: string): string {
 export default function Show({ case: detail, documents, readiness, can, summary }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        // V2-4 (design.md section 6): the last crumb is the reference, or "New request" before there is one.
-        { title: detail.reference_no ?? 'New request', href: route('requests.show', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
+        { title: detail.reference_no ?? 'New Request', href: route('requests.show', detail.id) },
     ];
 
     return (
@@ -47,7 +47,7 @@ export default function Show({ case: detail, documents, readiness, can, summary 
                     <div className="flex flex-wrap justify-end gap-2">
                         {detail.can.edit && (
                             <Button asChild variant="outline" size="sm">
-                                <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
+                                <Link href={route('requests.edit', detail.id)}>Edit Draft</Link>
                             </Button>
                         )}
                         {detail.reference_no && (
@@ -84,7 +84,7 @@ export default function Show({ case: detail, documents, readiness, can, summary 
                 {summary ? (
                     <section aria-labelledby="request-summary-heading" className="space-y-4">
                         <h2 id="request-summary-heading" className="text-lg font-semibold">
-                            Your request
+                            Your Request
                         </h2>
                         <RequestSummary summary={summary} />
                     </section>

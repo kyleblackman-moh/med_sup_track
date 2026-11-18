@@ -63,7 +63,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </span>
                     </div>
 
-                    <h1 className="mt-8 text-xl font-semibold tracking-[-0.01em]">Sign in to your account</h1>
+                    <h1 className="mt-8 text-xl font-semibold tracking-[-0.01em]">Sign in to Your Account</h1>
                     <p className="text-muted-foreground mt-1 text-[13px]">Enter the email address and password for your account.</p>
 
                     {status && (

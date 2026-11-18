@@ -84,7 +84,7 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('status_group', 'DRAFT')
             ->where('status_tone', 'neutral') // UI-4: decided by the server
             // Slice V2-1: the Ad Hoc types have category AD_HOC and no vendor reference field.
-            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender unable to supply', 'category' => 'AD_HOC', 'selected' => true])
+            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender Unable to Supply', 'category' => 'AD_HOC', 'selected' => true])
             ->where('item_description', 'Infant feeding tube, size 6Fr')
             ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
@@ -528,13 +528,13 @@ it('keeps form actions out of the request form headers', function () {
         preg_match('/<header\b.*?<\/header>|<PageHeader\b.*?\n\s*\/>/s', $source, $header);
 
         expect($header)->not->toBeEmpty("{$path} has no header")
-            ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/', "{$path} has an action in its header");
+            ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/i', "{$path} has an action in its header");
     }
 });
 
 // 11. V2-4 Stage B: the case hero -------------------------------------------------
 
-it('gives a draft a hero with "Last saved" and no reference', function () {
+it('gives a draft a hero with "Last Saved" and no reference', function () {
     [$case, $vendor] = newDraft('TENDER_EXCESS');
     saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Hero item']]);
 
@@ -572,7 +572,7 @@ it('gives an unselected draft a null type and never names NOT_SELECTED in the he
         ->and(json_encode($hero))->not->toContain('NOT_SELECTED');
 });
 
-it('gives a submitted request a hero with its reference and "Submitted on"', function () {
+it('gives a submitted request a hero with its reference and "Submitted On"', function () {
     $vendor = vendorUser(vendorOrg());
     $submittedAt = now()->setTimezone('UTC')->setTime(2, 30); // 22:30 the day before in Port of Spain
     $case = makeCase([
@@ -600,9 +600,9 @@ it('keeps the vendor form actions in the action bar at the end of the content', 
     preg_match('/<StickyActionBar\b.*?\n\s{16}\/>/s', $source, $bar);
 
     expect($bar)->not->toBeEmpty()
-        ->and($bar[0])->toContain('Delete draft')
-        ->and($bar[0])->toContain('Save draft')
-        ->and($bar[0])->toContain('Review and submit')
+        ->and($bar[0])->toContain('Delete Draft')
+        ->and($bar[0])->toContain('Save Draft')
+        ->and($bar[0])->toContain('Review and Submit')
         // Inside the page content, so its bottom padding keeps the last field clear.
         ->and(strpos($source, '<StickyActionBar'))->toBeLessThan(strrpos($source, '</PageContent>'));
 });

@@ -27,12 +27,12 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
 
     const columns = [
         { key: 'award_id', label: 'Supplier' },
-        { key: 'po_number', label: 'PO number' },
-        { key: 'quantity_ordered', label: 'Quantity ordered' },
-        { key: 'ordered_on', label: 'Date ordered' },
-        { key: 'quantity_delivered', label: 'Quantity delivered' },
-        { key: 'delivery', label: 'Delivery date / status' },
-        { key: 'quantity_outstanding', label: 'Quantity outstanding', className: 'xl:w-24 xl:flex-none' },
+        { key: 'po_number', label: 'PO Number' },
+        { key: 'quantity_ordered', label: 'Quantity Ordered' },
+        { key: 'ordered_on', label: 'Date Ordered' },
+        { key: 'quantity_delivered', label: 'Quantity Delivered' },
+        { key: 'delivery', label: 'Delivery Date / Status' },
+        { key: 'quantity_outstanding', label: 'Quantity Outstanding', className: 'xl:w-24 xl:flex-none' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -48,11 +48,11 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                     addAction={
-                        <AddRowButton label="Add order" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('purchase_orders')} />
+                        <AddRowButton label="Add Order" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('purchase_orders')} />
                     }
                 >
                     {rows.map((row, index) => {
-                        const rowLabel = `Order row ${index + 1}`;
+                        const rowLabel = `Order Row ${index + 1}`;
                         const input = (name: string, kind: 'text' | 'decimal' | 'date' = 'text', maxLength?: number) => (
                             <EntryInput
                                 id={fieldId.cell('purchase_orders', row.key, name)}
@@ -126,7 +126,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             type="date"
                                             value={text(row.values.delivery_eta)}
                                             className={cn(controlHeight, 'w-full min-w-0')}
-                                            aria-label={`Delivery date, ${rowLabel}`}
+                                            aria-label={`Delivery Date, ${rowLabel}`}
                                             aria-required={optional('purchase_orders.delivery_eta') === false ? true : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
                                         />
@@ -137,14 +137,14 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             value={text(row.values.delivery_status)}
                                             placeholder="Status"
                                             className={cn(controlHeight, 'w-full min-w-0')}
-                                            aria-label={`Delivery status, ${rowLabel}`}
+                                            aria-label={`Delivery Status, ${rowLabel}`}
                                             aria-required={optional('purchase_orders.delivery_status') === false ? true : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
                                         />
                                     </div>
                                 </EntryCell>
                                 <EntryValue
-                                    label="Quantity outstanding"
+                                    label="Quantity Outstanding"
                                     rowLabel={rowLabel}
                                     value={rowDisplay(api.form.display.rows.purchase_orders, row.id)?.quantity_outstanding ?? '—'}
                                     className="xl:w-24 xl:flex-none"
@@ -157,7 +157,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
 
             <TextAreaField
                 id={fieldId.requisition('tender_issue_explanation')}
-                label="Issues affecting the tender quantity"
+                label="Issues Affecting the Tender Quantity"
                 optional={optional('tender_issue_explanation')}
                 value={text(api.state.requisition.tender_issue_explanation)}
                 onChange={(value) => api.setField('tender_issue_explanation', value)}

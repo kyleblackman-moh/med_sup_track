@@ -86,14 +86,14 @@ function Card({ title, id, children }: { title: string; id: string; children: Re
 
 /**
  * Tabs for this case. V2-3: a request-form case shows its request in one
- * "Request details" tab (the RequestSummary); the old types keep their tabs,
+ * "Request Details" tab (the RequestSummary); the old types keep their tabs,
  * with Awards & orders only when the case has any. Actions is always last.
  */
 function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>[] {
     if (hasSummary) {
         return [
             { id: 'overview', label: 'Overview' },
-            { id: 'details', label: 'Request details' },
+            { id: 'details', label: 'Request Details' },
             { id: 'documents', label: 'Documents' },
             { id: 'history', label: 'History' },
             { id: 'actions', label: 'Actions' },
@@ -104,10 +104,10 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>
 
     return [
         { id: 'overview', label: 'Overview' },
-        { id: 'details', label: 'Request details' },
+        { id: 'details', label: 'Request Details' },
         { id: 'stock', label: 'Stock' },
         { id: 'tender', label: 'Tender & RFQ' },
-        ...(hasOrders ? [{ id: 'orders' as const, label: 'Awards & orders' }] : []),
+        ...(hasOrders ? [{ id: 'orders' as const, label: 'Awards & Orders' }] : []),
         { id: 'quotations', label: 'Quotations' },
         { id: 'documents', label: 'Documents' },
         { id: 'history', label: 'History' },
@@ -201,7 +201,7 @@ export default function CaseShow({
                                     {can.route_onward && route_panel && (
                                         <div className="mt-3">
                                             <Button type="button" size="sm" onClick={() => setRouteOpen(true)}>
-                                                Send onward
+                                                Send Onward
                                             </Button>
                                         </div>
                                     )}
@@ -237,20 +237,20 @@ export default function CaseShow({
                                 </section>
                             )}
 
-                            <Card title="Case summary" id="summary-heading">
+                            <Card title="Case Summary" id="summary-heading">
                                 <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                                     {[
                                         ['Organisation', detail.organisation ?? '—'],
-                                        ['Procurement type', detail.procurement_type ?? '—'],
+                                        ['Procurement Type', detail.procurement_type ?? '—'],
                                         ['Status', detail.status_label],
-                                        ['Current holder', detail.holder_label ?? '—'],
+                                        ['Current Holder', detail.holder_label ?? '—'],
                                         ['Submitted', formatDate(detail.submitted_at)],
                                         ['Hardcopy', hardcopyText(hardcopy)],
-                                        ...(detail.file_no ? [['File number', detail.file_no]] : []),
+                                        ...(detail.file_no ? [['File Number', detail.file_no]] : []),
                                     ].map(([label, value]) => (
                                         <div key={label}>
                                             <dt className="text-muted-foreground">{label}</dt>
-                                            <dd className={label === 'File number' ? 'font-mono font-medium' : 'font-medium'}>{value}</dd>
+                                            <dd className={label === 'File Number' ? 'font-mono font-medium' : 'font-medium'}>{value}</dd>
                                         </div>
                                     ))}
                                 </dl>

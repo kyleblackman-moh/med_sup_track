@@ -91,10 +91,10 @@ it('shows Variation details only for a Tender Variation', function (string $code
     if ($code === 'TENDER_VARIATION') {
         expect(summarySection($summary, 'variation_details')['number'])->toBe(2)
             ->and(summaryFields($summary, 'variation_details'))->toBe([
-                'Variation type' => 'Price',
-                'Existing approved detail' => 'Unit cost 1.25 under the current contract.',
-                'Proposed revised detail' => 'Unit cost 1.40 from the next delivery.',
-                'Effective date' => '1 Jan 2027',
+                'Variation Type' => 'Price',
+                'Existing Approved Detail' => 'Unit cost 1.25 under the current contract.',
+                'Proposed Revised Detail' => 'Unit cost 1.40 from the next delivery.',
+                'Effective Date' => '1 Jan 2027',
             ]);
     } else {
         expect(summarySection($summary, 'variation_details'))->toBeNull();
@@ -114,12 +114,12 @@ it('shows awards and orders without a tender outcome, and never the outcome', fu
     expect(DB::table('case_requisitions')->where('case_id', $case->id)->value('tender_outcome'))->toBeNull();
 
     $summary = summaryOf($case, $vendor);
-    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded suppliers');
+    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
     $orders = summaryTable($summary, 'existing_arrangement', 'Orders');
 
-    expect(array_column($awards['rows'], 'label'))->toBe(['Supplier row 1', 'Supplier row 2'])
+    expect(array_column($awards['rows'], 'label'))->toBe(['Supplier Row 1', 'Supplier Row 2'])
         ->and($awards['empty'])->toBeNull()
-        ->and(array_column($orders['rows'], 'label'))->toBe(['Order row 1'])
+        ->and(array_column($orders['rows'], 'label'))->toBe(['Order Row 1'])
         ->and($orders['rows'][0]['cells']['supplier'])->toBe('Supplier A')
         ->and(json_encode($summary))->not->toContain('Outcome');
 });
@@ -128,11 +128,11 @@ it('says "None entered" for a table with no rows and a dash for empty optional v
     [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
     $summary = summaryOf($case, $vendor);
 
-    expect(summaryTable($summary, 'awarded_supplier', 'Awarded suppliers')['empty'])->toBe(RequestSummary::NONE)
+    expect(summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers')['empty'])->toBe(RequestSummary::NONE)
         ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['empty'])->toBe(RequestSummary::NONE)
         ->and(summaryTable($summary, 'quotation_comparison', 'Quotations')['rows'])->toBe([])
         ->and(summaryFields($summary, 'item_tender')['Strength'])->toBe(Display::EMPTY)
-        ->and(summaryFields($summary, 'stock')['Days on hand'])->toBe(Display::EMPTY);
+        ->and(summaryFields($summary, 'stock')['Days on Hand'])->toBe(Display::EMPTY);
 });
 
 // 3. Every V2-1 field ----------------------------------------------------------------------
@@ -141,20 +141,20 @@ it('includes every V2-1 field', function () {
     [$case, $vendor] = summaryDraft();
     $summary = summaryOf($case, $vendor);
     $item = summaryFields($summary, 'item_tender');
-    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded suppliers');
+    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
     $quotes = summaryTable($summary, 'quotation_comparison', 'Quotations');
 
     expect($item)->toMatchArray([
-        'Request type' => 'Ad Hoc - Tender unable to supply',
+        'Request Type' => 'Ad Hoc - Tender Unable to Supply',
         'DIN' => '02345678',
-        'Contract reference' => 'TENDER-2026-14 (2026-2027)',
-        'Tender cycle start' => '1 Jan 2026',
-        'Tender cycle end' => '31 Dec 2027',
+        'Contract Reference' => 'TENDER-2026-14 (2026-2027)',
+        'Tender Cycle Start' => '1 Jan 2026',
+        'Tender Cycle End' => '31 Dec 2027',
     ])
-        ->and(summaryFields($summary, 'stock')['Quantity on order'])->toBe('1,800 Each')
+        ->and(summaryFields($summary, 'stock')['Quantity on Order'])->toBe('1,800 Each')
         ->and($awards['rows'][0]['cells']['country_of_origin'])->toBe('Country A')
         ->and($awards['rows'][1]['cells']['country_of_origin'])->toBe(Display::EMPTY)
-        ->and(array_column($quotes['columns'], 'label'))->toContain('Ex stock', 'Lead time (days)', 'Remarks', 'Country of origin')
+        ->and(array_column($quotes['columns'], 'label'))->toContain('Ex Stock', 'Lead Time (Days)', 'Remarks', 'Country of Origin')
         ->and($quotes['rows'][1]['cells'])->toMatchArray([
             'ex_stock' => 'Yes', 'lead_time_days' => '30', 'remarks' => 'Two-week delivery.', 'country_of_origin' => 'Country B', 'recommended' => 'Yes',
         ])
@@ -166,27 +166,27 @@ it('includes every V2-1 field', function () {
 it('computes and formats every figure on the server', function () {
     [$case, $vendor] = summaryDraft();
     $summary = summaryOf($case, $vendor);
-    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded suppliers');
+    $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
 
     expect(summaryFields($summary, 'awarded_supplier'))->toBe([
-        'Number of suppliers awarded' => '2',
-        'Total cost of the awards' => '5,050.00',
+        'Number of Suppliers Awarded' => '2',
+        'Total Cost of the Awards' => '5,050.00',
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
         ->toBe([['75.00%', '3,750.00', '1.25'], ['25.00%', '1,300.00', '1.30']])
         ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'][0]['cells']['quantity_outstanding'])->toBe('1,800')
-        ->and(summaryFields($summary, 'stock'))->toMatchArray(['Stock total' => '200.5 Each', 'Days on hand' => '12', 'No stock on hand' => 'No'])
+        ->and(summaryFields($summary, 'stock'))->toMatchArray(['Stock Total' => '200.5 Each', 'Days on Hand' => '12', 'No Stock on Hand' => 'No'])
         ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray([
-            'RFQ sent to' => 'All registered suppliers',
-            'Number of quotations' => '2',
-            'Quotations considered' => '1',
-            'Recommended quotation' => 'Supplier D',
-            'Recommended unit price' => '1.5975',
-            'Quantity to purchase' => '2,800 Each',
-            'Total cost' => '4,473.00',
-            'Change against tender price' => '27.80%',
-            'Change against previous price' => '6.50%',
-            'Quoted price is acceptable' => 'Yes',
+            'RFQ Sent To' => 'All registered suppliers',
+            'Number of Quotations' => '2',
+            'Quotations Considered' => '1',
+            'Recommended Quotation' => 'Supplier D',
+            'Recommended Unit Price' => '1.5975',
+            'Quantity to Purchase' => '2,800 Each',
+            'Total Cost' => '4,473.00',
+            'Change Against Tender Price' => '27.80%',
+            'Change Against Previous Price' => '6.50%',
+            'Quoted Price Is Acceptable' => 'Yes',
         ]);
 });
 

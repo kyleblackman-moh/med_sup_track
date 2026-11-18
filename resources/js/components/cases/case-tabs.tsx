@@ -100,7 +100,7 @@ export function CaseTabNav<T extends string>({ tabs, active, onSelect, finishHre
                 ) : (
                     // The last tab (Actions) ends the walk-through: back to the case list.
                     <Button asChild>
-                        <Link href={finishHref}>Finish: back to cases</Link>
+                        <Link href={finishHref}>Finish: Back to Cases</Link>
                     </Button>
                 )}
             </div>

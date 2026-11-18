@@ -108,7 +108,7 @@ export function SummaryPanel({ panelRef, summary, onSubmit }: SummaryPanelProps)
         >
             <div>
                 <h2 id="review-summary-heading" className="text-base font-semibold">
-                    Review your request
+                    Review Your Request
                 </h2>
                 <p className="text-muted-foreground text-sm">Everything below is saved. Check it, then submit.</p>
             </div>
@@ -117,7 +117,7 @@ export function SummaryPanel({ panelRef, summary, onSubmit }: SummaryPanelProps)
 
             <div>
                 <Button type="button" className="h-11 md:h-9" onClick={onSubmit}>
-                    Submit request
+                    Submit Request
                 </Button>
             </div>
         </section>
@@ -147,7 +147,7 @@ export function SubmitDialog({ open, onOpenChange, hardcopyNotice, submitting, o
                         Cancel
                     </Button>
                     <Button type="button" className="h-11 md:h-9" onClick={onConfirm} disabled={submitting}>
-                        {submitting ? 'Submitting...' : 'Submit request'}
+                        {submitting ? 'Submitting...' : 'Submit Request'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

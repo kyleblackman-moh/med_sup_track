@@ -439,9 +439,9 @@ it('shows review progress after the case is sent', function () {
     expect($props['can']['forward_for_review'])->toBeFalse()
         ->and($props['reviewers'])->toBeNull()
         ->and($props['gate']['rows'])->toBe([
-            ['key' => 'technical', 'label' => 'Technical review', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($tech)], ...$none],
-            ['key' => 'funding', 'label' => 'Funding confirmation', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($cab)], ...$none],
-            ['key' => 'hardcopy', 'label' => 'Hardcopy received', 'done' => false, 'state' => 'Not received', 'reviewers' => [], ...$none],
+            ['key' => 'technical', 'label' => 'Technical Review', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($tech)], ...$none],
+            ['key' => 'funding', 'label' => 'Funding Confirmation', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($cab)], ...$none],
+            ['key' => 'hardcopy', 'label' => 'Hardcopy Received', 'done' => false, 'state' => 'Not received', 'reviewers' => [], ...$none],
         ]);
 
     $this->actingAs($cmo)->post(route('cases.hardcopy.store', $case), ['received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString()])
@@ -449,7 +449,7 @@ it('shows review progress after the case is sent', function () {
     $props = pageProps($this->actingAs($cmo)->get(route('cases.show', $case))->assertOk());
 
     expect($props['gate']['rows'][2])->toMatchArray([
-        'key' => 'hardcopy', 'label' => 'Hardcopy received', 'done' => true, 'state' => 'Received', 'reviewers' => [],
+        'key' => 'hardcopy', 'label' => 'Hardcopy Received', 'done' => true, 'state' => 'Received', 'reviewers' => [],
         'received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString(),
         'recorded_by' => $cmo->name,
     ]);

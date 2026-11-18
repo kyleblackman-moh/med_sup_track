@@ -26,7 +26,7 @@ const requestsNavItem: NavItem = {
 
 // Shown only when the server shares can.cases (staff case pages; display only).
 const casesNavItem: NavItem = {
-    title: 'File tracking',
+    title: 'File Tracking',
     url: '/cases',
     icon: FolderOpen,
     section: 'cases',
@@ -36,9 +36,9 @@ const casesNavItem: NavItem = {
 // server shares nav.cmo_office; the /cases routes authorise as usual.
 // Queries & responses is added when queries are built (Phase 2).
 const cmoNavItems: NavItem[] = [
-    { title: 'To review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
+    { title: 'To Review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
     { title: 'CAB', url: '/cases?awaiting=funding', icon: Landmark },
-    { title: 'PS file', url: '/cases?status=WITH_PS', icon: FileSignature },
+    { title: 'PS File', url: '/cases?status=WITH_PS', icon: FileSignature },
     { title: 'Drafts', url: '/cases?status=NON_OBJECTION_GRANTED', icon: FilePen },
 ];
 

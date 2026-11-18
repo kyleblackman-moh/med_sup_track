@@ -464,7 +464,7 @@ it('still shows a submitted old-type case to the vendor and to staff', function 
         ->and($vendorView['quotations'])->toHaveCount(6)
         ->and($staff['category'])->toBe('NON_PHARM')
         ->and($staff['totals']['quotations']['recommended_total'])->toBe('4473.00')
-        ->and($receipt['procurement_type'])->toBe('Ad hoc purchase (Non-Pharm)')
+        ->and($receipt['procurement_type'])->toBe('Ad Hoc Purchase (Non-Pharm)')
         ->and($receipt['documents'])->toHaveCount(6);
 });
 

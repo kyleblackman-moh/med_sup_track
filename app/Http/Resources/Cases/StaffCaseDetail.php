@@ -349,7 +349,7 @@ final class StaffCaseDetail
         $hardcopy = self::hardcopy($case);
         $rows[] = [
             'key' => 'hardcopy',
-            'label' => 'Hardcopy received',
+            'label' => 'Hardcopy Received',
             'done' => $case->hardcopyReceived(),
             'state' => $case->hardcopyReceived() ? 'Received' : 'Not received',
             'reviewers' => [],

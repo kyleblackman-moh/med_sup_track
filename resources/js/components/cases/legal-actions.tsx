@@ -31,9 +31,9 @@ export function PrepareFileForm({ caseId, defaultFileNo }: { caseId: string; def
 
     return (
         <form onSubmit={submit} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Prepare the file</h3>
+            <h3 className="font-medium">Prepare the File</h3>
             <div className="grid max-w-sm gap-1.5">
-                <Label htmlFor="file-no">File number</Label>
+                <Label htmlFor="file-no">File Number</Label>
                 <Input
                     id="file-no"
                     aria-required="true"
@@ -50,7 +50,7 @@ export function PrepareFileForm({ caseId, defaultFileNo }: { caseId: string; def
                 <InputError id="file-no-error" message={errors.file_no ?? errors.prepare} />
             </div>
             <Button type="submit" disabled={form.processing || form.data.file_no.trim() === ''}>
-                {form.processing ? 'Saving…' : 'Mark file prepared'}
+                {form.processing ? 'Saving…' : 'Mark File Prepared'}
             </Button>
         </form>
     );
@@ -96,7 +96,7 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
                         </DialogHeader>
 
                         <fieldset className="grid gap-2" aria-describedby="legal-officers-hint legal-officers-error">
-                            <legend className="text-sm font-medium">Legal officers</legend>
+                            <legend className="text-sm font-medium">Legal Officers</legend>
                             <p id="legal-officers-hint" className="text-muted-foreground text-xs">
                                 Choose 1 or 2.
                             </p>
@@ -184,7 +184,7 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
 
     return (
         <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Legal decision</h3>
+            <h3 className="font-medium">Legal Decision</h3>
 
             <fieldset className="grid gap-2" aria-describedby="legal-decision-error">
                 <legend className="text-sm font-medium">Decision</legend>
@@ -208,7 +208,7 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
             </fieldset>
 
             <div className="grid gap-1.5">
-                <Label htmlFor="legal-reason">{needsReason ? 'Reason for the query (required)' : 'Note'}</Label>
+                <Label htmlFor="legal-reason">{needsReason ? 'Reason for the Query (required)' : 'Note'}</Label>
                 <textarea
                     id="legal-reason"
                     aria-required={needsReason ? true : undefined}
@@ -227,7 +227,7 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
             </div>
 
             <Button type="submit" disabled={form.processing || form.data.decision === ''}>
-                Record decision
+                Record Decision
             </Button>
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
@@ -246,10 +246,10 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
                     </dl>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
-                            Go back
+                            Go Back
                         </Button>
                         <Button type="button" onClick={record} disabled={form.processing}>
-                            {form.processing ? 'Recording…' : 'Record decision'}
+                            {form.processing ? 'Recording…' : 'Record Decision'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

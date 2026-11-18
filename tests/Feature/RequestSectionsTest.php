@@ -368,7 +368,7 @@ it('audits a save with the variation by count only, never its text', function ()
 
     $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftSaved->value)->latest('id')->first();
     expect(json_decode($audit->metadata, true))->toBe(['sections' => ['variation'], 'counts' => ['variation' => 1]])
-        ->and($audit->metadata)->not->toContain('Unit cost')->not->toContain('Price');
+        ->and($audit->metadata)->not->toContain('Unit Cost')->not->toContain('Price');
 });
 
 it('saves and returns the new V2-1 fields', function () {

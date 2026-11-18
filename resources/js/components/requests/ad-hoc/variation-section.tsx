@@ -21,22 +21,22 @@ export function VariationSection({ api }: { api: FormApi }) {
 
     return (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)]">
-            <TextField {...field('variation_type')} label="Variation type" maxLength={MAX.variation_type} hint="For example: price, quantity." />
+            <TextField {...field('variation_type')} label="Variation Type" maxLength={MAX.variation_type} hint="For example: price, quantity." />
             <TextAreaField
                 {...field('existing_detail')}
-                label="Existing approved detail"
+                label="Existing Approved Detail"
                 rows={2}
                 maxLength={MAX.existing_detail}
                 hint={`Up to ${MAX.existing_detail} characters.`}
             />
             <TextAreaField
                 {...field('proposed_detail')}
-                label="Proposed revised detail"
+                label="Proposed Revised Detail"
                 rows={2}
                 maxLength={MAX.proposed_detail}
                 hint={`Up to ${MAX.proposed_detail} characters.`}
             />
-            <TextField {...field('effective_date')} label="Effective date" type="date" />
+            <TextField {...field('effective_date')} label="Effective Date" type="date" />
         </div>
     );
 }

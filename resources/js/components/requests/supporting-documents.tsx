@@ -51,7 +51,7 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false, r
         <section aria-labelledby="documents-heading" className="space-y-4">
             <div>
                 <h2 id="documents-heading" className={embedded ? 'sr-only' : 'text-lg font-semibold'}>
-                    Supporting documents
+                    Supporting Documents
                 </h2>
                 {!readOnly && rules && (
                     <p className="text-muted-foreground text-sm">
@@ -180,7 +180,7 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
                     <InputError message={errors.reason ?? errors.document} />
                     <div className="flex gap-2">
                         <Button type="submit" variant="destructive" size="sm">
-                            Remove file
+                            Remove File
                         </Button>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                             Cancel

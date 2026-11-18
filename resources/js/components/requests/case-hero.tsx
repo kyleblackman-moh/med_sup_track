@@ -58,7 +58,7 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
                 </div>
 
                 <dl className="grid gap-4 border-t pt-5 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:divide-x lg:border-t-0 lg:border-l lg:pt-0">
-                    <MetaCell icon={TypeIcon} label="Request type">
+                    <MetaCell icon={TypeIcon} label="Request Type">
                         {hero.type ? hero.type.label : <span className="text-muted-foreground font-medium">{hero.type_unset_label}</span>}
                     </MetaCell>
                     <MetaCell icon={CircleCheck} label="Status">

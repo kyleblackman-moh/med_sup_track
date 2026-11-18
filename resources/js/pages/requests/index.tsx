@@ -108,7 +108,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                 <div className="bg-card overflow-hidden rounded-xl border shadow-xs">
                     <div className="flex flex-wrap items-end justify-between gap-3 border-b px-4 py-3">
                         <div className="grid w-full max-w-md gap-1.5">
-                            <Label htmlFor="requests-search">Search requests</Label>
+                            <Label htmlFor="requests-search">Search Requests</Label>
                             <div className="flex items-center gap-3">
                                 <Input
                                     id="requests-search"

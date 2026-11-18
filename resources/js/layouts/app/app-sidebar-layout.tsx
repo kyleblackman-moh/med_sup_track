@@ -19,7 +19,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
                 href="#main-content"
                 className="bg-primary text-primary-foreground focus-visible:ring-ring sr-only z-50 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus-visible:ring-2 focus-visible:ring-offset-2"
             >
-                Skip to content
+                Skip to Content
             </a>
             <AppSidebar />
             <div className="bg-background flex min-h-svh min-w-0 flex-1 flex-col">

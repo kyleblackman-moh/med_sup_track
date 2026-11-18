@@ -27,12 +27,12 @@ export function QuotationSection({ api }: { api: FormApi }) {
         { key: 'is_recommended', label: 'Recommended', className: '2xl:w-24 2xl:flex-none' },
         { key: 'supplier_name', label: 'Supplier' },
         { key: 'quantity_offered', label: 'Quantity' },
-        { key: 'unit_price', label: 'Unit price' },
-        { key: 'ex_stock', label: 'Ex stock', className: '2xl:w-16 2xl:flex-none' },
-        { key: 'lead_time_days', label: 'Lead time (days)' },
+        { key: 'unit_price', label: 'Unit Price' },
+        { key: 'ex_stock', label: 'Ex Stock', className: '2xl:w-16 2xl:flex-none' },
+        { key: 'lead_time_days', label: 'Lead Time (Days)' },
         { key: 'brand', label: 'Brand' },
         { key: 'manufacturer', label: 'Manufacturer' },
-        { key: 'country_of_origin', label: 'Country of origin' },
+        { key: 'country_of_origin', label: 'Country of Origin' },
         { key: 'remarks', label: 'Remarks', className: '2xl:flex-[2]' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
@@ -41,7 +41,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
         <div className="grid grid-cols-1 gap-5">
             <RadioGroupField
                 id={fieldId.requisition('rfq_audience')}
-                legend={'RFQ sent to'}
+                legend={'RFQ Sent To'}
                 options={config.options.rfq_audience}
                 value={text(state.requisition.rfq_audience)}
                 onChange={(value) => api.setField('rfq_audience', value)}
@@ -52,17 +52,17 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 <p className="text-muted-foreground text-[13px]">Choose one recommended quotation. Give a reason for any quotation not considered.</p>
                 {tableError && <p className="text-destructive text-sm">{tableError}</p>}
                 <EntryTable
-                    caption="Quotations received"
+                    caption="Quotations Received"
                     columns={columns}
                     breakpoint="2xl"
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
                     addAction={
-                        <AddRowButton label="Add quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
+                        <AddRowButton label="Add Quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
                     }
                 >
                     {rows.map((row, index) => {
-                        const rowLabel = `Quotation row ${index + 1}`;
+                        const rowLabel = `Quotation Row ${index + 1}`;
                         const id = (name: string) => fieldId.cell('quotations', row.key, name);
                         const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, className?: string) => (
                             <EntryInput
@@ -87,7 +87,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 short={String(index + 1)}
                                 remove={
                                     <RemoveRowButton
-                                        label={`Remove quotation row ${index + 1}`}
+                                        label={`Remove Quotation Row ${index + 1}`}
                                         onClick={() => api.removeRow('quotations', row.key)}
                                     />
                                 }
@@ -95,7 +95,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     !considered && (
                                         <TextAreaField
                                             id={id('reason_accepted_excluded')}
-                                            label={`Reason quotation ${index + 1} was not considered`}
+                                            label={`Reason Quotation ${index + 1} Was Not Considered`}
                                             rows={2}
                                             maxLength={config.max_lengths.reason_accepted_excluded}
                                             value={text(row.values.reason_accepted_excluded)}
@@ -131,7 +131,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 {input('unit_price', 'decimal')}
                                 <EntryCheck
                                     id={id('ex_stock')}
-                                    label="Ex stock"
+                                    label="Ex Stock"
                                     rowLabel={rowLabel}
                                     type="checkbox"
                                     checked={row.values.ex_stock === true}
@@ -152,7 +152,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
             <div className="grid items-start gap-5 md:grid-cols-2">
                 <TextField
                     id={fieldId.requisition('quantity_to_purchase')}
-                    label="Quantity to purchase"
+                    label="Quantity to Purchase"
                     optional={optional('quantity_to_purchase')}
                     inputMode="decimal"
                     value={text(state.requisition.quantity_to_purchase)}
@@ -161,7 +161,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                     suffix={unit || undefined}
                 />
                 <dl>
-                    <Figure label="Total cost (recommended quotation)" value={form.display.total_cost} />
+                    <Figure label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
                 </dl>
             </div>
             <p className="text-muted-foreground -mt-3 text-[13px]">The total is worked out by the system and updates after each save.</p>

@@ -19,11 +19,11 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'supplier_name', label: 'Supplier' },
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'brand', label: 'Brand' },
-        { key: 'country_of_origin', label: 'Country of origin' },
-        { key: 'quantity_awarded', label: 'Quantity awarded' },
-        { key: 'unit_cost', label: 'Unit cost' },
-        { key: 'percentage', label: '% awarded', className: 'xl:w-20 xl:flex-none' },
-        { key: 'line_cost', label: 'Line cost', className: 'xl:w-24 xl:flex-none' },
+        { key: 'country_of_origin', label: 'Country of Origin' },
+        { key: 'quantity_awarded', label: 'Quantity Awarded' },
+        { key: 'unit_cost', label: 'Unit Cost' },
+        { key: 'percentage', label: '% Awarded', className: 'xl:w-20 xl:flex-none' },
+        { key: 'line_cost', label: 'Line Cost', className: 'xl:w-24 xl:flex-none' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -31,7 +31,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         <div id={fieldId.table('tender_awards')} tabIndex={-1} className="grid gap-2 outline-none">
             {tableError && <p className="text-destructive text-sm">{tableError}</p>}
             <EntryTable
-                caption="Awarded suppliers"
+                caption="Awarded Suppliers"
                 columns={columns}
                 breakpoint="xl"
                 narrowRowLabel
@@ -44,10 +44,10 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                         </p>
                     )
                 }
-                addAction={<AddRowButton label="Add supplier" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('tender_awards')} />}
+                addAction={<AddRowButton label="Add Supplier" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('tender_awards')} />}
             >
                 {rows.map((row, index) => {
-                    const rowLabel = `Supplier row ${index + 1}`;
+                    const rowLabel = `Supplier Row ${index + 1}`;
                     const shown = rowDisplay(api.form.display.rows.tender_awards, row.id);
                     const input = (name: string, kind: 'text' | 'decimal' = 'text', maxLength?: number) => (
                         <EntryInput
@@ -69,7 +69,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             label={rowLabel}
                             short={String(index + 1)}
                             remove={
-                                <RemoveRowButton label={`Remove supplier row ${index + 1}`} onClick={() => api.removeRow('tender_awards', row.key)} />
+                                <RemoveRowButton label={`Remove Supplier Row ${index + 1}`} onClick={() => api.removeRow('tender_awards', row.key)} />
                             }
                         >
                             {input('supplier_name', 'text', 200)}
@@ -78,8 +78,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('country_of_origin', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
-                            <EntryValue label="% awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="xl:w-20 xl:flex-none" />
-                            <EntryValue label="Line cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="xl:w-24 xl:flex-none" />
+                            <EntryValue label="% Awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="xl:w-20 xl:flex-none" />
+                            <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="xl:w-24 xl:flex-none" />
                         </EntryRow>
                     );
                 })}

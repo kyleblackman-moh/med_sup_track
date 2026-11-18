@@ -47,7 +47,7 @@ class RequestController extends Controller
     private const PERMISSION = Permission::CaseSubmit;
 
     /** UI-3: the Requests list title. The organisation label is short_name, else name (listTitle). */
-    public const LIST_TITLE = '{organisation} - requests';
+    public const LIST_TITLE = '{organisation} - Requests';
 
     /** UI-3: the longest search the list accepts; longer input is cut to this. */
     public const SEARCH_MAX = 100;

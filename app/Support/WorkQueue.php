@@ -40,22 +40,22 @@ final class WorkQueue
     private static function steps(): array
     {
         return [
-            'intake' => ['New submissions', 'Log intake', [Permission::CaseIntake], [CaseStatus::SUBMITTED], 'status'],
-            'hardcopy' => ['Hardcopy pending', 'Record hardcopy', [Permission::HardcopyConfirm], RecordHardcopy::STATUSES, 'submitted'],
-            'forward' => ['To forward for review', 'Forward for review', [Permission::CaseRouteToReview], [CaseStatus::CMO_INTAKE], 'status'],
-            'gate' => ['Gate passed', 'Mark ready for file', [Permission::FilePrepare], [CaseStatus::IN_REVIEW], 'status'],
-            'prepare' => ['Files to prepare', 'Prepare file', [Permission::FilePrepare], [CaseStatus::READY_FOR_FILE], 'status'],
-            'legal' => ['To send to Legal', 'Send to Legal', [Permission::FilePrepare], [CaseStatus::FILE_PREPARED], 'status'],
+            'intake' => ['New Submissions', 'Log Intake', [Permission::CaseIntake], [CaseStatus::SUBMITTED], 'status'],
+            'hardcopy' => ['Hardcopy Pending', 'Record Hardcopy', [Permission::HardcopyConfirm], RecordHardcopy::STATUSES, 'submitted'],
+            'forward' => ['To Forward for Review', 'Forward for Review', [Permission::CaseRouteToReview], [CaseStatus::CMO_INTAKE], 'status'],
+            'gate' => ['Gate Passed', 'Mark Ready for File', [Permission::FilePrepare], [CaseStatus::IN_REVIEW], 'status'],
+            'prepare' => ['Files to Prepare', 'Prepare File', [Permission::FilePrepare], [CaseStatus::READY_FOR_FILE], 'status'],
+            'legal' => ['To Send to Legal', 'Send to Legal', [Permission::FilePrepare], [CaseStatus::FILE_PREPARED], 'status'],
             // Any permission of a routing rule out of RETURNED_TO_CMO; canRoute() decides per case.
-            'returned' => ['Returned to CMO', 'Route onward', self::routePermissions(), [CaseStatus::RETURNED_TO_CMO], 'status'],
-            'letter' => ['Letters to draft', 'Issue letter', [Permission::LetterIssue], [CaseStatus::NON_OBJECTION_GRANTED], 'status'],
-            'close' => ['To close', 'Confirm dispatch and close', [Permission::LetterIssue], [CaseStatus::LETTER_ISSUED], 'status'],
+            'returned' => ['Returned to CMO', 'Route Onward', self::routePermissions(), [CaseStatus::RETURNED_TO_CMO], 'status'],
+            'letter' => ['Letters to Draft', 'Issue Letter', [Permission::LetterIssue], [CaseStatus::NON_OBJECTION_GRANTED], 'status'],
+            'close' => ['To Close', 'Confirm Dispatch and Close', [Permission::LetterIssue], [CaseStatus::LETTER_ISSUED], 'status'],
             // Assigned reviewers (TrackCalculator::canRecordReview), only until they record an outcome.
-            'technical' => ['Technical reviews', 'Record technical review', [ReviewDesk::Technical->permission()], [CaseStatus::IN_REVIEW], 'status'],
-            'funding' => ['Funding confirmations', 'Record funding outcome', [ReviewDesk::Funding->permission()], [CaseStatus::IN_REVIEW], 'status'],
+            'technical' => ['Technical Reviews', 'Record Technical Review', [ReviewDesk::Technical->permission()], [CaseStatus::IN_REVIEW], 'status'],
+            'funding' => ['Funding Confirmations', 'Record Funding Outcome', [ReviewDesk::Funding->permission()], [CaseStatus::IN_REVIEW], 'status'],
             // The assigned Legal officer (RecordLegalDecision::isAssigned).
-            'legal_decision' => ['Contract decisions', 'Record Legal decision', [Permission::LegalConfirm], [CaseStatus::WITH_LEGAL], 'status'],
-            'ps_decision' => ['Non-objection decisions', 'Record PS decision', [Permission::NonObjectionGrant], [CaseStatus::WITH_PS], 'status'],
+            'legal_decision' => ['Contract Decisions', 'Record Legal Decision', [Permission::LegalConfirm], [CaseStatus::WITH_LEGAL], 'status'],
+            'ps_decision' => ['Non-Objection Decisions', 'Record PS Decision', [Permission::NonObjectionGrant], [CaseStatus::WITH_PS], 'status'],
         ];
     }
 

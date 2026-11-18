@@ -58,19 +58,19 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
     );
 
     const summary: [string, string][] = [
-        ['Letter date', d.letter_date ? formatDay(d.letter_date) : '—'],
+        ['Letter Date', d.letter_date ? formatDay(d.letter_date) : '—'],
         ['Reference', d.letter_reference.trim() || 'None'],
-        ['Emailed on', d.emailed_on ? formatDay(d.emailed_on) : 'Not recorded'],
-        ['Hardcopy sent on', d.hardcopy_sent_on ? formatDay(d.hardcopy_sent_on) : 'Not recorded'],
+        ['Emailed On', d.emailed_on ? formatDay(d.emailed_on) : 'Not recorded'],
+        ['Hardcopy Sent On', d.hardcopy_sent_on ? formatDay(d.hardcopy_sent_on) : 'Not recorded'],
     ];
 
     return (
         <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Issue the letter</h3>
+            <h3 className="font-medium">Issue the Letter</h3>
             <p className="text-muted-foreground text-sm">Send the letter by email and hardcopy yourself, then record it here.</p>
 
             <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-                {dateField('letter_date', 'letter-date', 'Letter date', 'The date on the signed letter.', true)}
+                {dateField('letter_date', 'letter-date', 'Letter Date', 'The date on the signed letter.', true)}
                 <div className="grid gap-1.5">
                     <Label htmlFor="letter-reference">Reference</Label>
                     <Input
@@ -87,8 +87,8 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                     </p>
                     <InputError id="letter-reference-error" message={errors.letter_reference} />
                 </div>
-                {dateField('emailed_on', 'letter-emailed-on', 'Emailed on')}
-                {dateField('hardcopy_sent_on', 'letter-hardcopy-sent-on', 'Hardcopy sent on')}
+                {dateField('emailed_on', 'letter-emailed-on', 'Emailed On')}
+                {dateField('hardcopy_sent_on', 'letter-hardcopy-sent-on', 'Hardcopy Sent On')}
             </div>
             <p className="text-muted-foreground text-xs">Record at least one: the email date, the hardcopy date, or both.</p>
             <InputError message={errors.issue_letter} />
@@ -116,7 +116,7 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                             Back
                         </Button>
                         <Button type="button" onClick={record} disabled={form.processing}>
-                            {form.processing ? 'Saving…' : 'Record letter issued'}
+                            {form.processing ? 'Saving…' : 'Record Letter Issued'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -139,9 +139,9 @@ export function CloseCaseButton({ caseId, reference }: { caseId: string; referen
 
     return (
         <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Close the case</h3>
+            <h3 className="font-medium">Close the Case</h3>
             <Button type="button" onClick={() => setConfirming(true)} disabled={form.processing}>
-                Close case
+                Close Case
             </Button>
             <InputError message={errors.close_case} />
 
@@ -156,7 +156,7 @@ export function CloseCaseButton({ caseId, reference }: { caseId: string; referen
                             Cancel
                         </Button>
                         <Button type="button" onClick={close} disabled={form.processing}>
-                            {form.processing ? 'Closing…' : 'Close case'}
+                            {form.processing ? 'Closing…' : 'Close Case'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

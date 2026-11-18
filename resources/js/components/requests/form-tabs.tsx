@@ -11,10 +11,10 @@ export interface TabDef {
 }
 
 const TAB_LABELS: Record<TabId, string> = {
-    details: 'Request details',
+    details: 'Request Details',
     stock: 'Stock',
     tender: 'Tender & RFQ',
-    orders: 'Awards & orders',
+    orders: 'Awards & Orders',
     quotations: 'Quotations',
     documents: 'Documents',
 };

@@ -27,7 +27,7 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
     return (
         <section aria-labelledby="submit-heading" className="rounded-lg border p-4">
             <h2 id="submit-heading" className="text-lg font-semibold">
-                Submit request
+                Submit Request
             </h2>
 
             <div aria-live="polite">
@@ -58,7 +58,7 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
                 <div className="mt-2 space-y-2">
                     <p className="text-muted-foreground text-sm">Everything needed is in place.</p>
                     <Button type="button" onClick={() => setConfirming(true)}>
-                        Submit request
+                        Submit Request
                     </Button>
                 </div>
             ) : (
@@ -69,7 +69,7 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
                     </p>
                     <div className="flex gap-2">
                         <Button type="button" onClick={submit} disabled={processing}>
-                            {processing ? 'Submitting…' : 'Confirm and submit'}
+                            {processing ? 'Submitting…' : 'Confirm and Submit'}
                         </Button>
                         <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={processing}>
                             Cancel

@@ -62,7 +62,7 @@ export default function Dashboard({ workQueue, header, stats, requestTypes }: Pr
         ...(can?.requests
             ? [
                   {
-                      title: 'My requests',
+                      title: 'My Requests',
                       description: 'Start, continue and track your non-objection requests.',
                       href: route('requests.index'),
                       icon: FileText,
@@ -70,7 +70,7 @@ export default function Dashboard({ workQueue, header, stats, requestTypes }: Pr
               ]
             : []),
         ...(can?.cases
-            ? [{ title: 'File tracking', description: 'Find any case and see where it is.', href: route('cases.index'), icon: FolderOpen }]
+            ? [{ title: 'File Tracking', description: 'Find any case and see where it is.', href: route('cases.index'), icon: FolderOpen }]
             : []),
     ];
 

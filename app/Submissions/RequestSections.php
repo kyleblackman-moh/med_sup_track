@@ -41,12 +41,12 @@ final class RequestSections
     ];
 
     public const LABELS = [
-        'item_tender' => 'Item and tender details',
-        'variation_details' => 'Variation details',
-        'awarded_supplier' => 'Awarded supplier',
-        'existing_arrangement' => 'Existing approved arrangement',
+        'item_tender' => 'Item and Tender Details',
+        'variation_details' => 'Variation Details',
+        'awarded_supplier' => 'Awarded Supplier',
+        'existing_arrangement' => 'Existing Approved Arrangement',
         'stock' => 'Stock',
-        'quotation_comparison' => 'Quotation comparison',
+        'quotation_comparison' => 'Quotation Comparison',
         'documents' => 'Documents',
     ];
 

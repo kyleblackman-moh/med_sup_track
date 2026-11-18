@@ -122,7 +122,7 @@ export function SendOnwardPanel({
         <Sheet open={open} onOpenChange={close}>
             <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
                 <SheetHeader className="pr-8">
-                    <SheetTitle>Send onward</SheetTitle>
+                    <SheetTitle>Send Onward</SheetTitle>
                     <SheetDescription className="sr-only">Choose where this returned case goes next.</SheetDescription>
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-semibold">{reference ?? 'Case'}</span>
@@ -135,7 +135,7 @@ export function SendOnwardPanel({
 
                 <div className="mt-4 space-y-5">
                     {returned && (
-                        <Block title="Why it came back">
+                        <Block title="Why It Came Back">
                             <div className="bg-muted space-y-1 rounded-lg border p-3 text-sm">
                                 <p className="font-medium">
                                     Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
@@ -149,7 +149,7 @@ export function SendOnwardPanel({
                         </Block>
                     )}
 
-                    <Block title="Recent history">
+                    <Block title="Recent History">
                         <CaseTimeline entries={panel.timeline} />
                     </Block>
 
@@ -161,7 +161,7 @@ export function SendOnwardPanel({
 
                     {confirming && chosen ? (
                         <div className="space-y-4">
-                            <Block title="Check before sending">
+                            <Block title="Check Before Sending">
                                 <dl className="grid gap-2 text-sm">
                                     <div>
                                         <dt className="text-muted-foreground">Send to</dt>
@@ -185,7 +185,7 @@ export function SendOnwardPanel({
                                     Back
                                 </Button>
                                 <Button type="button" onClick={send} disabled={form.processing}>
-                                    {form.processing ? 'Sending…' : 'Send now'}
+                                    {form.processing ? 'Sending…' : 'Send Now'}
                                 </Button>
                             </div>
                         </div>

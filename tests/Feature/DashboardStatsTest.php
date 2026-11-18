@@ -76,7 +76,7 @@ it('gives a case.view_all holder the four tiles, counted from the cases it can s
         ->and($after['ready_for_file'] - $before['ready_for_file'])->toBe(1);
 });
 
-it('counts "Needs my action" from the queue itself', function (string $role) {
+it('counts "Needs My Action" from the queue itself', function (string $role) {
     $user = caseUser($role);
     statsCase(CaseStatus::SUBMITTED);
     statsCase(CaseStatus::READY_FOR_FILE, statsHardcopy());

@@ -23,25 +23,25 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
         <div className="grid grid-cols-1 gap-5">
             <div className="grid gap-5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
                 <TextField {...field('din')} label="DIN" inputMode="numeric" maxLength={32} hint="Digits only." />
-                <TextField {...field('item_description')} label="Item description" maxLength={500} />
+                <TextField {...field('item_description')} label="Item Description" maxLength={500} />
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <TextField {...field('strength')} label="Strength" maxLength={100} />
-                <TextField {...field('dosage_form')} label="Dosage form" maxLength={100} />
-                <TextField {...field('quantity_requested')} label="Quantity requested" inputMode="decimal" hint="In figures, for example 2800." />
-                <TextField {...field('unit_of_measure')} label="Unit of measure" maxLength={32} hint="For example: each, box of 100, vial." />
+                <TextField {...field('dosage_form')} label="Dosage Form" maxLength={100} />
+                <TextField {...field('quantity_requested')} label="Quantity Requested" inputMode="decimal" hint="In figures, for example 2800." />
+                <TextField {...field('unit_of_measure')} label="Unit of Measure" maxLength={32} hint="For example: each, box of 100, vial." />
             </div>
 
             <div className="grid gap-5 xl:grid-cols-3">
-                <TextField {...field('tender_reference')} label="Contract reference" maxLength={120} hint="For example TENDER-2026-14." />
-                <TextField {...field('tender_cycle_start')} label="Tender cycle start" type="date" />
-                <TextField {...field('tender_cycle_end')} label="Tender cycle end" type="date" hint="Not before the start." />
+                <TextField {...field('tender_reference')} label="Contract Reference" maxLength={120} hint="For example TENDER-2026-14." />
+                <TextField {...field('tender_cycle_start')} label="Tender Cycle Start" type="date" />
+                <TextField {...field('tender_cycle_end')} label="Tender Cycle End" type="date" hint="Not before the start." />
             </div>
 
             <TextAreaField
                 {...field('clinical_note')}
-                label="Clinical importance"
+                label="Clinical Importance"
                 maxLength={api.config.max_lengths.clinical_note}
                 hint={`Why the item is needed. Up to ${api.config.max_lengths.clinical_note} characters.`}
             />

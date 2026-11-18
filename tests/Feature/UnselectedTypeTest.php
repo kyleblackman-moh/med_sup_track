@@ -55,7 +55,7 @@ function unselectedReport(ProcurementCase $case): array
 it('seeds NOT_SELECTED as an inactive type with no category and no required file', function () {
     $type = ProcurementType::where('code', 'NOT_SELECTED')->sole();
 
-    expect($type->name)->toBe('Not selected')
+    expect($type->name)->toBe('Not Selected')
         ->and($type->is_active)->toBeFalse()
         ->and($type->category)->toBeNull()
         ->and($type->documents->pluck('purpose')->map(fn ($p) => $p->value)->all())->toBe(['bids', 'regulatory', 'evidence'])
@@ -76,7 +76,7 @@ it('creates a draft with no type given as NOT_SELECTED, audited with codes only'
     expect($case->procurementType->code)->toBe('NOT_SELECTED')
         ->and($case->status)->toBe(CaseStatus::DRAFT)
         ->and($case->org_id)->toBe($vendor->org_id)
-        ->and($case->title)->toBe('Not selected')
+        ->and($case->title)->toBe('Not Selected')
         ->and(json_decode($audit->metadata, true))->toBe(['procurement_type' => 'NOT_SELECTED']);
 });
 
@@ -177,12 +177,12 @@ it('applies the per-type rules once a type is chosen', function (string $code, a
 
 // 4. The list, search and staff -----------------------------------------------------------
 
-it('shows "Not selected" in the Requests list and finds it by that label', function () {
+it('shows "Not Selected" in the Requests list and finds it by that label', function () {
     [$case, $vendor] = unselectedDraft();
     [$chosen] = newDraft('TENDER_EXCESS', $vendor);
 
     $rows = collect(pageProps($this->actingAs($vendor)->get(route('requests.index'))->assertOk())['requests']['data'])->keyBy('id');
-    expect($rows[$case->id]['procurement_type'])->toBe(['code' => 'NOT_SELECTED', 'name' => 'Not selected', 'category' => null, 'selected' => false])
+    expect($rows[$case->id]['procurement_type'])->toBe(['code' => 'NOT_SELECTED', 'name' => 'Not Selected', 'category' => null, 'selected' => false])
         ->and($rows[$chosen->id]['procurement_type']['selected'])->toBeTrue();
 
     $found = collect(pageProps($this->actingAs($vendor)->get(route('requests.index', ['q' => 'not sel']))->assertOk())['requests']['data'])->pluck('id')->all();
@@ -207,10 +207,10 @@ it('gives a draft its type code and the five types it may change to, in order', 
     expect($detail['request_type'])->toBe($code ?? 'NOT_SELECTED')
         ->and($detail['type_options'])->toBe([
             ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc', 'icon' => 'siren'],
-            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender unable to supply', 'group' => 'Ad Hoc', 'icon' => 'package-x'],
-            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not awarded', 'group' => 'Ad Hoc', 'icon' => 'file-x'],
-            ['code' => 'TENDER_EXCESS', 'label' => 'Tender Excess', 'group' => null, 'icon' => 'trending-up'],
-            ['code' => 'TENDER_VARIATION', 'label' => 'Tender Variation', 'group' => null, 'icon' => 'arrow-left-right'],
+            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender Unable to Supply', 'group' => 'Ad Hoc', 'icon' => 'package-x'],
+            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not Awarded', 'group' => 'Ad Hoc', 'icon' => 'file-x'],
+            ['code' => 'TENDER_EXCESS', 'label' => 'Tender - Excess', 'group' => null, 'icon' => 'trending-up'],
+            ['code' => 'TENDER_VARIATION', 'label' => 'Tender - Variation', 'group' => null, 'icon' => 'arrow-left-right'],
         ]);
 })->with([null, 'TENDER_VARIATION']);
 

@@ -42,7 +42,7 @@ final class RequestReceipt
             ->orderBy('uploaded_at')->orderBy('id')->get()
             ->sortBy(fn (Document $d) => $order->search($d->purpose->value) === false ? $order->count() : $order->search($d->purpose->value))
             ->map(fn (Document $d) => [
-                'label' => $labels[$d->purpose->value] ?? 'Earlier uploads',
+                'label' => $labels[$d->purpose->value] ?? 'Earlier Uploads',
                 'display_name' => $d->original_name,
                 'version' => $d->version,
                 'uploaded_at' => $d->uploaded_at?->copy()->utc()->toIso8601ZuluString(),

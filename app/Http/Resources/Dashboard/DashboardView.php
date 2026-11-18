@@ -73,16 +73,16 @@ final class DashboardView
 
         $tiles = [];
         if ($queue !== null) {
-            $tiles[] = self::tile('needs_action', 'Needs my action', count($queue['items']), 'Steps you can take now');
+            $tiles[] = self::tile('needs_action', 'Needs My Action', count($queue['items']), 'Steps you can take now');
         }
 
         if (Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
             $counts = self::counts($user);
-            $tiles[] = self::tile('open', 'Open cases', $counts['open'], 'Not closed, withdrawn or rejected');
+            $tiles[] = self::tile('open', 'Open Cases', $counts['open'], 'Not closed, withdrawn or rejected');
 
             if ($user->can(Permission::CaseViewAll->value)) {
-                $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting hardcopy', $counts['awaiting_hardcopy'], 'Hardcopy not yet recorded');
-                $tiles[] = self::tile('ready_for_file', 'Ready for file', $counts['ready_for_file'], 'Gate passed',
+                $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting Hardcopy', $counts['awaiting_hardcopy'], 'Hardcopy not yet recorded');
+                $tiles[] = self::tile('ready_for_file', 'Ready for File', $counts['ready_for_file'], 'Gate passed',
                     route('cases.index', self::READY_FOR_FILE_FILTER, false));
             }
         }

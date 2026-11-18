@@ -3,7 +3,7 @@ import { router } from '@inertiajs/react';
 import { useState } from 'react';
 
 /**
- * "New request" (V2-1b posts straight to requests.store, which creates the
+ * "New Request" (V2-1b posts straight to requests.store, which creates the
  * draft and opens it). UI-4: disabled while the POST runs, so a double click
  * cannot create two drafts. The server authorises the POST; whether to show
  * the button is the page's `can` flag.
@@ -27,7 +27,7 @@ export function NewRequestButton() {
                 )
             }
         >
-            New request
+            New Request
         </Button>
     );
 }

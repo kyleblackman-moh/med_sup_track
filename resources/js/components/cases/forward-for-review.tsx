@@ -93,7 +93,7 @@ export function ForwardForReview({ caseId, reference, reviewers }: Props) {
     return (
         <div className="space-y-2 border-t pt-4">
             <Button type="button" onClick={() => setOpen(true)} disabled={form.processing}>
-                Send for review
+                Send for Review
             </Button>
             <InputError message={errors.forward} />
 
@@ -117,7 +117,7 @@ export function ForwardForReview({ caseId, reference, reviewers }: Props) {
                         />
                         <ReviewerList
                             field="cab_officers"
-                            legend="CAB officers"
+                            legend="CAB Officers"
                             options={reviewers.cab_officers}
                             selected={form.data.cab_officers}
                             onToggle={toggle('cab_officers')}

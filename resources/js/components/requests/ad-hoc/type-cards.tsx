@@ -73,7 +73,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
         <section className="bg-muted rounded-2xl p-4">
             <div className="bg-card shadow-card rounded-xl border p-5 md:p-6">
                 <fieldset id={ID} className="space-y-3" aria-describedby={describedBy} disabled={disabled}>
-                    <legend className="text-base font-semibold">Request type</legend>
+                    <legend className="text-base font-semibold">Request Type</legend>
 
                     {unselected && (
                         <p id={`${ID}-choose`} className="text-muted-foreground text-sm">

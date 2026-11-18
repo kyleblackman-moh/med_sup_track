@@ -291,7 +291,7 @@ export const UploadDropZone = forwardRef<UploadDropZoneHandle, Props>(function U
                         onClick={() => inputRef.current?.click()}
                         disabled={busy}
                     >
-                        Choose files
+                        Choose Files
                     </Button>
                     <Button
                         ref={uploadButtonRef}

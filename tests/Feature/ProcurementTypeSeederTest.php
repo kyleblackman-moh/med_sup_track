@@ -20,23 +20,23 @@ beforeEach(function () {
 const EXPECTED_TYPES = [
     // code => [name, category, is_active, sort_order]
     'AD_HOC_EMERGENCY' => ['Ad Hoc - Emergency', 'AD_HOC', true, 10],
-    'AD_HOC_TENDER_UNABLE' => ['Ad Hoc - Tender unable to supply', 'AD_HOC', true, 20],
-    'AD_HOC_NOT_AWARDED' => ['Ad Hoc - Not awarded', 'AD_HOC', true, 30],
-    'TENDER_EXCESS' => ['Tender Excess', null, true, 40],
-    'TENDER_VARIATION' => ['Tender Variation', null, true, 50],
-    'AD_HOC' => ['Ad hoc purchase', null, false, 60],
-    'AD_HOC_PHARM' => ['Ad hoc purchase (Pharm)', 'PHARM', false, 70],
-    'AD_HOC_NON_PHARM' => ['Ad hoc purchase (Non-Pharm)', 'NON_PHARM', false, 80],
-    'NOT_SELECTED' => ['Not selected', null, false, 90], // V2-1b: a new draft's type until one is chosen
+    'AD_HOC_TENDER_UNABLE' => ['Ad Hoc - Tender Unable to Supply', 'AD_HOC', true, 20],
+    'AD_HOC_NOT_AWARDED' => ['Ad Hoc - Not Awarded', 'AD_HOC', true, 30],
+    'TENDER_EXCESS' => ['Tender - Excess', null, true, 40],
+    'TENDER_VARIATION' => ['Tender - Variation', null, true, 50],
+    'AD_HOC' => ['Ad Hoc Purchase', null, false, 60],
+    'AD_HOC_PHARM' => ['Ad Hoc Purchase (Pharm)', 'PHARM', false, 70],
+    'AD_HOC_NON_PHARM' => ['Ad Hoc Purchase (Non-Pharm)', 'NON_PHARM', false, 80],
+    'NOT_SELECTED' => ['Not Selected', null, false, 90], // V2-1b: a new draft's type until one is chosen
 ];
 
 const AD_HOC_REQUIRED = [
-    ['original_rfq', 'Original RFQ / procurement request', true],
-    ['supplier_quotations', 'All supplier quotations', true],
-    ['evaluation_report', 'Evaluation and reasons for exclusions', true],
-    ['technical_evidence', 'Technical / sample assessment evidence', true],
-    ['signed_request', 'Signed request from the applicant', true],
-    ['stock_evidence', 'Stock position and consumption evidence', true],
+    ['original_rfq', 'Original RFQ / Procurement Request', true],
+    ['supplier_quotations', 'All Supplier Quotations', true],
+    ['evaluation_report', 'Evaluation and Reasons for Exclusions', true],
+    ['technical_evidence', 'Technical / Sample Assessment Evidence', true],
+    ['signed_request', 'Signed Request From the Applicant', true],
+    ['stock_evidence', 'Stock Position and Consumption Evidence', true],
 ];
 
 /** The request form's three categories; Bids required or not. */
@@ -44,7 +44,7 @@ function formDocuments(bool $bidsRequired): array
 {
     return [
         ['bids', 'Bids', $bidsRequired],
-        ['regulatory', 'Regulatory documents', false],
+        ['regulatory', 'Regulatory Documents', false],
         ['evidence', 'Evidence', false],
     ];
 }
@@ -61,14 +61,14 @@ function expectedDocuments(): array
         'AD_HOC' => formDocuments(true),
         'AD_HOC_PHARM' => [
             ...AD_HOC_REQUIRED,
-            ['other_supporting', 'Other supporting justification', false],
+            ['other_supporting', 'Other Supporting Justification', false],
         ],
         'AD_HOC_NON_PHARM' => [
             ...AD_HOC_REQUIRED,
-            ['product_specifications', 'Product specifications / technical datasheets', false],
-            ['rha_sample_confirmation', 'RHA / institution sample evaluation confirmations', false],
-            ['supplier_correspondence', 'Supplier correspondence and lead-time confirmation', false],
-            ['other_supporting', 'Other supporting justification', false],
+            ['product_specifications', 'Product Specifications / Technical Datasheets', false],
+            ['rha_sample_confirmation', 'RHA / Institution Sample Evaluation Confirmations', false],
+            ['supplier_correspondence', 'Supplier Correspondence and Lead-Time Confirmation', false],
+            ['other_supporting', 'Other Supporting Justification', false],
         ],
         'NOT_SELECTED' => formDocuments(false),
     ];
@@ -156,7 +156,7 @@ it('corrects a changed label, required flag or type field, and removes unlisted 
 
     // Slice F1: AD_HOC_PHARM is inactive now, so the seeder resets it to false (was true).
     expect(storedDocuments('AD_HOC_PHARM'))->toBe(expectedDocuments()['AD_HOC_PHARM'])
-        ->and($type->fresh()->name)->toBe('Ad hoc purchase (Pharm)')
+        ->and($type->fresh()->name)->toBe('Ad Hoc Purchase (Pharm)')
         ->and($type->fresh()->is_active)->toBeFalse();
 });
 

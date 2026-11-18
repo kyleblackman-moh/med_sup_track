@@ -9,7 +9,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
  * V2-2 section "Stock". The unit of measure from section 1 is shown beside the
- * quantities. "No stock on hand" hides the batches (the server then ignores
+ * quantities. "No Stock on Hand" hides the batches (the server then ignores
  * them). The stock total, days on hand and the expiry warning are the
  * server's; the warning never blocks a submit.
  */
@@ -32,7 +32,7 @@ export function StockSection({ api }: { api: FormApi }) {
 
     const columns = [
         { key: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity' },
-        { key: 'expiry_date', label: 'Expiry date' },
+        { key: 'expiry_date', label: 'Expiry Date' },
     ];
 
     return (
@@ -42,17 +42,17 @@ export function StockSection({ api }: { api: FormApi }) {
             <div className="grid gap-5 md:grid-cols-2">
                 <TextField
                     {...field('average_monthly_consumption')}
-                    label="Average monthly consumption"
+                    label="Average Monthly Consumption"
                     inputMode="decimal"
                     hint="Enter 0 if the item has not been used."
                     suffix={unit || undefined}
                 />
-                <TextField {...field('quantity_on_order')} label="Quantity on order" inputMode="decimal" suffix={unit || undefined} />
+                <TextField {...field('quantity_on_order')} label="Quantity on Order" inputMode="decimal" suffix={unit || undefined} />
             </div>
 
             <CheckboxField
                 id={fieldId.requisition('no_stock_on_hand')}
-                label="No stock on hand"
+                label="No Stock on Hand"
                 checked={noStock}
                 onChange={(checked) => api.setField('no_stock_on_hand', checked)}
                 hint="Tick this instead of listing stock batches."
@@ -62,11 +62,11 @@ export function StockSection({ api }: { api: FormApi }) {
                 <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">
                     {tableError && <p className="text-destructive text-sm">{tableError}</p>}
                     <EntryTable
-                        caption="Stock batches"
+                        caption="Stock Batches"
                         columns={columns}
                         empty={rows.length === 0 && <RowsNote>No batches yet.</RowsNote>}
                         addAction={
-                            <AddRowButton label="Add batch" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('stock_expiries')} />
+                            <AddRowButton label="Add Batch" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('stock_expiries')} />
                         }
                     >
                         {rows.map((row, index) => {
@@ -104,8 +104,8 @@ export function StockSection({ api }: { api: FormApi }) {
             )}
 
             <dl className="grid gap-5 sm:grid-cols-2">
-                <Figure label="Stock total" value={form.display.stock_total} suffix={unit || undefined} />
-                <Figure label="Days on hand" value={form.expiry.days_on_hand} />
+                <Figure label="Stock Total" value={form.display.stock_total} suffix={unit || undefined} />
+                <Figure label="Days on Hand" value={form.expiry.days_on_hand} />
             </dl>
 
             <ExpiryBanner expiry={form.expiry} />

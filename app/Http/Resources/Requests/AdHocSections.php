@@ -32,10 +32,10 @@ final class AdHocSections
 {
     public const SECTIONS = [
         'item' => 'Item',
-        'tender' => 'Tender background',
+        'tender' => 'Tender Background',
         'stock' => 'Stock',
         'quotations' => 'Quotations',
-        'price' => 'Price comparison',
+        'price' => 'Price Comparison',
         'documents' => 'Documents',
     ];
 

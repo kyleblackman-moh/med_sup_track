@@ -55,10 +55,10 @@ export function NavUser() {
                 </DropdownMenu>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Log out" className="h-11 gap-3 px-3 [&>svg]:size-5">
+                <SidebarMenuButton asChild tooltip="Log Out" className="h-11 gap-3 px-3 [&>svg]:size-5">
                     <Link method="post" href={route('logout')} as="button" onClick={cleanup}>
                         <LogOut aria-hidden="true" />
-                        <span>Log out</span>
+                        <span>Log Out</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

@@ -128,7 +128,7 @@ export function CaseActions({
             {can.intake && (
                 <div className="space-y-2">
                     <Button type="button" onClick={() => setConfirmIntake(true)} disabled={intake.processing}>
-                        Accept into intake
+                        Accept Into Intake
                     </Button>
                     <InputError message={intakeError} />
 
@@ -145,7 +145,7 @@ export function CaseActions({
                                     Cancel
                                 </Button>
                                 <Button type="button" onClick={submitIntake} disabled={intake.processing}>
-                                    {intake.processing ? 'Accepting…' : 'Accept into intake'}
+                                    {intake.processing ? 'Accepting…' : 'Accept Into Intake'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -161,7 +161,7 @@ export function CaseActions({
                     {hardcopy === null ? (
                         <form onSubmit={submitMark} className="flex flex-wrap items-end gap-3" noValidate>
                             <div className="grid gap-1.5">
-                                <Label htmlFor="hardcopy-received-on">Date received</Label>
+                                <Label htmlFor="hardcopy-received-on">Date Received</Label>
                                 <Input
                                     id="hardcopy-received-on"
                                     aria-required="true"
@@ -188,7 +188,7 @@ export function CaseActions({
                     ) : (
                         <>
                             <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReverse(true)}>
-                                Mark not received
+                                Mark Not Received
                             </Button>
                             <InputError message={(reverse.errors as Record<string, string>).hardcopy} />
 
@@ -234,7 +234,7 @@ export function CaseActions({
                                                 variant="destructive"
                                                 disabled={reverse.processing || reverse.data.reason.trim().length < 10}
                                             >
-                                                {reverse.processing ? 'Saving…' : 'Mark not received'}
+                                                {reverse.processing ? 'Saving…' : 'Mark Not Received'}
                                             </Button>
                                         </DialogFooter>
                                     </form>
@@ -261,9 +261,9 @@ export function CaseActions({
             {/* Slice 10e: a returned case goes onward through the side panel. */}
             {can.route_onward && onSendOnward && (
                 <div className="space-y-2 border-t pt-4">
-                    <h3 className="font-medium">Returned case</h3>
+                    <h3 className="font-medium">Returned Case</h3>
                     <Button type="button" onClick={onSendOnward}>
-                        Send onward
+                        Send Onward
                     </Button>
                 </div>
             )}
