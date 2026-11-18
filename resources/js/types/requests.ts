@@ -21,6 +21,8 @@ export interface RequestTypeOption {
     label: string;
     /** "Ad Hoc" for the three Ad Hoc types, else null. */
     group: string | null;
+    /** V2-2c: a lucide icon name for the type card, or null. */
+    icon: string | null;
 }
 
 export interface RequestSummary {

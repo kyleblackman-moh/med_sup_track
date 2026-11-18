@@ -206,11 +206,11 @@ it('gives a draft its type code and the five types it may change to, in order', 
 
     expect($detail['request_type'])->toBe($code ?? 'NOT_SELECTED')
         ->and($detail['type_options'])->toBe([
-            ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc'],
-            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender unable to supply', 'group' => 'Ad Hoc'],
-            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not awarded', 'group' => 'Ad Hoc'],
-            ['code' => 'TENDER_EXCESS', 'label' => 'Tender Excess', 'group' => null],
-            ['code' => 'TENDER_VARIATION', 'label' => 'Tender Variation', 'group' => null],
+            ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc', 'icon' => 'siren'],
+            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender unable to supply', 'group' => 'Ad Hoc', 'icon' => 'package-x'],
+            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not awarded', 'group' => 'Ad Hoc', 'icon' => 'file-x'],
+            ['code' => 'TENDER_EXCESS', 'label' => 'Tender Excess', 'group' => null, 'icon' => 'trending-up'],
+            ['code' => 'TENDER_VARIATION', 'label' => 'Tender Variation', 'group' => null, 'icon' => 'arrow-left-right'],
         ]);
 })->with([null, 'TENDER_VARIATION']);
 

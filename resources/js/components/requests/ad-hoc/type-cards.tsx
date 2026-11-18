@@ -1,4 +1,5 @@
 import { type RequestTypeOption } from '@/types/requests';
+import { ArrowLeftRight, FileX, type LucideIcon, PackageX, Siren, TrendingUp } from 'lucide-react';
 
 // V2-2: the request type as cards, the first block of the form. Native radios
 // (V2-2b, design.md 0.6: 14px padding, 12px radius, 14px/600 label, --shadow-card;
@@ -21,6 +22,18 @@ interface TypeCardsProps {
 
 const ID = 'request-type';
 
+/** V2-2c: the server names each type's icon (RequestDetailResource::TYPE_ICONS); an unknown name gets none. */
+const ICONS: Record<string, LucideIcon> = {
+    siren: Siren,
+    'package-x': PackageX,
+    'file-x': FileX,
+    'trending-up': TrendingUp,
+    'arrow-left-right': ArrowLeftRight,
+};
+
+/** 3 columns at lg, 2 at md, 1 below: every row's cards share one width. */
+const GRID = 'grid gap-3 md:grid-cols-2 lg:grid-cols-3';
+
 export function TypeCards({ value, options, onChange, disabled, error, showHiddenNote }: TypeCardsProps) {
     const groups: { label: string | null; options: RequestTypeOption[] }[] = [];
     for (const option of options) {
@@ -38,22 +51,32 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
         [unselected ? `${ID}-choose` : null, error ? `${ID}-error` : null, showHiddenNote ? `${ID}-note` : null].filter(Boolean).join(' ') ||
         undefined;
 
-    const card = (option: RequestTypeOption) => (
-        <label
-            key={option.code}
-            className="bg-card border-border shadow-card hover:border-input has-[:checked]:border-primary has-[:checked]:bg-selected has-[:checked]:shadow-card-selected has-[:focus-visible]:ring-ring flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border-[1.5px] p-3.5 text-sm font-semibold transition-[border-color,background-color,box-shadow] duration-150 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 motion-reduce:transition-none"
-        >
-            <input
-                type="radio"
-                name={ID}
-                value={option.code}
-                checked={value === option.code}
-                className="accent-primary size-4 shrink-0 outline-none"
-                onChange={() => onChange(option.code)}
-            />
-            <span>{option.label}</span>
-        </label>
-    );
+    const card = (option: RequestTypeOption) => {
+        const Icon = option.icon ? ICONS[option.icon] : undefined;
+
+        return (
+            <label
+                key={option.code}
+                className="bg-card border-border shadow-card hover:border-input has-[:checked]:border-primary has-[:checked]:bg-selected has-[:checked]:shadow-card-selected has-[:focus-visible]:ring-ring flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border-[1.5px] p-3.5 text-sm font-semibold transition-[border-color,background-color,box-shadow] duration-150 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 motion-reduce:transition-none"
+            >
+                {/* design.md section 7: the tinted icon square, the radio indicator, the label. */}
+                {Icon && (
+                    <span className="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg" aria-hidden="true">
+                        <Icon className="size-4" />
+                    </span>
+                )}
+                <input
+                    type="radio"
+                    name={ID}
+                    value={option.code}
+                    checked={value === option.code}
+                    className="accent-primary size-4 shrink-0 outline-none"
+                    onChange={() => onChange(option.code)}
+                />
+                <span>{option.label}</span>
+            </label>
+        );
+    };
 
     return (
         <section className="bg-muted rounded-2xl p-4">
@@ -71,10 +94,10 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
                         group.label ? (
                             <fieldset key={group.label} className="space-y-2">
                                 <legend className="text-muted-foreground text-[13px] font-medium">{group.label}</legend>
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">{group.options.map(card)}</div>
+                                <div className={GRID}>{group.options.map(card)}</div>
                             </fieldset>
                         ) : (
-                            <div key={`group-${g}`} className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
+                            <div key={`group-${g}`} className={GRID}>
                                 {group.options.map(card)}
                             </div>
                         ),

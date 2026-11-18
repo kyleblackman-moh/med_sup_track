@@ -50,7 +50,7 @@ class RequestDetailResource extends JsonResource
     /**
      * Slice V2-1b: on a request-form DRAFT, its type code and the types it may
      * change to: the five active request types, in order, with their label and
-     * group ("Ad Hoc" for the three Ad Hoc types, else null). NOT_SELECTED and
+     * group ("Ad Hoc" for the three Ad Hoc types, else null) and icon (V2-2c). NOT_SELECTED and
      * inactive types are never offered. Nothing for other cases.
      *
      * @return array{request_type?: string, type_options?: list<array{code: string, label: string, group: string|null}>}
@@ -65,7 +65,19 @@ class RequestDetailResource extends JsonResource
         return ['request_type' => $code, 'type_options' => self::typeOptions()];
     }
 
-    /** @return list<array{code: string, label: string, group: string|null}> */
+    /**
+     * V2-2c: the icon each type card shows (a lucide icon name; the page maps
+     * the name to the icon). Display only.
+     */
+    public const TYPE_ICONS = [
+        ProcurementTypeProfile::AD_HOC_EMERGENCY => 'siren',
+        ProcurementTypeProfile::AD_HOC_TENDER_UNABLE => 'package-x',
+        ProcurementTypeProfile::AD_HOC_NOT_AWARDED => 'file-x',
+        ProcurementTypeProfile::TENDER_EXCESS => 'trending-up',
+        ProcurementTypeProfile::TENDER_VARIATION => 'arrow-left-right',
+    ];
+
+    /** @return list<array{code: string, label: string, group: string|null, icon: string|null}> */
     public static function typeOptions(): array
     {
         $types = ProcurementType::whereIn('code', ProcurementTypeProfile::REQUEST_TYPES)->where('is_active', true)->get()->keyBy('code');
@@ -77,6 +89,7 @@ class RequestDetailResource extends JsonResource
                     'code' => $code,
                     'label' => $type->name,
                     'group' => $type->category === ProcurementCategory::AD_HOC ? 'Ad Hoc' : null,
+                    'icon' => self::TYPE_ICONS[$code] ?? null,
                 ];
             }
         }
