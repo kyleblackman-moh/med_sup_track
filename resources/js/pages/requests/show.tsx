@@ -1,11 +1,11 @@
 import { PageContent, PageHeader } from '@/components/page-header';
+import { CaseHero } from '@/components/requests/case-hero';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
-import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type Readiness, type RequestDetail } from '@/types/requests';
@@ -38,22 +38,13 @@ export default function Show({ case: detail, documents, readiness, can, summary 
             <Head title={detail.reference_no ?? 'Request'} />
 
             <PageContent>
-                {/* V2-3: PageHeader with the title, reference and status pill; the page's links stay as they were. */}
+                {/* V2-3: PageHeader with the page's links (as they were). V2-4: the reference, item, type,
+                    status pill and date are in the case hero below it. */}
                 <PageHeader
-                    title={detail.item_description ?? 'Request'}
-                    subtitle={
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <span>{detail.procurement_type.name}</span>
-                            {detail.reference_no ? (
-                                <span className="text-foreground font-mono text-xs">{detail.reference_no}</span>
-                            ) : (
-                                <span>Draft</span>
-                            )}
-                        </span>
-                    }
+                    title="Request"
+                    size="large"
                     actions={
                         <>
-                            <StatusPill label={detail.status_label} tone={detail.status_tone} />
                             {detail.can.edit && (
                                 <Button asChild variant="outline" size="sm">
                                     <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
@@ -67,6 +58,9 @@ export default function Show({ case: detail, documents, readiness, can, summary 
                         </>
                     }
                 />
+
+                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. */}
+                <CaseHero hero={detail.hero} />
 
                 <FlashMessages />
 

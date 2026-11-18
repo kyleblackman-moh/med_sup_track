@@ -12,12 +12,12 @@ import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { TypeCards } from '@/components/requests/ad-hoc/type-cards';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { VariationSection } from '@/components/requests/ad-hoc/variation-section';
+import { CaseHero } from '@/components/requests/case-hero';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
 import { ProgressStrip, type ProgressItem } from '@/components/ui/progress-strip';
-import { StatusPill } from '@/components/ui/status-pill';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -252,27 +252,22 @@ export default function AdHocEdit({
         note: section.note,
     }));
 
-    const typeOption = detail.type_options?.find((option) => option.code === detail.request_type);
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Request" />
 
             {/* V2-2c: PageContent owns the canvas padding and the 20px between the header, the strip and the first section. */}
             <PageContent>
-                {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). */}
+                {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). V2-4: the
+                    type, reference and status pill are in the case hero below; the header keeps the autosave state. */}
                 <PageHeader
                     title="Request"
                     size="large"
-                    subtitle={
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            {typeOption ? <span className="text-foreground">{typeOption.label}</span> : <span>Not selected</span>}
-                            {detail.reference_no && <span className="text-foreground font-mono text-xs">{detail.reference_no}</span>}
-                            <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
-                        </span>
-                    }
-                    actions={<StatusPill label={detail.status_label} tone={detail.status_tone} />}
+                    subtitle={<SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />}
                 />
+
+                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. */}
+                <CaseHero hero={detail.hero} />
 
                 <FlashMessages />
                 {reviewFailed && (

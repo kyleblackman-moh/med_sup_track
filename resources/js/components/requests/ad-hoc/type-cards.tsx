@@ -1,5 +1,5 @@
+import { TYPE_ICONS as ICONS } from '@/components/requests/type-icons';
 import { type RequestTypeOption } from '@/types/requests';
-import { ArrowLeftRight, FileX, type LucideIcon, PackageX, Siren, TrendingUp } from 'lucide-react';
 
 // V2-2: the request type as cards, the first block of the form. Native radios
 // (V2-2b, design.md 0.6: 14px padding, 12px radius, 14px/600 label, --shadow-card;
@@ -21,15 +21,6 @@ interface TypeCardsProps {
 }
 
 const ID = 'request-type';
-
-/** V2-2c: the server names each type's icon (RequestDetailResource::TYPE_ICONS); an unknown name gets none. */
-const ICONS: Record<string, LucideIcon> = {
-    siren: Siren,
-    'package-x': PackageX,
-    'file-x': FileX,
-    'trending-up': TrendingUp,
-    'arrow-left-right': ArrowLeftRight,
-};
 
 /** 3 columns at lg, 2 at md, 1 below: every row's cards share one width. */
 const GRID = 'grid gap-3 md:grid-cols-2 lg:grid-cols-3';

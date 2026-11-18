@@ -3,11 +3,14 @@
 use App\Enums\CaseStatus;
 use App\Enums\Role;
 use App\Enums\TechnicalStatus;
+use App\Http\Resources\Requests\CaseHero;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
+use App\Submissions\CreateDraftCase;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
+use App\Support\Display;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -524,4 +527,63 @@ it('keeps form actions out of the request form headers', function () {
         expect($header)->not->toBeEmpty("{$path} has no header")
             ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/', "{$path} has an action in its header");
     }
+});
+
+// 11. V2-4 Stage B: the case hero -------------------------------------------------
+
+it('gives a draft a hero with "Last saved" and no reference', function () {
+    [$case, $vendor] = newDraft('TENDER_EXCESS');
+    saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Hero item']]);
+
+    $response = $this->actingAs($vendor)->get(route('requests.edit', $case))->assertOk();
+    $hero = pageProps($response)['case']['hero'];
+
+    expect($hero['reference'])->toBeNull()
+        ->and($hero['title'])->toBe('Hero item')
+        ->and($hero['type']['label'])->toBe(procurementTypeByCode('TENDER_EXCESS')->name)
+        ->and($hero['type']['icon'])->toBe('trending-up')
+        ->and($hero['status_label'])->toBe('Draft')
+        ->and($hero['status_tone'])->toBe('neutral')
+        ->and($hero['date']['label'])->toBe(CaseHero::DRAFT_DATE_LABEL)
+        ->and($hero['date']['value'])->toBe(Display::date($case->fresh()->updated_at->setTimezone('America/Port_of_Spain')))
+        ->and(json_encode($hero))->not->toContain(CaseHero::SUBMITTED_DATE_LABEL);
+
+    // The same hero on the vendor request page.
+    expect(pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk())['case']['hero'])->toBe($hero);
+});
+
+it('gives an unselected draft a null type and never names NOT_SELECTED in the hero', function () {
+    $vendor = vendorUser(vendorOrg());
+    $case = app(CreateDraftCase::class)->handle($vendor);
+    expect($case->procurementType->code)->toBe(ProcurementTypeProfile::NOT_SELECTED);
+
+    $hero = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case))->assertOk())['case']['hero'];
+
+    expect($hero['type'])->toBeNull()
+        ->and($hero['type_unset_label'])->toBe(CaseHero::TYPE_UNSET)
+        ->and($hero['title'])->toBeNull()
+        ->and(json_encode($hero))->not->toContain('NOT_SELECTED');
+});
+
+it('gives a submitted request a hero with its reference and "Submitted on"', function () {
+    $vendor = vendorUser(vendorOrg());
+    $submittedAt = now()->setTimezone('UTC')->setTime(2, 30); // 22:30 the day before in Port of Spain
+    $case = makeCase([
+        'org_id' => $vendor->org_id,
+        'status' => CaseStatus::WITH_LEGAL,
+        'submitted_at' => $submittedAt,
+        'reference_no' => 'NR-HERO-'.Str::upper(Str::random(6)),
+    ]);
+
+    $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk());
+    $hero = $props['case']['hero'];
+
+    expect($hero['reference'])->toBe($case->reference_no)
+        ->and($hero['date']['label'])->toBe(CaseHero::SUBMITTED_DATE_LABEL)
+        ->and($hero['date']['value'])->toBe($submittedAt->copy()->subDay()->format('j M Y'))
+        // A vendor sees the vendor label and tone, never the internal stage.
+        ->and($hero['status_label'])->toBe('Under review')
+        ->and($hero['status_tone'])->toBe('info')
+        ->and(json_encode($hero))->not->toContain(CaseHero::DRAFT_DATE_LABEL);
+    expectVendorSafe($props);
 });

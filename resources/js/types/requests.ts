@@ -43,7 +43,25 @@ export type FieldValue = string | number | boolean | null;
 
 export type Row = Record<string, FieldValue> & { id?: number; derived?: Record<string, string | null> };
 
+/** V2-4 Stage B: the case hero, built by the server (CaseHero::for). Display only. */
+export interface CaseHeroView {
+    /** The reference number; null on a draft (the hero shows "Draft"). */
+    reference: string | null;
+    /** The item description, or null. */
+    title: string | null;
+    /** The type's label and lucide icon name; null while no type is chosen. */
+    type: { label: string; icon: string } | null;
+    /** Shown in place of the type while it is null ("Not chosen yet"). */
+    type_unset_label: string;
+    status_label: string;
+    status_tone: StatusTone;
+    /** "Last saved" on a draft, "Submitted on" once submitted; the value is formatted by the server. */
+    date: { label: string; value: string };
+}
+
 export interface RequestDetail extends RequestSummary {
+    /** V2-4 Stage B: the case hero. */
+    hero: CaseHeroView;
     requisition: Record<string, FieldValue> & { derived: { stock_on_hand: string | null; coverage_months: string | null } };
     quotations: Row[];
     tender_awards: Row[];

@@ -44,6 +44,8 @@ class RequestDetailResource extends JsonResource
             // channel dates, who recorded it, or anything earlier in the process.
             'letter' => self::letter($this->resource),
             ...self::typeChoice($this->resource),
+            // V2-4 Stage B: the case hero (vendor form and vendor request page). Display only.
+            'hero' => CaseHero::for($this->resource, $request->user()),
         ];
     }
 
