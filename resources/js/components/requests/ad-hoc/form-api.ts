@@ -1,4 +1,4 @@
-import { type AdHocConfig, type AdHocDetail, type ChildSection, type SectionStatus } from '@/types/ad-hoc';
+import { type AdHocConfig, type AdHocDetail, type ChildSection, type FormSectionKey, type RequestFormView, type SectionIssue } from '@/types/ad-hoc';
 import { type FormState, type LocalRow, type Value } from './form-state';
 
 /** What every section component gets from the page. */
@@ -6,25 +6,36 @@ export interface FormApi {
     state: FormState;
     detail: AdHocDetail;
     config: AdHocConfig;
+    /** V2-2: the server's sections, display strings and expiry warning. */
+    form: RequestFormView;
     setField: (name: string, value: Value) => void;
+    setVariation: (name: string, value: Value) => void;
     setCell: (section: ChildSection, rowKey: string, name: string, value: Value) => void;
     addRow: (section: ChildSection) => void;
     removeRow: (section: ChildSection, rowKey: string) => void;
     /** Marks one quotation as recommended and clears the others (exactly one). */
     chooseRecommended: (rowKey: string) => void;
+    /** True where the server says the field may stay empty: the label then says "(optional)". */
+    optional: (section: FormSectionKey, field: string) => boolean;
     /** A request field's problem: a rejected save first, then (after Review) the server's readiness issue. */
     fieldError: (name: string) => string | undefined;
     cellError: (section: ChildSection, row: LocalRow, index: number, name: string) => string | undefined;
-    /** A table-level problem (key "<section>" or, for quotations, "quotations.recommended"). */
+    /** A problem by its full key ("tender_awards", "quotations.recommended", "variation.effective_date"). */
     tableError: (key: string) => string | undefined;
 }
 
 /** Text value of a form field ('' for null or a checkbox). */
 export const text = (value: Value | undefined): string => (typeof value === 'string' ? value : '');
 
+/** The server's display values for a saved row, or undefined for an unsaved one. */
+export function rowDisplay<T extends { id: number }>(rows: T[], id: number | null): T | undefined {
+    return id === null ? undefined : rows.find((row) => row.id === id);
+}
+
 interface ErrorSources {
     saveErrors: Record<string, string>;
-    sections: SectionStatus[];
+    /** Sections with the server's issues (request_sections). */
+    sections: { issues: SectionIssue[] }[];
     showIssues: boolean;
 }
 

@@ -21,6 +21,8 @@ export interface LocalRow {
 export interface FormState {
     requisition: Values;
     rows: Record<ChildSection, LocalRow[]>;
+    /** V2-1: the Tender Variation entry (sent on every save; kept while hidden, until submit). */
+    variation: Values;
 }
 
 export const CHILD_SECTIONS: ChildSection[] = ['tender_awards', 'purchase_orders', 'stock_expiries', 'quotations'];
@@ -33,10 +35,13 @@ export const REQUISITION_FIELDS = [
     'din',
     'quantity_requested',
     'unit_of_measure',
-    'clinical_note',
     'tender_reference',
-    'tender_outcome',
+    'tender_cycle_start',
+    'tender_cycle_end',
+    'clinical_note',
+    // V2-2: the tender outcome is not on the form any more (not sent, so a saved value is kept).
     'tender_issue_explanation',
+    'quantity_on_order',
     'stock_location',
     'average_monthly_consumption',
     'no_stock_on_hand',
@@ -50,7 +55,7 @@ export const REQUISITION_FIELDS = [
 
 /** Row columns per section, in table order, with the value a new row starts with. */
 export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
-    tender_awards: { supplier_name: '', manufacturer: '', brand: '', quantity_awarded: '', unit_cost: '' },
+    tender_awards: { supplier_name: '', manufacturer: '', brand: '', country_of_origin: '', quantity_awarded: '', unit_cost: '' },
     purchase_orders: {
         award_id: '',
         po_number: '',
@@ -62,17 +67,23 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
     },
     stock_expiries: { quantity: '', expiry_date: '' },
     quotations: {
-        supplier_name: '',
-        manufacturer: '',
-        brand: '',
-        unit_price: '',
-        quantity_offered: '',
-        lead_time_days: '',
         considered: true,
         is_recommended: false,
+        supplier_name: '',
+        quantity_offered: '',
+        unit_price: '',
+        ex_stock: false,
+        lead_time_days: '',
+        brand: '',
+        manufacturer: '',
+        country_of_origin: '',
+        remarks: '',
         reason_accepted_excluded: '',
     },
 };
+
+/** V2-1: the Tender Variation fields, in form order. */
+export const VARIATION_FIELDS = ['variation_type', 'existing_detail', 'proposed_detail', 'effective_date'] as const;
 
 let counter = 0;
 
@@ -123,7 +134,13 @@ export function initialState(detail: AdHocDetail): FormState {
         rows[section] = saved.length > 0 ? saved : [newRow(section)];
     }
 
-    return { requisition, rows };
+    const variation: Values = {};
+    for (const field of VARIATION_FIELDS) {
+        const value = detail.variation?.[field];
+        variation[field] = value === null || value === undefined ? '' : String(value);
+    }
+
+    return { requisition, rows, variation };
 }
 
 const blankToNull = (value: Value) => (typeof value === 'string' && value.trim() === '' ? null : value);
@@ -134,7 +151,8 @@ export function toPayload(state: FormState): Record<string, unknown> {
     // The column is NOT NULL with a default; never send null for it.
     requisition.no_stock_on_hand = state.requisition.no_stock_on_hand === true;
 
-    const payload: Record<string, unknown> = { requisition };
+    const variation = Object.fromEntries(Object.entries(state.variation).map(([name, value]) => [name, blankToNull(value)]));
+    const payload: Record<string, unknown> = { requisition, variation };
     for (const section of CHILD_SECTIONS) {
         payload[section] = state.rows[section].map((row) => {
             const values: Record<string, unknown> = Object.fromEntries(Object.entries(row.values).map(([name, value]) => [name, blankToNull(value)]));
@@ -179,6 +197,7 @@ export function serverRow(detail: AdHocDetail, section: ChildSection, id: number
 /** DOM id of a field: request fields, row cells and table-level targets. */
 export const fieldId = {
     requisition: (name: string) => `f-requisition-${name}`,
+    variation: (name: string) => `f-variation-${name}`,
     cell: (section: ChildSection, key: string, name: string) => `f-${section}-${key}-${name}`,
     table: (section: ChildSection | 'documents') => `f-${section}`,
 };

@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { type AdHocConfig, type AdHocDetail, type ChildSection, type SectionIssue, type SectionKey, type SectionStatus } from '@/types/ad-hoc';
+import { type AdHocConfig, type AdHocDetail, type ChildSection, type RequestSectionStatus, type SectionIssue } from '@/types/ad-hoc';
 import { type DocumentGroup, type FieldValue, type Row } from '@/types/requests';
 import { type ReactNode, type RefObject } from 'react';
 import { CHILD_SECTIONS, fieldId, type FormState } from './form-state';
 
 /** Radio groups are focused on their first option. */
-const RADIO_FIELDS = ['tender_outcome', 'rfq_audience'];
+const RADIO_FIELDS = ['rfq_audience'];
 
 /** The DOM id to focus for an issue: the field, the row's cell, or the table. */
 export function targetFor(issue: SectionIssue, state: FormState): string {
@@ -17,6 +17,13 @@ export function targetFor(issue: SectionIssue, state: FormState): string {
     }
     if (first === 'documents') {
         return fieldId.table('documents');
+    }
+    // V2-2: the variation's fields, and the type cards ("Choose a request type").
+    if (first === 'variation') {
+        return fieldId.variation(second);
+    }
+    if (first === 'request_type') {
+        return 'request-type';
     }
     if ((CHILD_SECTIONS as string[]).includes(first)) {
         const section = first as ChildSection;
@@ -30,9 +37,10 @@ export function targetFor(issue: SectionIssue, state: FormState): string {
 
 interface IssuesPanelProps {
     panelRef: RefObject<HTMLElement | null>;
-    sections: SectionStatus[];
+    sections: RequestSectionStatus[];
     state: FormState;
-    onJump: (key: SectionKey, focusId: string) => void;
+    /** Scrolls to and focuses the issue's field. */
+    onJump: (focusId: string) => void;
 }
 
 /** What still needs doing, grouped by section, with jump links. Receives focus when shown. */
@@ -65,7 +73,7 @@ export function IssuesPanel({ panelRef, sections, state, onJump }: IssuesPanelPr
                                             className="text-primary underline underline-offset-4"
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                onJump(section.key, target);
+                                                onJump(target);
                                             }}
                                         >
                                             {issue.message}

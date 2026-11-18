@@ -1,11 +1,9 @@
 // Props of the AD_HOC single-page form (slice F2). Display only: the server
 // validates every save, computes every figure and decides what is complete.
 
-import { type DocumentGroup, type OptionList, type RequestDetail, type UploadRules } from './requests';
+import { type DocumentGroup, type FieldValue, type OptionList, type RequestDetail, type UploadRules } from './requests';
 
 export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations';
-
-export type SectionKey = 'item' | 'tender' | 'stock' | 'quotations' | 'price' | 'documents';
 
 export interface SectionIssue {
     /** Readiness key, for example "tender_awards.0.unit_cost". */
@@ -15,15 +13,6 @@ export interface SectionIssue {
     /** The saved row the issue is about, or null. */
     row_id: number | null;
     message: string;
-}
-
-export interface SectionStatus {
-    key: SectionKey;
-    label: string;
-    optional: boolean;
-    complete: boolean;
-    summary: string;
-    issues: SectionIssue[];
 }
 
 /** Server-computed AD_HOC figures (RequestDetailResource "figures"). */
@@ -40,6 +29,8 @@ export interface AdHocFigures {
 export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
     requisition: RequestDetail['requisition'];
     figures: AdHocFigures | null;
+    /** V2-1: the Tender Variation entry; null when none is saved. */
+    variation: Record<string, FieldValue> | null;
 };
 
 export interface AdHocConfig {
@@ -60,9 +51,11 @@ export interface SavedFlash {
 
 /** V2-1 "request_sections": the sections the draft's type shows, in order (RequestSections). */
 export interface RequestSectionStatus {
-    key: string;
+    key: FormSectionKey;
     label: string;
     optional: boolean;
+    /** V2-1c: "Choose a request type" while the section waits for the type, else null. */
+    note: string | null;
     anchor: string;
     complete: boolean;
     issues: SectionIssue[];
@@ -70,12 +63,64 @@ export interface RequestSectionStatus {
 
 export interface AdHocPageProps {
     case: AdHocDetail;
-    sections: SectionStatus[];
     request_sections: RequestSectionStatus[];
+    /** V2-2: numbered sections, display strings and the expiry warning. */
+    form: RequestFormView;
     config: AdHocConfig;
     documents: DocumentGroup[];
     saved: SavedFlash | null;
     hardcopy_notice: string;
     can: { edit: boolean; submit: boolean; requests: boolean };
     errors: Record<string, string>;
+}
+
+/** V2-2: the request form's sections, in form order (RequestFormView). */
+export type FormSectionKey =
+    | 'item_tender'
+    | 'variation_details'
+    | 'awarded_supplier'
+    | 'existing_arrangement'
+    | 'stock'
+    | 'quotation_comparison'
+    | 'documents';
+
+export type FormSectionState = 'complete' | 'incomplete' | 'optional' | 'blocked';
+
+export interface FormSectionView {
+    key: FormSectionKey;
+    label: string;
+    /** Position among the visible sections; null when hidden. */
+    number: number | null;
+    visible: boolean;
+    state: FormSectionState;
+    /** Why the section is blocked ("Choose a request type"), else null. */
+    note: string | null;
+    /** Field key => must be filled in to submit. A false value is shown as "(optional)". */
+    required: Record<string, boolean>;
+}
+
+/** V2-2: server-formatted values (RequestFormView "display"). */
+export interface FormDisplay {
+    stock_total: string;
+    days_on_hand: string;
+    awards_total: string;
+    total_cost: string;
+    rows: {
+        tender_awards: { id: number; percentage: string; line_cost: string }[];
+        purchase_orders: { id: number; quantity_outstanding: string }[];
+        stock_expiries: { id: number; expiry_date: string }[];
+    };
+}
+
+/** V2-2: the expiry warning (ExpiryRisk), as display strings. */
+export interface FormExpiry {
+    days_on_hand: string;
+    at_risk: { batch: string; quantity: string; expiry_date: string; cover_days: string; days_to_expiry: string }[];
+    expired: { batch: string; quantity: string; expiry_date: string }[];
+}
+
+export interface RequestFormView {
+    sections: FormSectionView[];
+    display: FormDisplay;
+    expiry: FormExpiry;
 }

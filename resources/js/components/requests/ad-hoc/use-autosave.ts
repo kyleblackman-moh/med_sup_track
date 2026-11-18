@@ -7,7 +7,7 @@ export const DEBOUNCE_MS = 2000;
 export const MIN_GAP_MS = 5000;
 
 /** Props reloaded after a save: the saved figures, the section status and the new row ids. */
-const RELOAD = ['case', 'sections', 'saved'];
+const RELOAD = ['case', 'request_sections', 'form', 'saved'];
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 

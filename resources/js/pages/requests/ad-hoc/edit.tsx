@@ -1,44 +1,59 @@
 import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-api';
-import { FormSection } from '@/components/requests/ad-hoc/form-section';
+import { FormPanel } from '@/components/requests/ad-hoc/form-panel';
 import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } from '@/components/requests/ad-hoc/form-state';
 import { ItemSection } from '@/components/requests/ad-hoc/item-section';
 import { PriceSection } from '@/components/requests/ad-hoc/price-section';
-import { ProgressRail } from '@/components/requests/ad-hoc/progress-rail';
 import { QuotationsSection } from '@/components/requests/ad-hoc/quotations-section';
 import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { TenderSection } from '@/components/requests/ad-hoc/tender-section';
-import { TypeChoice } from '@/components/requests/ad-hoc/type-choice';
+import { TypeCards } from '@/components/requests/ad-hoc/type-cards';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { Button } from '@/components/ui/button';
+import { ProgressStrip, type ProgressItem } from '@/components/ui/progress-strip';
 import { StatusPill } from '@/components/ui/status-pill';
+import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AdHocPageProps, type ChildSection, type SavedFlash, type SectionKey, type SectionStatus } from '@/types/ad-hoc';
+import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
 import { useRef, useState, type ReactNode } from 'react';
 
-const FIRST_OPEN: Record<SectionKey, boolean> = { item: true, tender: false, stock: false, quotations: false, price: false, documents: false };
-
 type Review = 'none' | 'issues' | 'ready';
 
+/** The props a save, a type change or a review reloads (never the whole page). */
+const FORM_PROPS = ['case', 'request_sections', 'form', 'documents'];
+
+/** Focus a field by id, or the first control inside a table, list or fieldset with that id. */
+function focusTarget(id: string) {
+    const target = document.getElementById(id);
+    if (!target) {
+        return;
+    }
+    const control = target.matches('input, select, textarea, button, [tabindex]')
+        ? target
+        : target.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea, button');
+    target.scrollIntoView({ block: 'center' });
+    (control ?? target).focus({ preventScroll: true });
+}
+
 /**
- * The AD_HOC request form (slice F2): one page, six collapsible sections, a
- * progress rail and autosave. Local state is the source of truth while
- * editing; the server validates every save, computes every figure and decides
- * what is complete (the "sections" prop). Issues show only after Review and
- * submit, which saves first, then asks the server.
+ * The request form (slice V2-2): one scrolling page. The type cards, then the
+ * sections the server marks visible, numbered and in the server's order, with
+ * a sticky progress strip and a sticky action bar. Local state is the source
+ * of truth while editing and is autosaved; the server validates every save,
+ * computes and formats every figure, and decides what is complete and what
+ * is optional (the "form" prop). Issues show only after Review and submit.
  */
-export default function AdHocEdit({ case: detail, sections, request_sections, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
+export default function AdHocEdit({ case: detail, request_sections, form, config, documents, hardcopy_notice, errors, can }: AdHocPageProps) {
     const [state, setState] = useState<FormState>(() => initialState(detail));
     const stateRef = useRef(state);
     stateRef.current = state;
 
-    const [open, setOpen] = useState(FIRST_OPEN);
     const [showIssues, setShowIssues] = useState(false);
     const [review, setReview] = useState<Review>('none');
     const [reviewFailed, setReviewFailed] = useState(false);
@@ -47,35 +62,6 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
     const [deleting, setDeleting] = useState(false);
     const [changingType, setChangingType] = useState(false);
     const [typeHidSections, setTypeHidSections] = useState(false);
-
-    /**
-     * V2-1b (temporary until V2-2): save what was typed, then change the type
-     * through the server and reload only the form's props. The note shows when
-     * a section that was visible before the change is not visible after it.
-     */
-    const changeType = async (code: string) => {
-        const before = request_sections.map((section) => section.key);
-        if (!(await autosave.flush())) {
-            setReviewFailed(true);
-
-            return;
-        }
-        router.put(
-            route('requests.type', detail.id),
-            { procurement_type: code },
-            {
-                preserveScroll: true,
-                only: ['case', 'sections', 'request_sections', 'documents'],
-                onStart: () => setChangingType(true),
-                onSuccess: (page) => {
-                    const after = (page.props as unknown as { request_sections: { key: string }[] }).request_sections.map((s) => s.key);
-                    setTypeHidSections(before.some((key) => !after.includes(key)));
-                    setReview('none');
-                },
-                onFinish: () => setChangingType(false),
-            },
-        );
-    };
     const panelRef = useRef<HTMLElement | null>(null);
 
     const autosave = useAutosave({
@@ -88,6 +74,37 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
             }
         },
     });
+
+    const visibleKeys = (view: RequestFormView) => view.sections.filter((section) => section.visible).map((section) => section.key);
+
+    /**
+     * Save what was typed, then change the type through the server and reload
+     * only the form's props. The note shows when a section that was visible
+     * before the change is not visible after it.
+     */
+    const changeType = async (code: string) => {
+        const before = visibleKeys(form);
+        if (!(await autosave.flush())) {
+            setReviewFailed(true);
+
+            return;
+        }
+        router.put(
+            route('requests.type', detail.id),
+            { procurement_type: code },
+            {
+                preserveScroll: true,
+                only: FORM_PROPS,
+                onStart: () => setChangingType(true),
+                onSuccess: (page) => {
+                    const after = visibleKeys((page.props as unknown as { form: RequestFormView }).form);
+                    setTypeHidSections(before.some((key) => !after.includes(key)));
+                    setReview('none');
+                },
+                onFinish: () => setChangingType(false),
+            },
+        );
+    };
 
     const update = (change: (current: FormState) => FormState) => {
         setState(change);
@@ -120,34 +137,23 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
         window.setTimeout(() => document.querySelector<HTMLElement>(`[id^="${fieldId.cell(section, row.key, '')}"]`)?.focus(), 0);
     };
 
+    const sectionByKey = new Map(form.sections.map((section) => [section.key, section]));
+
     const api: FormApi = {
         state,
         detail,
         config,
+        form,
         setField: (name, value) => update((current) => ({ ...current, requisition: { ...current.requisition, [name]: value } })),
+        setVariation: (name, value) => update((current) => ({ ...current, variation: { ...current.variation, [name]: value } })),
         setCell: (section, rowKey, name, value) =>
             updateRows(section, (rows) => rows.map((row) => (row.key === rowKey ? { ...row, values: { ...row.values, [name]: value } } : row))),
         addRow,
         removeRow,
         chooseRecommended: (rowKey) =>
             updateRows('quotations', (rows) => rows.map((row) => ({ ...row, values: { ...row.values, is_recommended: row.key === rowKey } }))),
-        ...errorLookups({ saveErrors: errors ?? {}, sections, showIssues }),
-    };
-
-    const setSectionOpen = (key: SectionKey, next: boolean) => {
-        if (!next) {
-            void autosave.flush(); // save what was typed before the section closes
-        }
-        setOpen((current) => ({ ...current, [key]: next }));
-    };
-
-    const jump = (key: SectionKey, focusId?: string) => {
-        setOpen((current) => ({ ...current, [key]: true }));
-        window.setTimeout(() => {
-            document.getElementById(`section-${key}`)?.scrollIntoView({ block: 'start' });
-            const target = (focusId && document.getElementById(focusId)) || document.querySelector<HTMLElement>(`#section-${key}-heading button`);
-            target?.focus();
-        }, 0);
+        optional: (section, field) => sectionByKey.get(section)?.required[field] === false,
+        ...errorLookups({ saveErrors: errors ?? {}, sections: request_sections, showIssues }),
     };
 
     /** Save everything, then ask the server what (if anything) still needs doing. */
@@ -160,9 +166,9 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
         }
         setReviewFailed(false);
         router.reload({
-            only: ['sections', 'case', 'documents'],
+            only: FORM_PROPS,
             onSuccess: (page) => {
-                const latest = (page.props as unknown as { sections: SectionStatus[] }).sections;
+                const latest = (page.props as unknown as AdHocPageProps).request_sections;
                 setShowIssues(true);
                 setReview(latest.some((section) => section.issues.length > 0) ? 'issues' : 'ready');
                 window.setTimeout(() => {
@@ -193,33 +199,69 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
         { title: 'Edit draft', href: route('requests.edit', detail.id) },
     ];
 
-    const body: Record<SectionKey, ReactNode> = {
-        item: <ItemSection api={api} />,
-        tender: <TenderSection api={api} />,
-        stock: <StockSection api={api} />,
-        quotations: <QuotationsSection api={api} />,
-        price: <PriceSection api={api} />,
-        documents: (
-            <div
-                id={fieldId.table('documents')}
-                tabIndex={-1}
-                className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-hidden"
-            >
-                <SupportingDocuments caseId={detail.id} groups={documents} rules={config.uploads} reloadProps={['documents', 'sections']} embedded />
-            </div>
-        ),
+    const issuesOf = (key: FormSectionKey) => (showIssues ? (request_sections.find((section) => section.key === key)?.issues ?? []) : []);
+
+    const body: Record<FormSectionKey, { variant: 'stacked' | 'split'; content: ReactNode }> = {
+        // V2-2 part 2: the earlier section bodies until parts 3 to 5 replace them.
+        item_tender: { variant: 'split', content: <ItemSection api={api} /> },
+        variation_details: { variant: 'stacked', content: null },
+        awarded_supplier: { variant: 'stacked', content: <TenderSection api={api} /> },
+        existing_arrangement: { variant: 'stacked', content: null },
+        stock: { variant: 'stacked', content: <StockSection api={api} /> },
+        quotation_comparison: {
+            variant: 'stacked',
+            content: (
+                <>
+                    <QuotationsSection api={api} />
+                    <PriceSection api={api} />
+                </>
+            ),
+        },
+        documents: {
+            variant: 'stacked',
+            content: (
+                <div
+                    id={fieldId.table('documents')}
+                    tabIndex={-1}
+                    className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-hidden"
+                >
+                    <SupportingDocuments
+                        caseId={detail.id}
+                        groups={documents}
+                        rules={config.uploads}
+                        reloadProps={['documents', 'request_sections', 'form']}
+                        embedded
+                    />
+                </div>
+            ),
+        },
     };
+
+    const visible = form.sections.filter((section) => section.visible);
+
+    // The strip: the server's state; after a review, a section with issues shows as needing attention.
+    const progress: ProgressItem[] = visible.map((section) => ({
+        key: section.key,
+        label: section.label,
+        number: section.number ?? undefined,
+        href: `#section-${section.key}`,
+        state: issuesOf(section.key).length > 0 ? 'error' : section.state,
+        note: section.note,
+    }));
+
+    const typeOption = detail.type_options?.find((option) => option.code === detail.request_type);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Ad hoc request" />
+            <Head title="Request" />
 
-            <div className="mx-auto w-full max-w-[96rem] min-w-0 px-4 pt-4 pb-12 md:px-6">
-                {/* Status only: the form's actions are in the footer row at the bottom (CLAUDE.md, UI). */}
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="w-full min-w-0 px-4 pt-2 pb-8 md:px-6">
+                {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). */}
+                <header className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
-                        <h1 className="text-lg font-semibold">Ad hoc purchase request</h1>
-                        <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                        <h1 className="text-xl font-semibold">Request</h1>
+                        <p className="flex flex-wrap items-center gap-2 text-sm">
+                            {typeOption ? <span>{typeOption.label}</span> : <span className="text-muted-foreground">Not selected</span>}
                             {detail.reference_no && <span className="font-mono text-xs">{detail.reference_no}</span>}
                             <StatusPill label={detail.status_label} tone={detail.status_tone} />
                         </p>
@@ -227,7 +269,7 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
                     <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
                 </header>
 
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 space-y-2">
                     <FlashMessages />
                     {reviewFailed && (
                         <p role="alert" className="text-destructive text-sm">
@@ -236,78 +278,62 @@ export default function AdHocEdit({ case: detail, sections, request_sections, co
                     )}
                 </div>
 
-                {/* Two columns from 1280px: the form, then the rail in its own column (it sticks
-                    inside that column, so it cannot cover the form). min-w-0 stops wide content
-                    from widening the form column. Below 1280px the rail is a bar above the form. */}
-                <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_15rem]">
-                    <div className="bg-background sticky top-0 z-10 -mx-4 min-w-0 border-b px-4 py-2 md:-mx-6 md:px-6 xl:static xl:col-start-2 xl:row-start-1 xl:mx-0 xl:border-0 xl:p-0">
-                        <ProgressRail sections={sections} onJump={(key) => jump(key)} />
-                    </div>
+                <div className="bg-card/92 sticky top-0 z-10 -mx-4 mt-3 border-b px-4 py-2 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
+                    <ProgressStrip items={progress} label="Form sections" />
+                </div>
 
-                    <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
-                        {detail.type_options && (
-                            <TypeChoice
-                                value={detail.request_type ?? ''}
-                                options={detail.type_options}
-                                onChange={(code) => void changeType(code)}
-                                disabled={changingType}
-                                error={errors?.procurement_type}
-                                showHiddenNote={typeHidSections}
-                            />
-                        )}
+                <div className="mt-4 space-y-4">
+                    {detail.type_options && (
+                        <TypeCards
+                            value={detail.request_type ?? ''}
+                            options={detail.type_options}
+                            onChange={(code) => void changeType(code)}
+                            disabled={changingType}
+                            error={errors?.procurement_type}
+                            showHiddenNote={typeHidSections}
+                        />
+                    )}
 
-                        {sections.map((section, i) => (
-                            <FormSection
-                                key={section.key}
-                                number={i + 1}
-                                status={section}
-                                open={open[section.key]}
-                                onOpenChange={(next) => setSectionOpen(section.key, next)}
-                                showIssues={showIssues}
-                            >
-                                {body[section.key]}
-                            </FormSection>
-                        ))}
+                    {visible.map((section) => (
+                        <FormPanel key={section.key} section={section} issues={issuesOf(section.key)} variant={body[section.key].variant}>
+                            {body[section.key].content}
+                        </FormPanel>
+                    ))}
 
-                        {/* The review result sits just above the footer that asked for it. */}
-                        {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={sections} state={state} onJump={jump} />}
-                        {review === 'ready' && (
-                            <SummaryPanel
-                                panelRef={panelRef}
-                                detail={detail}
-                                config={config}
-                                documents={documents}
-                                onSubmit={() => setConfirming(true)}
-                            />
-                        )}
-
-                        {/* Footer row: the form's actions, below the Documents section. */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-6">
-                            {can.edit ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive h-11 md:h-9"
-                                    onClick={() => setDeleting(true)}
-                                >
-                                    Delete draft
-                                </Button>
-                            ) : (
-                                <span />
-                            )}
-                            {/* One primary action per view: once the summary is up, Submit is the primary one. */}
-                            <Button
-                                type="button"
-                                variant={review === 'ready' ? 'outline' : 'default'}
-                                className="h-11 md:h-9"
-                                onClick={() => void startReview()}
-                            >
-                                Review and submit
-                            </Button>
-                        </div>
-                    </div>
+                    {/* The review result sits just above the action bar that asked for it. */}
+                    {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={request_sections} state={state} onJump={focusTarget} />}
+                    {review === 'ready' && (
+                        <SummaryPanel
+                            panelRef={panelRef}
+                            detail={detail}
+                            config={config}
+                            documents={documents}
+                            onSubmit={() => setConfirming(true)}
+                        />
+                    )}
                 </div>
             </div>
+
+            <StickyActionBar
+                left={
+                    can.edit && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-destructive-text border-destructive hover:bg-destructive/10 hover:text-destructive-text"
+                            onClick={() => setDeleting(true)}
+                        >
+                            Delete draft
+                        </Button>
+                    )
+                }
+                right={
+                    // One primary action per view: once the summary is up, Submit is the primary one.
+                    <Button type="button" variant={review === 'ready' ? 'outline' : 'default'} onClick={() => void startReview()}>
+                        Review and submit
+                    </Button>
+                }
+            />
 
             <DeleteDraftDialog
                 caseId={deleting ? detail.id : null}
