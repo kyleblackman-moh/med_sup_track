@@ -11,6 +11,7 @@ use App\Enums\Role;
 use App\Enums\ScanStatus;
 use App\Enums\TrackStatus;
 use App\Http\Resources\Requests\RequestDetailResource;
+use App\Http\Resources\Requests\RequestSummary;
 use App\Models\CaseAssignment;
 use App\Models\CaseTransition;
 use App\Models\Document;
@@ -116,6 +117,9 @@ final class StaffCaseDetail
                 'earliest' => $case->submitted_at?->copy()->setTimezone(RecordHardcopy::TIMEZONE)->toDateString(),
             ],
             'documents' => self::documents($case, $user),
+            // V2-3: the one RequestSummary (as the vendor sees it, with the staff document rules);
+            // null for the old Pharm and Non-Pharm types, which keep RequisitionView.
+            'summary' => RequestSummary::for($case, $user, forStaff: true),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),

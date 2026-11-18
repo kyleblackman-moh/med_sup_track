@@ -245,3 +245,28 @@ it('never contains values from another case', function () {
         ->not->toContain('Other supplier')
         ->not->toContain('other-case.pdf');
 });
+
+// 6. The three pages show the same summary ---------------------------------------------------
+
+it('gives the staff case page and the vendor page the same summary of a submitted case', function () {
+    [$case, $vendor] = readyDraft('TENDER_VARIATION');
+    app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
+
+    $vendorSummary = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk())['summary'];
+    $staffSummary = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk())['summary'];
+
+    // Identical apart from the documents, which follow each audience's rules (staff: a Visibility column).
+    $withoutDocuments = fn (array $summary) => collect($summary['sections'])->reject(fn ($s) => $s['key'] === 'documents')->values()->all();
+    expect($withoutDocuments($staffSummary))->toBe($withoutDocuments($vendorSummary))
+        ->and(array_column($staffSummary['sections'], 'number', 'key'))->toBe(array_column($vendorSummary['sections'], 'number', 'key'))
+        ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(2);
+});
+
+it('keeps staff away from drafts on the case page, old types included', function () {
+    [$legacy] = legacyDraft('AD_HOC_PHARM');
+    // A DRAFT is never shown to staff (404, as today).
+    $this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $legacy->id))->assertNotFound();
+
+    [$case] = summaryDraft('AD_HOC_EMERGENCY');
+    $this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertNotFound();
+});

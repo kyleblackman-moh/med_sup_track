@@ -3,8 +3,10 @@ import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
+import { PageHeader } from '@/components/page-header';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,7 @@ import {
     type StaffDocument,
     type TimelineEntry,
 } from '@/types/cases';
+import { type RequestSummaryView } from '@/types/summary';
 import { Head } from '@inertiajs/react';
 import { type ReactNode, useState } from 'react';
 
@@ -53,6 +56,8 @@ interface Props {
     route_panel: RoutePanel | null;
     letter: LetterRecord | null;
     letter_dates: { today: string } | null;
+    /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
+    summary: RequestSummaryView | null;
     can: StaffCaseAbilities;
 }
 
@@ -79,8 +84,22 @@ function Card({ title, id, children }: { title: string; id: string; children: Re
     );
 }
 
-/** Tabs for this case. Awards & orders only when the case has any; Actions is always last. */
-function buildTabs(detail: StaffCaseDetail): CaseTab<TabId>[] {
+/**
+ * Tabs for this case. V2-3: a request-form case shows its request in one
+ * "Request details" tab (the RequestSummary); the old types keep their tabs,
+ * with Awards & orders only when the case has any. Actions is always last.
+ */
+function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>[] {
+    if (hasSummary) {
+        return [
+            { id: 'overview', label: 'Overview' },
+            { id: 'details', label: 'Request details' },
+            { id: 'documents', label: 'Documents' },
+            { id: 'history', label: 'History' },
+            { id: 'actions', label: 'Actions' },
+        ];
+    }
+
     const hasOrders = detail.tender_awards.length > 0 || detail.purchase_orders.length > 0;
 
     return [
@@ -127,6 +146,7 @@ export default function CaseShow({
     route_panel,
     letter,
     letter_dates,
+    summary,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -134,7 +154,7 @@ export default function CaseShow({
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
     ];
 
-    const tabs = buildTabs(detail);
+    const tabs = buildTabs(detail, summary !== null);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
     const [routeOpen, setRouteOpen] = useState(false);
@@ -152,14 +172,13 @@ export default function CaseShow({
             <Head title={detail.reference_no ?? 'Case'} />
 
             <div className="mx-auto w-full max-w-6xl space-y-4 p-4">
-                <header className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* The reference is the page title here: mono, but kept at heading size. */}
-                        <h1 className="font-mono text-2xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
-                        <StatusPill label={detail.status_label} tone={detail.status_tone} />
-                    </div>
-                    <p className="text-muted-foreground">{detail.item_description ?? 'No item description'}</p>
-                </header>
+                {/* V2-3: PageHeader. The reference is the page title here, in mono. */}
+                <PageHeader
+                    title={detail.reference_no ?? 'Case'}
+                    titleClassName="font-mono"
+                    subtitle={detail.item_description ?? 'No item description'}
+                    actions={<StatusPill label={detail.status_label} tone={detail.status_tone} />}
+                />
 
                 <FlashMessages />
 
@@ -243,13 +262,15 @@ export default function CaseShow({
                         </>
                     )}
 
-                    {(active === 'details' || active === 'stock' || active === 'tender' || active === 'orders' || active === 'quotations') && (
-                        <RequisitionView content={detail} isPharm={isPharm} tab={active} />
-                    )}
+                    {summary
+                        ? active === 'details' && <RequestSummary summary={summary} idPrefix="case" />
+                        : (active === 'details' || active === 'stock' || active === 'tender' || active === 'orders' || active === 'quotations') && (
+                              <RequisitionView content={detail} isPharm={isPharm} tab={active} />
+                          )}
 
                     {active === 'documents' && (
                         <>
-                            <RequisitionView content={detail} isPharm={isPharm} tab="documents" />
+                            {!summary && <RequisitionView content={detail} isPharm={isPharm} tab="documents" />}
 
                             <Card title="Documents" id="documents-heading">
                                 {documents.length === 0 ? (
