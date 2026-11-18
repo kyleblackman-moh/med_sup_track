@@ -95,6 +95,9 @@ final class RequestFormView
                 ? Display::EMPTY
                 : Display::money($awardTotals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
             'total_cost' => Display::money($case->totalCost()),
+            // V2-3: the price comparison's changes, with the sign added here (never in React).
+            'price_change_vs_tender' => Display::percent($case->priceChangePercent($case->requisition?->tender_price)),
+            'price_change_vs_previous' => Display::percent($case->priceChangePercent($case->requisition?->previous_price)),
             'rows' => [
                 'tender_awards' => $case->tenderAwards->map(fn (CaseTenderAward $a) => [
                     'id' => $a->getKey(),

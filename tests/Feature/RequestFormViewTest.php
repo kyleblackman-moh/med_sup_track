@@ -152,6 +152,9 @@ it('formats the computed values on the server', function () {
         ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
         ->and($display['awards_total'])->toBe('5,050.00')
         ->and($display['total_cost'])->toBe('4,473.00') // 1.5975 x 2800
+        // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
+        ->and($display['price_change_vs_tender'])->toBe('27.80%')
+        ->and($display['price_change_vs_previous'])->toBe('6.50%')
         ->and($display['rows']['tender_awards'])->toBe([
             ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '3,750.00'],
             ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '1,300.00'],

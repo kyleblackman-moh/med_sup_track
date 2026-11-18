@@ -105,6 +105,9 @@ export interface FormDisplay {
     days_on_hand: string;
     awards_total: string;
     total_cost: string;
+    /** V2-3: "12.50%", or a dash. */
+    price_change_vs_tender: string;
+    price_change_vs_previous: string;
     rows: {
         tender_awards: { id: number; percentage: string; line_cost: string }[];
         purchase_orders: { id: number; quantity_outstanding: string }[];

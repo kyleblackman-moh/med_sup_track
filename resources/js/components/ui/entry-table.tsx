@@ -2,32 +2,58 @@ import { cn } from '@/lib/utils';
 import { createContext, type ReactNode, useContext } from 'react';
 
 /** The width at and above which each entry is one line of inputs (design.md section 7). */
-export type EntryBreakpoint = 'lg' | 'xl';
+export type EntryBreakpoint = 'lg' | 'xl' | '2xl';
 
 // Static class strings per breakpoint, so Tailwind can see every class.
+// V2-3: below its breakpoint an entry wraps into a compact grid of labelled
+// fields (as many ~160px columns as fit; never a horizontal scroll), with the
+// row label on its own line and the remove button at the row's top right.
 const LAYOUT: Record<
     EntryBreakpoint,
-    { header: string; row: string; cellLabel: string; cell: string; rowLabel: string; rowLabelNarrow: string; fullOnly: string; shortOnly: string }
+    {
+        header: string;
+        row: string;
+        cellLabel: string;
+        cell: string;
+        rowLabel: string;
+        rowLabelNarrow: string;
+        fullOnly: string;
+        shortOnly: string;
+        remove: string;
+    }
 > = {
-    lg: {
+    'lg': {
         header: 'hidden lg:flex',
-        row: 'flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-3',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 lg:flex lg:flex-row lg:items-start',
         cellLabel: 'lg:sr-only',
         cell: 'lg:flex-1 lg:min-w-0',
-        rowLabel: 'lg:w-32 lg:shrink-0 lg:pt-2',
-        rowLabelNarrow: 'lg:w-8 lg:shrink-0 lg:pt-2',
+        rowLabel: 'col-span-full pr-12 lg:w-32 lg:shrink-0 lg:pt-2 lg:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 lg:w-8 lg:shrink-0 lg:pt-2 lg:pr-0',
         fullOnly: 'lg:sr-only',
         shortOnly: 'hidden tabular-nums lg:inline',
+        remove: 'absolute top-2 right-3 lg:static',
     },
-    xl: {
+    'xl': {
         header: 'hidden xl:flex',
-        row: 'flex flex-col gap-3 xl:flex-row xl:items-start xl:gap-3',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 xl:flex xl:flex-row xl:items-start',
         cellLabel: 'xl:sr-only',
         cell: 'xl:flex-1 xl:min-w-0',
-        rowLabel: 'xl:w-32 xl:shrink-0 xl:pt-2',
-        rowLabelNarrow: 'xl:w-8 xl:shrink-0 xl:pt-2',
+        rowLabel: 'col-span-full pr-12 xl:w-32 xl:shrink-0 xl:pt-2 xl:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 xl:w-8 xl:shrink-0 xl:pt-2 xl:pr-0',
         fullOnly: 'xl:sr-only',
         shortOnly: 'hidden tabular-nums xl:inline',
+        remove: 'absolute top-2 right-3 xl:static',
+    },
+    '2xl': {
+        header: 'hidden 2xl:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 2xl:flex 2xl:flex-row 2xl:items-start',
+        cellLabel: '2xl:sr-only',
+        cell: '2xl:flex-1 2xl:min-w-0',
+        rowLabel: 'col-span-full pr-12 2xl:w-32 2xl:shrink-0 2xl:pt-2 2xl:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 2xl:w-8 2xl:shrink-0 2xl:pt-2 2xl:pr-0',
+        fullOnly: '2xl:sr-only',
+        shortOnly: 'hidden tabular-nums 2xl:inline',
+        remove: 'absolute top-2 right-3 2xl:static',
     },
 };
 
@@ -124,7 +150,7 @@ export function EntryRow({ label, short, remove, below, children }: EntryRowProp
     const narrow = narrowRowLabel && short !== undefined;
 
     return (
-        <div className="space-y-3 px-4 py-3">
+        <div className="relative space-y-3 px-4 py-3">
             <div className={layout.row}>
                 <div className={cn('flex items-center justify-between gap-2 text-sm font-medium', narrow ? layout.rowLabelNarrow : layout.rowLabel)}>
                     {narrow ? (
@@ -139,7 +165,7 @@ export function EntryRow({ label, short, remove, below, children }: EntryRowProp
                     )}
                 </div>
                 {children}
-                <div className="flex shrink-0 justify-end">{remove ?? <span className="w-9" />}</div>
+                <div className={cn('flex shrink-0 justify-end', layout.remove)}>{remove ?? <span className="w-9" />}</div>
             </div>
             {below}
         </div>

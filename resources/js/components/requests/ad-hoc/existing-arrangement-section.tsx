@@ -32,7 +32,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
         { key: 'ordered_on', label: columnLabel('Date ordered', optional('purchase_orders.ordered_on')) },
         { key: 'quantity_delivered', label: columnLabel('Quantity delivered', optional('purchase_orders.quantity_delivered')) },
         { key: 'delivery', label: columnLabel('Delivery date / status', optional('purchase_orders.delivery_status')) },
-        { key: 'quantity_outstanding', label: 'Quantity outstanding', className: 'lg:w-24 lg:flex-none' },
+        { key: 'quantity_outstanding', label: 'Quantity outstanding', className: 'xl:w-24 xl:flex-none' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -44,6 +44,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                 <EntryTable
                     caption="Orders"
                     columns={columns}
+                    breakpoint="xl"
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                     addAction={
@@ -142,7 +143,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     label="Quantity outstanding"
                                     rowLabel={rowLabel}
                                     value={rowDisplay(api.form.display.rows.purchase_orders, row.id)?.quantity_outstanding ?? '—'}
-                                    className="lg:w-24 lg:flex-none"
+                                    className="xl:w-24 xl:flex-none"
                                 />
                             </EntryRow>
                         );

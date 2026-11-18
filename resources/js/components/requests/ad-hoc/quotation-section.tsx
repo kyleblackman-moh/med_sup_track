@@ -11,7 +11,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * quotation (Considered and Recommended first; a reason under the row only
  * when the quotation was not considered), the quantity to purchase and the
  * server's total cost. Eleven inputs a row, so the one-line layout starts at
- * xl (1280px); below that each entry wraps. The optional price comparison
+ * 2xl (1536px, V2-3); below that each entry wraps. The optional price comparison
  * (fields of this section on the server) follows.
  */
 export function QuotationSection({ api }: { api: FormApi }) {
@@ -23,17 +23,17 @@ export function QuotationSection({ api }: { api: FormApi }) {
     const tableError = [api.tableError('quotations'), api.tableError('quotations.recommended')].filter(Boolean).join(' ');
 
     const columns = [
-        { key: 'considered', label: 'Considered', className: 'xl:w-20 xl:flex-none' },
-        { key: 'is_recommended', label: 'Recommended', className: 'xl:w-24 xl:flex-none' },
+        { key: 'considered', label: 'Considered', className: '2xl:w-20 2xl:flex-none' },
+        { key: 'is_recommended', label: 'Recommended', className: '2xl:w-24 2xl:flex-none' },
         { key: 'supplier_name', label: columnLabel('Supplier', optional('quotations.supplier_name')) },
         { key: 'quantity_offered', label: columnLabel('Quantity', optional('quotations.quantity_offered')) },
         { key: 'unit_price', label: columnLabel('Unit price', optional('quotations.unit_price')) },
-        { key: 'ex_stock', label: 'Ex stock', className: 'xl:w-16 xl:flex-none' },
+        { key: 'ex_stock', label: 'Ex stock', className: '2xl:w-16 2xl:flex-none' },
         { key: 'lead_time_days', label: columnLabel('Lead time (days)', optional('quotations.lead_time_days')) },
         { key: 'brand', label: columnLabel('Brand', optional('quotations.brand')) },
         { key: 'manufacturer', label: columnLabel('Manufacturer', optional('quotations.manufacturer')) },
         { key: 'country_of_origin', label: columnLabel('Country of origin', optional('quotations.country_of_origin')) },
-        { key: 'remarks', label: columnLabel('Remarks', optional('quotations.remarks')), className: 'xl:flex-[2]' },
+        { key: 'remarks', label: columnLabel('Remarks', optional('quotations.remarks')), className: '2xl:flex-[2]' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -54,7 +54,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 <EntryTable
                     caption="Quotations received"
                     columns={columns}
-                    breakpoint="xl"
+                    breakpoint="2xl"
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
                     addAction={
@@ -112,7 +112,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     type="checkbox"
                                     checked={considered}
                                     onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
-                                    className="xl:w-20 xl:flex-none"
+                                    className="2xl:w-20 2xl:flex-none"
                                 />
                                 <EntryCheck
                                     id={id('is_recommended')}
@@ -122,7 +122,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     name="recommended-quotation"
                                     checked={row.values.is_recommended === true}
                                     onChange={() => api.chooseRecommended(row.key)}
-                                    className="xl:w-24 xl:flex-none"
+                                    className="2xl:w-24 2xl:flex-none"
                                 />
                                 {input('supplier_name', 'text', 200)}
                                 {input('quantity_offered', 'decimal')}
@@ -134,13 +134,13 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     type="checkbox"
                                     checked={row.values.ex_stock === true}
                                     onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
-                                    className="xl:w-16 xl:flex-none"
+                                    className="2xl:w-16 2xl:flex-none"
                                 />
                                 {input('lead_time_days', 'integer')}
                                 {input('brand', 'text', 200)}
                                 {input('manufacturer', 'text', 200)}
                                 {input('country_of_origin', 'text', 100)}
-                                {input('remarks', 'text', 255, 'xl:flex-[2]')}
+                                {input('remarks', 'text', 255, '2xl:flex-[2]')}
                             </EntryRow>
                         );
                     })}

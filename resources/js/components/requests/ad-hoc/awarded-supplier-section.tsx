@@ -7,7 +7,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 /**
  * V2-2 section "Awarded supplier": one entry per supplier. % awarded and the
  * line cost are the server's (shown once the row is saved); the total is at
- * the foot. One line per entry from lg; below that each entry wraps.
+ * the foot. One line per entry from xl (V2-3); below that each entry wraps.
  */
 export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.tender_awards;
@@ -22,8 +22,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'country_of_origin', label: columnLabel('Country of origin', optional('country_of_origin')) },
         { key: 'quantity_awarded', label: columnLabel('Quantity awarded', optional('quantity_awarded')) },
         { key: 'unit_cost', label: columnLabel('Unit cost', optional('unit_cost')) },
-        { key: 'percentage', label: '% awarded', className: 'lg:w-20 lg:flex-none' },
-        { key: 'line_cost', label: 'Line cost', className: 'lg:w-24 lg:flex-none' },
+        { key: 'percentage', label: '% awarded', className: 'xl:w-20 xl:flex-none' },
+        { key: 'line_cost', label: 'Line cost', className: 'xl:w-24 xl:flex-none' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -33,6 +33,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
             <EntryTable
                 caption="Awarded suppliers"
                 columns={columns}
+                breakpoint="xl"
                 narrowRowLabel
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
@@ -76,8 +77,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('country_of_origin', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
-                            <EntryValue label="% awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="lg:w-20 lg:flex-none" />
-                            <EntryValue label="Line cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="lg:w-24 lg:flex-none" />
+                            <EntryValue label="% awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="xl:w-20 xl:flex-none" />
+                            <EntryValue label="Line cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="xl:w-24 xl:flex-none" />
                         </EntryRow>
                     );
                 })}

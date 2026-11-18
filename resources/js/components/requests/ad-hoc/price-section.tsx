@@ -6,13 +6,10 @@ import { fieldId } from './form-state';
 
 const PRICE_FIELDS = ['tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note'];
 
-/** "12.50" -> "12.50%"; the server computes the value, this only adds the sign. */
-const percent = (value: string | null | undefined) => (value === null || value === undefined ? null : `${value}%`);
-
 /**
  * Section 5, Price comparison (optional). Hidden behind "Add price comparison"
  * until something is entered. The quoted price and the change against each
- * entered price are computed by the server.
+ * entered price are computed and formatted by the server (V2-3: the "%" too).
  */
 export function PriceSection({ api }: { api: FormApi }) {
     const { state, detail, config } = api;
@@ -71,8 +68,8 @@ export function PriceSection({ api }: { api: FormApi }) {
 
             <dl className="grid gap-5 sm:grid-cols-3">
                 <Figure label="Quoted price (recommended quotation)" value={figures?.recommended_unit_price} />
-                <Figure label="Change against tender price" value={percent(figures?.price_change_vs_tender_percent)} />
-                <Figure label="Change against previous price" value={percent(figures?.price_change_vs_previous_percent)} />
+                <Figure label="Change against tender price" value={api.form.display.price_change_vs_tender} />
+                <Figure label="Change against previous price" value={api.form.display.price_change_vs_previous} />
             </dl>
 
             <CheckboxField
