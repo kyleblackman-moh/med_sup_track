@@ -11,12 +11,14 @@ export function AppContent({ variant = 'header', children, className, ...props }
         // min-w-0: a wide child must not push the content area wider than the screen.
         // UI-4: the L1 canvas (design.md section 5): white, 1px border, 16px radius,
         // shadow-xs, clipped, 12px from the L0 page edge. Full width and plain in print.
+        // V2-2b: the sidebar's own 12px padding is the gutter on its right, expanded or
+        // collapsed to icons, so the canvas has no left margin of its own.
         return (
             <SidebarInset
                 className={cn(
                     'bg-card min-w-0 overflow-clip outline-none',
                     'md:peer-data-[variant=inset]:m-3 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:shadow-xs',
-                    'md:peer-data-[variant=inset]:min-h-[calc(100svh-1.5rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-3',
+                    'md:peer-data-[variant=inset]:min-h-[calc(100svh-1.5rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0',
                     'print:m-0! print:min-h-0 print:rounded-none! print:border-0! print:shadow-none!',
                     className,
                 )}
