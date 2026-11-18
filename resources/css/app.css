@@ -51,6 +51,8 @@
     --shadow-card: 0 1px 2px rgba(13, 27, 42, 0.06), 0 3px 10px rgba(13, 27, 42, 0.05);
     /* The selected type card: the 3px --ring-wash halo plus --shadow-card. */
     --shadow-card-selected: 0 0 0 3px var(--ring-wash), 0 1px 2px rgba(13, 27, 42, 0.06), 0 3px 10px rgba(13, 27, 42, 0.05);
+    /* V2-4b (design.md section 6): a sidebar item pops on hover and keyboard focus. Soft, on navy. */
+    --shadow-nav-hover: 0 4px 12px rgba(2, 10, 24, 0.35), 0 1px 2px rgba(2, 10, 24, 0.25);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);

@@ -132,3 +132,15 @@ it('never names NOT_SELECTED in frontend code', function () {
 
     expect($hits)->toBe([]);
 });
+
+// V2-4b: the sidebar hover pop never ships without its reduced-motion variant.
+it('gives the sidebar item pop a reduced-motion variant and a shadow token', function () {
+    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
+    preg_match("/const sidebarMenuButtonVariants = cva\(\s*'([^']*)'/", $sidebar, $base);
+
+    expect($base)->not->toBeEmpty()
+        ->and($base[1])->toContain('motion-reduce:')
+        ->and($base[1])->toContain('motion-safe:hover:-translate-y-px')
+        ->and($base[1])->toContain('motion-safe:hover:shadow-nav-hover')
+        ->and(file_get_contents(resource_path('css/app.css')))->toMatch('/--shadow-nav-hover:\s*[^;]+;/');
+});
