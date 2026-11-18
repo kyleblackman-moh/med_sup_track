@@ -95,8 +95,6 @@ export interface FormSectionView {
     number: number | null;
     visible: boolean;
     state: FormSectionState;
-    /** V2-4: the first visible incomplete section (at most one), decided by the server. */
-    current: boolean;
     /** Why the section is blocked ("Choose a request type"), else null. */
     note: string | null;
     /** Field key => must be filled in to submit. A false value is shown as "(optional)". */

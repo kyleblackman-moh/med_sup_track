@@ -258,16 +258,12 @@ export default function AdHocEdit({
 
     const visible = form.sections.filter((section) => section.visible);
 
-    // The strip: the server's state; after a review, a section with issues shows as needing attention.
+    // V2-4b: the strip shows position only (the server's visible sections, in order); completion is each section's state pill.
     const progress: ProgressItem[] = visible.map((section) => ({
         key: section.key,
         label: section.label,
         number: section.number ?? undefined,
         href: `#section-${section.key}`,
-        state: issuesOf(section.key).length > 0 ? 'error' : section.state,
-        // V2-4: the server's current section (first visible incomplete one).
-        current: section.current,
-        note: section.note,
     }));
 
     return (

@@ -19,9 +19,7 @@ use App\Support\Display;
  * - sections: every section in form order (RequestSections::ORDER) with its
  *   label, its number among the VISIBLE sections (null when hidden), whether
  *   it is visible, its state, the note when it waits for the type, and the
- *   field-level required flags (RequestSections::requiredFields), and
- *   (V2-4) "current": true on the first VISIBLE section whose state is
- *   incomplete, at most one, none when nothing is incomplete. The state
+ *   field-level required flags (RequestSections::requiredFields). The state
  *   comes from AdHocSections::requestSections (RequestSections::state):
  *   blocked (waits for the type), incomplete (has issues), optional (nothing
  *   required for this type and nothing entered), else complete.
@@ -54,7 +52,7 @@ final class RequestFormView
         ];
     }
 
-    /** @return list<array{key: string, label: string, number: int|null, visible: bool, state: string, current: bool, note: string|null, required: array<string, bool>}> */
+    /** @return list<array{key: string, label: string, number: int|null, visible: bool, state: string, note: string|null, required: array<string, bool>}> */
     public static function sections(ProcurementCase $case, ReadinessReport $report): array
     {
         $visible = collect(AdHocSections::requestSections($case, $report))->keyBy('key');
@@ -62,12 +60,8 @@ final class RequestFormView
 
         $sections = [];
         $number = 0;
-        $currentFound = false;
         foreach (RequestSections::ORDER as $key) {
             $section = $visible->get($key);
-            // V2-4: the progress strip's current marker (design.md section 7).
-            $current = ! $currentFound && $section !== null && $section['state'] === self::INCOMPLETE;
-            $currentFound = $currentFound || $current;
             $sections[] = [
                 'key' => $key,
                 'label' => RequestSections::LABELS[$key],
@@ -75,7 +69,6 @@ final class RequestFormView
                 'visible' => $section !== null,
                 // Hidden: nothing in it is required. Else the one rule (RequestSections::state).
                 'state' => $section === null ? self::OPTIONAL : $section['state'],
-                'current' => $current,
                 'note' => $section['note'] ?? null,
                 'required' => $required[$key],
             ];
