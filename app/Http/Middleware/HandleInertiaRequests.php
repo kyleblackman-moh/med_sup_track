@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +64,8 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'user_type' => $user->user_type,
+                    // V2-4: the line under the name in the sidebar user card. Display only.
+                    'subtitle' => self::userSubtitle($user),
                 ] : null,
                 'can' => $user
                     ? $user->getAllPermissions()->pluck('name')->sort()->values()->all()
@@ -95,6 +99,26 @@ class HandleInertiaRequests extends Middleware
                 'info' => $request->session()->get('info'),
             ],
         ]);
+    }
+
+    /**
+     * V2-4 (design.md section 6): a vendor's organisation name; for staff, the
+     * display names of their roles (Role::label). Display only: React shows it
+     * as text and never decides anything from it.
+     */
+    public static function userSubtitle(User $user): ?string
+    {
+        if ($user->isVendor()) {
+            return $user->organisation?->name;
+        }
+
+        $labels = $user->getRoleNames()
+            ->map(fn (string $name) => Role::tryFrom($name)?->label())
+            ->filter()
+            ->sort()
+            ->values();
+
+        return $labels->isEmpty() ? null : $labels->implode(', ');
     }
 
     /** The sidebar sections, by the first segment of the URL path. */

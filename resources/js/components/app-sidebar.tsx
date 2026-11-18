@@ -1,10 +1,11 @@
 import { isViewActive, NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { SidebarWatermark } from '@/components/sidebar-watermark';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid } from 'lucide-react';
-import AppLogo from './app-logo';
+import { SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
@@ -54,30 +55,32 @@ export function AppSidebar() {
     const activeUrl = activeView?.url ?? navItems.find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
 
     return (
-        // UI-4: the sidebar sits on L0 with no background or border of its own; the "inset"
-        // variant puts the page on the L1 canvas beside it (design.md sections 5 and 6).
-        <Sidebar collapsible="icon" variant="inset" className="print:hidden">
-            {/* NEXT: header row padding 8px 12px 20px. */}
-            <SidebarHeader className="px-3 pt-2 pb-5 group-data-[collapsible=icon]:px-2">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" className="h-auto min-h-12 py-2" asChild>
-                            <Link href="/dashboard" prefetch>
-                                <AppLogo />
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+        // V2-4 (design.md sections 5 and 6): the navy sidebar, flush to the left edge,
+        // full height, 208px, no outer gutter and no border of its own. Collapses to
+        // icons on desktop and is an off-canvas sheet below md (SidebarProvider).
+        <Sidebar collapsible="icon" variant="sidebar" className="group-data-[side=left]:border-r-0 print:hidden">
+            {/* The header block: the mark (or the crest), the Ministry's name, then a divider. */}
+            <SidebarHeader className="gap-0 px-3 pt-5 pb-0 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-3">
+                <Link
+                    href="/dashboard"
+                    prefetch
+                    className="ring-sidebar-ring ring-offset-sidebar rounded-lg p-1 outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                    <SidebarBrand />
+                </Link>
+                <div aria-hidden="true" className="border-navy-border mt-4 border-t group-data-[collapsible=icon]:mt-3" />
             </SidebarHeader>
 
-            <SidebarContent className="gap-0">
+            <SidebarContent className="gap-0 pt-4">
                 <NavMain items={navItems} activeUrl={activeUrl} first />
                 {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} activeUrl={activeUrl} />}
             </SidebarContent>
 
-            {/* NEXT: the signed-in user chip with 12px padding. */}
-            <SidebarFooter className="border-t p-3 group-data-[collapsible=icon]:p-2">
-                {/* The starter kit's Repository and Documentation links are removed (design.md section 6). */}
+            {/* Decorative, between the nav items and the user card (never behind nav text). */}
+            <SidebarWatermark />
+
+            {/* The starter kit's Repository and Documentation links are removed (design.md section 6). */}
+            <SidebarFooter className="border-navy-border border-t p-3 group-data-[collapsible=icon]:p-2">
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

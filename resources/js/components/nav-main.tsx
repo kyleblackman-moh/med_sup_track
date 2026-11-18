@@ -19,24 +19,30 @@ interface NavMainProps {
     label?: string;
     /** The url of the one active item in the whole sidebar (worked out by AppSidebar), or null. */
     activeUrl: string | null;
-    /** The first group sits right under the header row, whose bottom padding already gives the 20px. */
+    /** The first group sits right under the header block, whose bottom padding already gives the space. */
     first?: boolean;
 }
 
 /**
- * A sidebar group: the 11px group label (20px above, 8px below) and 40px items
- * with 4px between them (NEXT; design.md section 6). The active item is the
- * white pill (SidebarMenuButton's data-active style).
+ * A sidebar group on the navy sidebar (V2-4, design.md sections 4 and 6): the
+ * 11px --navy-muted group label and 44px items (8px radius, 20px icon,
+ * 14px/500). The active item is the solid --nav-active pill with a 3px white
+ * indicator bar, semibold, and aria-current="page" (SidebarMenuButton's
+ * data-active style). A group with no items renders nothing, label included.
  */
 export function NavMain({ items = [], label = 'Platform', activeUrl, first = false }: NavMainProps) {
+    if (items.length === 0) {
+        return null;
+    }
+
     return (
         // 12px inner padding; 8px when collapsed to icons (the 48px rail fits a 32px icon button).
         <SidebarGroup className="px-3 py-0 group-data-[collapsible=icon]:px-2">
-            <SidebarGroupLabel className={cn('mb-2 h-auto', first ? 'mt-0' : 'mt-5')}>{label}</SidebarGroupLabel>
+            <SidebarGroupLabel className={cn('mb-1 h-auto py-1', first ? 'mt-0' : 'mt-5')}>{label}</SidebarGroupLabel>
             <SidebarMenu className="gap-1">
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={item.url === activeUrl} tooltip={item.title} className="h-10">
+                        <SidebarMenuButton asChild isActive={item.url === activeUrl} tooltip={item.title} className="h-11 gap-3 px-3 [&>svg]:size-5">
                             <Link href={item.url} prefetch aria-current={item.url === activeUrl ? 'page' : undefined}>
                                 {item.icon && <item.icon />}
                                 <span>{item.title}</span>

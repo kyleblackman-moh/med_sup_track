@@ -45,6 +45,8 @@ export interface User {
     name: string;
     email: string;
     user_type: string;
+    /** V2-4: the sidebar user card's second line, decided by the server (organisation for vendors, role names for staff). */
+    subtitle: string | null;
     avatar?: string;
     email_verified_at?: string | null;
 }

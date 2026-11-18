@@ -5,6 +5,8 @@ import { ShieldPlus } from 'lucide-react';
 export const APP_BRAND = {
     name: 'Medication Procurement',
     descriptor: 'Ministry of Health',
+    /** V2-4: the second line of the sidebar header block. */
+    country: 'Trinidad & Tobago',
 } as const;
 
 /**
@@ -36,5 +38,22 @@ export default function AppLogo() {
                 <span className="text-muted-foreground text-xs leading-tight">{APP_BRAND.descriptor}</span>
             </div>
         </>
+    );
+}
+
+/**
+ * V2-4: the navy sidebar's header block (design.md section 6): the shield-plus
+ * tile, "Ministry of Health" 16px/600 white and "Trinidad & Tobago" 13px
+ * --navy-muted, centred. Collapsed to icons, only the mark shows.
+ */
+export function SidebarBrand() {
+    return (
+        <span className="flex flex-col items-center gap-2 text-center">
+            <AppLogoMark className="bg-nav-active text-nav-active-foreground size-11 group-data-[collapsible=icon]:size-8" />
+            <span className="grid gap-0.5 group-data-[collapsible=icon]:hidden">
+                <span className="text-navy-foreground text-base leading-tight font-semibold">{APP_BRAND.descriptor}</span>
+                <span className="text-navy-muted text-[13px] leading-tight">{APP_BRAND.country}</span>
+            </span>
+        </span>
     );
 }
