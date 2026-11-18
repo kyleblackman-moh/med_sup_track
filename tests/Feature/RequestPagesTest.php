@@ -500,7 +500,8 @@ it('keeps form actions out of the request form headers', function () {
     // CLAUDE.md, UI: form actions go in a footer row, never in the header.
     foreach (['js/pages/requests/ad-hoc/edit.tsx', 'js/pages/requests/edit.tsx'] as $path) {
         $source = file_get_contents(resource_path($path));
-        preg_match('/<header\b.*?<\/header>/s', $source, $header);
+        // V2-2c: the vendor form's header is a PageHeader element (its closing "/>" on its own line).
+        preg_match('/<header\b.*?<\/header>|<PageHeader\b.*?\n\s*\/>/s', $source, $header);
 
         expect($header)->not->toBeEmpty("{$path} has no header")
             ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/', "{$path} has an action in its header");
