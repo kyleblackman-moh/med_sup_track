@@ -1,4 +1,4 @@
-import { PageHeader } from '@/components/page-header';
+import { PageContent, PageHeader } from '@/components/page-header';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { NewRequestButton } from '@/components/requests/new-request-button';
@@ -87,7 +87,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={title} />
 
-            <div className="w-full space-y-5 px-4 pt-2 pb-6 md:px-6">
+            <PageContent>
                 <PageHeader title={title} actions={can.create && <NewRequestButton />} />
 
                 <FlashMessages />
@@ -250,7 +250,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                         )}
                     </nav>
                 )}
-            </div>
+            </PageContent>
 
             <DeleteDraftDialog caseId={deleting} onClose={() => setDeleting(null)} />
         </AppLayout>

@@ -1,3 +1,4 @@
+import { PageContent, PageHeader } from '@/components/page-header';
 import { AwardedSupplierSection } from '@/components/requests/ad-hoc/awarded-supplier-section';
 import { ExistingArrangementSection } from '@/components/requests/ad-hoc/existing-arrangement-section';
 import { errorLookups, type FormApi } from '@/components/requests/ad-hoc/form-api';
@@ -245,34 +246,34 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Request" />
 
-            <div className="w-full min-w-0 px-4 pt-2 pb-8 md:px-6">
+            {/* V2-2c: PageContent owns the canvas padding and the 20px between the header, the strip and the first section. */}
+            <PageContent>
                 {/* Status only: the form's actions are in the sticky action bar (CLAUDE.md, UI). */}
-                <header className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
-                        <h1 className="text-xl font-semibold">Request</h1>
-                        <p className="flex flex-wrap items-center gap-2 text-sm">
-                            {typeOption ? <span>{typeOption.label}</span> : <span className="text-muted-foreground">Not selected</span>}
-                            {detail.reference_no && <span className="font-mono text-xs">{detail.reference_no}</span>}
-                            <StatusPill label={detail.status_label} tone={detail.status_tone} />
-                        </p>
-                    </div>
-                    <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
-                </header>
+                <PageHeader
+                    title="Request"
+                    subtitle={
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {typeOption ? <span className="text-foreground">{typeOption.label}</span> : <span>Not selected</span>}
+                            {detail.reference_no && <span className="text-foreground font-mono text-xs">{detail.reference_no}</span>}
+                            <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
+                        </span>
+                    }
+                    actions={<StatusPill label={detail.status_label} tone={detail.status_tone} />}
+                />
 
-                <div className="mt-3 space-y-2">
-                    <FlashMessages />
-                    {reviewFailed && (
-                        <p role="alert" className="text-destructive text-sm">
-                            Your latest changes could not be saved, so the request was not reviewed. Try again.
-                        </p>
-                    )}
-                </div>
+                <FlashMessages />
+                {reviewFailed && (
+                    <p role="alert" className="text-destructive text-sm">
+                        Your latest changes could not be saved, so the request was not reviewed. Try again.
+                    </p>
+                )}
 
-                <div className="bg-card/92 sticky top-0 z-10 -mx-4 mt-3 border-b px-4 py-2 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
+                <div className="bg-card/92 sticky top-0 z-10 -mx-4 border-b px-4 py-2 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
                     <ProgressStrip items={progress} label="Form sections" />
                 </div>
 
-                <div className="mt-6 space-y-6">
+                {/* 24px between sections (design.md section 5). */}
+                <div className="space-y-6">
                     {detail.type_options && (
                         <TypeCards
                             value={detail.request_type ?? ''}
@@ -302,7 +303,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                         />
                     )}
                 </div>
-            </div>
+            </PageContent>
 
             <StickyActionBar
                 left={
@@ -310,7 +311,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                         <Button
                             type="button"
                             variant="outline"
-                            className="text-destructive-text border-destructive hover:bg-destructive/10 hover:text-destructive-text"
+                            className="text-destructive-text border-destructive hover:bg-destructive/10 hover:text-destructive-text md:h-10"
                             onClick={() => setDeleting(true)}
                         >
                             Delete draft
@@ -319,7 +320,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                 }
                 right={
                     // One primary action per view: once the summary is up, Submit is the primary one.
-                    <Button type="button" variant={review === 'ready' ? 'outline' : 'default'} onClick={() => void startReview()}>
+                    <Button type="button" variant={review === 'ready' ? 'outline' : 'default'} className="md:h-10" onClick={() => void startReview()}>
                         Review and submit
                     </Button>
                 }

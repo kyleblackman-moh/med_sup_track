@@ -14,7 +14,7 @@ const STATE_TEXT: Record<FormSectionState, string> = {
 /** V2-2b: the state text's tone (design.md section 3 text colours; each passes 4.5:1 on the L2 panel). */
 const STATE_TONE: Record<FormSectionState, string> = {
     complete: 'text-status-success-foreground',
-    incomplete: 'text-status-info-foreground',
+    incomplete: 'text-status-neutral-foreground', // V2-2c: muted grey, not blue
     optional: 'text-status-neutral-foreground',
     blocked: 'text-status-warning-foreground',
 };
