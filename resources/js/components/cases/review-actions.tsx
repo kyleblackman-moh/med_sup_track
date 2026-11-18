@@ -106,9 +106,10 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
             </fieldset>
 
             <div className="grid gap-1.5">
-                <Label htmlFor={`${id}-reason`}>{negative ? 'Reason (required)' : 'Note (optional)'}</Label>
+                <Label htmlFor={`${id}-reason`}>{negative ? 'Reason (required)' : 'Note'}</Label>
                 <textarea
                     id={`${id}-reason`}
+                    aria-required={negative ? true : undefined}
                     rows={3}
                     maxLength={500}
                     className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"

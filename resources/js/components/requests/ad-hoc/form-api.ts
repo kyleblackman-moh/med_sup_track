@@ -15,8 +15,13 @@ export interface FormApi {
     removeRow: (section: ChildSection, rowKey: string) => void;
     /** Marks one quotation as recommended and clears the others (exactly one). */
     chooseRecommended: (rowKey: string) => void;
-    /** True where the server says the field may stay empty: the label then says "(optional)". */
-    optional: (section: FormSectionKey, field: string) => boolean;
+    /**
+     * The server's required map, inverted: true where the field may stay empty,
+     * false where it must be filled in (the control then carries
+     * aria-required), undefined where the map does not name the field. V2-4b:
+     * labels no longer say "(optional)".
+     */
+    optional: (section: FormSectionKey, field: string) => boolean | undefined;
     /** A request field's problem: a rejected save first, then (after Review) the server's readiness issue. */
     fieldError: (name: string) => string | undefined;
     cellError: (section: ChildSection, row: LocalRow, index: number, name: string) => string | undefined;

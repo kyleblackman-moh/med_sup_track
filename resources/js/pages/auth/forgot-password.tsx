@@ -33,6 +33,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                         <Label htmlFor="email">Email address</Label>
                         <Input
                             id="email"
+                            aria-required="true"
                             type="email"
                             name="email"
                             autoComplete="off"

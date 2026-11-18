@@ -1,7 +1,7 @@
 import { EntryRow, EntryTable } from '@/components/ui/entry-table';
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
-import { columnLabel, EntryInput } from './entry-fields';
+import { EntryInput } from './entry-fields';
 import { CheckboxField, Figure, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -31,8 +31,8 @@ export function StockSection({ api }: { api: FormApi }) {
     });
 
     const columns = [
-        { key: 'quantity', label: columnLabel(unit ? `Quantity (${unit})` : 'Quantity', optional('stock_expiries.quantity')) },
-        { key: 'expiry_date', label: columnLabel('Expiry date', optional('stock_expiries.expiry_date')) },
+        { key: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity' },
+        { key: 'expiry_date', label: 'Expiry date' },
     ];
 
     return (
@@ -93,6 +93,7 @@ export function StockSection({ api }: { api: FormApi }) {
                                             value={text(row.values[column.key])}
                                             onChange={(value) => api.setCell('stock_expiries', row.key, column.key, value)}
                                             error={api.cellError('stock_expiries', row, index, column.key)}
+                                            required={optional(`stock_expiries.${column.key}`) === false}
                                         />
                                     ))}
                                 </EntryRow>

@@ -97,7 +97,7 @@ export interface FormSectionView {
     state: FormSectionState;
     /** Why the section is blocked ("Choose a request type"), else null. */
     note: string | null;
-    /** Field key => must be filled in to submit. A false value is shown as "(optional)". */
+    /** Field key => must be filled in to submit. True: the control carries aria-required (V2-4b: no "(optional)" label). */
     required: Record<string, boolean>;
 }
 

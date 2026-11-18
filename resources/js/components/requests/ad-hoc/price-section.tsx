@@ -34,7 +34,7 @@ export function PriceSection({ api }: { api: FormApi }) {
                             window.setTimeout(() => document.getElementById(fieldId.requisition('tender_price'))?.focus(), 0);
                         }}
                     >
-                        Add price comparison (optional)
+                        Add price comparison
                     </Button>
                 </div>
             </div>

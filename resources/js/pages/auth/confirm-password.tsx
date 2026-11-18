@@ -35,6 +35,7 @@ export default function ConfirmPassword() {
                         <Label htmlFor="password">Password</Label>
                         <Input
                             id="password"
+                            aria-required="true"
                             type="password"
                             name="password"
                             placeholder="Password"

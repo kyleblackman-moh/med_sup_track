@@ -1,7 +1,7 @@
 import { EntryCell, EntryRow, EntryTable } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { CellError, columnLabel, EntryInput, EntryValue } from './entry-fields';
+import { CellError, EntryInput, EntryValue } from './entry-fields';
 import { controlHeight, TextAreaField } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -26,12 +26,12 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
     const tableError = api.tableError('purchase_orders');
 
     const columns = [
-        { key: 'award_id', label: columnLabel('Supplier', optional('purchase_orders.award_id')) },
-        { key: 'po_number', label: columnLabel('PO number', optional('purchase_orders.po_number')) },
-        { key: 'quantity_ordered', label: columnLabel('Quantity ordered', optional('purchase_orders.quantity_ordered')) },
-        { key: 'ordered_on', label: columnLabel('Date ordered', optional('purchase_orders.ordered_on')) },
-        { key: 'quantity_delivered', label: columnLabel('Quantity delivered', optional('purchase_orders.quantity_delivered')) },
-        { key: 'delivery', label: columnLabel('Delivery date / status', optional('purchase_orders.delivery_status')) },
+        { key: 'award_id', label: 'Supplier' },
+        { key: 'po_number', label: 'PO number' },
+        { key: 'quantity_ordered', label: 'Quantity ordered' },
+        { key: 'ordered_on', label: 'Date ordered' },
+        { key: 'quantity_delivered', label: 'Quantity delivered' },
+        { key: 'delivery', label: 'Delivery date / status' },
         { key: 'quantity_outstanding', label: 'Quantity outstanding', className: 'xl:w-24 xl:flex-none' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
@@ -63,6 +63,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('purchase_orders', row.key, name, value)}
                                 error={api.cellError('purchase_orders', row, index, name)}
+                                required={optional(`purchase_orders.${name}`) === false}
                             />
                         );
 
@@ -91,6 +92,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                         value={valid ? current : ''}
                                         disabled={choosable.length === 0}
                                         aria-label={`${label('award_id')}, ${rowLabel}`}
+                                        aria-required={optional('purchase_orders.award_id') === false ? true : undefined}
                                         aria-invalid={supplierError ? true : undefined}
                                         aria-describedby={
                                             [choosable.length === 0 ? `${supplierId}-hint` : null, supplierError ? `${supplierId}-error` : null]
@@ -125,6 +127,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             value={text(row.values.delivery_eta)}
                                             className={cn(controlHeight, 'w-full min-w-0')}
                                             aria-label={`Delivery date, ${rowLabel}`}
+                                            aria-required={optional('purchase_orders.delivery_eta') === false ? true : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
                                         />
                                         <Input
@@ -135,6 +138,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             placeholder="Status"
                                             className={cn(controlHeight, 'w-full min-w-0')}
                                             aria-label={`Delivery status, ${rowLabel}`}
+                                            aria-required={optional('purchase_orders.delivery_status') === false ? true : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
                                         />
                                     </div>

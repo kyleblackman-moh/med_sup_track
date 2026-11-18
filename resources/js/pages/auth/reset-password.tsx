@@ -45,6 +45,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                         <Label htmlFor="email">Email</Label>
                         <Input
                             id="email"
+                            aria-required="true"
                             type="email"
                             name="email"
                             autoComplete="email"
@@ -60,6 +61,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                         <Label htmlFor="password">Password</Label>
                         <Input
                             id="password"
+                            aria-required="true"
                             type="password"
                             name="password"
                             autoComplete="new-password"
@@ -76,6 +78,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                         <Label htmlFor="password_confirmation">Confirm password</Label>
                         <Input
                             id="password_confirmation"
+                            aria-required="true"
                             type="password"
                             name="password_confirmation"
                             autoComplete="new-password"

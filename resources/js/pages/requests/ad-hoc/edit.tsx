@@ -167,7 +167,11 @@ export default function AdHocEdit({
         removeRow,
         chooseRecommended: (rowKey) =>
             updateRows('quotations', (rows) => rows.map((row) => ({ ...row, values: { ...row.values, is_recommended: row.key === rowKey } }))),
-        optional: (section, field) => sectionByKey.get(section)?.required[field] === false,
+        optional: (section, field) => {
+            const required = sectionByKey.get(section)?.required[field];
+
+            return required === undefined ? undefined : !required;
+        },
         ...errorLookups({ saveErrors: errors ?? {}, sections: request_sections, showIssues }),
     };
 

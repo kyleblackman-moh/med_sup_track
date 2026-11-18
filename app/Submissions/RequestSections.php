@@ -189,7 +189,7 @@ final class RequestSections
     /**
      * Slice V2-2: per section, whether each field the form shows must be filled
      * in before a draft of $code can be submitted (true) or may stay empty
-     * (false: the form says "(optional)"). Read from the same REQUIRES,
+     * (false; the form marks true fields aria-required). Read from the same REQUIRES,
      * ROW_FIELDS and VARIATION_FIELDS that errors() checks. Row columns are
      * keyed "<section>.<column>" and are required whenever a row is entered;
      * the variation's fields are keyed "variation.<field>". Until a type is

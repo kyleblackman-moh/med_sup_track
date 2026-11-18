@@ -168,9 +168,7 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
 
             {confirming && (
                 <form onSubmit={withdraw} className="mt-3 grid gap-2">
-                    <Label htmlFor={reasonId}>
-                        Why are you removing this file? <span className="text-muted-foreground font-normal">(optional)</span>
-                    </Label>
+                    <Label htmlFor={reasonId}>Why are you removing this file?</Label>
                     <textarea
                         id={reasonId}
                         maxLength={500}

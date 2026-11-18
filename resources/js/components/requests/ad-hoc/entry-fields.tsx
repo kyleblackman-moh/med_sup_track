@@ -9,9 +9,6 @@ import { controlHeight } from './fields';
 // knows which row they are in; the visible label is the column's (shown above
 // the field below the table's breakpoint, as a column header at it).
 
-/** "Brand (optional)" when the server says the column may stay empty. */
-export const columnLabel = (label: string, optional: boolean) => (optional ? `${label} (optional)` : label);
-
 export function CellError({ id, message }: { id: string; message?: string }) {
     return message ? (
         <p id={id} className="text-destructive text-[13px]">
@@ -22,7 +19,7 @@ export function CellError({ id, message }: { id: string; message?: string }) {
 
 interface EntryInputProps {
     id: string;
-    /** The column label (with "(optional)" when optional). */
+    /** The column label. */
     label: string;
     rowLabel: string;
     value: string;
@@ -31,9 +28,11 @@ interface EntryInputProps {
     error?: string;
     maxLength?: number;
     className?: string;
+    /** V2-4b: the server requires the column whenever a row is entered (aria-required). */
+    required?: boolean;
 }
 
-export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text', error, maxLength, className }: EntryInputProps) {
+export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text', error, maxLength, className, required }: EntryInputProps) {
     const errorId = `${id}-error`;
 
     return (
@@ -46,6 +45,7 @@ export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text'
                 value={value}
                 className={cn(controlHeight, 'w-full min-w-0')}
                 aria-label={`${label}, ${rowLabel}`}
+                aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
                 onChange={(e) => onChange(e.target.value)}

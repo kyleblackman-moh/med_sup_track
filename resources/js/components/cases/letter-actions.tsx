@@ -35,11 +35,12 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
             onFinish: () => setConfirming(false),
         });
 
-    const dateField = (field: keyof LetterData, id: string, label: string, hint?: string) => (
+    const dateField = (field: keyof LetterData, id: string, label: string, hint?: string, required = false) => (
         <div className="grid gap-1.5">
             <Label htmlFor={id}>{label}</Label>
             <Input
                 id={id}
+                aria-required={required ? true : undefined}
                 type="date"
                 max={today}
                 value={d[field]}
@@ -69,9 +70,9 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
             <p className="text-muted-foreground text-sm">Send the letter by email and hardcopy yourself, then record it here.</p>
 
             <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-                {dateField('letter_date', 'letter-date', 'Letter date', 'The date on the signed letter.')}
+                {dateField('letter_date', 'letter-date', 'Letter date', 'The date on the signed letter.', true)}
                 <div className="grid gap-1.5">
-                    <Label htmlFor="letter-reference">Reference (optional)</Label>
+                    <Label htmlFor="letter-reference">Reference</Label>
                     <Input
                         id="letter-reference"
                         className="font-mono"

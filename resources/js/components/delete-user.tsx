@@ -58,6 +58,7 @@ export default function DeleteUser() {
 
                                 <Input
                                     id="password"
+                                    aria-required="true"
                                     type="password"
                                     name="password"
                                     ref={passwordInput}

@@ -1,5 +1,5 @@
 import { EntryRow, EntryTable } from '@/components/ui/entry-table';
-import { columnLabel, EntryCheck, EntryInput } from './entry-fields';
+import { EntryCheck, EntryInput } from './entry-fields';
 import { Figure, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -25,15 +25,15 @@ export function QuotationSection({ api }: { api: FormApi }) {
     const columns = [
         { key: 'considered', label: 'Considered', className: '2xl:w-20 2xl:flex-none' },
         { key: 'is_recommended', label: 'Recommended', className: '2xl:w-24 2xl:flex-none' },
-        { key: 'supplier_name', label: columnLabel('Supplier', optional('quotations.supplier_name')) },
-        { key: 'quantity_offered', label: columnLabel('Quantity', optional('quotations.quantity_offered')) },
-        { key: 'unit_price', label: columnLabel('Unit price', optional('quotations.unit_price')) },
+        { key: 'supplier_name', label: 'Supplier' },
+        { key: 'quantity_offered', label: 'Quantity' },
+        { key: 'unit_price', label: 'Unit price' },
         { key: 'ex_stock', label: 'Ex stock', className: '2xl:w-16 2xl:flex-none' },
-        { key: 'lead_time_days', label: columnLabel('Lead time (days)', optional('quotations.lead_time_days')) },
-        { key: 'brand', label: columnLabel('Brand', optional('quotations.brand')) },
-        { key: 'manufacturer', label: columnLabel('Manufacturer', optional('quotations.manufacturer')) },
-        { key: 'country_of_origin', label: columnLabel('Country of origin', optional('quotations.country_of_origin')) },
-        { key: 'remarks', label: columnLabel('Remarks', optional('quotations.remarks')), className: '2xl:flex-[2]' },
+        { key: 'lead_time_days', label: 'Lead time (days)' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'manufacturer', label: 'Manufacturer' },
+        { key: 'country_of_origin', label: 'Country of origin' },
+        { key: 'remarks', label: 'Remarks', className: '2xl:flex-[2]' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -41,7 +41,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
         <div className="grid grid-cols-1 gap-5">
             <RadioGroupField
                 id={fieldId.requisition('rfq_audience')}
-                legend={columnLabel('RFQ sent to', optional('rfq_audience'))}
+                legend={'RFQ sent to'}
                 options={config.options.rfq_audience}
                 value={text(state.requisition.rfq_audience)}
                 onChange={(value) => api.setField('rfq_audience', value)}
@@ -75,6 +75,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('quotations', row.key, name, value)}
                                 error={api.cellError('quotations', row, index, name)}
+                                required={optional(`quotations.${name}`) === false}
                             />
                         );
                         const considered = row.values.considered === true;
@@ -100,6 +101,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             value={text(row.values.reason_accepted_excluded)}
                                             onChange={(value) => api.setCell('quotations', row.key, 'reason_accepted_excluded', value)}
                                             error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
+                                            optional={optional('quotations.reason_accepted_excluded')}
                                             hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
                                         />
                                     )

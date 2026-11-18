@@ -125,7 +125,7 @@ export function ForwardForReview({ caseId, reference, reviewers }: Props) {
                         />
 
                         <div className="grid gap-1.5">
-                            <Label htmlFor="forward-instruction">Instruction (optional)</Label>
+                            <Label htmlFor="forward-instruction">Instruction</Label>
                             <textarea
                                 id="forward-instruction"
                                 rows={3}

@@ -36,6 +36,7 @@ export function PrepareFileForm({ caseId, defaultFileNo }: { caseId: string; def
                 <Label htmlFor="file-no">File number</Label>
                 <Input
                     id="file-no"
+                    aria-required="true"
                     className="font-mono"
                     maxLength={30}
                     value={form.data.file_no}
@@ -124,7 +125,7 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
                         </fieldset>
 
                         <div className="grid gap-1.5">
-                            <Label htmlFor="legal-instruction">Instruction (optional)</Label>
+                            <Label htmlFor="legal-instruction">Instruction</Label>
                             <textarea
                                 id="legal-instruction"
                                 rows={3}
@@ -207,9 +208,10 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
             </fieldset>
 
             <div className="grid gap-1.5">
-                <Label htmlFor="legal-reason">{needsReason ? 'Reason for the query (required)' : 'Note (optional)'}</Label>
+                <Label htmlFor="legal-reason">{needsReason ? 'Reason for the query (required)' : 'Note'}</Label>
                 <textarea
                     id="legal-reason"
+                    aria-required={needsReason ? true : undefined}
                     rows={3}
                     maxLength={500}
                     className={TEXTAREA}

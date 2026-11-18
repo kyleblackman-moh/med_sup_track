@@ -323,3 +323,20 @@ it('keeps completion and storage out of the progress strip', function () {
     expect($strip)->not->toMatch("/\\bCheck\\b|item\\.state|'complete'|'incomplete'|localStorage|sessionStorage/")
         ->and($strip)->toContain("aria-current={isCurrent ? 'step' : undefined}");
 });
+
+// V2-4b: no "(optional)" on labels; required fields carry aria-required ------------
+
+it('renders no "(optional)" label suffix and marks required controls for assistive technology', function () {
+    $files = collect(new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS)))
+        ->filter(fn (SplFileInfo $f) => in_array($f->getExtension(), ['ts', 'tsx'], true));
+
+    foreach ($files as $file) {
+        // Comments may mention it; rendered strings may not.
+        $code = preg_replace('#^\s*(//|\*|/\*).*$#m', '', file_get_contents($file->getPathname()));
+        expect($code)->not->toContain('(optional)', $file->getFilename());
+    }
+
+    $fields = file_get_contents(resource_path('js/components/requests/ad-hoc/fields.tsx'));
+    expect(substr_count($fields, 'aria-required={optional === false ? true : undefined}'))->toBe(2)
+        ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/entry-fields.tsx')))->toContain('aria-required={required ? true : undefined}');
+});

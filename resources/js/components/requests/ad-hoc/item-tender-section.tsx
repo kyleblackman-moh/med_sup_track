@@ -4,7 +4,7 @@ import { fieldId } from './form-state';
 
 /**
  * V2-2 section "Item and tender details". Field order (edit here if the order
- * changes) is the visual, DOM and tab order. "(optional)" only where the
+ * changes) is the visual, DOM and tab order. aria-required only where the
  * server says the field may stay empty for this type.
  */
 export function ItemTenderSection({ api }: { api: FormApi }) {

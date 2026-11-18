@@ -75,6 +75,7 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
                     <Select value={form.data.return_kind} onValueChange={(v) => form.setData('return_kind', v)}>
                         <SelectTrigger
                             id="ps-return-kind"
+                            aria-required="true"
                             aria-invalid={errors.return_kind ? true : undefined}
                             aria-describedby="ps-return-kind-error"
                         >
@@ -93,9 +94,10 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
             )}
 
             <div className="grid gap-1.5">
-                <Label htmlFor="ps-reason">{isReturn ? 'Reason for the query (required)' : 'Note (optional)'}</Label>
+                <Label htmlFor="ps-reason">{isReturn ? 'Reason for the query (required)' : 'Note'}</Label>
                 <textarea
                     id="ps-reason"
+                    aria-required={isReturn ? true : undefined}
                     rows={3}
                     maxLength={500}
                     className={TEXTAREA}

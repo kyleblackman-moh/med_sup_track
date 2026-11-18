@@ -6,8 +6,9 @@ import { CircleAlert } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 // Labelled native controls for the AD_HOC form (slice F2). 40px high (V2-2b), 44px
-// below md. Only optional fields say "(optional)"; nothing is marked with an
-// asterisk or red text until there is an actual problem.
+// below md. V2-4b: no "(optional)" suffix on labels; a field the server marks
+// required carries aria-required for assistive technology. Nothing is marked
+// with an asterisk or red text until there is an actual problem.
 
 // V2-4 (design.md sections 4 and 5): labels 15px/600, helper text 13px, inputs on
 // --input-bg with the --input border kept (3:1), and an invalid field gets the
@@ -21,10 +22,6 @@ export const fieldLabel = 'text-[15px] leading-snug font-semibold';
 
 const textareaClass =
     'border-input bg-input-bg aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive-wash placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
-
-export function Optional() {
-    return <span className="text-muted-foreground font-normal"> (optional)</span>;
-}
 
 /** Error text, linked from the control with aria-describedby. */
 export function FieldError({ id, message }: { id: string; message?: string }) {
@@ -77,7 +74,6 @@ export function TextField({
         <div className={cn('grid content-start gap-2', className)}>
             <Label htmlFor={id} className={fieldLabel}>
                 {label}
-                {optional && <Optional />}
             </Label>
             <div className="flex items-center gap-2">
                 <Input
@@ -87,6 +83,7 @@ export function TextField({
                     maxLength={maxLength}
                     value={value}
                     className={controlHeight}
+                    aria-required={optional === false ? true : undefined}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={describedBy(hint && hintId, error && errorId)}
                     onChange={(e) => onChange(e.target.value)}
@@ -124,7 +121,6 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
         <div className="grid gap-2">
             <Label htmlFor={id} className={fieldLabel}>
                 {label}
-                {optional && <Optional />}
             </Label>
             <textarea
                 id={id}
@@ -132,6 +128,7 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
                 maxLength={maxLength}
                 value={value}
                 className={cn(textareaClass, rows < 3 && 'min-h-0')}
+                aria-required={optional === false ? true : undefined}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={describedBy(hint && hintId, error && errorId)}
                 onChange={(e) => onChange(e.target.value)}

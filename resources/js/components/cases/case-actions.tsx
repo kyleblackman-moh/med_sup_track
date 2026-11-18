@@ -164,6 +164,7 @@ export function CaseActions({
                                 <Label htmlFor="hardcopy-received-on">Date received</Label>
                                 <Input
                                     id="hardcopy-received-on"
+                                    aria-required="true"
                                     type="date"
                                     className="w-44"
                                     value={mark.data.received_on}
@@ -205,6 +206,7 @@ export function CaseActions({
                                             <Label htmlFor="hardcopy-reason">Reason</Label>
                                             <textarea
                                                 id="hardcopy-reason"
+                                                aria-required="true"
                                                 rows={3}
                                                 maxLength={500}
                                                 className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"

@@ -1,5 +1,5 @@
 import { EntryRow, EntryTable } from '@/components/ui/entry-table';
-import { columnLabel, EntryInput, EntryValue } from './entry-fields';
+import { EntryInput, EntryValue } from './entry-fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -16,12 +16,12 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const tableError = api.tableError('tender_awards');
 
     const columns = [
-        { key: 'supplier_name', label: columnLabel('Supplier', optional('supplier_name')) },
-        { key: 'manufacturer', label: columnLabel('Manufacturer', optional('manufacturer')) },
-        { key: 'brand', label: columnLabel('Brand', optional('brand')) },
-        { key: 'country_of_origin', label: columnLabel('Country of origin', optional('country_of_origin')) },
-        { key: 'quantity_awarded', label: columnLabel('Quantity awarded', optional('quantity_awarded')) },
-        { key: 'unit_cost', label: columnLabel('Unit cost', optional('unit_cost')) },
+        { key: 'supplier_name', label: 'Supplier' },
+        { key: 'manufacturer', label: 'Manufacturer' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'country_of_origin', label: 'Country of origin' },
+        { key: 'quantity_awarded', label: 'Quantity awarded' },
+        { key: 'unit_cost', label: 'Unit cost' },
         { key: 'percentage', label: '% awarded', className: 'xl:w-20 xl:flex-none' },
         { key: 'line_cost', label: 'Line cost', className: 'xl:w-24 xl:flex-none' },
     ];
@@ -59,6 +59,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             value={text(row.values[name])}
                             onChange={(value) => api.setCell('tender_awards', row.key, name, value)}
                             error={api.cellError('tender_awards', row, index, name)}
+                            required={optional(name) === false}
                         />
                     );
 
