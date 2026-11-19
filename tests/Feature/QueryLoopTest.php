@@ -13,6 +13,7 @@ use App\Notifications\Queries\ForwardRequired;
 use App\Notifications\Queries\QueryAnswered;
 use App\Notifications\Queries\QueryRaised;
 use App\Queries\QueryAccess;
+use App\Queries\QueryService;
 use App\Queries\QueryView;
 use App\Support\WorkQueue;
 use App\Workflow\NextStep;
@@ -410,4 +411,118 @@ it('puts Query to Forward in the CMO queue and Query to Answer in the recipient 
     $this->actingAs($this->a['cmo']);
     $groups = collect(WorkQueue::for($this->a['cmo'])['groups'])->pluck('label', 'key');
     expect($groups['query_forward'])->toBe('Query to Forward');
+});
+
+// D5: route x actor x action ------------------------------------------------------------
+
+const QL_ACTORS = ['cmo', 'technocrat', 'other_technocrat', 'cab', 'legal', 'ps', 'registry', 'vendor', 'other_vendor', 'system_admin', 'auditor'];
+
+/** Actor keys for which $check is true, in QL_ACTORS order. */
+function qlWho(array $a, callable $check): array
+{
+    return array_values(array_filter(QL_ACTORS, fn (string $k) => $check($a[$k])));
+}
+
+it('applies each route to every actor', function (string $from, string $to, string $raiser, array $held, array $delivered, array $repliers, array $closers) {
+    $case = $this->case;
+    $route = qlRoute($from, $to);
+    $this->actingAs($this->a[$raiser]);
+    $query = app(QueryService::class)->raise($case, $this->a[$raiser], (int) $route->id, 'Matrix question text');
+    $fresh = fn () => CaseQuery::withoutGlobalScopes()->with('messages')->findOrFail($query->id);
+    $sees = fn () => qlWho($this->a, fn (User $u) => QueryAccess::visibleQueries($u, $case)->pluck('id')->contains($query->id));
+
+    if ($route->via_cmo) {
+        expect($sees())->toBe($held, 'held')
+            ->and(qlWho($this->a, fn (User $u) => QueryAccess::forwardable($u, $case, $fresh()) !== null))->toBe(['cmo'], 'forwarders');
+        $this->actingAs($this->a['cmo']);
+        app(QueryService::class)->forward($case, $fresh(), $fresh()->messages->first(), $this->a['cmo']);
+    } else {
+        expect(qlWho($this->a, fn (User $u) => QueryAccess::forwardable($u, $case, $fresh()) !== null))->toBe([], 'nothing to forward on a direct route');
+    }
+
+    expect($sees())->toBe($delivered, 'delivered')
+        ->and(qlWho($this->a, fn (User $u) => QueryAccess::canReply($u, $case, $fresh())))->toBe($repliers, 'repliers')
+        ->and(qlWho($this->a, fn (User $u) => QueryAccess::canClose($u, $case, $fresh())))->toBe($closers, 'closers');
+})->with([
+    'Technocrat to vendor, direct' => ['technocrat', 'vendor_applicant', 'technocrat', [],
+        ['cmo', 'technocrat', 'vendor'], ['technocrat', 'vendor'], ['cmo', 'technocrat']],
+    'Legal to Technocrats, via CMO' => ['legal_officer', 'technocrat', 'legal', ['cmo', 'legal'],
+        ['cmo', 'technocrat', 'legal'], ['technocrat', 'legal'], ['cmo', 'technocrat', 'legal']],
+    'PS to Technocrats, via CMO' => ['ps_office', 'technocrat', 'ps', ['cmo', 'ps'],
+        ['cmo', 'technocrat', 'ps'], ['technocrat', 'ps'], ['cmo', 'technocrat', 'ps']],
+    'PS to Legal, via CMO' => ['ps_office', 'legal_officer', 'ps', ['cmo', 'ps'],
+        ['cmo', 'legal', 'ps'], ['legal', 'ps'], ['cmo', 'legal', 'ps']],
+    'Technocrat to CMO, direct' => ['technocrat', 'cmo', 'technocrat', [],
+        ['cmo', 'technocrat'], ['cmo', 'technocrat'], ['cmo', 'technocrat']],
+    'CMO to Legal, direct' => ['cmo', 'legal_officer', 'cmo', [],
+        ['cmo', 'legal'], ['cmo', 'legal'], ['cmo', 'legal']],
+    'CMO to Technocrats, direct' => ['cmo', 'technocrat', 'cmo', [],
+        ['cmo', 'technocrat'], ['cmo', 'technocrat'], ['cmo', 'technocrat']],
+]);
+
+it("refuses the forward to anyone but the CMO's desk", function (string $actor, int $status) {
+    $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
+
+    $this->actingAs($this->a[$actor])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]))->assertStatus($status);
+
+    expect(qlHeld($query)->forwarded_at)->toBeNull();
+})->with([
+    'the raiser (403: may see, may not forward)' => ['legal', 403],
+    'the held recipient (404: cannot see it yet)' => ['technocrat', 404],
+    'PS (404)' => ['ps', 404],
+    'a vendor (403 on the staff routes)' => ['vendor', 403],
+]);
+
+it('never puts an internal or held item, a staff name or a role in the vendor page', function () {
+    $direct = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'), 'External words for the vendor');
+    qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'), 'Held legal words');
+    qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'cmo'), 'Internal technocrat words');
+    $this->actingAs($this->a['technocrat'])->post(route('cases.queries.reply', [$this->case, $direct->id]), ['body' => 'Follow-up words for the vendor']);
+
+    $response = $this->actingAs($this->a['vendor'])->get(route('requests.show', $this->case))->assertOk();
+    $queries = json_encode($response->viewData('page')['props']['queries']);
+    $page = $response->getContent();
+
+    expect($queries)->toContain('External words for the vendor')->toContain('Follow-up words for the vendor');
+    foreach (['Held legal words', 'Internal technocrat words', $this->a['technocrat']->name, $this->a['cmo']->name, $this->a['legal']->name] as $leak) {
+        expect($page)->not->toContain($leak);
+    }
+    foreach (['technocrat', 'legal_officer', 'vendor_applicant', 'internal', 'via_cmo', 'Awaiting Forward', 'Technocrats'] as $internal) {
+        expect($queries)->not->toContain($internal);
+    }
+});
+
+it('keeps a held message from the recipient and the vendor until it is forwarded', function () {
+    $query = qlRaise($this->a['ps'], $this->case, qlRoute('ps_office', 'legal_officer'), 'PS legal-related words');
+
+    $this->actingAs($this->a['legal']);
+    expect(QueryView::forStaff($this->case, $this->a['legal'])['queries'])->toBe([])
+        ->and(json_encode(NextStep::for($this->case, $this->a['legal'])))->not->toContain('PS legal-related words');
+    expect(qlVendorQueries($this->a['vendor'], $this->case))->toBe([]);
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]));
+
+    $this->actingAs($this->a['legal']);
+    expect(QueryView::forStaff($this->case, $this->a['legal'])['queries'][0]['messages'][0]['body'])->toBe('PS legal-related words');
+    expect(qlVendorQueries($this->a['vendor'], $this->case))->toBe([]);
+});
+
+it('gives system_admin and the auditor no query content', function (string $actor) {
+    qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'cmo'));
+
+    expect(QueryAccess::visibleQueries($this->a[$actor], $this->case))->toBeEmpty()
+        ->and(QueryAccess::raisableRoutes($this->a[$actor], $this->case))->toBeEmpty();
+    $this->actingAs($this->a[$actor])->get(route('cases.show', $this->case))->assertNotFound();
+})->with(['system_admin', 'auditor']);
+
+it("cannot raise a query on a closed case, and staff never reach a draft's", function () {
+    $closed = qlCase($this->a, S::CLOSED);
+    expect(QueryAccess::raisableRoutes($this->a['cmo'], $closed))->toBeEmpty();
+
+    $this->actingAs($this->a['technocrat'])->post(route('cases.queries.store', $closed), ['route' => qlRoute('technocrat', 'cmo')->id, 'body' => 'Too late'])
+        ->assertForbidden();
+
+    $draft = qlCase($this->a, S::DRAFT);
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.store', $draft), ['route' => qlRoute('cmo', 'legal_officer')->id, 'body' => 'Hello there'])
+        ->assertNotFound();
 });
