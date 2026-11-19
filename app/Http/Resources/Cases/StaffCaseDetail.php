@@ -95,6 +95,7 @@ final class StaffCaseDetail
                     'value' => $d,
                     'label' => $d === RecordLegalDecision::CONFIRMED ? 'Contract confirmed' : 'Return to CMO with a query',
                     'needs_reason' => $d === RecordLegalDecision::RETURN_TO_CMO,
+                    'next' => $d === RecordLegalDecision::RETURN_TO_CMO ? 'The file returns to the '.StageWording::CMO_OFFICE.'.' : 'The file goes to the '.StageWording::PS_OFFICE.'.',
                 ], RecordLegalDecision::DECISIONS),
             ] : null,
             'returned' => self::returned($case),
@@ -102,8 +103,8 @@ final class StaffCaseDetail
             // the latest PS outcome (replaces the form once decided), and the grant line.
             'ps_form' => $canPsDecide ? [
                 'decisions' => [
-                    ['value' => RecordPsDecision::GRANT, 'label' => 'Grant non-objection', 'needs_reason' => false],
-                    ['value' => RecordPsDecision::RETURN_TO_CMO, 'label' => 'Return to CMO with a query', 'needs_reason' => true],
+                    ['value' => RecordPsDecision::GRANT, 'label' => 'Grant non-objection', 'needs_reason' => false, 'next' => 'The file returns to the '.StageWording::CMO_OFFICE.' to issue the letter.'],
+                    ['value' => RecordPsDecision::RETURN_TO_CMO, 'label' => 'Return to CMO with a query', 'needs_reason' => true, 'next' => 'The file returns to the '.StageWording::CMO_OFFICE.'.'],
                 ],
                 'kinds' => array_map(fn (ReturnKind $k) => ['value' => $k->value, 'label' => $k->label()], ReturnKind::cases()),
             ] : null,
@@ -231,10 +232,12 @@ final class StaffCaseDetail
             RouteReturnedCase::PS => [
                 'value' => $d,
                 'label' => StageWording::ROUTE_DESTINATIONS[$d],
-                'consequence' => 'The case goes back to the PS office for a decision.',
+                'consequence' => 'The case goes back to the '.StageWording::PS_OFFICE.' for a decision.',
                 'available' => true,
             ],
         }, $destinations);
+        // NEXT-STEP-1: the confirm button names the destination.
+        $options = array_map(fn (array $o) => [...$o, 'button' => 'Send to '.$o['label']], $options);
 
         $available = array_values(array_filter($options, fn (array $o) => $o['available']));
         $suggested = RouteReturnedCase::suggested($case);

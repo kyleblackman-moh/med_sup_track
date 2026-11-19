@@ -2,6 +2,7 @@ import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-ac
 import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
+import { NextStepCard } from '@/components/cases/next-step-card';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
 import { PageHeader } from '@/components/page-header';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
@@ -9,7 +10,6 @@ import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -21,11 +21,13 @@ import {
     type HardcopyRecord,
     type LegalForm,
     type LetterRecord,
+    type NextStepView,
     type PsForm,
     type PsOutcome,
     type ReturnedBanner,
     type ReviewerOption,
     type ReviewForm,
+    type RouteDestination,
     type RoutePanel,
     type StaffCaseAbilities,
     type StaffCaseDetail,
@@ -38,6 +40,8 @@ import { type ReactNode, useState } from 'react';
 
 interface Props {
     case: StaffCaseDetail;
+    /** NEXT-STEP-1: the Next Step card (staff only). */
+    next_step: NextStepView;
     hardcopy: HardcopyRecord | null;
     hardcopy_dates: { today: string; earliest: string | null };
     documents: StaffDocument[];
@@ -128,8 +132,8 @@ function tabFromUrl(ids: TabId[]): TabId {
  */
 export default function CaseShow({
     case: detail,
+    next_step,
     hardcopy,
-    hardcopy_dates,
     documents,
     timeline,
     assignments,
@@ -158,6 +162,12 @@ export default function CaseShow({
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
     const [routeOpen, setRouteOpen] = useState(false);
+    const [routeTo, setRouteTo] = useState<RouteDestination['value'] | null>(null);
+
+    const openRoute = (destination: RouteDestination['value']) => {
+        setRouteTo(destination);
+        setRouteOpen(true);
+    };
 
     const show = (next: TabId) => {
         setActive(next);
@@ -182,6 +192,19 @@ export default function CaseShow({
 
                 <FlashMessages />
 
+                <NextStepCard
+                    caseId={detail.id}
+                    next={next_step}
+                    reviewers={reviewers}
+                    fileNoDefault={file_no_default}
+                    legalOfficers={legal_officers}
+                    legalForm={legal_form}
+                    psForm={ps_form}
+                    reviewForms={review_forms}
+                    letterToday={letter_dates?.today ?? null}
+                    onRoute={can.route_onward && route_panel ? openRoute : null}
+                />
+
                 <CaseTabs tabs={tabs} active={active} onSelect={show} />
 
                 <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="space-y-6 pb-4">
@@ -198,13 +221,6 @@ export default function CaseShow({
                                     {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
                                         .filter((part) => part)
                                         .join(', ')}
-                                    {can.route_onward && route_panel && (
-                                        <div className="mt-3">
-                                            <Button type="button" size="sm" onClick={() => setRouteOpen(true)}>
-                                                Send Onward
-                                            </Button>
-                                        </div>
-                                    )}
                                 </section>
                             )}
 
@@ -352,25 +368,7 @@ export default function CaseShow({
                         </div>
                     )}
 
-                    {active === 'actions' && (
-                        <CaseActions
-                            caseId={detail.id}
-                            reference={detail.reference_no}
-                            hardcopy={hardcopy}
-                            dates={hardcopy_dates}
-                            can={can}
-                            reviewers={reviewers}
-                            gate={gate}
-                            reviewForms={review_forms}
-                            fileNoDefault={file_no_default}
-                            legalOfficers={legal_officers}
-                            legalForm={legal_form}
-                            psForm={ps_form}
-                            psOutcome={ps_outcome}
-                            onSendOnward={route_panel ? () => setRouteOpen(true) : null}
-                            letterToday={letter_dates?.today ?? null}
-                        />
-                    )}
+                    {active === 'actions' && <CaseActions caseId={detail.id} hardcopy={hardcopy} can={can} psOutcome={ps_outcome} />}
                 </div>
 
                 {can.route_onward && route_panel && (
@@ -385,6 +383,8 @@ export default function CaseShow({
                         returned={returned}
                         gate={gate}
                         panel={route_panel}
+                        initialDestination={routeTo}
+                        key={routeTo ?? 'suggested'}
                     />
                 )}
 

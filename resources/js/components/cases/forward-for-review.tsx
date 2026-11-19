@@ -3,14 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { type EligibleReviewers, type ReviewerOption } from '@/types/cases';
+import { type ActionConfirm, type EligibleReviewers, type ReviewerOption } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { FormEvent } from 'react';
 
 interface Props {
     caseId: string;
-    reference: string | null;
     reviewers: EligibleReviewers;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    /** NEXT-STEP-1: the server's title, what happens and the confirm button (naming the destination). */
+    confirm: ActionConfirm;
 }
 
 type Field = 'technocrats' | 'cab_officers';
@@ -64,11 +67,11 @@ function ReviewerList({
 }
 
 /**
- * Send for review (slice 10a, T3). Shown only for the server's
- * can.forward_for_review flag; the server checks every chosen reviewer again.
+ * Send for review (slice 10a, T3), opened from the Next Step card. The dialog
+ * is the confirmation: it names the destination and what happens, in the
+ * server's words. The server checks every chosen reviewer again.
  */
-export function ForwardForReview({ caseId, reference, reviewers }: Props) {
-    const [open, setOpen] = useState(false);
+export function ForwardForReview({ caseId, reviewers, open, onOpenChange: setOpen, confirm }: Props) {
     const form = useForm<{ technocrats: number[]; cab_officers: number[]; instruction: string }>({
         technocrats: [],
         cab_officers: [],
@@ -91,68 +94,61 @@ export function ForwardForReview({ caseId, reference, reviewers }: Props) {
     };
 
     return (
-        <div className="space-y-2 border-t pt-4">
-            <Button type="button" onClick={() => setOpen(true)} disabled={form.processing}>
-                Send for Review
-            </Button>
-            <InputError message={errors.forward} />
+        <Dialog open={open} onOpenChange={(next) => !form.processing && setOpen(next)}>
+            <DialogContent className="sm:max-w-xl">
+                <form onSubmit={submit} className="grid gap-4" noValidate>
+                    <DialogHeader>
+                        <DialogTitle>{confirm.title}</DialogTitle>
+                        <DialogDescription>{confirm.body}</DialogDescription>
+                    </DialogHeader>
 
-            <Dialog open={open} onOpenChange={(next) => !form.processing && setOpen(next)}>
-                <DialogContent className="sm:max-w-xl">
-                    <form onSubmit={submit} className="grid gap-4" noValidate>
-                        <DialogHeader>
-                            <DialogTitle>Send {reference ?? 'this case'} for review</DialogTitle>
-                            <DialogDescription>
-                                The chosen technocrats and CAB officers are assigned to the case and can see it in their list.
-                            </DialogDescription>
-                        </DialogHeader>
+                    <ReviewerList
+                        field="technocrats"
+                        legend="Technocrats"
+                        options={reviewers.technocrats}
+                        selected={form.data.technocrats}
+                        onToggle={toggle('technocrats')}
+                        error={fieldError(errors, 'technocrats')}
+                    />
+                    <ReviewerList
+                        field="cab_officers"
+                        legend="CAB Officers"
+                        options={reviewers.cab_officers}
+                        selected={form.data.cab_officers}
+                        onToggle={toggle('cab_officers')}
+                        error={fieldError(errors, 'cab_officers')}
+                    />
 
-                        <ReviewerList
-                            field="technocrats"
-                            legend="Technocrats"
-                            options={reviewers.technocrats}
-                            selected={form.data.technocrats}
-                            onToggle={toggle('technocrats')}
-                            error={fieldError(errors, 'technocrats')}
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="forward-instruction">Instruction</Label>
+                        <textarea
+                            id="forward-instruction"
+                            rows={3}
+                            maxLength={500}
+                            className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                            value={form.data.instruction}
+                            onChange={(e) => form.setData('instruction', e.target.value)}
+                            aria-invalid={errors.instruction ? true : undefined}
+                            aria-describedby="forward-instruction-hint forward-instruction-error"
                         />
-                        <ReviewerList
-                            field="cab_officers"
-                            legend="CAB Officers"
-                            options={reviewers.cab_officers}
-                            selected={form.data.cab_officers}
-                            onToggle={toggle('cab_officers')}
-                            error={fieldError(errors, 'cab_officers')}
-                        />
+                        <p id="forward-instruction-hint" className="text-muted-foreground text-xs">
+                            Up to 500 characters. Shown to staff in the case timeline.
+                        </p>
+                        <InputError id="forward-instruction-error" message={errors.instruction} />
+                    </div>
 
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="forward-instruction">Instruction</Label>
-                            <textarea
-                                id="forward-instruction"
-                                rows={3}
-                                maxLength={500}
-                                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-                                value={form.data.instruction}
-                                onChange={(e) => form.setData('instruction', e.target.value)}
-                                aria-invalid={errors.instruction ? true : undefined}
-                                aria-describedby="forward-instruction-hint forward-instruction-error"
-                            />
-                            <p id="forward-instruction-hint" className="text-muted-foreground text-xs">
-                                Up to 500 characters. Shown to staff in the case timeline.
-                            </p>
-                            <InputError id="forward-instruction-error" message={errors.instruction} />
-                        </div>
+                    <InputError message={errors.forward} />
 
-                        <DialogFooter className="gap-2">
-                            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={form.processing}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={form.processing}>
-                                {form.processing ? 'Sending…' : 'Send'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </div>
+                    <DialogFooter className="gap-2">
+                        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={form.processing}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={form.processing}>
+                            {form.processing ? 'Sending…' : confirm.button}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

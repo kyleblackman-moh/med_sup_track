@@ -45,6 +45,8 @@ interface Props {
     returned: ReturnedBanner | null;
     gate: GateState | null;
     panel: RoutePanel;
+    /** NEXT-STEP-1: the destination chosen on the Next Step card; the server's suggestion otherwise. */
+    initialDestination?: RouteDestination['value'] | null;
 }
 
 type FormData = { destination: string; reviewers: number[]; note: string };
@@ -66,8 +68,9 @@ export function SendOnwardPanel({
     returned,
     gate,
     panel,
+    initialDestination = null,
 }: Props) {
-    const initial: FormData = { destination: panel.suggested ?? '', reviewers: [], note: '' };
+    const initial: FormData = { destination: initialDestination ?? panel.suggested ?? '', reviewers: [], note: '' };
     const form = useForm<FormData>(initial);
     const errors = form.errors as Record<string, string>;
     const [confirming, setConfirming] = useState(false);
@@ -185,7 +188,7 @@ export function SendOnwardPanel({
                                     Back
                                 </Button>
                                 <Button type="button" onClick={send} disabled={form.processing}>
-                                    {form.processing ? 'Sending…' : 'Send Now'}
+                                    {form.processing ? 'Sending…' : chosen.button}
                                 </Button>
                             </div>
                         </div>

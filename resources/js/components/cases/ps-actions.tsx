@@ -134,7 +134,7 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
                         <dt className="text-muted-foreground">{isReturn ? 'Reason' : 'Note'}</dt>
                         <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
                         <dt className="text-muted-foreground">Next</dt>
-                        <dd>{isReturn ? 'The case returns to the CMO.' : 'The case returns to the CMO to issue the letter.'}</dd>
+                        <dd>{chosen?.next}</dd>
                     </dl>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>

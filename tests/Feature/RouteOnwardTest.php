@@ -567,7 +567,7 @@ it('offers only the allowed destinations and the suggested one', function (strin
         ->and($panel['suggested'])->toBe($suggested)
         ->and($panel['suggested_line'])->toBe($line)
         ->and(array_keys($panel))->toBe(['destinations', 'suggested', 'suggested_line', 'technocrats', 'reviewers_min', 'reviewers_max', 'note_min', 'note_max', 'timeline'])
-        ->and(array_keys($panel['destinations'][0]))->toBe(['value', 'label', 'consequence', 'available'])
+        ->and(array_keys($panel['destinations'][0]))->toBe(['value', 'label', 'consequence', 'available', 'button'])
         ->and(array_keys($panel['technocrats'][0] ?? ['id' => 0, 'name' => '']))->toBe(['id', 'name'])
         ->and(count($panel['timeline']))->toBeLessThanOrEqual(8)
         ->and($panel['timeline'][0]['to_label'])->toBe(CaseStatus::RETURNED_TO_CMO->label());

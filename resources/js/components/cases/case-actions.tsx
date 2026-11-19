@@ -1,46 +1,12 @@
-import { ForwardForReview } from '@/components/cases/forward-for-review';
-import { LegalDecisionForm, PrepareFileForm, SendToLegal } from '@/components/cases/legal-actions';
-import { CloseCaseButton, IssueLetterForm } from '@/components/cases/letter-actions';
-import { PsDecisionForm, PsOutcomeStatement } from '@/components/cases/ps-actions';
-import { MarkReadyForFile, ReviewOutcomeForm } from '@/components/cases/review-actions';
+import { PsOutcomeStatement } from '@/components/cases/ps-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    type EligibleReviewers,
-    type GateState,
-    type HardcopyRecord,
-    type LegalForm,
-    type PsForm,
-    type PsOutcome,
-    type ReviewerOption,
-    type ReviewForm,
-    type StaffCaseAbilities,
-} from '@/types/cases';
+import { type HardcopyRecord, type PsOutcome, type StaffCaseAbilities } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
-
-interface Props {
-    caseId: string;
-    reference: string | null;
-    hardcopy: HardcopyRecord | null;
-    dates: { today: string; earliest: string | null };
-    can: StaffCaseAbilities;
-    reviewers: EligibleReviewers | null;
-    gate: GateState | null;
-    reviewForms: ReviewForm[];
-    fileNoDefault: string | null;
-    legalOfficers: ReviewerOption[] | null;
-    legalForm: LegalForm | null;
-    psForm: PsForm | null;
-    psOutcome: PsOutcome | null;
-    /** Slice 10e: opens the Send onward panel; null when the user may not route the case. */
-    onSendOnward: (() => void) | null;
-    /** Slice 10f: the latest date the issue-letter form accepts; null when the user may not issue it. */
-    letterToday: string | null;
-}
+import { FormEvent, type ReactNode, useState } from 'react';
 
 export function formatDay(day: string): string {
     // A calendar date (Y-m-d), shown as-is: no time zone shift.
@@ -57,40 +23,73 @@ export function hardcopyText(hardcopy: HardcopyRecord | null): string {
 }
 
 /**
- * Staff actions on one case (slice 9b): accept into intake and record or
- * correct the hardcopy. Buttons appear only for the server's can flags; the
- * server authorises every request again.
+ * NEXT-STEP-1: Date Received and Save, shown inline in the Next Step card's
+ * checklist (it replaced the separate Hardcopy block). Only rendered when the
+ * server sends the form bounds; the server checks every date again.
  */
-export function CaseActions({
-    caseId,
-    reference,
-    hardcopy,
-    dates,
-    can,
-    reviewers,
-    gate,
-    reviewForms,
-    fileNoDefault,
-    legalOfficers,
-    legalForm,
-    psForm,
-    psOutcome,
-    onSendOnward,
-    letterToday,
-}: Props) {
-    const [confirmIntake, setConfirmIntake] = useState(false);
-    const [confirmReverse, setConfirmReverse] = useState(false);
-
-    const intake = useForm({});
+export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: { today: string; earliest: string | null } }) {
     const mark = useForm({ received_on: dates.today });
-    const reverse = useForm({ reason: '' });
 
-    const submitIntake = () => intake.post(route('cases.intake', caseId), { preserveScroll: true, onFinish: () => setConfirmIntake(false) });
-
-    const submitMark = (e: FormEvent) => {
+    const submit = (e: FormEvent) => {
         e.preventDefault();
         mark.post(route('cases.hardcopy.store', caseId), { preserveScroll: true });
     };
+
+    return (
+        <form onSubmit={submit} className="flex flex-wrap items-end gap-3" noValidate>
+            <div className="grid gap-1.5">
+                <Label htmlFor="hardcopy-received-on">Date Received</Label>
+                <Input
+                    id="hardcopy-received-on"
+                    aria-required="true"
+                    type="date"
+                    className="w-44"
+                    value={mark.data.received_on}
+                    max={dates.today}
+                    min={dates.earliest ?? undefined}
+                    onChange={(e) => mark.setData('received_on', e.target.value)}
+                    aria-invalid={mark.errors.received_on ? true : undefined}
+                    aria-describedby={mark.errors.received_on ? 'hardcopy-received-on-error' : undefined}
+                />
+            </div>
+            <Button type="submit" variant="outline" disabled={mark.processing}>
+                {mark.processing ? 'Saving…' : 'Save'}
+            </Button>
+            <div className="w-full">
+                <InputError id="hardcopy-received-on-error" message={mark.errors.received_on ?? (mark.errors as Record<string, string>).hardcopy} />
+            </div>
+        </form>
+    );
+}
+
+function Group({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
+    return (
+        <section aria-labelledby={id} className="space-y-2 border-t pt-4 first:border-t-0 first:pt-0">
+            <h3 id={id} className="font-medium">
+                {title}
+            </h3>
+            <p className="text-muted-foreground text-sm">{description}</p>
+            {children}
+        </section>
+    );
+}
+
+interface Props {
+    caseId: string;
+    hardcopy: HardcopyRecord | null;
+    can: StaffCaseAbilities;
+    psOutcome: PsOutcome | null;
+}
+
+/**
+ * The Actions tab (NEXT-STEP-1): the less common actions only. The step that
+ * moves the file on is in the Next Step card at the top of the page, so it is
+ * not repeated here. Buttons follow the server's can flags; the server
+ * authorises every request again.
+ */
+export function CaseActions({ caseId, hardcopy, can, psOutcome }: Props) {
+    const [confirmReverse, setConfirmReverse] = useState(false);
+    const reverse = useForm({ reason: '' });
 
     const submitReverse = (e: FormEvent) => {
         e.preventDefault();
@@ -103,177 +102,80 @@ export function CaseActions({
         });
     };
 
-    const canForward = can.forward_for_review && reviewers !== null;
-    const hasActions =
-        can.intake ||
-        can.record_hardcopy ||
-        canForward ||
-        can.record_review ||
-        can.mark_ready_for_file ||
-        can.prepare_file ||
-        can.send_to_legal ||
-        can.record_legal_decision ||
-        can.record_ps_decision ||
-        psOutcome !== null;
-    const intakeError = (intake.errors as Record<string, string>).intake;
+    const canCorrectHardcopy = can.record_hardcopy && hardcopy !== null;
+    const showPsOutcome = !can.record_ps_decision && psOutcome !== null;
 
     return (
         <section aria-labelledby="actions-heading" className="bg-card space-y-4 rounded-lg border p-4">
             <h2 id="actions-heading" className="text-lg font-semibold">
-                Actions
+                Other Actions
             </h2>
 
-            {!hasActions && <p className="text-muted-foreground text-sm">There are no actions available to you on this case.</p>}
+            {!canCorrectHardcopy && !showPsOutcome && (
+                <p className="text-muted-foreground text-sm">
+                    There are no other actions on this case. The step that moves the file on is in the Next Step card at the top of the page.
+                </p>
+            )}
 
-            {can.intake && (
-                <div className="space-y-2">
-                    <Button type="button" onClick={() => setConfirmIntake(true)} disabled={intake.processing}>
-                        Accept Into Intake
+            {canCorrectHardcopy && hardcopy && (
+                <Group
+                    id="hardcopy-correct-heading"
+                    title="Correct the Hardcopy Record"
+                    description="If the hardcopy was recorded by mistake, mark it as not received. The file does not move; the reason is kept in the audit log."
+                >
+                    <p className="text-sm">{hardcopyText(hardcopy)}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReverse(true)}>
+                        Mark Not Received
                     </Button>
-                    <InputError message={intakeError} />
+                    <InputError message={(reverse.errors as Record<string, string>).hardcopy} />
 
-                    <Dialog open={confirmIntake} onOpenChange={(open) => !intake.processing && setConfirmIntake(open)}>
+                    <Dialog open={confirmReverse} onOpenChange={(open) => !reverse.processing && setConfirmReverse(open)}>
                         <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Accept {reference ?? 'this case'} into intake?</DialogTitle>
-                                <DialogDescription>
-                                    The case moves to CMO intake and is assigned to you. Other registry officers will no longer see it in their list.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter className="gap-2">
-                                <Button type="button" variant="ghost" onClick={() => setConfirmIntake(false)} disabled={intake.processing}>
-                                    Cancel
-                                </Button>
-                                <Button type="button" onClick={submitIntake} disabled={intake.processing}>
-                                    {intake.processing ? 'Accepting…' : 'Accept Into Intake'}
-                                </Button>
-                            </DialogFooter>
+                            <form onSubmit={submitReverse} className="grid gap-4" noValidate>
+                                <DialogHeader>
+                                    <DialogTitle>Mark the hardcopy as not received?</DialogTitle>
+                                    <DialogDescription>
+                                        This removes the recorded date ({formatDay(hardcopy.received_on)}). The reason is kept in the audit log.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="hardcopy-reason">Reason</Label>
+                                    <textarea
+                                        id="hardcopy-reason"
+                                        aria-required="true"
+                                        rows={3}
+                                        maxLength={500}
+                                        className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                        value={reverse.data.reason}
+                                        onChange={(e) => reverse.setData('reason', e.target.value)}
+                                        aria-invalid={reverse.errors.reason ? true : undefined}
+                                        aria-describedby="hardcopy-reason-hint hardcopy-reason-error"
+                                    />
+                                    <p id="hardcopy-reason-hint" className="text-muted-foreground text-xs">
+                                        10 to 500 characters.
+                                    </p>
+                                    <InputError id="hardcopy-reason-error" message={reverse.errors.reason} />
+                                </div>
+                                <DialogFooter className="gap-2">
+                                    <Button type="button" variant="ghost" onClick={() => setConfirmReverse(false)} disabled={reverse.processing}>
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        variant="destructive"
+                                        disabled={reverse.processing || reverse.data.reason.trim().length < 10}
+                                    >
+                                        {reverse.processing ? 'Saving…' : 'Mark Not Received'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
                         </DialogContent>
                     </Dialog>
-                </div>
+                </Group>
             )}
 
-            {can.record_hardcopy && (
-                <div className="space-y-3 border-t pt-4">
-                    <h3 className="font-medium">Hardcopy</h3>
-                    <p className="text-sm">{hardcopyText(hardcopy)}</p>
-
-                    {hardcopy === null ? (
-                        <form onSubmit={submitMark} className="flex flex-wrap items-end gap-3" noValidate>
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="hardcopy-received-on">Date Received</Label>
-                                <Input
-                                    id="hardcopy-received-on"
-                                    aria-required="true"
-                                    type="date"
-                                    className="w-44"
-                                    value={mark.data.received_on}
-                                    max={dates.today}
-                                    min={dates.earliest ?? undefined}
-                                    onChange={(e) => mark.setData('received_on', e.target.value)}
-                                    aria-invalid={mark.errors.received_on ? true : undefined}
-                                    aria-describedby={mark.errors.received_on ? 'hardcopy-received-on-error' : undefined}
-                                />
-                            </div>
-                            <Button type="submit" disabled={mark.processing}>
-                                {mark.processing ? 'Saving…' : 'Save'}
-                            </Button>
-                            <div className="w-full">
-                                <InputError
-                                    id="hardcopy-received-on-error"
-                                    message={mark.errors.received_on ?? (mark.errors as Record<string, string>).hardcopy}
-                                />
-                            </div>
-                        </form>
-                    ) : (
-                        <>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReverse(true)}>
-                                Mark Not Received
-                            </Button>
-                            <InputError message={(reverse.errors as Record<string, string>).hardcopy} />
-
-                            <Dialog open={confirmReverse} onOpenChange={(open) => !reverse.processing && setConfirmReverse(open)}>
-                                <DialogContent>
-                                    <form onSubmit={submitReverse} className="grid gap-4" noValidate>
-                                        <DialogHeader>
-                                            <DialogTitle>Mark the hardcopy as not received?</DialogTitle>
-                                            <DialogDescription>
-                                                This removes the recorded date ({formatDay(hardcopy.received_on)}). The reason is kept in the audit
-                                                log.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-1.5">
-                                            <Label htmlFor="hardcopy-reason">Reason</Label>
-                                            <textarea
-                                                id="hardcopy-reason"
-                                                aria-required="true"
-                                                rows={3}
-                                                maxLength={500}
-                                                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-                                                value={reverse.data.reason}
-                                                onChange={(e) => reverse.setData('reason', e.target.value)}
-                                                aria-invalid={reverse.errors.reason ? true : undefined}
-                                                aria-describedby="hardcopy-reason-hint hardcopy-reason-error"
-                                            />
-                                            <p id="hardcopy-reason-hint" className="text-muted-foreground text-xs">
-                                                10 to 500 characters.
-                                            </p>
-                                            <InputError id="hardcopy-reason-error" message={reverse.errors.reason} />
-                                        </div>
-                                        <DialogFooter className="gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                onClick={() => setConfirmReverse(false)}
-                                                disabled={reverse.processing}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                type="submit"
-                                                variant="destructive"
-                                                disabled={reverse.processing || reverse.data.reason.trim().length < 10}
-                                            >
-                                                {reverse.processing ? 'Saving…' : 'Mark Not Received'}
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Slice 10b: a reviewer's own track, then the CMO's T4 action. */}
-            {can.record_review && reviewForms.map((f) => <ReviewOutcomeForm key={f.track} caseId={caseId} form={f} />)}
-            {can.mark_ready_for_file && <MarkReadyForFile caseId={caseId} gate={gate} />}
-
-            {/* Slice 10c: prepare the file, send to Legal, the Legal decision. */}
-            {can.prepare_file && fileNoDefault !== null && <PrepareFileForm caseId={caseId} defaultFileNo={fileNoDefault} />}
-            {can.send_to_legal && legalOfficers && <SendToLegal caseId={caseId} reference={reference} officers={legalOfficers} />}
-            {can.record_legal_decision && legalForm && <LegalDecisionForm caseId={caseId} form={legalForm} />}
-
-            {/* Slice 10d: the PS decision, or once decided a plain statement of it. */}
-            {can.record_ps_decision && psForm && <PsDecisionForm caseId={caseId} form={psForm} />}
-            {!can.record_ps_decision && psOutcome && <PsOutcomeStatement outcome={psOutcome} />}
-
-            {/* Slice 10e: a returned case goes onward through the side panel. */}
-            {can.route_onward && onSendOnward && (
-                <div className="space-y-2 border-t pt-4">
-                    <h3 className="font-medium">Returned Case</h3>
-                    <Button type="button" onClick={onSendOnward}>
-                        Send Onward
-                    </Button>
-                </div>
-            )}
-
-            {/* Slice 10f: record the letter as issued, then close the case. */}
-            {can.issue_letter && letterToday && <IssueLetterForm caseId={caseId} today={letterToday} />}
-            {can.close_case && <CloseCaseButton caseId={caseId} reference={reference} />}
-
-            {/* Last on purpose: send for review is the final step at intake. */}
-            {can.forward_for_review && reviewers && <ForwardForReview caseId={caseId} reference={reference} reviewers={reviewers} />}
+            {/* A record, not an action: the decision already taken, which cannot be changed here. */}
+            {showPsOutcome && psOutcome && <PsOutcomeStatement outcome={psOutcome} />}
         </section>
     );
 }

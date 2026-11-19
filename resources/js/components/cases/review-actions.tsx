@@ -2,7 +2,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { type GateState, type ReviewForm } from '@/types/cases';
+import { type ReviewForm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
@@ -70,7 +70,7 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                     <dd>{formatDateTime(def.current.recorded_at)}</dd>
                 </dl>
                 <p className="text-muted-foreground text-sm">
-                    Nothing else is needed from you on this case for now. You can change the outcome until the CMO marks the case ready for file.
+                    Nothing else is needed from you on this case for now. You can change the outcome until the case is marked ready for file.
                 </p>
                 <Button type="button" variant="outline" onClick={() => setEditing(true)}>
                     Change Outcome
@@ -149,7 +149,7 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                         <dt className="text-muted-foreground">{negative ? 'Reason' : 'Note'}</dt>
                         <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
                     </dl>
-                    <p className="text-muted-foreground text-sm">You can change it until the CMO marks the case ready for file.</p>
+                    <p className="text-muted-foreground text-sm">You can change it until the case is marked ready for file.</p>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
                             Go Back
@@ -161,37 +161,5 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                 </DialogContent>
             </Dialog>
         </form>
-    );
-}
-
-/**
- * T4 for the CMO (slice 10b). Enabled only when the server says the gate is
- * open; otherwise the server's missing list is shown as text.
- */
-export function MarkReadyForFile({ caseId, gate }: { caseId: string; gate: GateState | null }) {
-    const form = useForm({});
-    const errors = form.errors as Record<string, string>;
-    const open = gate?.open === true;
-
-    return (
-        <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Ready for File</h3>
-            {!open && gate && gate.missing.length > 0 && (
-                <ul className="text-muted-foreground list-disc pl-5 text-sm" id="ready-missing">
-                    {gate.missing.map((m) => (
-                        <li key={m}>{m}</li>
-                    ))}
-                </ul>
-            )}
-            <Button
-                type="button"
-                onClick={() => form.post(route('cases.ready', caseId), { preserveScroll: true })}
-                disabled={!open || form.processing}
-                aria-describedby={!open ? 'ready-missing' : undefined}
-            >
-                {form.processing ? 'Saving…' : 'Mark Ready for File'}
-            </Button>
-            <InputError message={errors.gate} />
-        </div>
     );
 }
