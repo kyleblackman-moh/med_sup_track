@@ -12,6 +12,8 @@ interface Options {
     only: string[];
     /** The URL parameter that carries the search. */
     param?: string;
+    /** DASH-1: the URL parameter that carries the card or chip filter. */
+    groupParam?: string;
     delayMs?: number;
     maxLength?: number;
 }
@@ -26,7 +28,7 @@ type CancelToken = { cancel: () => void };
  * visit cancels the one in flight. `searching` is true while a visit runs, so
  * the page can fade the old rows instead of blanking them.
  */
-export function useLiveSearch({ url, applied, appliedGroup = '', only, param = 'q', delayMs = 200, maxLength = 100 }: Options) {
+export function useLiveSearch({ url, applied, appliedGroup = '', only, param = 'q', groupParam = 'group', delayMs = 200, maxLength = 100 }: Options) {
     const [value, setValue] = useState(applied);
     const [searching, setSearching] = useState(false);
     const onlyKey = only.join(',');
@@ -52,7 +54,7 @@ export function useLiveSearch({ url, applied, appliedGroup = '', only, param = '
 
             const params: Record<string, string> = {};
             if (query !== '') params[param] = query;
-            if (nextGroup !== '') params.group = nextGroup;
+            if (nextGroup !== '') params[groupParam] = nextGroup;
 
             router.get(url, params, {
                 preserveState: true,
@@ -69,7 +71,7 @@ export function useLiveSearch({ url, applied, appliedGroup = '', only, param = '
                 },
             });
         },
-        [url, param, onlyKey],
+        [url, param, groupParam, onlyKey],
     );
 
     useEffect(() => {

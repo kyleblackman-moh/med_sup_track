@@ -28,6 +28,7 @@ use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
 use App\Support\RequestGroups;
+use App\Support\SqlLike;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -110,8 +111,7 @@ class RequestController extends Controller
      */
     private static function matching(Builder $query, string $search): Builder
     {
-        $pattern = '%'.str_replace(['\\', '%', '_', '['], ['\\\\', '\\%', '\\_', '\\['], $search).'%';
-        $like = fn (string $column) => ["{$column} LIKE ? ESCAPE '\\'", [$pattern]];
+        $like = fn (string $column) => SqlLike::contains($column, $search);
 
         return $query->where(function (Builder $any) use ($like) {
             $any->whereRaw(...$like('cases.reference_no'))

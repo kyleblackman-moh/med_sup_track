@@ -1,4 +1,4 @@
-import { WorkQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
+import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { StatTile } from '@/components/ui/stat-tile';
 import AppLayout from '@/layouts/app-layout';
@@ -40,6 +40,8 @@ interface Props {
     stats: Stat[] | null;
     /** Case id => request type name for the queue's rows. */
     requestTypes: Record<string, string>;
+    /** DASH-1: the queue card after the server applied the filter and the search; null without a queue. */
+    queue: DashboardQueue | null;
 }
 
 /** Display only: an icon per tile key. Unknown keys get no icon. */
@@ -56,7 +58,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
  * for users without a queue, links driven by the shared `can` flags. Never
  * shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, header, stats, requestTypes }: Props) {
+export default function Dashboard({ workQueue, header, stats, requestTypes, queue }: Props) {
     const { can } = usePage<SharedData>().props;
 
     const destinations: Destination[] = [
@@ -98,7 +100,7 @@ export default function Dashboard({ workQueue, header, stats, requestTypes }: Pr
                     </div>
                 )}
 
-                {workQueue && <WorkQueue queue={workQueue} requestTypes={requestTypes} casesHref={can?.cases ? route('cases.index') : null} />}
+                {queue && <WorkQueue queue={queue} requestTypes={requestTypes} casesHref={can?.cases ? route('cases.index') : null} />}
 
                 {!workQueue &&
                     (destinations.length === 0 ? (
