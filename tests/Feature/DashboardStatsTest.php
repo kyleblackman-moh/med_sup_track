@@ -144,9 +144,24 @@ it('sends no SLA values with the tiles', function () {
     $stats = dashboardProps($this, caseUser(Role::Cmo))['stats'];
 
     foreach ($stats as $tile) {
-        expect(array_keys($tile))->toBe(['key', 'label', 'value', 'hint', 'href'])
+        expect(array_keys($tile))->toBe(['key', 'label', 'value', 'description', 'href'])
             ->and($tile['value'])->toMatch('/^[\d,]+$/');
     }
+});
+
+it('sends each tile its Title Case label and short description from the server (DASH-1)', function () {
+    $stats = collect(dashboardProps($this, caseUser(Role::Cmo))['stats'])->keyBy('key');
+
+    expect($stats->map(fn ($t) => [$t['label'], $t['description']])->all())->toBe([
+        'needs_action' => ['Needs My Action', 'Cases waiting for you to act'],
+        'open' => ['Open Cases', 'Cases that are not yet closed'],
+        'awaiting_hardcopy' => ['Awaiting Hardcopy', 'Submitted, signed copy not yet received'],
+        'ready_for_file' => ['Ready for File', 'All three conditions are met'],
+    ]);
+
+    // A role without case.view_all gets only its two tiles, with the same descriptions.
+    $technocrat = collect(dashboardProps($this, caseUser(Role::Technocrat))['stats'])->pluck('description', 'key')->all();
+    expect($technocrat)->toBe(['needs_action' => 'Cases waiting for you to act', 'open' => 'Cases that are not yet closed']);
 });
 
 it('builds the header on the server in local time', function () {

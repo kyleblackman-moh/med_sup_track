@@ -25,7 +25,8 @@ interface Stat {
     key: string;
     label: string;
     value: string;
-    hint: string | null;
+    /** DASH-1: one short sentence-case line from the server, shown in the footer strip. */
+    description: string;
     /** Only where the case list already has a matching filter. */
     href: string | null;
 }
@@ -80,16 +81,18 @@ export default function Dashboard({ workQueue, header, stats, requestTypes }: Pr
             <PageContent>
                 <PageHeader title={header.title} subtitle={header.subtitle} />
 
+                {/* DASH-1: equal-height tiles, 4 columns at lg, 2 at md, 1 below. Values and descriptions come from the server. */}
                 {stats && stats.length > 0 && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
                         {stats.map((stat) => (
                             <StatTile
                                 key={stat.key}
                                 label={stat.label}
                                 value={stat.value}
-                                hint={stat.hint ?? undefined}
+                                hint={stat.description}
                                 icon={STAT_ICONS[stat.key]}
                                 href={stat.href ?? undefined}
+                                className="h-full"
                             />
                         ))}
                     </div>

@@ -30,6 +30,14 @@ final class DashboardView
     /** A tile links to the case list only where a matching filter already exists. */
     private const READY_FOR_FILE_FILTER = ['status' => 'READY_FOR_FILE'];
 
+    /** DASH-1: one short sentence-case description per tile (shown in the tile's footer strip). No targets or trends. */
+    public const TILE_DESCRIPTIONS = [
+        'needs_action' => 'Cases waiting for you to act',
+        'open' => 'Cases that are not yet closed',
+        'awaiting_hardcopy' => 'Submitted, signed copy not yet received',
+        'ready_for_file' => 'All three conditions are met',
+    ];
+
     /**
      * @param  array{items: list<array<string, mixed>>}|null  $queue
      * @return array{title: string, subtitle: string}
@@ -63,7 +71,7 @@ final class DashboardView
      * - awaiting_hardcopy and ready_for_file: case.view_all holders only.
      *
      * @param  array{items: list<array<string, mixed>>}|null  $queue
-     * @return list<array{key: string, label: string, value: string, hint: string|null, href: string|null}>|null
+     * @return list<array{key: string, label: string, value: string, description: string, href: string|null}>|null
      */
     public static function stats(User $user, ?array $queue): ?array
     {
@@ -73,16 +81,16 @@ final class DashboardView
 
         $tiles = [];
         if ($queue !== null) {
-            $tiles[] = self::tile('needs_action', 'Needs My Action', count($queue['items']), 'Steps you can take now');
+            $tiles[] = self::tile('needs_action', 'Needs My Action', count($queue['items']));
         }
 
         if (Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
             $counts = self::counts($user);
-            $tiles[] = self::tile('open', 'Open Cases', $counts['open'], 'Not closed, withdrawn or rejected');
+            $tiles[] = self::tile('open', 'Open Cases', $counts['open']);
 
             if ($user->can(Permission::CaseViewAll->value)) {
-                $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting Hardcopy', $counts['awaiting_hardcopy'], 'Hardcopy not yet recorded');
-                $tiles[] = self::tile('ready_for_file', 'Ready for File', $counts['ready_for_file'], 'Gate passed',
+                $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting Hardcopy', $counts['awaiting_hardcopy']);
+                $tiles[] = self::tile('ready_for_file', 'Ready for File', $counts['ready_for_file'],
                     route('cases.index', self::READY_FOR_FILE_FILTER, false));
             }
         }
@@ -150,9 +158,9 @@ final class DashboardView
             ->all();
     }
 
-    /** @return array{key: string, label: string, value: string, hint: string|null, href: string|null} */
-    private static function tile(string $key, string $label, int $value, ?string $hint, ?string $href = null): array
+    /** @return array{key: string, label: string, value: string, description: string, href: string|null} */
+    private static function tile(string $key, string $label, int $value, ?string $href = null): array
     {
-        return ['key' => $key, 'label' => $label, 'value' => number_format($value), 'hint' => $hint, 'href' => $href];
+        return ['key' => $key, 'label' => $label, 'value' => number_format($value), 'description' => self::TILE_DESCRIPTIONS[$key], 'href' => $href];
     }
 }
