@@ -38,7 +38,7 @@ interface Props {
     header: { title: string; subtitle: string };
     /** Up to four tiles, or null when the user has none. */
     stats: Stat[] | null;
-    /** Case id => request type name for the queue's rows. */
+    /** Case id => request type name for the queue's rows (sent by the server; DASH-1: the rows carry their own type_label). */
     requestTypes: Record<string, string>;
     /** DASH-1: the queue card after the server applied the filter and the search; null without a queue. */
     queue: DashboardQueue | null;
@@ -58,7 +58,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
  * for users without a queue, links driven by the shared `can` flags. Never
  * shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, header, stats, requestTypes, queue }: Props) {
+export default function Dashboard({ workQueue, header, stats, queue }: Props) {
     const { can } = usePage<SharedData>().props;
 
     const destinations: Destination[] = [
@@ -100,7 +100,7 @@ export default function Dashboard({ workQueue, header, stats, requestTypes, queu
                     </div>
                 )}
 
-                {queue && <WorkQueue queue={queue} requestTypes={requestTypes} casesHref={can?.cases ? route('cases.index') : null} />}
+                {queue && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
 
                 {!workQueue &&
                     (destinations.length === 0 ? (

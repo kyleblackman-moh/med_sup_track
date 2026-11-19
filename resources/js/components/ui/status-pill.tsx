@@ -6,7 +6,7 @@ import { type StatusTone } from '@/types/cases';
  * CaseStatus::tone, vendor: CaseStatus::vendorTone) and sends it with the
  * label; React never reads status codes.
  */
-const TONE_CLASSES: Record<StatusTone, string> = {
+export const TONE_CLASSES: Record<StatusTone, string> = {
     neutral: 'bg-status-neutral text-status-neutral-foreground',
     info: 'bg-status-info text-status-info-foreground',
     success: 'bg-status-success text-status-success-foreground',

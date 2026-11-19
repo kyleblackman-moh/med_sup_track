@@ -5,9 +5,11 @@ namespace App\Http\Resources\Dashboard;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Http\Resources\Cases\StaffCaseSummary;
+use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\Scopes\VisibleToUserScope;
 use App\Models\User;
+use App\Submissions\ProcurementTypeProfile;
 use App\Support\SqlLike;
 use App\Workflow\Actions\RecordHardcopy;
 use Carbon\CarbonImmutable;
@@ -45,6 +47,11 @@ final class DashboardView
         'returned' => 'Returned to CMO',
         'letter' => 'Letters to Draft',
     ];
+
+    /** DASH-1: the queue card's empty states (server wording). */
+    public const EMPTY_QUEUE = 'No cases need your action.';
+
+    public const EMPTY_MATCH = 'No cases match your search or filter.';
 
     /** DASH-1: the longest queue search; longer input is cut (as the vendor Requests search). */
     public const SEARCH_MAX = 100;
@@ -221,15 +228,107 @@ final class DashboardView
             }
         }
 
+        $total = count($queue['items']);
+
         return [
             'filter' => $filter,
             'search' => $search,
             'filters' => $filters,
-            'items' => $items,
-            'total' => count($queue['items']),
+            'items' => self::rows($user, $items),
+            'total' => $total,
+            // Which empty state, if any: nothing in the queue, or nothing matching the filter and search.
+            'empty' => match (true) {
+                $total === 0 => ['message' => self::EMPTY_QUEUE, 'clear' => false],
+                $items === [] => ['message' => self::EMPTY_MATCH, 'clear' => true],
+                default => null,
+            },
             'clear_href' => route('dashboard', [], false),
             'truncated' => $queue['truncated'],
         ];
+    }
+
+    /**
+     * DASH-1: the queue rows as the table shows them. Each WorkQueue item keeps
+     * its fields and gains, from ONE read of its cases (through the visibility
+     * scope) and one read of their latest return:
+     *
+     * - href: the case page (the row link and the Action button);
+     * - type_label: the request type name;
+     * - waiting: the elapsed days as plain text ("Today", "1 day", "12 days"),
+     *   never coloured, no target;
+     * - tags: factual text tags, each with an icon: "Returned" (naming Legal or
+     *   the PS office when the return says so), "Hardcopy Pending" (hardcopy not
+     *   yet received in a status that needs it) and "Emergency" (the request
+     *   type, not a priority).
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private static function rows(User $user, array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_column($items, 'case_id')));
+        $query = ProcurementCase::withoutGlobalScopes();
+        (new VisibleToUserScope)->applyFor($query, $user);
+        $cases = $query->with('procurementType:id,code,name')
+            ->whereIn('cases.id', $ids)
+            ->get(['cases.id', 'cases.status', 'cases.procurement_type_id', 'cases.hardcopy_received_on'])
+            ->keyBy(fn (ProcurementCase $case) => (string) $case->id);
+
+        $returnedIds = $cases->filter(fn (ProcurementCase $case) => $case->status === CaseStatus::RETURNED_TO_CMO)->keys()->all();
+        $returnedFrom = $returnedIds === [] ? collect() : CaseTransition::query()
+            ->whereIn('case_id', $returnedIds)
+            ->where('to_status', CaseStatus::RETURNED_TO_CMO->value)
+            ->orderBy('id')
+            ->get(['case_id', 'from_status'])
+            ->keyBy(fn (CaseTransition $t) => (string) $t->case_id); // the latest return wins
+
+        return array_map(function (array $item) use ($cases, $returnedFrom) {
+            $case = $cases->get($item['case_id']);
+
+            return [
+                ...$item,
+                'href' => route('cases.show', $item['case_id'], false),
+                'type_label' => $case?->procurementType?->name,
+                'waiting' => self::waiting($item['days_waiting']),
+                'tags' => $case === null ? [] : self::tags($case, $returnedFrom->get($item['case_id'])),
+            ];
+        }, $items);
+    }
+
+    /** Elapsed whole days as plain text (no target, no colour). */
+    public static function waiting(?int $days): string
+    {
+        return match (true) {
+            $days === null => '—',
+            $days === 0 => 'Today',
+            $days === 1 => '1 day',
+            default => number_format($days).' days',
+        };
+    }
+
+    /** @return list<array{key: string, label: string, tone: string, icon: string}> */
+    private static function tags(ProcurementCase $case, ?CaseTransition $return): array
+    {
+        $tags = [];
+
+        if ($case->status === CaseStatus::RETURNED_TO_CMO) {
+            $from = $return?->from_status instanceof CaseStatus ? $return->from_status->returnedBySource() : null;
+            $tags[] = ['key' => 'returned', 'label' => $from === null ? 'Returned' : "Returned by {$from}", 'tone' => 'warning', 'icon' => 'undo'];
+        }
+
+        if (in_array($case->status, RecordHardcopy::STATUSES, true) && ! $case->hardcopyReceived()) {
+            $tags[] = ['key' => 'hardcopy', 'label' => 'Hardcopy Pending', 'tone' => 'neutral', 'icon' => 'file-clock'];
+        }
+
+        if ($case->procurementType?->code === ProcurementTypeProfile::AD_HOC_EMERGENCY) {
+            $tags[] = ['key' => 'emergency', 'label' => 'Emergency', 'tone' => 'neutral', 'icon' => 'siren'];
+        }
+
+        return $tags;
     }
 
     /**

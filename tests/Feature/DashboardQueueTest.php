@@ -7,9 +7,13 @@ use App\Models\CaseAssignment;
 use App\Models\CaseRequisition;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
+use App\Models\ProcurementType;
 use App\Models\User;
 use App\Support\SqlLike;
+use Carbon\CarbonImmutable;
+use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -241,3 +245,90 @@ it('trims the search and cuts it at 100 characters', function () {
 it('sends no queue card to users without a queue', function (string $role) {
     expect(queueProp($this, caseUser($role)))->toBeNull();
 })->with([Role::Auditor->value, Role::SystemAdmin->value]);
+
+// 3. Rows, tags and empty states ----------------------------------------------------------------
+
+/** The rows of $case in $user's queue card. */
+function rowsOf($test, User $user, ProcurementCase $case): array
+{
+    $queue = queueProp($test, $user, ['q' => $case->reference_no]);
+
+    return array_values(array_filter($queue['items'], fn (array $row) => $row['case_id'] === $case->id));
+}
+
+it('builds each row on the server: link, type, plain waiting text and the action label', function () {
+    $cmo = caseUser(Role::Cmo);
+    $case = dashCase(CaseStatus::NON_OBJECTION_GRANTED, 'Dash row item');
+
+    [$row] = rowsOf($this, $cmo, $case);
+
+    expect($row)->toMatchArray([
+        'href' => "/cases/{$case->id}",
+        'type_label' => testProcurementType()->name,
+        'action' => 'Issue Letter',
+        'item_description' => 'Dash row item',
+        'status_label' => CaseStatus::NON_OBJECTION_GRANTED->label(),
+        'status_tone' => CaseStatus::NON_OBJECTION_GRANTED->tone(),
+        'tags' => [],
+    ])->and($row['waiting'])->toMatch('/^[\d,]+ days$/');
+});
+
+it('words the waiting time as plain text', function (?int $days, string $text) {
+    expect(DashboardView::waiting($days))->toBe($text);
+})->with([[null, '—'], [0, 'Today'], [1, '1 day'], [12, '12 days'], [1500, '1,500 days']]);
+
+it('tags a returned case, naming who returned it when the return says so', function (?string $from, string $label) {
+    $cmo = caseUser(Role::Cmo);
+    $case = dashCase(CaseStatus::RETURNED_TO_CMO, 'Dash returned', dashHardcopy());
+    if ($from !== null) {
+        DB::table('case_transitions')->insert([
+            'case_id' => $case->id, 'from_status' => $from, 'to_status' => 'RETURNED_TO_CMO',
+            'actor_id' => $cmo->id, 'created_at' => CarbonImmutable::now('UTC'),
+        ]);
+    }
+
+    [$row] = rowsOf($this, $cmo, $case);
+
+    expect($row['tags'])->toBe([['key' => 'returned', 'label' => $label, 'tone' => 'warning', 'icon' => 'undo']]);
+})->with([
+    'by Legal' => ['WITH_LEGAL', 'Returned by Legal'],
+    'by the PS office' => ['WITH_PS', 'Returned by PS office'],
+    'source unknown' => [null, 'Returned'],
+]);
+
+it('tags a case still waiting for its hardcopy, and an Emergency request by its type', function () {
+    $this->seed(ProcurementTypeSeeder::class);
+    $cmo = caseUser(Role::Cmo);
+    $emergency = ProcurementType::where('code', 'AD_HOC_EMERGENCY')->firstOrFail();
+    $case = dashCase(CaseStatus::SUBMITTED, 'Dash tags', ['procurement_type_id' => $emergency->id]);
+
+    $rows = collect(rowsOf($this, $cmo, $case))->keyBy('step');
+
+    expect(array_column($rows['intake']['tags'], 'label'))->toBe(['Hardcopy Pending', 'Emergency'])
+        ->and($rows['intake']['type_label'])->toBe('Ad Hoc - Emergency')
+        ->and(collect($rows['intake']['tags'])->pluck('tone')->unique()->all())->toBe(['neutral']);
+
+    // Once the hardcopy is in, the tag goes.
+    DB::table('cases')->where('id', $case->id)->update(['hardcopy_received_on' => now()->toDateString(), 'hardcopy_received_at' => now(), 'hardcopy_received_by' => $cmo->id]);
+    expect(array_column(rowsOf($this, $cmo, $case)[0]['tags'], 'label'))->toBe(['Emergency']);
+});
+
+it('says "No cases need your action." when the queue is empty', function () {
+    // A new technocrat has no assignments, so nothing is theirs.
+    $queue = queueProp($this, caseUser(Role::Technocrat));
+
+    expect($queue['total'])->toBe(0)
+        ->and($queue['items'])->toBe([])
+        ->and($queue['empty'])->toBe(['message' => 'No cases need your action.', 'clear' => false]);
+});
+
+it('says "No cases match your search or filter." with a clear link when nothing matches', function () {
+    $cmo = caseUser(Role::Cmo);
+    dashCase(CaseStatus::SUBMITTED);
+
+    $queue = queueProp($this, $cmo, ['q' => 'no-such-text-'.Str::random(12)]);
+
+    expect($queue['items'])->toBe([])
+        ->and($queue['empty'])->toBe(['message' => 'No cases match your search or filter.', 'clear' => true])
+        ->and($queue['clear_href'])->toBe('/dashboard');
+});
