@@ -249,7 +249,7 @@ it('sends no queue card to users without a queue', function (string $role) {
 // 3. Rows, tags and empty states ----------------------------------------------------------------
 
 /** The rows of $case in $user's queue card. */
-function rowsOf($test, User $user, ProcurementCase $case): array
+function queueRowsOf($test, User $user, ProcurementCase $case): array
 {
     $queue = queueProp($test, $user, ['q' => $case->reference_no]);
 
@@ -260,7 +260,7 @@ it('builds each row on the server: link, type, plain waiting text and the action
     $cmo = caseUser(Role::Cmo);
     $case = dashCase(CaseStatus::NON_OBJECTION_GRANTED, 'Dash row item');
 
-    [$row] = rowsOf($this, $cmo, $case);
+    [$row] = queueRowsOf($this, $cmo, $case);
 
     expect($row)->toMatchArray([
         'href' => "/cases/{$case->id}",
@@ -287,7 +287,7 @@ it('tags a returned case, naming who returned it when the return says so', funct
         ]);
     }
 
-    [$row] = rowsOf($this, $cmo, $case);
+    [$row] = queueRowsOf($this, $cmo, $case);
 
     expect($row['tags'])->toBe([['key' => 'returned', 'label' => $label, 'tone' => 'warning', 'icon' => 'undo']]);
 })->with([
@@ -302,7 +302,7 @@ it('tags a case still waiting for its hardcopy, and an Emergency request by its 
     $emergency = ProcurementType::where('code', 'AD_HOC_EMERGENCY')->firstOrFail();
     $case = dashCase(CaseStatus::SUBMITTED, 'Dash tags', ['procurement_type_id' => $emergency->id]);
 
-    $rows = collect(rowsOf($this, $cmo, $case))->keyBy('step');
+    $rows = collect(queueRowsOf($this, $cmo, $case))->keyBy('step');
 
     expect(array_column($rows['intake']['tags'], 'label'))->toBe(['Hardcopy Pending', 'Emergency'])
         ->and($rows['intake']['type_label'])->toBe('Ad Hoc - Emergency')
@@ -310,7 +310,7 @@ it('tags a case still waiting for its hardcopy, and an Emergency request by its 
 
     // Once the hardcopy is in, the tag goes.
     DB::table('cases')->where('id', $case->id)->update(['hardcopy_received_on' => now()->toDateString(), 'hardcopy_received_at' => now(), 'hardcopy_received_by' => $cmo->id]);
-    expect(array_column(rowsOf($this, $cmo, $case)[0]['tags'], 'label'))->toBe(['Emergency']);
+    expect(array_column(queueRowsOf($this, $cmo, $case)[0]['tags'], 'label'))->toBe(['Emergency']);
 });
 
 it('says "No cases need your action." when the queue is empty', function () {
