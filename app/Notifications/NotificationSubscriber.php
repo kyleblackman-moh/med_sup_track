@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Events\CaseTransitioned;
 use App\Events\DocumentQuarantined;
@@ -28,6 +29,7 @@ use App\Notifications\Queries\QueryAnswered;
 use App\Notifications\Queries\QueryNotification;
 use App\Notifications\Queries\QueryRaised;
 use App\Queries\QueryAccess;
+use App\Support\Audit;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Notifications\Notification as BaseNotification;
@@ -76,7 +78,7 @@ final class NotificationSubscriber
      * OVERNIGHT-2 (D4): a message reached the other side (direct, or forwarded).
      * To the raiser's side: Query Answered to the person who raised it. To the
      * recipient side: Query Raised to the holders of that role who can see the
-     * case, or the vendor applicant for a vendor role. A direct query to a
+     * case, or the vendor users (FIX-2) for a vendor role. A direct query to a
      * vendor is also sent to the CMO's desk, which reads it.
      */
     public function onQueryDelivered(QueryMessageDelivered $event): void
@@ -91,21 +93,30 @@ final class NotificationSubscriber
         $r = $this->recipients;
         $author = (int) $message->author_id;
 
+        $notAuthor = fn (User $u) => $u->getKey() === $author;
+        $toVendor = QueryAccess::isVendorRole($message->recipient_role);
+
         if ($message->recipient_role === $query->raised_by_role) {
-            $this->send($r->user((int) $query->raised_by_user_id)->reject(fn (User $u) => $u->getKey() === $author), new QueryAnswered($case->getKey(), $case->reference_no));
+            $answered = new QueryAnswered($case->getKey(), $case->reference_no);
+            $toVendor
+                ? $this->sendToVendor($case, $r->vendorUsers($case)->reject($notAuthor), $answered, 'query_answered')
+                : $this->send($r->user((int) $query->raised_by_user_id)->reject($notAuthor), $answered);
 
             return;
         }
 
-        $to = QueryAccess::isVendorRole($message->recipient_role)
-            ? $r->vendorApplicant($case)
-            : $r->roleOnCase($message->recipient_role, $case);
+        $raised = new QueryRaised($case->getKey(), $case->reference_no);
 
-        if (QueryAccess::isVendorRole($message->recipient_role) && ! $query->via_cmo) {
-            $this->send($r->queryDesk()->reject(fn (User $u) => $u->getKey() === $author), new QueryRaised($case->getKey(), $case->reference_no));
+        if ($toVendor) {
+            if (! $query->via_cmo) {
+                $this->send($r->queryDesk()->reject($notAuthor), $raised);
+            }
+            $this->sendToVendor($case, $r->vendorUsers($case)->reject($notAuthor), $raised, 'query_raised');
+
+            return;
         }
 
-        $this->send($to->reject(fn (User $u) => $u->getKey() === $author), new QueryRaised($case->getKey(), $case->reference_no));
+        $this->send($r->roleOnCase($message->recipient_role, $case)->reject($notAuthor), $raised);
     }
 
     public function onTransition(CaseTransitioned $event): void
@@ -118,11 +129,13 @@ final class NotificationSubscriber
             CaseStatus::RETURNED_TO_CMO => [$r->cmo(), ReturnedToCmo::class],
             CaseStatus::WITH_PS => [$r->psOffice(), FileSentToPs::class],
             CaseStatus::NON_OBJECTION_GRANTED => [$r->cmo(), NonObjectionGranted::class],
-            CaseStatus::LETTER_ISSUED => [$r->vendorApplicant($case), LetterIssued::class],
+            CaseStatus::LETTER_ISSUED => [$r->vendorUsers($case), LetterIssued::class],
             default => [collect(), null],
         };
 
-        if ($notification !== null) {
+        if ($notification === LetterIssued::class) {
+            $this->sendToVendor($case, $to, $notification::for($case), 'letter_issued');
+        } elseif ($notification !== null) {
             $this->send($to, $notification::for($case));
         }
     }
@@ -144,7 +157,32 @@ final class NotificationSubscriber
     {
         $case = ProcurementCase::withoutGlobalScopes()->find($event->caseId);
         if ($case !== null) {
-            $this->send(NotificationRecipients::merge($this->recipients->cmo(), $this->recipients->vendorApplicant($case)), HardcopyReceived::for($case));
+            $this->send($this->recipients->cmo(), HardcopyReceived::for($case));
+            $this->sendToVendor($case, $this->recipients->vendorUsers($case), HardcopyReceived::for($case), 'hardcopy_received');
+        }
+    }
+
+    /**
+     * FIX-2 (1): a vendor-side email. With nobody eligible, record
+     * notification.no_recipient (case id and event code only, never an
+     * address) and log a warning, so the gap is visible; never fail the action.
+     *
+     * @param  Collection<int, User>  $users
+     */
+    private function sendToVendor(ProcurementCase $case, Collection $users, BaseNotification $notification, string $event): void
+    {
+        if ($users->isNotEmpty()) {
+            $this->send($users, $notification);
+
+            return;
+        }
+
+        Log::warning('Vendor notification has no recipient', ['case_id' => $case->getKey(), 'event' => $event]);
+
+        try {
+            Audit::record(AuditAction::NotificationNoRecipient, null, $case->getKey(), ['event' => $event], Audit::ACTOR_SYSTEM);
+        } catch (Throwable $e) {
+            Log::error('Audit write failed for a notification with no recipient', ['case_id' => $case->getKey(), 'exception' => $e::class]);
         }
     }
 

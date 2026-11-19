@@ -105,8 +105,56 @@ it('sends each transition email to its own people only', function (CaseStatus $t
     'returned to CMO' => [CaseStatus::RETURNED_TO_CMO, ReturnedToCmo::class, 'cmo'],
     'file sent to PS' => [CaseStatus::WITH_PS, FileSentToPs::class, 'ps'],
     'non-objection granted' => [CaseStatus::NON_OBJECTION_GRANTED, NonObjectionGranted::class, 'cmo'],
-    'letter issued' => [CaseStatus::LETTER_ISSUED, LetterIssued::class, 'vendor'],
 ]);
+
+// FIX-2 (1): the vendor side is every active user of the case's organisation
+// who holds case.submit, once each, not only the user who created the case.
+
+it('sends Letter Issued to every active vendor user of the organisation, once each', function () {
+    transition($this->case, CaseStatus::LETTER_ISSUED);
+
+    expect(receivedBy(LetterIssued::class))->toBe(onceEach($this->vendor, $this->colleague));
+});
+
+it('skips an inactive vendor user, and still reaches the others when the creator is inactive', function () {
+    $inactive = vendorUser($this->vendor->organisation, ['status' => User::STATUS_DISABLED]);
+    $this->vendor->forceFill(['status' => User::STATUS_DISABLED])->save();
+
+    transition($this->case, CaseStatus::LETTER_ISSUED);
+    HardcopyRecorded::dispatch($this->case->id);
+
+    expect(receivedBy(LetterIssued::class))->toBe(onceEach($this->colleague))
+        ->and(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo, $this->colleague))
+        ->and(receivedBy(LetterIssued::class))->not->toHaveKey($inactive->id);
+});
+
+it("never sends a case's vendor email to another organisation's users, or to a vendor user without case.submit", function () {
+    $outsider = vendorUser(vendorOrg());
+    $noSubmit = caseUser(null, ['user_type' => 'vendor', 'org_id' => $this->vendor->org_id]);
+
+    transition($this->case, CaseStatus::LETTER_ISSUED);
+    HardcopyRecorded::dispatch($this->case->id);
+
+    foreach ([LetterIssued::class, HardcopyReceived::class] as $class) {
+        expect(receivedBy($class))->not->toHaveKey($outsider->id)->not->toHaveKey($noSubmit->id);
+    }
+});
+
+it('records notification.no_recipient with the case and event code only, and logs a warning, when no vendor user is eligible', function () {
+    Log::spy();
+    $this->vendor->forceFill(['status' => User::STATUS_DISABLED])->save();
+    $this->colleague->forceFill(['status' => User::STATUS_DISABLED])->save();
+
+    transition($this->case, CaseStatus::LETTER_ISSUED);
+
+    $rows = DB::table('audit_logs')->where('action', 'notification.no_recipient')->where('case_id', $this->case->id)->get();
+    expect(receivedBy(LetterIssued::class))->toBe([])
+        ->and($rows)->toHaveCount(1)
+        ->and(json_decode($rows[0]->metadata, true))->toBe(['event' => 'letter_issued'])
+        ->and($rows[0]->actor_type)->toBe('system')
+        ->and((string) $rows[0]->metadata)->not->toContain('@');
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c) => $c === ['case_id' => $this->case->id, 'event' => 'letter_issued'])->once();
+});
 
 it('sends nothing for transitions without an email', function (CaseStatus $to) {
     transition($this->case, $to);
@@ -121,10 +169,10 @@ it('tells a named assignee, and nobody for a pool assignment', function () {
     expect(receivedBy(CaseAssigned::class))->toBe(onceEach($this->technocrat));
 });
 
-it('sends Hardcopy Received to the CMO and the vendor applicant only', function () {
+it("sends Hardcopy Received to the CMO and the organisation's vendor users only", function () {
     HardcopyRecorded::dispatch($this->case->id);
 
-    expect(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo, $this->vendor));
+    expect(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo, $this->vendor, $this->colleague));
 });
 
 it('tells the admins about an infected upload', function () {
@@ -148,6 +196,7 @@ it('tells a user when their password is reset or changed', function () {
 it('sends nothing to disabled users', function () {
     $this->cmo->forceFill(['status' => User::STATUS_DISABLED])->save();
     $this->vendor->forceFill(['status' => User::STATUS_DISABLED])->save();
+    $this->colleague->forceFill(['status' => User::STATUS_DISABLED])->save();
 
     transition($this->case, CaseStatus::SUBMITTED);
     transition($this->case, CaseStatus::LETTER_ISSUED);

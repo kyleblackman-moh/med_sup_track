@@ -392,6 +392,26 @@ it('tells the vendor and the CMO about a direct Technocrat query, with no messag
         ->and($note->toMail($this->a['cmo'])->actionUrl)->toContain('tab=queries');
 });
 
+it("FIX-2: sends a vendor's Query Raised to every active vendor user of the organisation, once each, and nobody else's", function () {
+    $colleague = vendorUser($this->a['vendor']->organisation);
+    $inactive = vendorUser($this->a['vendor']->organisation, ['status' => User::STATUS_DISABLED]);
+
+    $query = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'));
+    $this->actingAs($this->a['technocrat'])->post(route('cases.queries.reply', [$this->case, $query->id]), ['body' => 'A follow-up for the vendor']);
+
+    $raised = [];
+    foreach (Notification::getFacadeRoot()->sentNotifications() as $byId) {
+        foreach ($byId as $id => $byClass) {
+            $raised[(int) $id] = count($byClass[QueryRaised::class] ?? []);
+        }
+    }
+    $raised = array_filter($raised);
+    expect($raised[$this->a['vendor']->id] ?? 0)->toBe(2)
+        ->and($raised[$colleague->id] ?? 0)->toBe(2)
+        ->and($raised)->not->toHaveKey($inactive->id)
+        ->and($raised)->not->toHaveKey($this->a['other_vendor']->id);
+});
+
 it('puts Query to Forward in the CMO queue and Query to Answer in the recipient queue', function () {
     $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
     $steps = function (User $u) {

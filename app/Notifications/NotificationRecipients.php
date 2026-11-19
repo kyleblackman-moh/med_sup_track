@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Gate;
  * - cmo: holders of case.route_to_review, the one permission only the CMO has
  * - psOffice: holders of nonobjection.grant
  * - admins: holders of users.manage (the admin permission, ADMIN-1)
- * - vendorApplicant: the vendor user who created the case, while still in its organisation
+ * - vendorUsers: active vendor users of the case's organisation holding case.submit
  */
 final class NotificationRecipients
 {
@@ -46,16 +46,23 @@ final class NotificationRecipients
         return $this->staffWith(Permission::UsersManage);
     }
 
-    /** @return Collection<int, User> */
-    public function vendorApplicant(ProcurementCase $case): Collection
+    /**
+     * FIX-2 (1): the vendor side of a case: every active vendor user of the
+     * case's organisation who holds case.submit, each once (not only the user
+     * who created the case).
+     *
+     * @return Collection<int, User>
+     */
+    public function vendorUsers(ProcurementCase $case): Collection
     {
-        return User::query()
-            ->whereKey($case->created_by)
-            ->where('status', User::STATUS_ACTIVE)
-            ->where('user_type', UserType::Vendor->value)
-            ->where('org_id', $case->org_id)
+        return User::permission(Permission::CaseSubmit->value)
+            ->where('users.status', User::STATUS_ACTIVE)
+            ->where('users.user_type', UserType::Vendor->value)
+            ->where('users.org_id', $case->org_id)
             ->whereHas('organisation', fn ($q) => $q->where('type', OrganisationType::Vendor->value))
-            ->get();
+            ->get()
+            ->unique(fn (User $u) => $u->getKey())
+            ->values();
     }
 
     /** OVERNIGHT-2 (D4): the CMO's desk for queries: holders of query.forward. @return Collection<int, User> */

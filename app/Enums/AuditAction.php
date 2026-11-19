@@ -44,6 +44,9 @@ enum AuditAction: string
     case QueryForwarded = 'query.forwarded';
     case QueryClosed = 'query.closed';
 
+    // FIX-2 (1): a vendor email had nobody eligible to receive it. Case id and event code only, never an address.
+    case NotificationNoRecipient = 'notification.no_recipient';
+
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';
     case DocumentUploadReceived = 'document.upload_received';
