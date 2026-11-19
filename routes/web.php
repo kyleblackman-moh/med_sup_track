@@ -106,6 +106,12 @@ Route::middleware(['auth', 'can:viewAny,'.User::class])
         Route::get('create', 'create')->name('create');
         Route::post('/', 'store')->middleware('throttle:20,1')->name('store');
         Route::get('{user}', 'show')->whereNumber('user')->name('show');
+        Route::middleware('throttle:20,1')->where(['user' => '[0-9]+'])->group(function () {
+            Route::put('{user}/role', 'updateRole')->name('role');
+            Route::post('{user}/disable', 'disable')->name('disable');
+            Route::post('{user}/enable', 'enable')->name('enable');
+            Route::post('{user}/activation', 'resendActivation')->name('activation');
+        });
     });
 
 // The short-lived signed link issued by documents.download and cases.documents.download.

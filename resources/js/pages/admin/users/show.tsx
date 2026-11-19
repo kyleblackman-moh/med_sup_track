@@ -1,17 +1,20 @@
+import { AccessActions, RoleForm, type UserAbilities } from '@/components/admin/user-actions';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AdminUserDetail } from '@/types/admin';
+import { type AdminUserDetail, type RoleOption } from '@/types/admin';
 import { Head } from '@inertiajs/react';
 
 interface Props {
     user: AdminUserDetail;
+    role_options: RoleOption[];
+    abilities: UserAbilities;
 }
 
-/** ADMIN-1: one user's details. Every value is server-made (UserView::detail). */
-export default function AdminUserShow({ user }: Props) {
+/** ADMIN-1: one user's details and the Admin's actions. Every value is server-made (UserView::detail). */
+export default function AdminUserShow({ user, role_options, abilities }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Users', href: '/admin/users' },
         { title: user.name, href: route('admin.users.show', user.id) },
@@ -48,6 +51,10 @@ export default function AdminUserShow({ user }: Props) {
                         ))}
                     </dl>
                 </section>
+
+                {abilities.change_role && <RoleForm key={user.role_value ?? ''} user={user} options={role_options} />}
+
+                <AccessActions user={user} abilities={abilities} />
             </PageContent>
         </AppLayout>
     );

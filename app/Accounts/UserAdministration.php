@@ -80,6 +80,87 @@ final class UserAdministration
     }
 
     /**
+     * Step 3: give the user another role of the same kind (a vendor role for a
+     * vendor account, a staff role for a staff account); the organisation is
+     * not changed. Nothing happens when the role is the one they have.
+     *
+     * @throws ValidationException when the pairing is wrong
+     */
+    public function changeRole(User $actor, User $user, Role $role): void
+    {
+        if ($role->userType()->value !== $user->user_type) {
+            throw ValidationException::withMessages(['role' => $user->isVendor()
+                ? 'A vendor account can only have a vendor role.'
+                : 'A staff account can only have a staff role.']);
+        }
+
+        if ($user->getRoleNames()->all() === [$role->value]) {
+            return;
+        }
+
+        DB::transaction(function () use ($user, $role) {
+            $user->syncRoles([$role->value]);
+        });
+    }
+
+    /**
+     * Step 3: block sign-in at once. The account is marked disabled (sign-in
+     * refuses it: AuthenticateUser), its remember-me token is replaced, and
+     * its rows in the sessions table are deleted so every open session ends
+     * now. EnsureAccountActive also signs out a disabled user on their next
+     * request, whatever the session driver.
+     */
+    public function disable(User $actor, User $user): void
+    {
+        if (! $user->isActive()) {
+            return;
+        }
+
+        DB::transaction(function () use ($actor, $user) {
+            $user->forceFill([
+                'status' => User::STATUS_DISABLED,
+                'disabled_at' => now(),
+                'disabled_by' => $actor->id,
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        });
+    }
+
+    /** Step 3: let a disabled user sign in again (their password is unchanged). */
+    public function enable(User $actor, User $user): void
+    {
+        if ($user->status !== User::STATUS_DISABLED) {
+            return;
+        }
+
+        DB::transaction(function () use ($user) {
+            $user->forceFill([
+                'status' => User::STATUS_ACTIVE,
+                'disabled_at' => null,
+                'disabled_by' => null,
+            ])->save();
+        });
+    }
+
+    /**
+     * Step 3: email a new sign-in link (it replaces any earlier one).
+     *
+     * @return bool whether the email went out
+     *
+     * @throws ValidationException when the account is disabled
+     */
+    public function resendActivation(User $actor, User $user): bool
+    {
+        if (! $user->isActive()) {
+            throw ValidationException::withMessages(['account' => 'Enable the account before sending a sign-in link.']);
+        }
+
+        return $this->sendActivation($user);
+    }
+
+    /**
      * Email a fresh link (a new token replaces any earlier one). False when
      * the mail could not be sent; the error is logged, never shown.
      */

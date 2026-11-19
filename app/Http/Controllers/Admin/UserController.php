@@ -133,15 +133,71 @@ class UserController extends Controller
         return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'User created.'));
     }
 
-    public function show(User $user): Response
+    public function show(Request $request, User $user): Response
     {
         Gate::authorize('view', $user);
 
         $user->load(['organisation:id,name', 'roles:id,name']);
+        $actor = $request->user();
 
         return Inertia::render('admin/users/show', [
             'user' => UserView::detail($user),
+            // Roles of the same kind as the account (vendor or staff): the only ones it can change to.
+            'role_options' => array_values(array_filter(UserView::roleOptions(), fn (array $r) => $r['vendor'] === $user->isVendor())),
+            // Page-level hints only (not 'can'); every action authorises itself.
+            'abilities' => [
+                'change_role' => $actor->can('changeRole', $user),
+                'disable' => $user->isActive() && $actor->can('disable', $user),
+                'enable' => $user->status === User::STATUS_DISABLED && $actor->can('enable', $user),
+                'resend_activation' => $user->isActive() && $actor->can('resendActivation', $user),
+            ],
         ]);
+    }
+
+    /** Step 3: change the role (same kind of account; UserAdministration::changeRole). */
+    public function updateRole(Request $request, User $user, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('changeRole', $user);
+
+        $data = $request->validate([
+            'role' => ['required', 'string', Rule::in(array_map(fn (Role $r) => $r->value, Role::cases()))],
+        ], [
+            'role.required' => 'Choose a role.',
+            'role.in' => 'Choose a role from the list.',
+        ]);
+
+        $admin->changeRole($request->user(), $user, Role::from($data['role']));
+
+        return to_route('admin.users.show', $user)->with('success', 'Role saved.');
+    }
+
+    /** Step 3: block sign-in and end the user's sessions now. */
+    public function disable(Request $request, User $user, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('disable', $user);
+
+        $admin->disable($request->user(), $user);
+
+        return to_route('admin.users.show', $user)->with('success', 'User disabled. They have been signed out and cannot sign in.');
+    }
+
+    public function enable(Request $request, User $user, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('enable', $user);
+
+        $admin->enable($request->user(), $user);
+
+        return to_route('admin.users.show', $user)->with('success', 'User enabled. They can sign in again.');
+    }
+
+    /** Step 3: email a new link to set a password (activation or reset). */
+    public function resendActivation(Request $request, User $user, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('resendActivation', $user);
+
+        $sent = $admin->resendActivation($request->user(), $user);
+
+        return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'Sign-in link sent.'));
     }
 
     /**
