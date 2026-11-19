@@ -36,7 +36,7 @@ class AuthEventAuditor
     {
         Audit::recordAuthEvent(
             AuditAction::LoginSuccess,
-            ['remember' => $event->remember],
+            [],
             $this->userOrAnonymous($event->user),
         );
     }

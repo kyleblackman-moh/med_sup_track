@@ -5,7 +5,6 @@ import { FormEventHandler } from 'react';
 type LoginForm = {
     email: string;
     password: string;
-    remember: boolean;
 };
 
 interface LoginProps {
@@ -39,7 +38,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
         email: '',
         password: '',
-        remember: false,
     });
 
     const submit: FormEventHandler = (e) => {

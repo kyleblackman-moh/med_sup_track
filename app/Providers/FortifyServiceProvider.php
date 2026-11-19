@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\AuthenticateUser;
+use App\Actions\Fortify\IgnoreRememberMe;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
@@ -54,6 +55,7 @@ class FortifyServiceProvider extends ServiceProvider
         // authenticateUsing callback twice per login. Throttling is applied by
         // the "login" rate limiter below (route middleware), not in the pipeline.
         Fortify::authenticateThrough(fn (Request $request) => [
+            IgnoreRememberMe::class, // FIX-1: no remember-me cookie
             config('fortify.lowercase_usernames') ? CanonicalizeUsername::class : null,
             AttemptToAuthenticate::class,
             PrepareAuthenticatedSession::class,
