@@ -32,8 +32,10 @@ return [
     |
     */
 
-    // Security policy: 30 idle minutes. Not env-driven, because .env sets 120.
-    'lifetime' => 30,
+    // Security policy: the idle limits are enforced by SessionTimeout (config/security.php:
+    // staff 30, vendors 20 minutes). The stored session outlives them a little (45), so the
+    // user is told why they were signed out. Not env-driven, because .env sets 120.
+    'lifetime' => 45,
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
