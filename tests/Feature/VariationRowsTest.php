@@ -297,7 +297,7 @@ it('renders the variation table like the supplier table', function () {
     $section = file_get_contents(resource_path('js/components/requests/ad-hoc/variation-section.tsx'));
 
     expect($section)->toContain('<EntryTable')
-        ->toContain('breakpoint="xl"')
+        ->toContain('breakpoint="45rem"') // FORM-ERR-1 (B): one line once the card fits every column (EntryTableFitTest)
         ->toContain("label: 'Variation Type'")
         ->toContain("label: 'Existing Approved Detail'")
         ->toContain("label: 'Proposed Revised Detail'")
