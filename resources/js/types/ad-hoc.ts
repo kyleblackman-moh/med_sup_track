@@ -45,10 +45,25 @@ export interface AdHocConfig {
 }
 
 /** The "saved" flash after an autosave: new row ids by client key, and the saved rows' ids. */
+/** FORM-SAVE-1: a field a draft save left out (RequestController, FormWording::notSaved), in form order. */
+export interface NotSavedItem {
+    /** The payload key ("requisition.quantity_requested", "quotations.0.unit_price"). */
+    key: string;
+    section: FormSectionKey;
+    section_label: string;
+    message: string;
+}
+
 export interface SavedFlash {
     id_map: Record<string, number>;
     row_ids: Partial<Record<ChildSection, number[]>>;
     saved_at: string;
+    /** FORM-SAVE-1 (A2): what this save left out; empty when everything was saved. */
+    not_saved?: NotSavedItem[];
+    /** The server's status line for a partial save ("Saved. 2 fields need attention and were not saved yet."), else null. */
+    status?: string | null;
+    /** The server's summary heading for what was left out ("2 Things Need Fixing Before You Can Submit"), else null. */
+    heading?: string | null;
 }
 
 /** V2-1 "request_sections": the sections the draft's type shows, in order (RequestSections). */

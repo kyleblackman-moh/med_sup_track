@@ -19,3 +19,18 @@ it('reports a validation refusal as invalid and anything else as error', functio
     expect($autosave)->toMatch('/onError: \(\) => \{\s*invalid = true;\s*\}/')
         ->and($autosave)->toContain("setStatus(invalid ? 'invalid' : 'error')");
 });
+
+it('shows the server\'s own line for a partial save and keeps its fields inline', function () {
+    $chip = file_get_contents(resource_path('js/components/requests/ad-hoc/save-chip.tsx'));
+    $autosave = file_get_contents(resource_path('js/components/requests/ad-hoc/use-autosave.ts'));
+    $page = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
+
+    // FORM-SAVE-1 (A2): the status text comes from the server (saved.status); the browser only shows it.
+    expect($chip)->toContain("status === 'partial' && partialText")
+        ->and($autosave)->toContain('saved?.not_saved')
+        ->and($autosave)->toContain("setStatus(partialRef.current ? 'partial' : 'saved')")
+        ->and($page)->toContain('partialText={autosave.partial?.status}')
+        ->and($page)->toContain('...notSavedErrors')
+        // Review stays strict while fields are left out.
+        ->and($page)->toContain('fieldsLeftOut ||');
+});

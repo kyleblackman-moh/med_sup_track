@@ -16,13 +16,25 @@ export const SAVE_FAILED_ERROR = 'Not saved - try again';
  * button that saves again, saying why it failed: the fields marked in red
  * (validation), or "try again" (a network or server error).
  */
-export function SaveChip({ status, savedAt, onRetry }: { status: SaveStatus; savedAt: string | null; onRetry: () => void }) {
+export function SaveChip({
+    status,
+    savedAt,
+    partialText,
+    onRetry,
+}: {
+    status: SaveStatus;
+    savedAt: string | null;
+    /** FORM-SAVE-1 (A2): the server's status line for a partial save. */
+    partialText?: string | null;
+    onRetry: () => void;
+}) {
     const failed = status === 'invalid' ? SAVE_FAILED_INVALID : status === 'error' ? SAVE_FAILED_ERROR : null;
 
     return (
         <div role="status" aria-live="polite" className="text-sm">
             {status === 'saving' && <span className="text-muted-foreground">Saving...</span>}
             {status === 'saved' && savedAt && <span className="text-muted-foreground">Saved {clock(savedAt)}</span>}
+            {status === 'partial' && partialText && <span className="text-destructive-text">{partialText}</span>}
             {failed && (
                 <button
                     type="button"

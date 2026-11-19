@@ -155,6 +155,7 @@ export default function AdHocEdit({
     };
 
     const sectionByKey = new Map(form.sections.map((section) => [section.key, section]));
+    const notSavedErrors = Object.fromEntries((autosave.partial?.items ?? []).map((item) => [item.key, item.message]));
 
     const api: FormApi = {
         state,
@@ -181,7 +182,8 @@ export default function AdHocEdit({
 
             return required === undefined ? undefined : !required;
         },
-        ...errorLookups({ saveErrors: errors ?? {}, sections: request_sections, showIssues }),
+        // FORM-SAVE-1 (A2): what the last draft save left out shows inline like any save error.
+        ...errorLookups({ saveErrors: { ...(errors ?? {}), ...notSavedErrors }, sections: request_sections, showIssues }),
     };
 
     /**
@@ -206,13 +208,15 @@ export default function AdHocEdit({
             return;
         }
         setReviewFailed(false);
+        // FORM-SAVE-1: Review and Submit stays strict. Fields the last save left out block it like any issue.
+        const fieldsLeftOut = autosave.hasUnsaved();
         router.reload({
             // V2-3: plus the read-only summary (an optional prop, sent only when asked for).
             only: [...FORM_PROPS, 'summary'],
             onSuccess: (page) => {
                 const latest = (page.props as unknown as AdHocPageProps).request_sections;
                 setShowIssues(true);
-                setReview(latest.some((section) => section.issues.length > 0) ? 'issues' : 'ready');
+                setReview(fieldsLeftOut || latest.some((section) => section.issues.length > 0) ? 'issues' : 'ready');
                 window.setTimeout(() => {
                     panelRef.current?.scrollIntoView({ block: 'start' });
                     panelRef.current?.focus();
@@ -349,7 +353,12 @@ export default function AdHocEdit({
                     }
                     right={
                         <>
-                            <SaveChip status={autosave.status} savedAt={autosave.savedAt} onRetry={autosave.retry} />
+                            <SaveChip
+                                status={autosave.status}
+                                savedAt={autosave.savedAt}
+                                partialText={autosave.partial?.status}
+                                onRetry={autosave.retry}
+                            />
                             {can.edit && (
                                 <Button
                                     type="button"
