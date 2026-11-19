@@ -148,4 +148,6 @@ export interface RequestFormView {
     sections: FormSectionView[];
     display: FormDisplay;
     expiry: FormExpiry;
+    /** FORM-SAVE-1 (A5d): "3 Things Need Fixing Before You Can Submit", or null when nothing blocks. */
+    issue_heading: string | null;
 }

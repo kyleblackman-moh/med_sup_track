@@ -46,9 +46,9 @@ it('names the row and the column in the three quotation messages, exactly', func
     ]]]);
 
     expect($errors)->toBe([
-        'quotations.0.unit_price' => ['Quotation Row 1: Unit Price must be a number, for example 12.50.'],
-        'quotations.0.quantity_offered' => ['Quotation Row 1: Quantity must be a number, for example 2800.'],
-        'quotations.0.lead_time_days' => ['Quotation Row 1: Lead Time (Days) must be a whole number, for example 14.'],
+        'quotations.0.unit_price' => ['Quotation Row 1: Unit Price needs to be a number, for example 12.50.'],
+        'quotations.0.quantity_offered' => ['Quotation Row 1: Quantity needs to be a number, for example 2800.'],
+        'quotations.0.lead_time_days' => ['Quotation Row 1: Lead Time (Days) needs to be a whole number, for example 14.'],
     ]);
 });
 
@@ -62,25 +62,25 @@ it('returns three separate messages for three bad fields in one row, each with t
 
     expect($row)->toHaveCount(3)
         ->and($row->every(fn (string $m) => str_starts_with($m, 'Quotation Row 2: ')))->toBeTrue()
-        ->and($row->contains(fn ($m) => str_contains($m, ': Quantity must')))->toBeTrue()
-        ->and($row->contains(fn ($m) => str_contains($m, ': Unit Price must')))->toBeTrue()
-        ->and($row->contains(fn ($m) => str_contains($m, ': Lead Time (Days) must')))->toBeTrue()
+        ->and($row->contains(fn ($m) => str_contains($m, ': Quantity needs')))->toBeTrue()
+        ->and($row->contains(fn ($m) => str_contains($m, ': Unit Price needs')))->toBeTrue()
+        ->and($row->contains(fn ($m) => str_contains($m, ': Lead Time (Days) needs')))->toBeTrue()
         ->and(collect($errors)->keys()->filter(fn ($k) => str_starts_with($k, 'quotations.0.')))->toBeEmpty();
 });
 
 it('gives one message per field, never two', function () {
     // "abc" breaks both numeric and the decimal pattern; only the first is reported (bail).
     expect(messagesFor('AD_HOC_TENDER_UNABLE', ['requisition' => ['quantity_requested' => 'abc']]))
-        ->toBe(['requisition.quantity_requested' => ['Quantity Requested must be a number, for example 2800.']]);
+        ->toBe(['requisition.quantity_requested' => ['Quantity Requested needs to be a number, for example 2800.']]);
 });
 
 it('uses each table\'s own row label and column header', function (string $section, string $column, mixed $bad, string $message) {
     expect(messagesFor('AD_HOC_TENDER_UNABLE', [$section => [[$column => $bad]]])["{$section}.0.{$column}"])->toBe([$message]);
 })->with([
-    'award' => ['tender_awards', 'unit_cost', 'x', 'Supplier Row 1: Unit Cost must be a number, for example 12.50.'],
-    'order' => ['purchase_orders', 'ordered_on', '19/11/2026', 'Order Row 1: Date Ordered must be a date.'],
-    'batch' => ['stock_expiries', 'quantity', '-5', 'Batch 1: Quantity must be 0 or more, with up to 2 decimal places, for example 2800.'],
-    'variation' => ['variation_rows', 'effective_detail', str_repeat('a', 101), 'Variation Row 1: Effective Date / Application P.O. must be 100 characters or fewer.'],
+    'award' => ['tender_awards', 'unit_cost', 'x', 'Supplier Row 1: Unit Cost needs to be a number, for example 12.50.'],
+    'order' => ['purchase_orders', 'ordered_on', '19/11/2026', 'Order Row 1: Date Ordered needs to be a date.'],
+    'batch' => ['stock_expiries', 'quantity', '-5', 'Batch 1: Quantity needs to be 0 or more, with up to 2 decimal places, for example 2800.'],
+    'variation' => ['variation_rows', 'effective_detail', str_repeat('a', 101), 'Variation Row 1: Effective Date / Application P.O. needs to be 100 characters or fewer.'],
 ]);
 
 /**

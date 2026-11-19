@@ -7,7 +7,7 @@ import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } 
 import { ItemTenderSection } from '@/components/requests/ad-hoc/item-tender-section';
 import { QuotationSection } from '@/components/requests/ad-hoc/quotation-section';
 import { RequestTypeSection } from '@/components/requests/ad-hoc/request-type-section';
-import { IssuesPanel, SubmitDialog, SummaryPanel } from '@/components/requests/ad-hoc/review';
+import { IssuesPanel, SubmitDialog, summaryItems, SummaryPanel } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
@@ -182,7 +182,8 @@ export default function AdHocEdit({
     };
 
     const sectionByKey = new Map(form.sections.map((section) => [section.key, section]));
-    const notSavedErrors = Object.fromEntries((autosave.partial?.items ?? []).map((item) => [item.key, item.message]));
+    const notSavedItems = autosave.partial?.items ?? [];
+    const notSavedErrors = Object.fromEntries(notSavedItems.map((item) => [item.key, item.message]));
 
     const api: FormApi = {
         state,
@@ -344,6 +345,15 @@ export default function AdHocEdit({
                         Your latest changes could not be saved, so the request was not reviewed. Try again.
                     </p>
                 )}
+                {/* FORM-SAVE-1 (A5d): the one error summary, at the top, when Review and Submit is blocked. */}
+                {review === 'issues' && (
+                    <IssuesPanel
+                        panelRef={panelRef}
+                        heading={notSavedItems.length > 0 ? (autosave.partial?.heading ?? null) : form.issue_heading}
+                        items={summaryItems(request_sections, notSavedItems, state)}
+                        onJump={focusTarget}
+                    />
+                )}
                 {typeNotice && (
                     <p role="status" className="bg-muted text-foreground rounded-md border px-4 py-2 text-sm">
                         {typeNotice}
@@ -362,8 +372,7 @@ export default function AdHocEdit({
                         </FormPanel>
                     ))}
 
-                    {/* The review result sits just above the action bar that asked for it. */}
-                    {review === 'issues' && <IssuesPanel panelRef={panelRef} sections={request_sections} state={state} onJump={focusTarget} />}
+                    {/* The summary of what is saved sits just above the action bar that asked for it. */}
                     {review === 'ready' && summary && <SummaryPanel panelRef={panelRef} summary={summary} onSubmit={() => setConfirming(true)} />}
                 </div>
 

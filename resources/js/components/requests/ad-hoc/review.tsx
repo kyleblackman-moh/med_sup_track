@@ -1,7 +1,7 @@
 import { RequestSummary } from '@/components/requests/request-summary';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { type ChildSection, type RequestSectionStatus, type SectionIssue } from '@/types/ad-hoc';
+import { type ChildSection, type NotSavedItem, type RequestSectionStatus, type SectionIssue } from '@/types/ad-hoc';
 import { type RequestSummaryView } from '@/types/summary';
 import { type RefObject } from 'react';
 import { CHILD_SECTIONS, fieldId, type FormState } from './form-state';
@@ -38,56 +38,112 @@ export function targetFor(issue: SectionIssue, state: FormState): string {
     return '';
 }
 
+/** FORM-SAVE-1 (A5d): one line of the error summary: "Section name: message", linking to its field. */
+export interface SummaryItem {
+    key: string;
+    sectionLabel: string;
+    message: string;
+    target: string;
+}
+
+/**
+ * The summary's lines, in form order and without duplicates: the fields the
+ * last draft save left out (when there are any: they block first), else the
+ * server's readiness issues. Every word is the server's.
+ */
+export function summaryItems(sections: RequestSectionStatus[], notSaved: NotSavedItem[], state: FormState): SummaryItem[] {
+    const lines =
+        notSaved.length > 0
+            ? notSaved.map((item) => ({
+                  key: item.key,
+                  sectionLabel: item.section_label,
+                  message: item.message,
+                  target: notSavedTarget(item.key, state),
+              }))
+            : sections.flatMap((section) =>
+                  section.issues.map((issue) => ({
+                      key: issue.key,
+                      sectionLabel: section.label,
+                      message: issue.message,
+                      target: targetFor(issue, state),
+                  })),
+              );
+    const seen = new Set<string>();
+
+    return lines.filter((line) => {
+        const id = `${line.sectionLabel}|${line.message}`;
+        if (seen.has(id)) {
+            return false;
+        }
+        seen.add(id);
+
+        return true;
+    });
+}
+
+/** The DOM id of a field the last save left out: a request field, or a row cell by its index in the payload. */
+function notSavedTarget(key: string, state: FormState): string {
+    const [first, second, third] = key.split('.');
+    if (first === 'requisition') {
+        return RADIO_FIELDS.includes(second) ? `${fieldId.requisition(second)}-0` : fieldId.requisition(second);
+    }
+    if ((CHILD_SECTIONS as string[]).includes(first)) {
+        const section = first as ChildSection;
+        const row = state.rows[section][Number(second)];
+
+        return row && third ? fieldId.cell(section, row.key, third) : fieldId.table(section);
+    }
+
+    return first === 'previous_request_in_cycle' ? PREVIOUS_REQUEST_ID : '';
+}
+
 interface IssuesPanelProps {
     panelRef: RefObject<HTMLElement | null>;
-    sections: RequestSectionStatus[];
-    state: FormState;
+    /** The server's heading ("3 Things Need Fixing Before You Can Submit"). */
+    heading: string | null;
+    items: SummaryItem[];
     /** Scrolls to and focuses the issue's field. */
     onJump: (focusId: string) => void;
 }
 
-/** What still needs doing, grouped by section, with jump links. Receives focus when shown. */
-export function IssuesPanel({ panelRef, sections, state, onJump }: IssuesPanelProps) {
-    const withIssues = sections.filter((section) => section.issues.length > 0);
-    const count = withIssues.reduce((n, section) => n + section.issues.length, 0);
+/**
+ * FORM-SAVE-1 (A5d): the ONE error summary, at the top of the form, when
+ * Review and Submit is blocked. Announced (role="alert") and focused when it
+ * opens; each line links to its field; it updates as the draft is saved and
+ * disappears once nothing is left to fix. Autosave errors stay inline only.
+ */
+export function IssuesPanel({ panelRef, heading, items, onJump }: IssuesPanelProps) {
+    if (items.length === 0 || !heading) {
+        return null;
+    }
 
     return (
         <section
             ref={panelRef}
             tabIndex={-1}
+            role="alert"
             aria-labelledby="review-issues-heading"
             className="border-destructive bg-card focus-visible:ring-ring rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
         >
             <h2 id="review-issues-heading" className="text-base font-semibold">
-                Before you can submit, {count === 1 ? '1 thing needs' : `${count} things need`} attention
+                {heading}
             </h2>
-            <div className="mt-4 space-y-4">
-                {withIssues.map((section) => (
-                    <div key={section.key}>
-                        <h3 className="text-sm font-semibold">{section.label}</h3>
-                        <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-                            {section.issues.map((issue) => {
-                                const target = targetFor(issue, state);
-
-                                return (
-                                    <li key={issue.key}>
-                                        <a
-                                            href={`#${target}`}
-                                            className="text-primary underline underline-offset-4"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                onJump(target);
-                                            }}
-                                        >
-                                            {issue.message}
-                                        </a>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
+                {items.map((item) => (
+                    <li key={item.key} className="break-words">
+                        <a
+                            href={`#${item.target}`}
+                            className="text-primary underline underline-offset-4"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                onJump(item.target);
+                            }}
+                        >
+                            {item.sectionLabel}: {item.message}
+                        </a>
+                    </li>
                 ))}
-            </div>
+            </ul>
         </section>
     );
 }

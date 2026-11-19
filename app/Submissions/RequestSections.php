@@ -523,20 +523,21 @@ final class RequestSections
 
         foreach ($quotations as $i => $q) {
             if (! $q->considered && self::blank($q->reason_accepted_excluded)) {
-                $add("quotations.{$i}.reason_accepted_excluded", 'Quotation '.($i + 1).': give the reason it was not considered.');
+                $add("quotations.{$i}.reason_accepted_excluded", RequisitionMessages::rowLabel('quotations', (int) $i).': Reason Not Considered is required.');
             }
         }
     }
 
-    /** One error per missing field of each saved row: "Award row 2: enter the unit cost." */
+    /** One error per missing field of each saved row: "Supplier Row 2: Unit Cost is required." */
     private static function checkRows(string $section, Collection $rows, callable $add): void
     {
-        [$label, $fields] = self::ROW_FIELDS[$section];
+        $fields = self::ROW_FIELDS[$section][1];
 
         foreach ($rows as $i => $row) {
-            foreach ($fields as $field => $what) {
+            foreach (array_keys($fields) as $field) {
                 if (self::blank($row->{$field})) {
-                    $add("{$section}.{$i}.{$field}", "{$label} ".($i + 1).": {$what}.");
+                    // FORM-SAVE-1 (A5c): the row and column as the table shows them ("Supplier Row 1: Supplier is required.").
+                    $add("{$section}.{$i}.{$field}", RequisitionMessages::rowLabel($section, (int) $i).': '.RequisitionMessages::columnLabel($section, $field).' is required.');
                 }
             }
         }

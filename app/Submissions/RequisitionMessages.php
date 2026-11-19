@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
  * FORM-ERR-1 (C): the validation messages for a request save, in the words the
  * form shows. A field is named by its label ("Quantity Requested"); a row
  * column by the row and the column header exactly as the table shows them
- * ("Quotation Row 1: Quantity must be a number, for example 2800."). No
+ * ("Quotation Row 1: Quantity needs to be a number, for example 2800."). No
  * dotted key and no snake_case reaches the user (RequisitionMessagesTest).
  *
  * Messages are keyed by rule, with "*" for the row index; Laravel fills in
@@ -46,7 +46,7 @@ final class RequisitionMessages
         'tender_issue_explanation' => 'Issues Affecting the Tender Quantity',
         'tender_cycle_start' => 'Tender Cycle Start',
         'tender_cycle_end' => 'Tender Cycle End',
-        'quantity_on_order' => 'Quantity on Order',
+        'quantity_on_order' => 'Quantity on Hand', // the label on screen (Stock)
         'stock_location' => 'Location',
         'average_monthly_consumption' => 'Average Monthly Consumption',
         'no_stock_on_hand' => 'No Stock on Hand',
@@ -186,53 +186,53 @@ final class RequisitionMessages
 
         return $common + match ($spec['type']) {
             'string', 'text' => [
-                "{$path}.string" => "{$name} must be text.",
-                "{$path}.max" => "{$name} must be :max characters or fewer.",
+                "{$path}.string" => "{$name} needs to be text.",
+                "{$path}.max" => "{$name} needs to be :max characters or fewer.",
             ],
             'digits' => [
-                "{$path}.string" => "{$name} must be text.",
-                "{$path}.max" => "{$name} must be :max characters or fewer.",
-                "{$path}.regex" => "{$name} must contain digits only.",
+                "{$path}.string" => "{$name} needs to be text.",
+                "{$path}.max" => "{$name} needs to be :max characters or fewer.",
+                "{$path}.regex" => "{$name} needs to contain digits only.",
             ],
             'alnum' => [
-                "{$path}.string" => "{$name} must be text.",
-                "{$path}.max" => "{$name} must be :max characters or fewer.",
-                "{$path}.regex" => "{$name} must contain letters and numbers only.",
+                "{$path}.string" => "{$name} needs to be text.",
+                "{$path}.max" => "{$name} needs to be :max characters or fewer.",
+                "{$path}.regex" => "{$name} needs to contain letters and numbers only.",
             ],
             'qty' => [
-                "{$path}.numeric" => "{$name} must be a number, for example 2800.",
-                "{$path}.regex" => "{$name} must be 0 or more, with up to 2 decimal places, for example 2800.",
+                "{$path}.numeric" => "{$name} needs to be a number, for example 2800.",
+                "{$path}.regex" => "{$name} needs to be 0 or more, with up to 2 decimal places, for example 2800.",
             ],
             'price' => [
-                "{$path}.numeric" => "{$name} must be a number, for example 12.50.",
-                "{$path}.regex" => "{$name} must be 0 or more, with up to 4 decimal places, for example 12.50.",
+                "{$path}.numeric" => "{$name} needs to be a number, for example 12.50.",
+                "{$path}.regex" => "{$name} needs to be 0 or more, with up to 4 decimal places, for example 12.50.",
             ],
             'rate' => [
-                "{$path}.numeric" => "{$name} must be a number, for example 12.5.",
-                "{$path}.regex" => "{$name} must be from 0 to 100, with up to 2 decimal places, for example 12.5.",
-                "{$path}.max" => "{$name} must be from 0 to 100, with up to 2 decimal places, for example 12.5.",
+                "{$path}.numeric" => "{$name} needs to be a number, for example 12.5.",
+                "{$path}.regex" => "{$name} needs to be from 0 to 100, with up to 2 decimal places, for example 12.5.",
+                "{$path}.max" => "{$name} needs to be from 0 to 100, with up to 2 decimal places, for example 12.5.",
             ],
             'smallint' => [
-                "{$path}.integer" => "{$name} must be a whole number, for example 14.",
-                "{$path}.between" => "{$name} must be a whole number from 0 to 32767.",
+                "{$path}.integer" => "{$name} needs to be a whole number, for example 14.",
+                "{$path}.between" => "{$name} needs to be a whole number from 0 to 32767.",
             ],
             'date' => [
-                "{$path}.date_format" => "{$name} must be a date.",
+                "{$path}.date_format" => "{$name} needs to be a date.",
             ],
             'enum' => [
-                "{$path}.enum" => "{$name} must be one of the options.",
+                "{$path}.enum" => "{$name} needs to be one of the options.",
             ],
             'bool' => [
-                "{$path}.boolean" => "{$name} must be Yes or No.",
+                "{$path}.boolean" => "{$name} needs to be Yes or No.",
             ],
             'currency' => [
-                "{$path}.string" => "{$name} must be text.",
-                "{$path}.regex" => "{$name} must be a 3-letter currency code, for example TTD.",
+                "{$path}.string" => "{$name} needs to be text.",
+                "{$path}.regex" => "{$name} needs to be a 3-letter currency code, for example TTD.",
             ],
             'rowid' => [
                 // award_id: the order's supplier, chosen from the award rows.
-                "{$path}.integer" => "{$name} must be one of the awarded suppliers.",
-                "{$path}.min" => "{$name} must be one of the awarded suppliers.",
+                "{$path}.integer" => "{$name} needs to be one of the awarded suppliers.",
+                "{$path}.min" => "{$name} needs to be one of the awarded suppliers.",
             ],
         };
     }

@@ -241,8 +241,8 @@ it('words a partial row\'s issues with its row number and one full stop', functi
     saveDraft($case, $vendor, ['previous_request_in_cycle' => true, 'variation_rows' => [variationEntry(), ['variation_type' => 'Price']]]);
 
     $errors = collect(app(SubmissionReadiness::class)->evaluate(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->errors);
-    expect($errors->firstWhere('key', 'variation_rows.1.existing_detail')['message'])->toBe('Variation row 2: enter the existing approved detail.')
-        ->and($errors->firstWhere('key', 'variation_rows.1.effective_detail')['message'])->toBe('Variation row 2: enter the effective date or application P.O.');
+    expect($errors->firstWhere('key', 'variation_rows.1.existing_detail')['message'])->toBe('Variation Row 2: Existing Approved Detail is required.')
+        ->and($errors->firstWhere('key', 'variation_rows.1.effective_detail')['message'])->toBe('Variation Row 2: Effective Date / Application P.O. is required.');
 });
 
 it('blocks the submit when the answer is Yes and no row is complete', function () {

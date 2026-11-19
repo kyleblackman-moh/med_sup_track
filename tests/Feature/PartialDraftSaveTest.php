@@ -59,7 +59,7 @@ it('saves the valid fields and leaves out one bad number, with its message', fun
             'key' => 'requisition.quantity_requested',
             'section' => 'item_tender',
             'section_label' => 'Item and Tender Details',
-            'message' => 'Quantity Requested must be a number, for example 2800.',
+            'message' => 'Quantity Requested needs to be a number, for example 2800.',
         ]])
         ->and($saved['status'])->toBe('Saved. 1 field needs attention and was not saved yet.');
 });
@@ -87,7 +87,7 @@ it('creates a new row with one bad cell, leaving that cell empty', function () {
         ->and($row->unit_price)->toBeNull()
         ->and($saved['id_map']->k1 ?? $saved['id_map']['k1'])->toBe((int) $row->id)
         ->and(collect($saved['not_saved'])->pluck('key')->all())->toBe(['quotations.0.unit_price'])
-        ->and($saved['not_saved'][0]['message'])->toBe('Quotation Row 1: Unit Price must be a number, for example 12.50.');
+        ->and($saved['not_saved'][0]['message'])->toBe('Quotation Row 1: Unit Price needs to be a number, for example 12.50.');
 });
 
 it('leaves out only the end date when the tender cycle ends before it starts', function () {

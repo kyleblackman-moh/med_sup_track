@@ -47,7 +47,7 @@ export function StockSection({ api }: { api: FormApi }) {
                     hint="Enter 0 if the item has not been used."
                     suffix={unit || undefined}
                 />
-                <TextField {...field('quantity_on_order')} label="Quantity on Order" inputMode="decimal" suffix={unit || undefined} />
+                <TextField {...field('quantity_on_order')} label="Quantity on Hand" inputMode="decimal" suffix={unit || undefined} />
             </div>
 
             <CheckboxField

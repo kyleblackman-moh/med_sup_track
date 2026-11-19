@@ -171,9 +171,9 @@ it('refuses a DIN that is not letters and digits only', function (mixed $din, st
     'decimal' => ['123.4', 'Enter the DIN using letters and numbers only.'],
     'negative' => ['-123', 'Enter the DIN using letters and numbers only.'],
     // A number would lose leading zeros, so only text is accepted.
-    'number, not text' => [2345678, 'DIN must be text.'],
+    'number, not text' => [2345678, 'DIN needs to be text.'],
     // max 32 is the column size, not a DIN length rule.
-    '33 digits' => [str_repeat('1', 33), 'DIN must be 32 characters or fewer.'],
+    '33 digits' => [str_repeat('1', 33), 'DIN needs to be 32 characters or fewer.'],
 ]);
 
 // 3. Upsert by row id ------------------------------------------------------------------
@@ -613,7 +613,7 @@ it('groups readiness by section, in form order, with plain-English issues and fi
             'key' => 'tender_awards.0.quantity_awarded',
             'field' => 'tender_awards.quantity_awarded',
             'row_id' => $awardId,
-            'message' => 'Award row 1: enter the quantity awarded.',
+            'message' => 'Supplier Row 1: Quantity Awarded is required.',
         ]);
 });
 

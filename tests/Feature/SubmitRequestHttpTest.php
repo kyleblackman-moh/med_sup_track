@@ -166,7 +166,7 @@ it('renders the receipt after submission with only vendor-safe fields', function
         ->where('receipt.submitted_at', fn ($v) => str_ends_with($v, 'Z'))
         ->has('receipt.documents', count(requiredPurposes($case)))
         ->has('receipt.documents.0', fn (Assert $doc) => $doc->hasAll(['label', 'display_name', 'version', 'uploaded_at']))
-        ->where('receipt.hardcopy_notice', "Hardcopy must be delivered to the CMO's Office. Quote the reference number above."));
+        ->where('receipt.hardcopy_notice', "Hardcopy needs to be delivered to the CMO's Office. Quote the reference number above."));
 
     $props = pageProps($response);
     expectVendorSafe($props);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ReturnKind;
 use App\Models\ProcurementCase;
+use App\Support\StaffFormMessages;
 use App\Workflow\Actions\CloseCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
@@ -59,7 +60,7 @@ class StaffCaseActionController extends Controller
         }
 
         $max = ForwardForReview::MAX_PER_DESK;
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'technocrats' => ['required', 'array', 'min:1', "max:{$max}"],
             'technocrats.*' => ['integer', 'exists:users,id'],
             'cab_officers' => ['required', 'array', 'min:1', "max:{$max}"],
@@ -130,7 +131,7 @@ class StaffCaseActionController extends Controller
     /** Slice 10c: T5. The file number is typed by the CMO (pre-filled from config). */
     public function prepareFile(Request $request, ProcurementCase $procurementCase, PrepareFile $prepare): RedirectResponse
     {
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'file_no' => ['required', 'string', 'max:'.PrepareFile::FILE_NO_MAX],
         ], [
             'file_no.required' => 'Enter the file number.',
@@ -154,7 +155,7 @@ class StaffCaseActionController extends Controller
         }
 
         $max = SendToLegal::MAX;
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'legal_officers' => ['required', 'array', 'min:'.SendToLegal::MIN, "max:{$max}"],
             'legal_officers.*' => ['integer', 'exists:users,id'],
             'instruction' => ['nullable', 'string', 'max:'.SendToLegal::INSTRUCTION_MAX],
@@ -182,7 +183,7 @@ class StaffCaseActionController extends Controller
         $max = RecordLegalDecision::REASON_MAX;
         $return = RecordLegalDecision::RETURN_TO_CMO;
 
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'decision' => ['required', 'string', 'in:'.implode(',', RecordLegalDecision::DECISIONS)],
             // The 10-character minimum applies to a return only; RecordLegalDecision checks it.
             'reason' => ['nullable', 'string', "max:{$max}", "required_if:decision,{$return}"],
@@ -211,7 +212,7 @@ class StaffCaseActionController extends Controller
         $max = RecordPsDecision::REASON_MAX;
         $return = RecordPsDecision::RETURN_TO_CMO;
 
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'decision' => ['required', 'string', 'in:'.implode(',', RecordPsDecision::DECISIONS)],
             'return_kind' => ['nullable', 'string', "required_if:decision,{$return}", 'in:'.implode(',', ReturnKind::values())],
             // The 10-character minimum applies to a return only; RecordPsDecision checks it.
@@ -245,7 +246,7 @@ class StaffCaseActionController extends Controller
     /** Slice 10f: T13. Dates are checked (not in the future) by IssueLetter. */
     public function issueLetter(Request $request, ProcurementCase $procurementCase, IssueLetter $issue): RedirectResponse
     {
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'letter_date' => ['required', 'string', 'date_format:Y-m-d'],
             'letter_reference' => ['nullable', 'string', 'max:'.IssueLetter::REFERENCE_MAX],
             'emailed_on' => ['nullable', 'string', 'date_format:Y-m-d'],
@@ -295,7 +296,7 @@ class StaffCaseActionController extends Controller
 
         $min = RouteReturnedCase::NOTE_MIN;
         $max = RouteReturnedCase::NOTE_MAX;
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'destination' => ['required', 'string', 'in:'.implode(',', RouteReturnedCase::DESTINATIONS)],
             // The 10-character minimum is checked by RouteReturnedCase after trimming.
             'note' => ['required', 'string', "max:{$max}"],
@@ -334,7 +335,7 @@ class StaffCaseActionController extends Controller
         $min = RecordReviewOutcome::REASON_MIN;
         $max = RecordReviewOutcome::REASON_MAX;
 
-        return $request->validate([
+        return $this->validateForm($request, [
             'outcome' => ['required', 'string', 'in:'.implode(',', $outcomes)],
             // The 10-character minimum applies to negative outcomes only; RecordReviewOutcome checks it.
             'reason' => ['nullable', 'string', "max:{$max}", "required_if:outcome,{$negative}"],
@@ -348,7 +349,7 @@ class StaffCaseActionController extends Controller
 
     public function markHardcopy(Request $request, ProcurementCase $procurementCase, RecordHardcopy $hardcopy): RedirectResponse
     {
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'received_on' => ['required', 'date_format:Y-m-d'],
         ], [
             'received_on.required' => 'Enter the date the hardcopy was received.',
@@ -362,12 +363,26 @@ class StaffCaseActionController extends Controller
 
     public function reverseHardcopy(Request $request, ProcurementCase $procurementCase, RecordHardcopy $hardcopy): RedirectResponse
     {
-        $validated = $request->validate([
+        $validated = $this->validateForm($request, [
             'reason' => ['required', 'string', 'min:'.RecordHardcopy::REASON_MIN, 'max:'.RecordHardcopy::REASON_MAX],
         ]);
 
         $hardcopy->reverse($procurementCase, $request->user(), $validated['reason']);
 
         return back()->with('success', 'Hardcopy record removed.');
+    }
+
+    /**
+     * FORM-SAVE-1 (A5e): every staff action form validates through the same
+     * wording layer: the action's own messages first, then StaffFormMessages'
+     * fallbacks, with fields named as the screen shows them.
+     *
+     * @param  array<string, mixed>  $rules
+     * @param  array<string, string>  $messages
+     * @return array<string, mixed>
+     */
+    private function validateForm(Request $request, array $rules, array $messages = []): array
+    {
+        return $request->validate($rules, [...StaffFormMessages::FALLBACK, ...$messages], StaffFormMessages::ATTRIBUTES);
     }
 }

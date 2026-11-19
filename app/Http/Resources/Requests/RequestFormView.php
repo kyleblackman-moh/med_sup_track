@@ -7,6 +7,7 @@ use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Submissions\ExpiryRisk;
+use App\Submissions\FormWording;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequestSections;
 use App\Support\Decimal;
@@ -49,7 +50,23 @@ final class RequestFormView
             'sections' => self::sections($case, $report),
             'display' => self::display($case, $risk['days_on_hand']),
             'expiry' => self::expiry($case, $risk),
+            'issue_heading' => self::issueHeading($case, $report),
         ];
+    }
+
+    /**
+     * FORM-SAVE-1 (A5d): the error summary's heading when Review and Submit is
+     * blocked ("3 Things Need Fixing Before You Can Submit"), counting each
+     * section's issues once per message; null when nothing blocks.
+     */
+    public static function issueHeading(ProcurementCase $case, ReadinessReport $report): ?string
+    {
+        $count = collect(AdHocSections::requestSections($case, $report))
+            ->flatMap(fn (array $section) => array_map(fn (array $issue) => $section['key'].'|'.$issue['message'], $section['issues']))
+            ->unique()
+            ->count();
+
+        return $count === 0 ? null : FormWording::issueHeading($count);
     }
 
     /** @return list<array{key: string, label: string, number: int|null, visible: bool, state: string, note: string|null, required: array<string, bool>}> */

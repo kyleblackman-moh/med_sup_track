@@ -18,7 +18,7 @@ use App\Models\ProcurementTypeDocument;
  */
 final class RequestReceipt
 {
-    public const HARDCOPY_NOTICE = "Hardcopy must be delivered to the CMO's Office. Quote the reference number above.";
+    public const HARDCOPY_NOTICE = "Hardcopy needs to be delivered to the CMO's Office. Quote the reference number above.";
 
     public static function for(ProcurementCase $case): array
     {
