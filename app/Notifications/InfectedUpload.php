@@ -11,8 +11,9 @@ use Throwable;
 
 /**
  * NOTIF-1: an upload failed the virus scan and was quarantined (to the users
- * holding the admin permission). The case reference and document id only:
- * never the file name (the uploader typed it) or anything inside the case.
+ * holding the admin permission). FIX-1 (A3): the case reference and one
+ * generic sentence only: never the request type, title, supplier, item (drug),
+ * organisation or file name. The admin finds the rest in the app.
  */
 final class InfectedUpload extends Notification implements ShouldQueue
 {
@@ -41,8 +42,7 @@ final class InfectedUpload extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('A File Was Quarantined')
-            ->line('A file uploaded to request '.($this->reference ?? 'without a reference (draft)').' failed the virus scan and was quarantined.')
-            ->line('Document: '.$this->documentId);
+            ->line('A file uploaded to request '.($this->reference ?? 'without a reference').' failed the virus scan and was quarantined. Sign in to review it.');
     }
 
     public function failed(Throwable $exception): void

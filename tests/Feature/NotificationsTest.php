@@ -181,6 +181,38 @@ it('gives staff the reference, request type, status and the case link', function
         ->and($mail->actionUrl)->toBe(route('cases.show', $this->case->id));
 });
 
+// FIX-1 (A3): staff emails never carry the title, supplier, item, organisation or file name.
+
+it('gives the admins only the reference and one sentence for an infected upload', function () {
+    $mail = (new InfectedUpload('doc-1', $this->case->id, $this->case->reference_no))->toMail($this->admin);
+    $text = implode('
+', [$mail->subject, ...$mail->introLines, ...$mail->outroLines]);
+
+    expect($mail->introLines)->toHaveCount(1)
+        ->and($mail->outroLines)->toBe([])
+        ->and($text)->toContain($this->case->reference_no);
+    foreach (['Request type', 'Status', 'Document', 'doc-1', $this->vendor->organisation->name, 'Secretamol'] as $field) {
+        expect($text)->not->toContain($field);
+    }
+});
+
+it('keeps every staff case email to the reference, request type, status and link', function (string $class) {
+    CaseRequisition::withoutGlobalScopes()->where('case_id', $this->case->id)->update(['item_description' => 'Secretamol 500mg']);
+    $this->case->forceFill(['title' => 'Private Title Words'])->saveQuietly();
+
+    $mail = $class::for($this->case)->toMail($this->cmo);
+    $text = implode('
+', [$mail->subject, ...$mail->introLines, ...$mail->outroLines, $mail->actionText]);
+
+    expect($mail->actionUrl)->toBe(route('cases.show', $this->case->id));
+    foreach (['Secretamol', $this->vendor->organisation->name, 'Private Title Words'] as $field) {
+        expect($text)->not->toContain($field);
+    }
+    foreach ($mail->introLines as $line) {
+        expect(str_starts_with($line, 'Reference: ') || str_starts_with($line, 'Request type: ') || str_starts_with($line, 'Status: ') || ! str_contains($line, ': '))->toBeTrue();
+    }
+})->with([CaseSubmitted::class, CaseAssigned::class, ReturnedToCmo::class, FileSentToPs::class, NonObjectionGranted::class, HardcopyReceived::class, LetterIssued::class]);
+
 it('queues after commit with three tries and backoff', function () {
     $n = CaseSubmitted::for($this->case);
 
