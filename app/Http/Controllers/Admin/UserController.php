@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Accounts\UserAdministration;
 use App\Enums\OrganisationType;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -88,7 +90,50 @@ class UserController extends Controller
         ]);
     }
 
-    public function show(Request $request, User $user): Response
+    public function create(): Response
+    {
+        Gate::authorize('create', User::class);
+
+        return Inertia::render('admin/users/create', [
+            'options' => [
+                'roles' => UserView::roleOptions(),
+                'organisations' => self::vendorOrganisationOptions(),
+            ],
+        ]);
+    }
+
+    /**
+     * Step 2: name, email, role and (vendor roles only) the vendor
+     * organisation. No password is shown or emailed: the person gets a link to
+     * set their own (UserAdministration::create).
+     */
+    public function store(Request $request, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('create', User::class);
+
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
+            'email' => Str::lower(trim((string) $request->input('email'))),
+            'organisation' => $request->filled('organisation') ? (string) $request->input('organisation') : null,
+        ]);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            'role' => ['required', 'string', Rule::in(array_map(fn (Role $r) => $r->value, Role::cases()))],
+            'organisation' => ['nullable', 'string', 'max:26'],
+        ], [
+            'email.unique' => 'A user with this email already exists.',
+            'role.required' => 'Choose a role.',
+            'role.in' => 'Choose a role from the list.',
+        ]);
+
+        [$user, $sent] = $admin->create($request->user(), $data['name'], $data['email'], Role::from($data['role']), $data['organisation']);
+
+        return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'User created.'));
+    }
+
+    public function show(User $user): Response
     {
         Gate::authorize('view', $user);
 
@@ -97,6 +142,37 @@ class UserController extends Controller
         return Inertia::render('admin/users/show', [
             'user' => UserView::detail($user),
         ]);
+    }
+
+    /**
+     * The flash after a sign-in link was (or was not) sent. When the server's
+     * mail goes to the log, the Admin is told so instead of being told it was emailed.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function activationFlash(bool $sent, string $lead): array
+    {
+        if (! $sent) {
+            return ['error', "{$lead} The email with the sign-in link could not be sent. Try Resend Sign-In Link."];
+        }
+
+        if (UserAdministration::mailIsNotDelivered()) {
+            return ['info', "{$lead} Email is not set up on this server, so the sign-in link was written to the application log instead of being emailed."];
+        }
+
+        return ['success', "{$lead} An email with a link to set their password has been sent."];
+    }
+
+    /** Active vendor organisations, by name (the create form). */
+    private static function vendorOrganisationOptions(): array
+    {
+        return Organisation::query()
+            ->where('type', OrganisationType::Vendor->value)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Organisation $o) => ['value' => $o->id, 'label' => $o->name])
+            ->all();
     }
 
     /** Every organisation, the MOH first, then vendors by name. */

@@ -2,10 +2,11 @@ import { hasActiveUserFilters, UserFilters } from '@/components/admin/user-filte
 import { UserTable } from '@/components/admin/user-table';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type AdminUserFilters, type AdminUserOptions, type AdminUserPage } from '@/types/admin';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Users', href: '/admin/users' }];
 
 /** ADMIN-1: Admin > Users. Search, filters and paging are server-side and live in the URL. */
-export default function AdminUsersIndex({ users, filters, options }: Props) {
+export default function AdminUsersIndex({ users, filters, options, abilities }: Props) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [loading, setLoading] = useState(false);
 
@@ -55,6 +56,13 @@ export default function AdminUsersIndex({ users, filters, options }: Props) {
                         <span className="tabular-nums" aria-live="polite">
                             {users.total} {users.total === 1 ? 'user' : 'users'}
                         </span>
+                    }
+                    actions={
+                        abilities.create && (
+                            <Button asChild>
+                                <Link href={route('admin.users.create')}>New User</Link>
+                            </Button>
+                        )
                     }
                 />
 

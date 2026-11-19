@@ -103,6 +103,8 @@ Route::middleware(['auth', 'can:viewAny,'.User::class])
     ->controller(UserController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('create', 'create')->name('create');
+        Route::post('/', 'store')->middleware('throttle:20,1')->name('store');
         Route::get('{user}', 'show')->whereNumber('user')->name('show');
     });
 
