@@ -51,7 +51,14 @@ final class SaveRequisition
         'variation_rows' => [CaseVariationRow::class, true],
     ];
 
-    public function handle(ProcurementCase $case, User $user, RequisitionData $data): SavedDraft
+    /**
+     * FORM-SAVE-1: $lenient (a draft save of the request form) turns this method's own
+     * row errors into dropped cells instead of refusing the save: a row id that
+     * no longer exists skips that row; an order's supplier that is not an award of
+     * this case is left out (unchanged, or empty on a new row). They are
+     * returned in SavedDraft::$dropped. Strict (the default) still throws.
+     */
+    public function handle(ProcurementCase $case, User $user, RequisitionData $data, bool $lenient = false, int $alreadyDropped = 0): SavedDraft
     {
         $gate = Gate::forUser($user);
 
@@ -66,8 +73,9 @@ final class SaveRequisition
 
         $idMap = [];
         $rowIds = [];
+        $dropped = [];
 
-        DB::transaction(function () use ($case, $user, $data, &$idMap, &$rowIds) {
+        DB::transaction(function () use ($case, $user, $data, $lenient, $alreadyDropped, &$idMap, &$rowIds, &$dropped) {
             $locked = ProcurementCase::withoutGlobalScopes()->whereKey($case->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== CaseStatus::DRAFT) {
@@ -96,7 +104,7 @@ final class SaveRequisition
                     continue;
                 }
 
-                $rowIds[$section] = $this->saveSection($caseId, $section, $model, $hasSortOrder, $data->sections[$section], $idMap);
+                $rowIds[$section] = $this->saveSection($caseId, $section, $model, $hasSortOrder, $data->sections[$section], $idMap, $lenient, $dropped);
 
                 $counts[$section] = count($rowIds[$section]);
             }
@@ -113,11 +121,13 @@ final class SaveRequisition
             $locked->touch();
 
             // Names and counts only; never field values. Fail closed.
+            // FORM-SAVE-1: a partial draft save also records how many fields were not saved.
+            $notSaved = $alreadyDropped + count($dropped);
             Audit::record(
                 AuditAction::CaseDraftSaved,
                 ['type' => 'case', 'id' => $caseId],
                 $caseId,
-                ['sections' => $saved, 'counts' => $counts],
+                ['sections' => $saved, 'counts' => $counts, ...($notSaved > 0 ? ['not_saved' => $notSaved] : [])],
                 $user,
             );
         });
@@ -132,7 +142,7 @@ final class SaveRequisition
             ExpiryRisk::referenceDate($fresh),
         );
 
-        return new SavedDraft($fresh, $idMap, $rowIds, $risk['days_on_hand'], $risk['expiry_warnings']);
+        return new SavedDraft($fresh, $idMap, $rowIds, $risk['days_on_hand'], $risk['expiry_warnings'], $dropped);
     }
 
     /**
@@ -163,7 +173,8 @@ final class SaveRequisition
         return RequisitionRules::isBlankRow($values);
     }
 
-    private function saveSection(string $caseId, string $section, string $model, bool $hasSortOrder, array $rows, array &$idMap): array
+    /** @param  array<string, string>  $dropped  (lenient) key => message of what was left out */
+    private function saveSection(string $caseId, string $section, string $model, bool $hasSortOrder, array $rows, array &$idMap, bool $lenient = false, array &$dropped = []): array
     {
         $existing = $model::withoutGlobalScopes()->where('case_id', $caseId)->get()->keyBy(fn (Model $m) => (int) $m->getKey());
         $awardIds = $section === 'purchase_orders'
@@ -177,11 +188,22 @@ final class SaveRequisition
             unset($values['id'], $values['client_key']);
 
             if ($id !== null && ! $existing->has($id)) {
-                throw ValidationException::withMessages(["{$section}.{$index}.id" => RequisitionMessages::rowLabel($section, $index).' no longer exists. Reload the page and try again.']);
+                $message = RequisitionMessages::rowLabel($section, $index).' no longer exists. Reload the page and try again.';
+                if (! $lenient) {
+                    throw ValidationException::withMessages(["{$section}.{$index}.id" => $message]);
+                }
+                $dropped["{$section}.{$index}.id"] = $message; // FORM-SAVE-1: skip the row, keep the rest
+
+                continue;
             }
 
             if (($values['award_id'] ?? null) !== null && ! in_array($values['award_id'], $awardIds, true)) {
-                throw ValidationException::withMessages(["{$section}.{$index}.award_id" => RequisitionMessages::rowLabel($section, $index).': Supplier must be one of the awarded suppliers.']);
+                $message = RequisitionMessages::rowLabel($section, $index).': Supplier needs to be one of the awarded suppliers.';
+                if (! $lenient) {
+                    throw ValidationException::withMessages(["{$section}.{$index}.award_id" => $message]);
+                }
+                $dropped["{$section}.{$index}.award_id"] = $message; // FORM-SAVE-1: leave the supplier out, keep the rest
+                unset($values['award_id']);
             }
 
             $row = $id !== null ? $existing->get($id) : (new $model)->forceFill(['case_id' => $caseId]);

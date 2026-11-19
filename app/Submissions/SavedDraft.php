@@ -27,5 +27,7 @@ final readonly class SavedDraft
         public array $rowIds,
         public ?int $daysOnHand = null,
         public array $expiryWarnings = [],
+        /** FORM-SAVE-1: a lenient (draft) save: key => message of what this save left out. */
+        public array $dropped = [],
     ) {}
 }

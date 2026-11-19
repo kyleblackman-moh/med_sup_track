@@ -285,7 +285,7 @@ it('refuses an order that points at another case\'s award', function () {
         saveDraft($case, $vendor, ['purchase_orders' => [['award_id' => $foreignAward, 'po_number' => 'PO-1']]]);
         $this->fail('saved');
     } catch (ValidationException $e) {
-        expect($e->errors())->toBe(['purchase_orders.0.award_id' => ['Order Row 1: Supplier must be one of the awarded suppliers.']]);
+        expect($e->errors())->toBe(['purchase_orders.0.award_id' => ['Order Row 1: Supplier needs to be one of the awarded suppliers.']]);
     }
     expect(CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->id)->count())->toBe(0);
 });

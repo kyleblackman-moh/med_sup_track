@@ -92,6 +92,9 @@ final class RequisitionMessages
 
     private const SMALL_WORDS = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with'];
 
+    /** FORM-SAVE-1: the cross-field date rule at save (RequisitionRules::crossFieldErrors); only the end date carries it. */
+    public const CYCLE_END_BEFORE_START = 'Tender Cycle End needs to be on or after Tender Cycle Start.';
+
     /** Shown for a row the page cannot have produced (a stale or forged id): the fix is a reload. */
     public const ROW_RELOAD = 'could not be saved. Reload the page and try again.';
 

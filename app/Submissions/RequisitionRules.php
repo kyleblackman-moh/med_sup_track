@@ -156,6 +156,30 @@ final class RequisitionRules
     }
 
     /**
+     * FORM-SAVE-1: rules across fields, checked at every save. Each error names
+     * only the field that carries it (a draft save then drops just that field).
+     * Only fields present in the payload and already valid on their own are compared.
+     *
+     * @param  list<string>  $failed  keys that already failed their own rules
+     * @return array<string, string>
+     */
+    public static function crossFieldErrors(array $payload, array $failed = []): array
+    {
+        $r = is_array($payload['requisition'] ?? null) ? $payload['requisition'] : [];
+        $errors = [];
+
+        $start = $r['tender_cycle_start'] ?? null;
+        $end = $r['tender_cycle_end'] ?? null;
+        if (is_string($start) && is_string($end)
+            && ! in_array('requisition.tender_cycle_start', $failed, true) && ! in_array('requisition.tender_cycle_end', $failed, true)
+            && $end < $start) { // Y-m-d strings compare as dates
+            $errors['requisition.tender_cycle_end'] = RequisitionMessages::CYCLE_END_BEFORE_START;
+        }
+
+        return $errors;
+    }
+
+    /**
      * Field specs: type, optional max length / enum class, and the column's
      * nullability ('required' = NOT NULL without default, 'default' = NOT NULL
      * with a database default, so it may be omitted but not set to null).

@@ -23,6 +23,7 @@ use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
 use App\Submissions\ExpiryRisk;
+use App\Submissions\FormWording;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
@@ -207,18 +208,28 @@ class RequestController extends Controller
 
         Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
 
-        // Throws ValidationException (errors keyed by dotted path) on bad input,
-        // including any system key such as status, org_id or technical_status.
-        $data = RequisitionData::validate($request->except(['_token', '_method']), $procurementCase->procurementType);
+        $payload = $request->except(['_token', '_method']);
+        $adHocForm = ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm();
+
+        // FORM-SAVE-1: the request form's draft save (autosave and Save Draft) keeps every
+        // valid field and leaves out only what failed (RequisitionData::validateDraft). The
+        // older form stays strict: any error rejects the save (errors keyed by dotted path,
+        // including any system key such as status, org_id or technical_status).
+        [$data, $dropped] = $adHocForm
+            ? RequisitionData::validateDraft($payload, $procurementCase->procurementType)
+            : [RequisitionData::validate($payload, $procurementCase->procurementType), []];
 
         try {
-            $saved = $save->handle($procurementCase, $request->user(), $data);
+            $saved = $save->handle($procurementCase, $request->user(), $data, lenient: $adHocForm, alreadyDropped: count($dropped));
         } catch (DraftNotEditable) {
             return $this->notEditable($procurementCase);
         }
 
-        if (ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
-            // Autosave: no banner. The page attaches the new row ids by client_key.
+        if ($adHocForm) {
+            $notSaved = FormWording::notSaved([...$dropped, ...$saved->dropped]);
+
+            // Autosave: no banner. The page attaches the new row ids by client_key. What was
+            // left out comes back here, not as validation errors: the save itself succeeded.
             return back()->with('saved', [
                 'id_map' => (object) $saved->idMap,
                 'row_ids' => (object) $saved->rowIds,
@@ -226,6 +237,10 @@ class RequestController extends Controller
                 // Slice V2-1 (ExpiryRisk): advisory only.
                 'days_on_hand' => $saved->daysOnHand,
                 'expiry_warnings' => ExpiryRisk::asList($saved->expiryWarnings),
+                // FORM-SAVE-1 (A2): the fields this save left out, and the status line saying so.
+                'not_saved' => $notSaved,
+                'status' => $notSaved === [] ? null : FormWording::partialSave(count($notSaved)),
+                'heading' => $notSaved === [] ? null : FormWording::issueHeading(count($notSaved)),
             ]);
         }
 
