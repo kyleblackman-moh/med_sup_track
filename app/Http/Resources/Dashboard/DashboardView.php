@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Submissions\ProcurementTypeProfile;
 use App\Support\SqlLike;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\StageWording;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -359,6 +360,45 @@ final class DashboardView
             ->pluck('cases.id')
             ->map(fn ($id) => (string) $id)
             ->all();
+    }
+
+    /**
+     * OVERNIGHT-2 (C1): a plain count per stage, in state-machine order, over
+     * the cases $user can see (VisibleToUserScope: the CMO and PS all cases,
+     * others their own). Each stage links to the case list filtered by that
+     * status. Null for users without the staff case list. No time colouring.
+     *
+     * @return list<array{status: string, label: string, count: int, href: string}>|null
+     */
+    public static function pipeline(User $user): ?array
+    {
+        if ($user->isVendor() || ! Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
+            return null;
+        }
+
+        $query = ProcurementCase::withoutGlobalScopes();
+        (new VisibleToUserScope)->applyFor($query, $user);
+
+        $counts = $query->toBase()
+            ->selectRaw('cases.status AS status, COUNT(*) AS total')
+            ->groupBy('cases.status')
+            ->pluck('total', 'status');
+
+        $stages = [];
+        foreach (CaseStatus::cases() as $status) {
+            if ($status === CaseStatus::DRAFT) {
+                continue;
+            }
+
+            $stages[] = [
+                'status' => $status->value,
+                'label' => StageWording::STAGES[$status->value]['stage'],
+                'count' => (int) ($counts[$status->value] ?? 0),
+                'href' => route('cases.index', ['status' => $status->value], false),
+            ];
+        }
+
+        return $stages;
     }
 
     /** @return array{key: string, label: string, value: string, description: string, href: string|null} */

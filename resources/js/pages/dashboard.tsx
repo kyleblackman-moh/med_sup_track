@@ -1,3 +1,4 @@
+import { PipelinePanel, type PipelineStage } from '@/components/dashboard/pipeline-panels';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { StatTile } from '@/components/ui/stat-tile';
@@ -35,6 +36,8 @@ interface Props {
     requestTypes: Record<string, string>;
     /** DASH-1: the queue card after the server applied the filter and the search; null without a queue. */
     queue: DashboardQueue | null;
+    /** OVERNIGHT-2 (C1): a count per stage; null without the staff case list. */
+    pipeline: PipelineStage[] | null;
 }
 
 /** Display only: an icon per tile key. Unknown keys get no icon. */
@@ -51,7 +54,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
  * for users without a queue, links driven by the shared `can` flags. Never
  * shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, header, stats, queue }: Props) {
+export default function Dashboard({ workQueue, header, stats, queue, pipeline }: Props) {
     const { can } = usePage<SharedData>().props;
     // DASH-1: the one crumb is the page itself, from the named route.
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: route('dashboard') }];
@@ -95,6 +98,8 @@ export default function Dashboard({ workQueue, header, stats, queue }: Props) {
                         ))}
                     </div>
                 )}
+
+                {pipeline && <PipelinePanel stages={pipeline} />}
 
                 {queue && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
 
