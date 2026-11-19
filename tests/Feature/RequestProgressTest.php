@@ -148,3 +148,14 @@ it('returns 404 to a vendor from another organisation', function () {
 
     $this->actingAs($other)->get(route('requests.show', $case))->assertNotFound();
 });
+
+it('orders same-day milestones by when each happened', function () {
+    $case = progressCase($this->vendor, [[S::SUBMITTED, 0], [S::CMO_INTAKE, 0], [S::LETTER_ISSUED, 0], [S::CLOSED, 0]], [
+        'hardcopy_received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString(),
+        // Recorded between intake (minute 1) and the letter (minute 2).
+        'hardcopy_received_at' => CarbonImmutable::now('UTC')->addMinutes(1)->addSeconds(30),
+        'hardcopy_received_by' => $this->actor->id,
+    ]);
+
+    expect(progressLabels($case))->toBe(['Submitted', 'Under Review', 'Hardcopy Received', 'Letter Issued', 'Closed']);
+})->skip(fn () => CarbonImmutable::now('America/Port_of_Spain')->hour === 23, 'Too close to midnight in Port of Spain.');

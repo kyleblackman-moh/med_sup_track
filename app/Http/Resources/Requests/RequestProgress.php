@@ -66,11 +66,16 @@ final class RequestProgress
         if ($case->hardcopyReceived()) {
             // A calendar date as recorded: no time zone shift.
             $day = $case->hardcopy_received_on->format('Y-m-d');
-            $milestones[] = ['key' => 'hardcopy', 'label' => self::HARDCOPY, 'date' => $day, 'date_label' => $case->hardcopy_received_on->format('j M Y')];
+            $milestones[] = [
+                'key' => 'hardcopy', 'label' => self::HARDCOPY, 'date' => $day, 'date_label' => $case->hardcopy_received_on->format('j M Y'),
+                // On the same day, placed by when it was recorded.
+                'at' => $case->hardcopy_received_at?->copy()->utc()->format('Y-m-d H:i:s.u') ?? $day.' 23:59:59.999999',
+            ];
         }
 
-        // Stable: on the same day, the order above (status first, then hardcopy) is kept.
-        usort($milestones, fn (array $a, array $b) => strcmp($a['date'], $b['date']));
+        // By date, then (on the same day) by when each thing happened; stable otherwise.
+        usort($milestones, fn (array $a, array $b) => [$a['date'], $a['at']] <=> [$b['date'], $b['at']]);
+        $milestones = array_map(fn (array $m) => array_diff_key($m, ['at' => true]), $milestones);
 
         // Keys stay unique even if a group were ever entered twice.
         $seen = [];
@@ -84,11 +89,14 @@ final class RequestProgress
         return array_values($milestones);
     }
 
-    /** @return array{key: string, label: string, date: string, date_label: string} */
+    /** @return array{key: string, label: string, date: string, date_label: string, at: string} */
     private static function milestone(string $key, string $label, CarbonInterface $at): array
     {
         $local = $at->copy()->setTimezone('America/Port_of_Spain');
 
-        return ['key' => $key, 'label' => $label, 'date' => $local->format('Y-m-d'), 'date_label' => $local->format('j M Y')];
+        return [
+            'key' => $key, 'label' => $label, 'date' => $local->format('Y-m-d'), 'date_label' => $local->format('j M Y'),
+            'at' => $at->copy()->utc()->format('Y-m-d H:i:s.u'),
+        ];
     }
 }
