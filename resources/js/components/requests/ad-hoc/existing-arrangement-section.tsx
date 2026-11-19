@@ -1,4 +1,4 @@
-import { EntryCell, EntryRow, EntryTable } from '@/components/ui/entry-table';
+import { EntryCell, EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
@@ -25,14 +25,14 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
     const cap = api.config.row_caps.purchase_orders;
     const tableError = api.tableError('purchase_orders');
 
-    const columns = [
-        { key: 'award_id', label: 'Supplier' },
+    const columns: EntryColumn[] = [
+        { key: 'award_id', label: 'Supplier', width: 'select' },
         { key: 'po_number', label: 'PO Number' },
-        { key: 'quantity_ordered', label: 'Quantity Ordered' },
-        { key: 'ordered_on', label: 'Date Ordered' },
-        { key: 'quantity_delivered', label: 'Quantity Delivered' },
-        { key: 'delivery', label: 'Delivery Date / Status' },
-        { key: 'quantity_outstanding', label: 'Quantity Outstanding', className: 'xl:w-24 xl:flex-none' },
+        { key: 'quantity_ordered', label: 'Quantity Ordered', width: 'number' },
+        { key: 'ordered_on', label: 'Date Ordered', width: 'date' },
+        { key: 'quantity_delivered', label: 'Quantity Delivered', width: 'number' },
+        { key: 'delivery', label: 'Delivery Date / Status', width: 'date' },
+        { key: 'quantity_outstanding', label: 'Quantity Outstanding', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -44,7 +44,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                 <EntryTable
                     caption="Orders"
                     columns={columns}
-                    breakpoint="xl"
+                    breakpoint="66rem"
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                     addAction={
@@ -77,6 +77,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 label={label(name)}
                                 rowLabel={rowLabel}
                                 kind={kind}
+                                width={kind === 'decimal' ? 'number' : kind === 'date' ? 'date' : 'text'}
                                 maxLength={maxLength}
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('purchase_orders', row.key, name, value)}
@@ -106,7 +107,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     />
                                 }
                             >
-                                <EntryCell label={label('award_id')} htmlFor={supplierId}>
+                                <EntryCell label={label('award_id')} htmlFor={supplierId} width="select">
                                     <select
                                         id={supplierId}
                                         className={cn(selectClass, controlHeight)}
@@ -139,7 +140,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 {input('quantity_ordered', 'decimal')}
                                 {input('ordered_on', 'date')}
                                 {input('quantity_delivered', 'decimal')}
-                                <EntryCell label={label('delivery')} htmlFor={`${deliveryId}-date`}>
+                                <EntryCell label={label('delivery')} htmlFor={`${deliveryId}-date`} width="date">
                                     <div className="grid gap-1">
                                         <Input
                                             id={`${deliveryId}-date`}
@@ -171,7 +172,6 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     label="Quantity Outstanding"
                                     rowLabel={rowLabel}
                                     value={rowDisplay(api.form.display.rows.purchase_orders, row.id)?.quantity_outstanding ?? '—'}
-                                    className="xl:w-24 xl:flex-none"
                                 />
                             </EntryRow>
                         );

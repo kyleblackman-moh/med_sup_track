@@ -1,4 +1,4 @@
-import { EntryRow, EntryTable } from '@/components/ui/entry-table';
+import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryCheck, EntryInput } from './entry-fields';
 import { Figure, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
@@ -10,8 +10,8 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * V2-2 section "Quotation comparison": who received the RFQ, one entry per
  * quotation (Considered and Recommended first; a reason under the row only
  * when the quotation was not considered), the quantity to purchase and the
- * server's total cost. Eleven inputs a row, so the one-line layout starts at
- * 2xl (1536px, V2-3); below that each entry wraps. The optional price comparison
+ * server's total cost. Eleven inputs a row, so the one-line layout needs a card of
+ * 88rem (FORM-ERR-1: every column at its minimum); narrower, each entry wraps. The optional price comparison
  * (fields of this section on the server) follows.
  */
 export function QuotationSection({ api }: { api: FormApi }) {
@@ -22,20 +22,21 @@ export function QuotationSection({ api }: { api: FormApi }) {
     const cap = config.row_caps.quotations;
     const tableError = [api.tableError('quotations'), api.tableError('quotations.recommended')].filter(Boolean).join(' ');
 
-    const columns = [
-        { key: 'considered', label: 'Considered', className: '2xl:w-20 2xl:flex-none' },
-        { key: 'is_recommended', label: 'Recommended', className: '2xl:w-24 2xl:flex-none' },
+    const columns: EntryColumn[] = [
+        { key: 'considered', label: 'Considered', width: 'check' },
+        { key: 'is_recommended', label: 'Recommended', width: 'check-wide' },
         { key: 'supplier_name', label: 'Supplier' },
-        { key: 'quantity_offered', label: 'Quantity' },
-        { key: 'unit_price', label: 'Unit Price' },
-        { key: 'ex_stock', label: 'Ex Stock', className: '2xl:w-16 2xl:flex-none' },
-        { key: 'lead_time_days', label: 'Lead Time (Days)' },
+        { key: 'quantity_offered', label: 'Quantity', width: 'number' },
+        { key: 'unit_price', label: 'Unit Price', width: 'number' },
+        { key: 'ex_stock', label: 'Ex Stock', width: 'check' },
+        { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'number' },
         { key: 'brand', label: 'Brand' },
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'remarks', label: 'Remarks', className: '2xl:flex-[2]' },
+        { key: 'remarks', label: 'Remarks', width: 'long' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
+    const width = (key: string) => columns.find((c) => c.key === key)?.width;
 
     return (
         <div className="grid grid-cols-1 gap-5">
@@ -54,7 +55,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 <EntryTable
                     caption="Quotations Received"
                     columns={columns}
-                    breakpoint="2xl"
+                    breakpoint="88rem"
                     narrowRowLabel
                     empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
                     addAction={
@@ -69,14 +70,14 @@ export function QuotationSection({ api }: { api: FormApi }) {
                         const errors = collectRowErrors(['id', ...columns.map((c) => c.key), 'reason_accepted_excluded'], (name) =>
                             api.cellError('quotations', row, index, name),
                         );
-                        const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, className?: string) => (
+                        const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => (
                             <EntryInput
                                 id={id(name)}
                                 label={label(name)}
                                 rowLabel={rowLabel}
                                 kind={kind}
                                 maxLength={maxLength}
-                                className={className}
+                                width={width(name)}
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('quotations', row.key, name, value)}
                                 error={api.cellError('quotations', row, index, name)}
@@ -123,7 +124,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     type="checkbox"
                                     checked={considered}
                                     onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
-                                    className="2xl:w-20 2xl:flex-none"
+                                    width="check"
                                 />
                                 <EntryCheck
                                     id={id('is_recommended')}
@@ -133,7 +134,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     name="recommended-quotation"
                                     checked={row.values.is_recommended === true}
                                     onChange={() => api.chooseRecommended(row.key)}
-                                    className="2xl:w-24 2xl:flex-none"
+                                    width="check-wide"
                                 />
                                 {input('supplier_name', 'text', 200)}
                                 {input('quantity_offered', 'decimal')}
@@ -145,13 +146,13 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     type="checkbox"
                                     checked={row.values.ex_stock === true}
                                     onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
-                                    className="2xl:w-16 2xl:flex-none"
+                                    width="check"
                                 />
                                 {input('lead_time_days', 'integer')}
                                 {input('brand', 'text', 200)}
                                 {input('manufacturer', 'text', 200)}
                                 {input('country_of_origin', 'text', 100)}
-                                {input('remarks', 'text', 255, '2xl:flex-[2]')}
+                                {input('remarks', 'text', 255)}
                             </EntryRow>
                         );
                     })}

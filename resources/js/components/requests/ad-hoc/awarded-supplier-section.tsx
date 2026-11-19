@@ -1,4 +1,4 @@
-import { EntryRow, EntryTable } from '@/components/ui/entry-table';
+import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -7,7 +7,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 /**
  * V2-2 section "Awarded supplier": one entry per supplier. % awarded and the
  * line cost are the server's (shown once the row is saved); the total is at
- * the foot. One line per entry from xl (V2-3); below that each entry wraps.
+ * the foot. One line per entry once the card is 66rem wide (FORM-ERR-1); narrower, each entry wraps.
  */
 export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.tender_awards;
@@ -15,15 +15,15 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const cap = api.config.row_caps.tender_awards;
     const tableError = api.tableError('tender_awards');
 
-    const columns = [
+    const columns: EntryColumn[] = [
         { key: 'supplier_name', label: 'Supplier' },
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'brand', label: 'Brand' },
         { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'quantity_awarded', label: 'Quantity Awarded' },
-        { key: 'unit_cost', label: 'Unit Cost' },
-        { key: 'percentage', label: '% Awarded', className: 'xl:w-20 xl:flex-none' },
-        { key: 'line_cost', label: 'Line Cost', className: 'xl:w-24 xl:flex-none' },
+        { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'number' },
+        { key: 'unit_cost', label: 'Unit Cost', width: 'number' },
+        { key: 'percentage', label: '% Awarded', width: 'value' },
+        { key: 'line_cost', label: 'Line Cost', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -33,7 +33,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
             <EntryTable
                 caption="Awarded Suppliers"
                 columns={columns}
-                breakpoint="xl"
+                breakpoint="66rem"
                 narrowRowLabel
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
@@ -58,6 +58,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             label={label(name)}
                             rowLabel={rowLabel}
                             kind={kind}
+                            width={kind === 'decimal' ? 'number' : 'text'}
                             maxLength={maxLength}
                             value={text(row.values[name])}
                             onChange={(value) => api.setCell('tender_awards', row.key, name, value)}
@@ -84,8 +85,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('country_of_origin', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
-                            <EntryValue label="% Awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="xl:w-20 xl:flex-none" />
-                            <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="xl:w-24 xl:flex-none" />
+                            <EntryValue label="% Awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} />
+                            <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} />
                         </EntryRow>
                     );
                 })}

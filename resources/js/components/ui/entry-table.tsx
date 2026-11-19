@@ -2,20 +2,46 @@ import { cn } from '@/lib/utils';
 import { CircleAlert } from 'lucide-react';
 import { createContext, type ReactNode, useContext } from 'react';
 
-/** The width at and above which each entry is one line of inputs (design.md section 7). */
-export type EntryBreakpoint = 'lg' | 'xl' | '2xl';
+/**
+ * FORM-ERR-1 (B): the CARD width (a container query, not the viewport) at and
+ * above which each entry is one line of inputs. Each table picks the size at
+ * which all its columns fit at their minimum widths (ENTRY_WIDTH), plus the row
+ * label, the remove button, the 12px gaps and the 16px row padding. Below it
+ * the entry wraps into labelled fields. So a row never overlaps, whatever the
+ * viewport or the sidebar state.
+ */
+export type EntryBreakpoint = '32rem' | '45rem' | '66rem' | '88rem';
 
-// Static class strings per breakpoint, so Tailwind can see every class.
-// V2-3: below its breakpoint an entry wraps into a compact grid of labelled
-// fields (as many ~160px columns as fit; never a horizontal scroll), with the
-// row label on its own line and the remove button at the row's top right.
+/**
+ * A column's width (header and cells use the same classes, so they line up).
+ * Fixed widths are a flex basis and grow widths a minimum: both apply only
+ * in the one-line flex layout, except the minimum, which is always below the
+ * 10rem columns of the wrapped grid, so it never forces an overflow there.
+ */
+export type EntryWidth = 'check' | 'check-wide' | 'value' | 'number' | 'text' | 'select' | 'date' | 'long';
+
+export const ENTRY_WIDTH: Record<EntryWidth, string> = {
+    'check': 'flex-none basis-20 min-w-20', // 80px: a checkbox or radio
+    'check-wide': 'flex-none basis-24 min-w-24', // 96px: "Recommended"
+    'value': 'flex-none basis-24 min-w-24', // 96px: a server figure (a dash until saved)
+    'number': 'flex-1 min-w-24', // 96px minimum: quantities, prices, days
+    'text': 'flex-1 min-w-28', // 112px minimum
+    'select': 'flex-1 min-w-32', // 128px minimum
+    'date': 'flex-1 min-w-36', // 144px minimum: a date input with its picker icon
+    'long': 'flex-[2] min-w-40', // 160px minimum, twice the share of the rest
+};
+
+// Static class strings per breakpoint, so Tailwind can see every class. The
+// table's root is the @container. Below the breakpoint an entry wraps into a
+// compact grid of labelled fields (as many ~160px columns as fit; never a
+// horizontal scroll), with the row label on its own line and the remove
+// button at the row's top right.
 const LAYOUT: Record<
     EntryBreakpoint,
     {
         header: string;
         row: string;
         cellLabel: string;
-        cell: string;
         rowLabel: string;
         rowLabelNarrow: string;
         fullOnly: string;
@@ -23,48 +49,55 @@ const LAYOUT: Record<
         remove: string;
     }
 > = {
-    'lg': {
-        header: 'hidden lg:flex',
-        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 lg:flex lg:flex-row lg:items-start',
-        cellLabel: 'lg:sr-only',
-        cell: 'lg:flex-1 lg:min-w-0',
-        rowLabel: 'col-span-full pr-12 lg:w-32 lg:shrink-0 lg:pt-2 lg:pr-0',
-        rowLabelNarrow: 'col-span-full pr-12 lg:w-8 lg:shrink-0 lg:pt-2 lg:pr-0',
-        fullOnly: 'lg:sr-only',
-        shortOnly: 'hidden tabular-nums lg:inline',
-        remove: 'absolute top-2 right-3 lg:static',
+    '32rem': {
+        header: 'hidden @min-[32rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[32rem]:flex @min-[32rem]:flex-row @min-[32rem]:items-start',
+        cellLabel: '@min-[32rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[32rem]:w-32 @min-[32rem]:shrink-0 @min-[32rem]:pt-2 @min-[32rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[32rem]:w-8 @min-[32rem]:shrink-0 @min-[32rem]:pt-2 @min-[32rem]:pr-0',
+        fullOnly: '@min-[32rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[32rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[32rem]:static',
     },
-    'xl': {
-        header: 'hidden xl:flex',
-        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 xl:flex xl:flex-row xl:items-start',
-        cellLabel: 'xl:sr-only',
-        cell: 'xl:flex-1 xl:min-w-0',
-        rowLabel: 'col-span-full pr-12 xl:w-32 xl:shrink-0 xl:pt-2 xl:pr-0',
-        rowLabelNarrow: 'col-span-full pr-12 xl:w-8 xl:shrink-0 xl:pt-2 xl:pr-0',
-        fullOnly: 'xl:sr-only',
-        shortOnly: 'hidden tabular-nums xl:inline',
-        remove: 'absolute top-2 right-3 xl:static',
+    '45rem': {
+        header: 'hidden @min-[45rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[45rem]:flex @min-[45rem]:flex-row @min-[45rem]:items-start',
+        cellLabel: '@min-[45rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[45rem]:w-32 @min-[45rem]:shrink-0 @min-[45rem]:pt-2 @min-[45rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[45rem]:w-8 @min-[45rem]:shrink-0 @min-[45rem]:pt-2 @min-[45rem]:pr-0',
+        fullOnly: '@min-[45rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[45rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[45rem]:static',
     },
-    '2xl': {
-        header: 'hidden 2xl:flex',
-        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 2xl:flex 2xl:flex-row 2xl:items-start',
-        cellLabel: '2xl:sr-only',
-        cell: '2xl:flex-1 2xl:min-w-0',
-        rowLabel: 'col-span-full pr-12 2xl:w-32 2xl:shrink-0 2xl:pt-2 2xl:pr-0',
-        rowLabelNarrow: 'col-span-full pr-12 2xl:w-8 2xl:shrink-0 2xl:pt-2 2xl:pr-0',
-        fullOnly: '2xl:sr-only',
-        shortOnly: 'hidden tabular-nums 2xl:inline',
-        remove: 'absolute top-2 right-3 2xl:static',
+    '66rem': {
+        header: 'hidden @min-[66rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[66rem]:flex @min-[66rem]:flex-row @min-[66rem]:items-start',
+        cellLabel: '@min-[66rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[66rem]:w-32 @min-[66rem]:shrink-0 @min-[66rem]:pt-2 @min-[66rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[66rem]:w-8 @min-[66rem]:shrink-0 @min-[66rem]:pt-2 @min-[66rem]:pr-0',
+        fullOnly: '@min-[66rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[66rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[66rem]:static',
+    },
+    '88rem': {
+        header: 'hidden @min-[88rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[88rem]:flex @min-[88rem]:flex-row @min-[88rem]:items-start',
+        cellLabel: '@min-[88rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[88rem]:w-32 @min-[88rem]:shrink-0 @min-[88rem]:pt-2 @min-[88rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[88rem]:w-8 @min-[88rem]:shrink-0 @min-[88rem]:pt-2 @min-[88rem]:pr-0',
+        fullOnly: '@min-[88rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[88rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[88rem]:static',
     },
 };
 
-const TableContext = createContext<{ breakpoint: EntryBreakpoint; narrowRowLabel: boolean }>({ breakpoint: 'lg', narrowRowLabel: false });
+const TableContext = createContext<{ breakpoint: EntryBreakpoint; narrowRowLabel: boolean }>({ breakpoint: '66rem', narrowRowLabel: false });
 
 export interface EntryColumn {
     key: string;
     label: string;
-    /** Width classes for the column at the one-line width (for example "lg:w-24 lg:flex-none"). */
-    className?: string;
+    /** The column's width (ENTRY_WIDTH); the row's cell passes the same one. Default "text". */
+    width?: EntryWidth;
 }
 
 interface EntryTableProps {
@@ -79,7 +112,8 @@ interface EntryTableProps {
     empty?: ReactNode;
     /** Shown under the rows, above the add button (for example a total). */
     foot?: ReactNode;
-    breakpoint?: EntryBreakpoint;
+    /** The card width for the one-line layout; it must fit every column at its minimum (see EntryBreakpoint). */
+    breakpoint: EntryBreakpoint;
     /**
      * V2-2: at the one-line width each row shows only its number ("1") in a
      * narrow first column, leaving the width to the inputs; the full row label
@@ -96,26 +130,16 @@ interface EntryTableProps {
  * entry wraps to labelled fields; there is no horizontal scroll. The add
  * button sits in a dashed strip at the bottom. Presentational only: no data.
  */
-export function EntryTable({
-    caption,
-    columns,
-    children,
-    addAction,
-    empty,
-    foot,
-    breakpoint = 'lg',
-    narrowRowLabel = false,
-    className,
-}: EntryTableProps) {
+export function EntryTable({ caption, columns, children, addAction, empty, foot, breakpoint, narrowRowLabel = false, className }: EntryTableProps) {
     const layout = LAYOUT[breakpoint];
 
     return (
         <TableContext.Provider value={{ breakpoint, narrowRowLabel }}>
-            <div role="group" aria-label={caption} className={cn('bg-card overflow-hidden rounded-xl border shadow-xs', className)}>
+            <div role="group" aria-label={caption} className={cn('bg-card @container overflow-hidden rounded-xl border shadow-xs', className)}>
                 <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
                     <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : 'Row'}</span>
                     {columns.map((column) => (
-                        <span key={column.key} className={cn('min-w-0 flex-1', column.className)}>
+                        <span key={column.key} className={cn('break-words', ENTRY_WIDTH[column.width ?? 'text'])}>
                             {column.label}
                         </span>
                     ))}
@@ -212,16 +236,19 @@ interface EntryCellProps {
     label: string;
     /** The id of the input it labels. */
     htmlFor?: string;
-    /** The same width classes as the column. */
+    /** The same width as the column (ENTRY_WIDTH). Default "text". */
+    width?: EntryWidth;
     className?: string;
     children: ReactNode;
 }
 
-export function EntryCell({ label, htmlFor, className, children }: EntryCellProps) {
+export function EntryCell({ label, htmlFor, width = 'text', className, children }: EntryCellProps) {
     const layout = LAYOUT[useContext(TableContext).breakpoint];
 
     return (
-        <div className={cn('grid min-w-0 gap-2', layout.cell, className)}>
+        // FORM-ERR-1 (B): one track that can shrink to the cell (minmax(0,1fr)), so nothing
+        // inside (a long word, an input's intrinsic size) can widen the cell over its neighbour.
+        <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-2', ENTRY_WIDTH[width], className)}>
             <label htmlFor={htmlFor} className={cn('text-sm font-medium', layout.cellLabel)}>
                 {label}
             </label>

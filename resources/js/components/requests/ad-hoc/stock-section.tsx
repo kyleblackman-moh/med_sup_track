@@ -1,4 +1,4 @@
-import { EntryRow, EntryTable } from '@/components/ui/entry-table';
+import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
 import { collectRowErrors, EntryInput } from './entry-fields';
@@ -30,9 +30,9 @@ export function StockSection({ api }: { api: FormApi }) {
         optional: optional(name),
     });
 
-    const columns = [
-        { key: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity' },
-        { key: 'expiry_date', label: 'Expiry Date' },
+    const columns: EntryColumn[] = [
+        { key: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity', width: 'number' },
+        { key: 'expiry_date', label: 'Expiry Date', width: 'date' },
     ];
 
     return (
@@ -63,6 +63,7 @@ export function StockSection({ api }: { api: FormApi }) {
                     {tableError && <p className="text-destructive text-sm">{tableError}</p>}
                     <EntryTable
                         caption="Stock Batches"
+                        breakpoint="32rem"
                         columns={columns}
                         empty={rows.length === 0 && <RowsNote>No batches yet.</RowsNote>}
                         addAction={
@@ -97,6 +98,7 @@ export function StockSection({ api }: { api: FormApi }) {
                                             label={column.label}
                                             rowLabel={rowLabel}
                                             kind={column.key === 'expiry_date' ? 'date' : 'decimal'}
+                                            width={column.width}
                                             value={text(row.values[column.key])}
                                             onChange={(value) => api.setCell('stock_expiries', row.key, column.key, value)}
                                             error={api.cellError('stock_expiries', row, index, column.key)}

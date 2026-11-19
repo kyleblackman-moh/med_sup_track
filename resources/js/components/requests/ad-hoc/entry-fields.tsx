@@ -1,4 +1,4 @@
-import { EntryCell, type RowError } from '@/components/ui/entry-table';
+import { EntryCell, type EntryWidth, type RowError } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -35,6 +35,8 @@ interface EntryInputProps {
     /** The id of the row's error list (EntryRow errorsId). */
     errorListId?: string;
     maxLength?: number;
+    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
+    width?: EntryWidth;
     className?: string;
     /** V2-4b: the server requires the column whenever a row is entered (aria-required). */
     required?: boolean;
@@ -50,11 +52,12 @@ export function EntryInput({
     error,
     errorListId,
     maxLength,
+    width,
     className,
     required,
 }: EntryInputProps) {
     return (
-        <EntryCell label={label} htmlFor={id} className={className}>
+        <EntryCell label={label} htmlFor={id} width={width} className={className}>
             <Input
                 id={id}
                 type={kind === 'date' ? 'date' : 'text'}
@@ -84,6 +87,8 @@ interface EntryTextAreaProps {
     maxLength?: number;
     /** Visible rows (V2-5: 2 for the variation details). */
     rows?: number;
+    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
+    width?: EntryWidth;
     className?: string;
     required?: boolean;
 }
@@ -99,11 +104,12 @@ export function EntryTextArea({
     errorListId,
     maxLength,
     rows = 2,
+    width,
     className,
     required,
 }: EntryTextAreaProps) {
     return (
-        <EntryCell label={label} htmlFor={id} className={className}>
+        <EntryCell label={label} htmlFor={id} width={width} className={className}>
             <textarea
                 id={id}
                 rows={rows}
@@ -121,9 +127,21 @@ export function EntryTextArea({
 }
 
 /** A server-computed value shown read-only in a row (a dash until the row is saved). */
-export function EntryValue({ label, rowLabel, value, className }: { label: string; rowLabel: string; value: ReactNode; className?: string }) {
+export function EntryValue({
+    label,
+    rowLabel,
+    value,
+    width = 'value',
+    className,
+}: {
+    label: string;
+    rowLabel: string;
+    value: ReactNode;
+    width?: EntryWidth;
+    className?: string;
+}) {
     return (
-        <EntryCell label={label} className={className}>
+        <EntryCell label={label} width={width} className={className}>
             <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-10">
                 <span className="sr-only">
                     {label}, {rowLabel}:{' '}
@@ -143,13 +161,15 @@ interface EntryCheckProps {
     name?: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
+    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
+    width?: EntryWidth;
     className?: string;
 }
 
 /** A checkbox or radio in a narrow column, 44px tall below md. */
-export function EntryCheck({ id, label, rowLabel, type, name, checked, onChange, className }: EntryCheckProps) {
+export function EntryCheck({ id, label, rowLabel, type, name, checked, onChange, width = 'check', className }: EntryCheckProps) {
     return (
-        <EntryCell label={label} htmlFor={id} className={className}>
+        <EntryCell label={label} htmlFor={id} width={width} className={className}>
             <span className="flex min-h-11 items-center md:min-h-10">
                 <input
                     id={id}
