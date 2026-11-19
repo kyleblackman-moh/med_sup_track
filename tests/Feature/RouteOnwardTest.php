@@ -578,7 +578,7 @@ it('offers only the allowed destinations and the suggested one', function (strin
     }
 })->with([
     'Legal return' => ['legal', ['technocrats', 'legal'], 'technocrats', 'Suggested: Technocrats'],
-    'PS legal-related' => ['ps_legal', ['technocrats', 'legal', 'ps'], 'legal', 'Suggested: Legal'],
+    'PS legal-related' => ['ps_legal', ['technocrats', 'legal', 'ps'], 'legal', 'Suggested: Legal Unit'],
     'PS technical' => ['ps_technical', ['technocrats', 'legal', 'ps'], 'technocrats', 'Suggested: Technocrats'],
 ]);
 

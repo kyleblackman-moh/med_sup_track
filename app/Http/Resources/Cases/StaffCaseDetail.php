@@ -25,6 +25,8 @@ use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RouteReturnedCase;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\EligibleReviewers;
+use App\Workflow\NextStep;
+use App\Workflow\StageWording;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
@@ -83,6 +85,8 @@ final class StaffCaseDetail
             ],
             // Slice 10c: the prepare-file form's starting value (config cases.file_no_prefix).
             // Slice 10e: the case's existing file number when it has one (a second round), else the config prefix.
+            // NEXT-STEP-1: the Next Step card (staff only; the vendor DTOs never carry it).
+            'next_step' => NextStep::for($case, $user),
             'file_no_default' => $canPrepare ? (filled($case->file_no) ? (string) $case->file_no : (string) config('cases.file_no_prefix', '')) : null,
             // Slice 10c: eligible Legal officers (id and name), only for a user who may send to Legal.
             'legal_officers' => $canSendToLegal ? app(EligibleReviewers::class)->legal() : null,
@@ -212,13 +216,13 @@ final class StaffCaseDetail
         $options = array_map(fn (string $d) => match ($d) {
             RouteReturnedCase::TECHNOCRATS => [
                 'value' => $d,
-                'label' => 'Technocrats',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
                 'consequence' => 'The case returns to In review. The technical review restarts with the Technocrats you choose; funding and hardcopy stay as recorded.',
                 'available' => true,
             ],
             RouteReturnedCase::LEGAL => [
                 'value' => $d,
-                'label' => 'Legal',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
                 'consequence' => $legalNames === []
                     ? RouteReturnedCase::NO_LEGAL_OFFICER.'.'
                     : 'The case goes back to With Legal, to the Legal officer'.(count($legalNames) > 1 ? 's' : '').' already assigned: '.implode(', ', $legalNames).'.',
@@ -226,7 +230,7 @@ final class StaffCaseDetail
             ],
             RouteReturnedCase::PS => [
                 'value' => $d,
-                'label' => 'PS office',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
                 'consequence' => 'The case goes back to the PS office for a decision.',
                 'available' => true,
             ],
