@@ -18,6 +18,7 @@ use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
+use App\Queries\QueryView;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
@@ -136,6 +137,8 @@ final class StaffCaseDetail
                 ReviewDesk::Technical->field() => app(EligibleReviewers::class)->for(ReviewDesk::Technical),
                 ReviewDesk::Funding->field() => app(EligibleReviewers::class)->for(ReviewDesk::Funding),
             ] : null,
+            // OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on.
+            'queries' => QueryView::forStaff($case, $user),
             // A page prop named "can" replaces the shared one, so the shared
             // navigation flags are repeated here (as in RequestController).
             'can' => [

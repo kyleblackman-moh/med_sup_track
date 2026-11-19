@@ -2,6 +2,7 @@
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
@@ -93,6 +94,14 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/close', 'closeCase')->name('close');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
+        });
+
+        // OVERNIGHT-2 (D2): query loops. An unknown or invisible query or message is 404.
+        Route::controller(CaseQueryController::class)->middleware('throttle:20,1')->group(function () {
+            Route::post('{procurementCase}/queries', 'store')->name('queries.store');
+            Route::post('{procurementCase}/queries/{query}/messages', 'reply')->name('queries.reply');
+            Route::post('{procurementCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
+            Route::post('{procurementCase}/queries/{query}/close', 'close')->name('queries.close');
         });
     });
 

@@ -279,3 +279,40 @@ export interface NextStepView {
     checklist: NextStepItem[];
     actions: NextStepAction[];
 }
+
+/** OVERNIGHT-2 (D2): one query message as staff see it (all text from the server). */
+export interface StaffQueryMessage {
+    id: string;
+    author: string | null;
+    from_label: string;
+    to_label: string;
+    body: string;
+    sent_on: string | null;
+    held: boolean;
+    state: string;
+    external: boolean;
+    /** Only for the CMO's desk while the message is held. */
+    forward: { label: string; title: string; body: string } | null;
+}
+
+export interface StaffQuery {
+    id: string;
+    title: string;
+    route_label: string;
+    status_label: string;
+    status_tone: StatusTone;
+    raised_by: string | null;
+    raised_on: string | null;
+    waiting_on: string | null;
+    read_only: boolean;
+    can_reply: boolean;
+    reply_label: string;
+    can_close: boolean;
+    messages: StaffQueryMessage[];
+}
+
+export interface StaffQueries {
+    queries: StaffQuery[];
+    /** The routes this user may raise a query on; null when none. */
+    raise: { routes: { id: number; label: string }[] } | null;
+}

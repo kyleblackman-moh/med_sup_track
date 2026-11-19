@@ -3,6 +3,7 @@ import { type CaseTab, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
+import { QueriesPanel } from '@/components/cases/queries-panel';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
 import { PageHeader } from '@/components/page-header';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
@@ -32,6 +33,7 @@ import {
     type StaffCaseAbilities,
     type StaffCaseDetail,
     type StaffDocument,
+    type StaffQueries,
     type TimelineEntry,
 } from '@/types/cases';
 import { type RequestSummaryView } from '@/types/summary';
@@ -62,10 +64,12 @@ interface Props {
     letter_dates: { today: string } | null;
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
+    /** OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on. */
+    queries: StaffQueries;
     can: StaffCaseAbilities;
 }
 
-type TabId = 'overview' | RequisitionTab | 'history' | 'actions';
+type TabId = 'overview' | RequisitionTab | 'queries' | 'history' | 'actions';
 
 const TZ = 'America/Port_of_Spain';
 
@@ -99,6 +103,7 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>
             { id: 'overview', label: 'Overview' },
             { id: 'details', label: 'Request Details' },
             { id: 'documents', label: 'Documents' },
+            { id: 'queries', label: 'Queries' },
             { id: 'history', label: 'History' },
             { id: 'actions', label: 'Actions' },
         ];
@@ -114,6 +119,7 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>
         ...(hasOrders ? [{ id: 'orders' as const, label: 'Awards & Orders' }] : []),
         { id: 'quotations', label: 'Quotations' },
         { id: 'documents', label: 'Documents' },
+        { id: 'queries', label: 'Queries' },
         { id: 'history', label: 'History' },
         { id: 'actions', label: 'Actions' },
     ];
@@ -153,6 +159,7 @@ export default function CaseShow({
     letter,
     letter_dates,
     summary,
+    queries,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -285,6 +292,8 @@ export default function CaseShow({
                         : (active === 'details' || active === 'stock' || active === 'tender' || active === 'orders' || active === 'quotations') && (
                               <RequisitionView content={detail} isPharm={isPharm} tab={active} />
                           )}
+
+                    {active === 'queries' && <QueriesPanel caseId={detail.id} data={queries} />}
 
                     {active === 'documents' && (
                         <>

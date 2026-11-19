@@ -38,6 +38,12 @@ enum AuditAction: string
     case CaseLetterIssued = 'case.letter_issued';
     case CaseClosed = 'case.closed';
 
+    // OVERNIGHT-2 (D2): query loops. Ids, counts and fixed codes only, never the message text.
+    case QueryRaised = 'query.raised';
+    case QueryMessagePosted = 'query.message_posted';
+    case QueryForwarded = 'query.forwarded';
+    case QueryClosed = 'query.closed';
+
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';
     case DocumentUploadReceived = 'document.upload_received';
