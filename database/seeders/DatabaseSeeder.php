@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             ProcurementTypeSeeder::class,
             OrganisationSeeder::class,
+            QueryRouteSeeder::class, // OVERNIGHT-2 (D1): idempotent
         ]);
 
         // Example user (factory password "password"): local only, never in
