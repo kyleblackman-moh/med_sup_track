@@ -44,6 +44,8 @@ interface Props {
     letterToday: string | null;
     /** Opens the Send Onward panel at the chosen destination; null when the user may not route the case. */
     onRoute: ((destination: RouteDestination['value']) => void) | null;
+    /** OVERNIGHT-2 (D4): opens the Queries tab, where the forward or answer is done. */
+    onOpenQueries: () => void;
 }
 
 /** "Received on ...", "Favourable", plus who holds the item. All text from the server. */
@@ -116,7 +118,19 @@ function ConfirmAction({
  * this only renders it. A user without the permission sees the holder and the
  * instruction but no button. Disabled actions stay visible with their reason.
  */
-export function NextStepCard({ caseId, next, reviewers, fileNoDefault, legalOfficers, legalForm, psForm, reviewForms, letterToday, onRoute }: Props) {
+export function NextStepCard({
+    caseId,
+    next,
+    reviewers,
+    fileNoDefault,
+    legalOfficers,
+    legalForm,
+    psForm,
+    reviewForms,
+    letterToday,
+    onRoute,
+    onOpenQueries,
+}: Props) {
     const [dialog, setDialog] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -223,6 +237,27 @@ export function NextStepCard({ caseId, next, reviewers, fileNoDefault, legalOffi
             )}
 
             {expandedAction && <div className="border-t pt-4">{inlineForm(expandedAction)}</div>}
+
+            {next.queries.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                    <h3 className="text-sm font-semibold">Open Queries</h3>
+                    <ul className="space-y-2">
+                        {next.queries.map((q) => (
+                            <li key={q.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                <span className="font-medium">{q.title}</span>
+                                <span className="text-muted-foreground">{q.status_label}</span>
+                                {q.action ? (
+                                    <Button type="button" size="sm" onClick={onOpenQueries}>
+                                        {q.action}
+                                    </Button>
+                                ) : (
+                                    q.waiting_on && <span className="text-muted-foreground">{q.waiting_on}</span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {next.actions
                 .filter((a) => a.key in SIMPLE_ROUTES)

@@ -9,6 +9,7 @@ use App\Models\CaseAssignment;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Queries\QueryView;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
@@ -92,6 +93,8 @@ final class NextStep
             'instruction' => $this->instruction($words['instruction']),
             'checklist' => $checklist,
             'actions' => $actions,
+            // OVERNIGHT-2 (D4): open queries, an overlay on the stage (they block no transition).
+            'queries' => QueryView::forCard($this->case, $this->user),
         ];
     }
 

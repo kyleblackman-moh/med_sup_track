@@ -5,12 +5,16 @@ use App\Enums\CaseStatus;
 use App\Enums\ReviewDesk;
 use App\Enums\Role;
 use App\Http\Resources\Cases\StaffCaseDetail;
+use App\Models\CaseQuery;
 use App\Models\ProcurementCase;
+use App\Models\QueryRoute;
 use App\Models\User;
+use App\Queries\QueryService;
 use App\Support\WorkQueue;
 use App\Workflow\Actions\RecordFundingConfirmation;
 use App\Workflow\Actions\RecordTechnicalReview;
 use App\Workflow\TransitionRules;
+use Database\Seeders\QueryRouteSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -91,6 +95,9 @@ function stepsByDetailFlags(ProcurementCase $case, array $dto): array
         'returned' => $can['route_onward'],
         'letter' => $can['issue_letter'],
         'close' => $can['close_case'],
+        // OVERNIGHT-2 (D4): the Queries tab's own flags (QueryAccess::forwardable and needsAnswer).
+        'query_forward' => collect($dto['queries']['queries'])->contains(fn (array $q) => $q['needs_my_forward']),
+        'query_answer' => collect($dto['queries']['queries'])->contains(fn (array $q) => $q['needs_my_answer']),
     ];
 
     return collect($due)->filter()->keys()->sort()->values()->all();
@@ -144,3 +151,37 @@ it('drops a review from the queue once the reviewer records it, while the case p
     'technocrat' => ['technocrat', ReviewDesk::Technical],
     'CAB' => ['cab', ReviewDesk::Funding],
 ]);
+
+it('queues query work exactly when the Queries tab asks this user to forward or answer', function () {
+    app()->detectEnvironment(fn () => 'local');
+    $this->seed(QueryRouteSeeder::class);
+    $this->artisan('dev:sample-case', ['stage' => 'with_legal'])->assertSuccessful();
+    $case = paritySample();
+    $users = parityDevUsers();
+
+    // Legal raises a query to the Technocrats (via the CMO): held for the CMO.
+    $route = QueryRoute::query()->where('from_role', 'legal_officer')->where('to_role', 'technocrat')->firstOrFail();
+    $this->actingAs($users['legal']);
+    app(QueryService::class)->raise($case, $users['legal'], (int) $route->id, 'A parity question');
+
+    $check = function () use ($case, $users) {
+        foreach ($users as $key => $user) {
+            $this->actingAs($user);
+            $fresh = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
+            $queued = collect(WorkQueue::for($user)['items'] ?? [])->where('case_id', $case->id)->pluck('step')->sort()->values()->all();
+            expect($queued)->toBe(stepsByDetailFlags($fresh, StaffCaseDetail::for($fresh, $user)), "user {$key}");
+        }
+    };
+
+    $check();
+    expect(collect(WorkQueue::for($users['cmo'])['items'])->where('case_id', $case->id)->pluck('step')->all())->toContain('query_forward');
+
+    // The CMO forwards: now the Technocrat has a query to answer.
+    $this->actingAs($users['cmo']);
+    $query = CaseQuery::withoutGlobalScopes()->where('case_id', $case->id)->firstOrFail();
+    app(QueryService::class)->forward($case, $query, $query->messages()->firstOrFail(), $users['cmo']);
+
+    $check();
+    $this->actingAs($users['technocrat']);
+    expect(collect(WorkQueue::for($users['technocrat'])['items'])->where('case_id', $case->id)->pluck('step')->all())->toContain('query_answer');
+});

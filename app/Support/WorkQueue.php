@@ -4,11 +4,14 @@ namespace App\Support;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Enums\QueryStatus;
 use App\Enums\ReviewDesk;
 use App\Http\Resources\Cases\StaffCaseSummary;
+use App\Models\CaseQuery;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Queries\QueryAccess;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
@@ -165,6 +168,9 @@ final class WorkQueue
             }
         }
 
+        // OVERNIGHT-2 (D4): query work, on any open case the user can see.
+        array_push($items, ...self::queryItems($user, $today));
+
         // Oldest first; unknown ages last.
         usort($items, fn (array $a, array $b) => [$a['waiting_since'] === null, $a['waiting_since']] <=> [$b['waiting_since'] === null, $b['waiting_since']]);
 
@@ -173,8 +179,86 @@ final class WorkQueue
         foreach ($steps as $key => [$label]) {
             $groups[] = ['key' => $key, 'label' => $label, 'count' => $counts[$key] ?? 0];
         }
+        foreach (self::QUERY_STEPS as $key => [$label]) {
+            if (($counts[$key] ?? 0) > 0 || ($key === 'query_forward' && QueryAccess::isCmoDesk($user))) {
+                $groups[] = ['key' => $key, 'label' => $label, 'count' => $counts[$key] ?? 0];
+            }
+        }
 
         return ['groups' => $groups, 'items' => $items, 'truncated' => $truncated];
+    }
+
+    /** OVERNIGHT-2 (D4): query rows, keyed like the steps: [group label, button text]. */
+    public const QUERY_STEPS = [
+        'query_forward' => ['Query to Forward', 'Forward Query'],
+        'query_answer' => ['Query to Answer', 'Answer Query'],
+    ];
+
+    /**
+     * One row per case and query step, by the same predicates as the Queries
+     * tab and the Next Step card (QueryAccess::forwardable, needsAnswer).
+     * Waiting since: the held message (forward) or the last delivered message
+     * (answer), oldest first across the case's queries.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function queryItems(User $user, CarbonImmutable $today): array
+    {
+        $queries = CaseQuery::withoutGlobalScopes()
+            ->where('status', '<>', QueryStatus::CLOSED->value)
+            ->with('messages')
+            ->orderBy('created_at')
+            ->limit(self::MAX_CASES)
+            ->get();
+
+        $cases = ProcurementCase::withoutGlobalScopes()
+            ->with(['organisation:id,name', 'requisition:id,case_id,item_description'])
+            ->whereIn('id', $queries->pluck('case_id')->unique()->values()->all())
+            ->get()->keyBy('id');
+
+        $due = [];
+        foreach ($queries as $query) {
+            $case = $cases->get($query->case_id);
+            if ($case === null || ! QueryAccess::canSeeCase($user, $case)) {
+                continue;
+            }
+
+            $held = QueryAccess::forwardable($user, $case, $query);
+            $found = match (true) {
+                $held !== null => ['query_forward', $held->created_at],
+                QueryAccess::needsAnswer($user, $case, $query) => ['query_answer', ($last = $query->messages->last())?->forwarded_at ?? $last?->created_at],
+                default => null,
+            };
+            if ($found === null) {
+                continue;
+            }
+
+            [$step, $since] = $found;
+            $since = $since !== null ? CarbonImmutable::parse($since)->utc() : null;
+            $key = "{$case->id}:{$step}";
+            if (isset($due[$key]) && $due[$key]['since'] !== null && ($since === null || $due[$key]['since']->lte($since))) {
+                continue;
+            }
+            $due[$key] = ['case' => $case, 'step' => $step, 'since' => $since];
+        }
+
+        return array_values(array_map(fn (array $d) => [
+            'id' => "{$d['case']->id}:{$d['step']}",
+            'case_id' => $d['case']->id,
+            'step' => $d['step'],
+            'action' => self::QUERY_STEPS[$d['step']][1],
+            'reference_no' => $d['case']->reference_no,
+            'item_description' => $d['case']->requisition?->item_description !== null
+                ? Str::limit($d['case']->requisition->item_description, 80)
+                : null,
+            'organisation' => $d['case']->organisation?->name,
+            'status_label' => $d['case']->status->label(),
+            'status_tone' => $d['case']->status->tone(),
+            'waiting_since' => $d['since']?->toIso8601ZuluString(),
+            'days_waiting' => $d['since'] !== null
+                ? (int) $d['since']->setTimezone(StaffCaseSummary::TIMEZONE)->startOfDay()->diffInDays($today)
+                : null,
+        ], $due));
     }
 
     /**

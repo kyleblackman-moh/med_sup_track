@@ -8,6 +8,7 @@ use App\Enums\UserType;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * NOTIF-1: who gets each email, resolved by permission name (never a role
@@ -55,6 +56,29 @@ final class NotificationRecipients
             ->where('org_id', $case->org_id)
             ->whereHas('organisation', fn ($q) => $q->where('type', OrganisationType::Vendor->value))
             ->get();
+    }
+
+    /** OVERNIGHT-2 (D4): the CMO's desk for queries: holders of query.forward. @return Collection<int, User> */
+    public function queryDesk(): Collection
+    {
+        return $this->staffWith(Permission::QueryForward);
+    }
+
+    /**
+     * OVERNIGHT-2 (D4): active staff holding $role (a role name read from the
+     * query's route data, never written in code) who can see $case.
+     *
+     * @return Collection<int, User>
+     */
+    public function roleOnCase(string $role, ProcurementCase $case): Collection
+    {
+        return User::role($role)
+            ->where('users.status', User::STATUS_ACTIVE)
+            ->where('users.user_type', UserType::Staff->value)
+            ->get()
+            ->filter(fn (User $u) => Gate::forUser($u)->allows('view', $case))
+            ->unique(fn (User $u) => $u->getKey())
+            ->values();
     }
 
     /** @return Collection<int, User> */

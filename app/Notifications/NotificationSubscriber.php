@@ -7,9 +7,13 @@ use App\Events\CaseTransitioned;
 use App\Events\DocumentQuarantined;
 use App\Events\HardcopyRecorded;
 use App\Events\PasswordChanged as PasswordChangedEvent;
+use App\Events\QueryMessageDelivered;
+use App\Events\QueryMessageHeld;
 use App\Models\CaseAssignment;
+use App\Models\CaseQuery;
 use App\Models\Document;
 use App\Models\ProcurementCase;
+use App\Models\QueryMessage;
 use App\Models\User;
 use App\Notifications\Cases\CaseAssigned;
 use App\Notifications\Cases\CaseNotification;
@@ -19,6 +23,11 @@ use App\Notifications\Cases\HardcopyReceived;
 use App\Notifications\Cases\LetterIssued;
 use App\Notifications\Cases\NonObjectionGranted;
 use App\Notifications\Cases\ReturnedToCmo;
+use App\Notifications\Queries\ForwardRequired;
+use App\Notifications\Queries\QueryAnswered;
+use App\Notifications\Queries\QueryNotification;
+use App\Notifications\Queries\QueryRaised;
+use App\Queries\QueryAccess;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Notifications\Notification as BaseNotification;
@@ -49,7 +58,54 @@ final class NotificationSubscriber
             DocumentQuarantined::class => 'onQuarantine',
             PasswordReset::class => 'onPasswordReset',
             PasswordChangedEvent::class => 'onPasswordChanged',
+            QueryMessageHeld::class => 'onQueryHeld',
+            QueryMessageDelivered::class => 'onQueryDelivered',
         ];
+    }
+
+    /** OVERNIGHT-2 (D4): a via-CMO message is held: the CMO's desk is asked to forward it. */
+    public function onQueryHeld(QueryMessageHeld $event): void
+    {
+        $case = ProcurementCase::withoutGlobalScopes()->find($event->caseId);
+        if ($case !== null) {
+            $this->send($this->recipients->queryDesk(), new ForwardRequired($case->getKey(), $case->reference_no));
+        }
+    }
+
+    /**
+     * OVERNIGHT-2 (D4): a message reached the other side (direct, or forwarded).
+     * To the raiser's side: Query Answered to the person who raised it. To the
+     * recipient side: Query Raised to the holders of that role who can see the
+     * case, or the vendor applicant for a vendor role. A direct query to a
+     * vendor is also sent to the CMO's desk, which reads it.
+     */
+    public function onQueryDelivered(QueryMessageDelivered $event): void
+    {
+        $case = ProcurementCase::withoutGlobalScopes()->find($event->caseId);
+        $query = CaseQuery::withoutGlobalScopes()->find($event->queryId);
+        $message = QueryMessage::query()->find($event->messageId);
+        if ($case === null || $query === null || $message === null) {
+            return;
+        }
+
+        $r = $this->recipients;
+        $author = (int) $message->author_id;
+
+        if ($message->recipient_role === $query->raised_by_role) {
+            $this->send($r->user((int) $query->raised_by_user_id)->reject(fn (User $u) => $u->getKey() === $author), new QueryAnswered($case->getKey(), $case->reference_no));
+
+            return;
+        }
+
+        $to = QueryAccess::isVendorRole($message->recipient_role)
+            ? $r->vendorApplicant($case)
+            : $r->roleOnCase($message->recipient_role, $case);
+
+        if (QueryAccess::isVendorRole($message->recipient_role) && ! $query->via_cmo) {
+            $this->send($r->queryDesk()->reject(fn (User $u) => $u->getKey() === $author), new QueryRaised($case->getKey(), $case->reference_no));
+        }
+
+        $this->send($to->reject(fn (User $u) => $u->getKey() === $author), new QueryRaised($case->getKey(), $case->reference_no));
     }
 
     public function onTransition(CaseTransitioned $event): void
@@ -123,7 +179,7 @@ final class NotificationSubscriber
             // Never let an email break the action; no recipient address in the log.
             Log::error('Notification could not be sent', [
                 'notification' => $notification::class,
-                'case_id' => $notification instanceof CaseNotification ? $notification->caseId : null,
+                'case_id' => $notification instanceof CaseNotification || $notification instanceof QueryNotification ? $notification->caseId : null,
                 'exception' => $e::class,
             ]);
         }

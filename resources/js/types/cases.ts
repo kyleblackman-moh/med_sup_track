@@ -278,6 +278,8 @@ export interface NextStepView {
     instruction: string;
     checklist: NextStepItem[];
     actions: NextStepAction[];
+    /** OVERNIGHT-2 (D4): open queries; action is the button label (forward or answer), else waiting_on says who. */
+    queries: { id: string; title: string; status_label: string; waiting_on: string | null; action: string | null }[];
 }
 
 /** OVERNIGHT-2 (D2): one query message as staff see it (all text from the server). */

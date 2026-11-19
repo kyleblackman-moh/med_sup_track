@@ -212,6 +212,7 @@ export default function CaseShow({
                     reviewForms={review_forms}
                     letterToday={letter_dates?.today ?? null}
                     onRoute={can.route_onward && route_panel ? openRoute : null}
+                    onOpenQueries={() => show('queries')}
                 />
 
                 <CaseTabs tabs={tabs} active={active} onSelect={show} />

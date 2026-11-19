@@ -168,6 +168,20 @@ final class QueryAccess
             && self::canSeeCase($user, $case);
     }
 
+    /** D4: does $query wait on $user's answer (recipient side, delivered, open)? Card, tab and queue use this. */
+    public static function needsAnswer(User $user, ProcurementCase $case, CaseQuery $query): bool
+    {
+        return $query->status === QueryStatus::OPEN
+            && self::side($user, $query) === self::RECIPIENT
+            && self::canReply($user, $case, $query);
+    }
+
+    /** D4: the held message of $query that $user (the CMO's desk) may forward now, if any. */
+    public static function forwardable(User $user, ProcurementCase $case, CaseQuery $query): ?QueryMessage
+    {
+        return $query->messages->first(fn (QueryMessage $m) => self::canForward($user, $case, $query, $m));
+    }
+
     /** Either side (staff) or the CMO's desk; vendors reply only. */
     public static function canClose(User $user, ProcurementCase $case, CaseQuery $query): bool
     {

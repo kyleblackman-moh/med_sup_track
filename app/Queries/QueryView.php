@@ -57,6 +57,9 @@ final class QueryView
             // The CMO's desk reading a query it takes no part in (for example a direct Technocrat to vendor query).
             'read_only' => $side === null,
             'can_reply' => QueryAccess::canReply($user, $case, $query),
+            // D4: the same predicates the Next Step card and the work queue use.
+            'needs_my_answer' => QueryAccess::needsAnswer($user, $case, $query),
+            'needs_my_forward' => QueryAccess::forwardable($user, $case, $query) !== null,
             'reply_label' => $side === QueryAccess::RECIPIENT ? 'Answer Query' : 'Add a Message',
             'can_close' => QueryAccess::canClose($user, $case, $query),
             'messages' => $messages->map(fn (QueryMessage $m) => self::staffMessage($case, $query, $m, $user))->all(),
@@ -89,6 +92,36 @@ final class QueryView
                 'body' => 'The message goes to '.$to.' as written. You are recorded as the person who forwarded it.',
             ] : null,
         ];
+    }
+
+    /**
+     * D4: the open queries for the Next Step card, each with the one thing
+     * this user does next (forward or answer), or who it waits on.
+     *
+     * @return list<array{id: string, title: string, status_label: string, waiting_on: string|null, action: string|null}>
+     */
+    public static function forCard(ProcurementCase $case, User $user): array
+    {
+        $case->loadMissing('organisation:id,name');
+
+        return QueryAccess::visibleQueries($user, $case)
+            ->filter(fn (CaseQuery $q) => $q->status !== QueryStatus::CLOSED)
+            ->map(function (CaseQuery $q) use ($case, $user) {
+                $held = QueryAccess::forwardable($user, $case, $q);
+                $action = match (true) {
+                    $held !== null => QueryWording::forwardLabel($held->recipient_role, $case),
+                    QueryAccess::needsAnswer($user, $case, $q) => 'Answer Query',
+                    default => null,
+                };
+
+                return [
+                    'id' => (string) $q->getKey(),
+                    'title' => $q->type->label().': '.QueryWording::office($q->raised_by_role, $case).' to '.QueryWording::office($q->raised_to_role, $case),
+                    'status_label' => $q->status->label(),
+                    'waiting_on' => $action === null ? self::waitingOn($case, $q) : null,
+                    'action' => $action,
+                ];
+            })->values()->all();
     }
 
     /** Plain words for who the query waits on; null once closed. */

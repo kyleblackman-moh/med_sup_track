@@ -9,8 +9,13 @@ use App\Models\ProcurementCase;
 use App\Models\QueryMessage;
 use App\Models\QueryRoute;
 use App\Models\User;
+use App\Notifications\Queries\ForwardRequired;
+use App\Notifications\Queries\QueryAnswered;
+use App\Notifications\Queries\QueryRaised;
 use App\Queries\QueryAccess;
 use App\Queries\QueryView;
+use App\Support\WorkQueue;
+use App\Workflow\NextStep;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\QueryRouteSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -69,9 +74,10 @@ function qlCase(array $a, S $status): ProcurementCase
         'reference_no' => 'NR-QL-'.Str::upper(Str::random(8)),
         'submitted_at' => now()->subDays(5),
     ]);
-    assign($case, Role::Technocrat, $a['technocrat']);
-    assign($case, Role::CabOfficer, $a['cab']);
-    assign($case, Role::LegalOfficer, $a['legal']);
+    // With their desk purposes, so the case's own actions (for example the Legal decision) apply.
+    foreach ([[Role::Technocrat, 'technocrat', 'technical'], [Role::CabOfficer, 'cab', 'funding'], [Role::LegalOfficer, 'legal', 'legal']] as [$role, $key, $purpose]) {
+        DB::table('case_assignments')->where('id', assign($case, $role, $a[$key])->id)->update(['purpose' => $purpose]);
+    }
 
     return ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
 }
@@ -296,4 +302,112 @@ it('refuses a vendor reply once the case is closed', function () {
 
     expect(qlVendorQueries($this->a['vendor'], $this->case)[0]['can_reply'])->toBeFalse();
     $this->actingAs($this->a['vendor'])->post(route('requests.queries.reply', [$this->case, $query->id]), ['body' => 'Too late'])->assertForbidden();
+});
+
+// D4: Next Step card, work queue and email --------------------------------------------
+
+/** Who received $class, as a sorted list of user ids. */
+function qlNotified(string $class): array
+{
+    $ids = [];
+    foreach (Notification::getFacadeRoot()->sentNotifications() as $byId) {
+        foreach ($byId as $id => $byClass) {
+            if (isset($byClass[$class])) {
+                $ids[] = (int) $id;
+            }
+        }
+    }
+    sort($ids);
+
+    return $ids;
+}
+
+function qlIds(User ...$users): array
+{
+    $ids = array_map(fn (User $u) => (int) $u->id, $users);
+    sort($ids);
+
+    return $ids;
+}
+
+it('shows open queries on the Next Step card with the right action or who it waits on', function () {
+    $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
+    $card = fn (User $u) => NextStep::for(ProcurementCase::withoutGlobalScopes()->findOrFail($this->case->id), $u)['queries'];
+
+    $this->actingAs($this->a['cmo']);
+    expect($card($this->a['cmo'])[0]['action'])->toBe('Forward Query to Technocrats');
+    $this->actingAs($this->a['legal']);
+    expect($card($this->a['legal'])[0]['action'])->toBeNull()
+        ->and($card($this->a['legal'])[0]['waiting_on'])->toBe("Waiting on the CMO's Office to forward it");
+    $this->actingAs($this->a['technocrat']);
+    expect($card($this->a['technocrat']))->toBe([]);
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]));
+
+    $this->actingAs($this->a['technocrat']);
+    expect($card($this->a['technocrat'])[0]['action'])->toBe('Answer Query');
+    $this->actingAs($this->a['legal']);
+    expect($card($this->a['legal'])[0]['waiting_on'])->toBe('Waiting on the Technocrats to answer');
+
+    // An open query never blocks the case: the Legal decision is still offered.
+    expect(collect(NextStep::for(ProcurementCase::withoutGlobalScopes()->findOrFail($this->case->id), $this->a['legal'])['actions'])->pluck('key')->all())
+        ->toContain('legal_decision');
+});
+
+it('emails the CMO to forward a held message, the recipients once delivered, and the raiser the answer', function () {
+    $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
+
+    expect(qlNotified(ForwardRequired::class))->toContain($this->a['cmo']->id)
+        ->and(qlNotified(QueryRaised::class))->toBe([]);
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]));
+    $raised = qlNotified(QueryRaised::class);
+    expect($raised)->toContain($this->a['technocrat']->id)
+        ->and($raised)->not->toContain($this->a['other_technocrat']->id) // cannot see the case
+        ->and($raised)->not->toContain($this->a['legal']->id);
+
+    $this->actingAs($this->a['technocrat'])->post(route('cases.queries.reply', [$this->case, $query->id]), ['body' => 'Answer text']);
+    expect(qlNotified(QueryAnswered::class))->toBe([]);
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]));
+    expect(qlNotified(QueryAnswered::class))->toBe(qlIds($this->a['legal']));
+});
+
+it('tells the vendor and the CMO about a direct Technocrat query, with no message text', function () {
+    qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'), 'Secret-ish request wording');
+
+    $raised = qlNotified(QueryRaised::class);
+    expect($raised)->toContain($this->a['vendor']->id)->toContain($this->a['cmo']->id)
+        ->and($raised)->not->toContain($this->a['technocrat']->id);
+
+    $note = new QueryRaised($this->case->id, $this->case->reference_no);
+    foreach ([$this->a['vendor'], $this->a['cmo']] as $user) {
+        $mail = $note->toMail($user);
+        $text = implode("\n", [$mail->subject, ...$mail->introLines, ...$mail->outroLines, (string) $mail->actionText]);
+        expect($text)->toContain($this->case->reference_no)->not->toContain('wording')->not->toContain('Technocrat');
+    }
+    expect($note->toMail($this->a['vendor'])->introLines)->toHaveCount(1)
+        ->and($note->toMail($this->a['vendor'])->actionUrl)->toBe(route('requests.show', $this->case->id))
+        ->and($note->toMail($this->a['cmo'])->actionUrl)->toContain('tab=queries');
+});
+
+it('puts Query to Forward in the CMO queue and Query to Answer in the recipient queue', function () {
+    $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
+    $steps = function (User $u) {
+        $this->actingAs($u);
+
+        return collect(WorkQueue::for($u)['items'] ?? [])->where('case_id', $this->case->id)->pluck('step')->all();
+    };
+
+    expect($steps($this->a['cmo']))->toContain('query_forward')
+        ->and($steps($this->a['technocrat']))->not->toContain('query_answer');
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]));
+
+    expect($steps($this->a['cmo']))->not->toContain('query_forward')
+        ->and($steps($this->a['technocrat']))->toContain('query_answer');
+
+    $this->actingAs($this->a['cmo']);
+    $groups = collect(WorkQueue::for($this->a['cmo'])['groups'])->pluck('label', 'key');
+    expect($groups['query_forward'])->toBe('Query to Forward');
 });
