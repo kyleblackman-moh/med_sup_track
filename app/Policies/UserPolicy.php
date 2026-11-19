@@ -10,6 +10,10 @@ use App\Models\User;
  * users.manage opens the area; creating also needs user.create and resending
  * the sign-in link user.reset_credentials. A denial is 403 (a missing
  * permission); every user is in scope for a holder, so there is no 404 case.
+ *
+ * Self-guard (Step 4): nobody changes their own role or disables themselves.
+ * The last-holder guard (no active account left with users.manage) is a
+ * business rule in UserAdministration, since it depends on other accounts.
  */
 class UserPolicy
 {
@@ -28,14 +32,16 @@ class UserPolicy
         return $this->viewAny($actor) && $actor->can(Permission::UserCreate->value);
     }
 
+    /** Step 4: never your own role. */
     public function changeRole(User $actor, User $user): bool
     {
-        return $this->viewAny($actor);
+        return $this->viewAny($actor) && ! $actor->is($user);
     }
 
+    /** Step 4: never yourself. */
     public function disable(User $actor, User $user): bool
     {
-        return $this->viewAny($actor);
+        return $this->viewAny($actor) && ! $actor->is($user);
     }
 
     public function enable(User $actor, User $user): bool

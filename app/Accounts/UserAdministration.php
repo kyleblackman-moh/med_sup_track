@@ -4,6 +4,7 @@ namespace App\Accounts;
 
 use App\Enums\AuditAction;
 use App\Enums\OrganisationType;
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\UserType;
 use App\Models\Organisation;
@@ -99,6 +100,10 @@ final class UserAdministration
         }
 
         DB::transaction(function () use ($user, $role) {
+            if (! in_array(Permission::UsersManage, $role->permissions(), true)) {
+                $this->guardLastManager($user, 'role', 'This is the last active account that can manage users. Give another account that role first.');
+            }
+
             $user->syncRoles([$role->value]);
         });
     }
@@ -117,6 +122,8 @@ final class UserAdministration
         }
 
         DB::transaction(function () use ($actor, $user) {
+            $this->guardLastManager($user, 'account', 'This is the last active account that can manage users, so it cannot be disabled.');
+
             $user->forceFill([
                 'status' => User::STATUS_DISABLED,
                 'disabled_at' => now(),
@@ -174,6 +181,32 @@ final class UserAdministration
             Log::error('Account activation email failed', ['user_id' => $user->id, 'exception' => $e::class]);
 
             return false;
+        }
+    }
+
+    /**
+     * Step 4: an active account holding users.manage is never the last one to
+     * lose it (by disabling or by a role without it). Checked by permission,
+     * not by role name, so "the last system_admin" stays covered whatever
+     * role holds users.manage. The other holders' rows are read under an
+     * update lock, so two admins cannot remove each other at the same moment.
+     *
+     * @throws ValidationException
+     */
+    private function guardLastManager(User $user, string $key, string $message): void
+    {
+        if (! $user->isActive() || ! $user->can(Permission::UsersManage->value)) {
+            return;
+        }
+
+        $others = User::permission(Permission::UsersManage->value)
+            ->where('users.status', User::STATUS_ACTIVE)
+            ->whereKeyNot($user->getKey())
+            ->lockForUpdate()
+            ->count();
+
+        if ($others === 0) {
+            throw ValidationException::withMessages([$key => $message]);
         }
     }
 
