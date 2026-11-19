@@ -5,6 +5,7 @@ use App\Enums\CaseStatus;
 use App\Enums\ReviewDesk;
 use App\Enums\Role;
 use App\Http\Resources\Cases\StaffCaseDetail;
+use App\Http\Resources\Dashboard\DashboardView;
 use App\Models\CaseQuery;
 use App\Models\ProcurementCase;
 use App\Models\QueryRoute;
@@ -121,7 +122,39 @@ it('queues a case for a user exactly when the case page offers the matching acti
 
         expect($queued)->toBe($expected, "stage {$stage}, user {$key}");
     }
+    assertChipParity($users, "stage {$stage}");
 })->with(array_keys(DevSampleCase::STAGES));
+
+/**
+ * FIX-2 (2): every chip's count is WorkQueue's own count for the chip's steps,
+ * and applying the chip shows exactly that many rows, each of those steps.
+ *
+ * @param  array<string, User>  $users
+ */
+function assertChipParity(array $users, string $label = ''): void
+{
+    foreach ($users as $key => $user) {
+        test()->actingAs($user);
+        $workQueue = WorkQueue::for($user);
+        $all = DashboardView::queue($user, $workQueue, '', '');
+        if ($all === null) {
+            continue;
+        }
+        $groups = array_column($workQueue['groups'], 'count', 'key');
+
+        foreach ($all['filters'] as $chip) {
+            $steps = $chip['key'] === 'all' ? null : DashboardView::filterSteps($chip['key']);
+            $expected = $steps === null ? count($workQueue['items']) : array_sum(array_intersect_key($groups, array_flip($steps)));
+            $shown = DashboardView::queue($user, $workQueue, $chip['key'], '');
+
+            expect($chip['count'])->toBe($expected, "{$label} user {$key}, chip {$chip['key']}")
+                ->and(count($shown['items']))->toBe($chip['count'], "{$label} user {$key}, rows of chip {$chip['key']}");
+            if ($steps !== null) {
+                expect(array_diff(array_column($shown['items'], 'step'), $steps))->toBe([], "{$label} user {$key}, steps of chip {$chip['key']}");
+            }
+        }
+    }
+}
 
 it('drops a review from the queue once the reviewer records it, while the case page keeps the form (parity exception)', function (string $key, ReviewDesk $desk) {
     app()->detectEnvironment(fn () => 'local');
@@ -169,8 +202,17 @@ it('queues query work exactly when the Queries tab asks this user to forward or 
             $this->actingAs($user);
             $fresh = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
             $queued = collect(WorkQueue::for($user)['items'] ?? [])->where('case_id', $case->id)->pluck('step')->sort()->values()->all();
-            expect($queued)->toBe(stepsByDetailFlags($fresh, StaffCaseDetail::for($fresh, $user)), "user {$key}");
+            $expected = stepsByDetailFlags($fresh, StaffCaseDetail::for($fresh, $user));
+            expect($queued)->toBe($expected, "user {$key}");
+
+            // FIX-2 (2): the Queries chip shows this case exactly when the Queries tab asks this user to act.
+            $chip = DashboardView::queue($user, WorkQueue::for($user), 'queries', '');
+            // Without query work the user has no Queries chip, and the filter falls back to All.
+            $expectsQuery = array_intersect($expected, ['query_forward', 'query_answer']) !== [];
+            $shown = $chip !== null && $chip['filter'] === 'queries' && collect($chip['items'])->contains('case_id', $case->id);
+            expect($shown)->toBe($expectsQuery, "queries chip, user {$key}");
         }
+        assertChipParity($users);
     };
 
     $check();

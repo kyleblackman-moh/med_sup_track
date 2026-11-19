@@ -8,10 +8,13 @@ use App\Models\CaseRequisition;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
+use App\Models\QueryRoute;
 use App\Models\User;
+use App\Queries\QueryService;
 use App\Support\SqlLike;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
+use Database\Seeders\QueryRouteSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -75,7 +78,7 @@ function reviewAssign(ProcurementCase $case, User $user): void
 
 // 1. Filters --------------------------------------------------------------------------------
 
-it('gives the CMO "All" and the four filters, each a WorkQueue step with WorkQueue\'s own count', function () {
+it('gives the CMO "All" and the five filters, each with WorkQueue\'s own count', function () {
     $cmo = caseUser(Role::Cmo);
     $queue = queueProp($this, $cmo);
     $workQueue = pageProps($this->actingAs($cmo)->get(route('dashboard')))['workQueue'];
@@ -83,11 +86,13 @@ it('gives the CMO "All" and the four filters, each a WorkQueue step with WorkQue
 
     expect(array_column($queue['filters'], 'label', 'key'))->toBe([
         'all' => 'All', 'intake' => 'New Submissions', 'hardcopy' => 'Hardcopy Pending',
-        'returned' => 'Returned to CMO', 'letter' => 'Letters to Draft',
+        'returned' => 'Returned to CMO', 'letter' => 'Letters to Draft', 'queries' => 'Queries',
     ])
         ->and(chipCounts($queue))->toBe([
             'all' => count($workQueue['items']), 'intake' => $groups['intake'], 'hardcopy' => $groups['hardcopy'],
             'returned' => $groups['returned'], 'letter' => $groups['letter'],
+            // FIX-2 (2): the CMO's desk always has Query to Forward; Query to Answer only when due.
+            'queries' => $groups['query_forward'] + ($groups['query_answer'] ?? 0),
         ])
         ->and($queue['filter'])->toBe('all')
         ->and(collect($queue['filters'])->firstWhere('key', 'all')['active'])->toBeTrue();
@@ -119,6 +124,35 @@ it('applies a filter on the server and marks it active', function () {
         ->and($queue['items'])->not->toBeEmpty()
         ->and(array_unique(array_column($queue['items'], 'step')))->toBe(['letter'])
         ->and(collect($queue['filters'])->where('active', true)->pluck('key')->all())->toBe(['letter']);
+});
+
+it('FIX-2: counts Forward Query and Answer Query rows in the Queries chip, and filters to them', function () {
+    $this->seed(QueryRouteSeeder::class);
+    $cmo = caseUser(Role::Cmo);
+    $technocrat = caseUser(Role::Technocrat);
+    $before = chipCounts(queueProp($this, $cmo));
+
+    // A direct Technocrat question to the CMO: an Answer Query row for the CMO.
+    $case = dashCase(CaseStatus::IN_REVIEW, 'Dash item', dashHardcopy());
+    reviewAssign($case, $technocrat);
+    $route = QueryRoute::query()->where('from_role', 'technocrat')->where('to_role', 'cmo')->firstOrFail();
+    $this->actingAs($technocrat);
+    app(QueryService::class)->raise($case, $technocrat, (int) $route->id, 'A dashboard question');
+
+    $queue = queueProp($this, $cmo, ['filter' => 'queries']);
+    $after = chipCounts($queue);
+    $groups = array_column(pageProps($this->actingAs($cmo)->get(route('dashboard')))['workQueue']['groups'], 'count', 'key');
+
+    expect($after['queries'] - $before['queries'])->toBe(1)
+        ->and($after['queries'])->toBe($groups['query_forward'] + ($groups['query_answer'] ?? 0))
+        ->and($queue['filter'])->toBe('queries')
+        ->and(count($queue['items']))->toBe($after['queries'])
+        ->and(array_values(array_diff(array_unique(array_column($queue['items'], 'step')), ['query_forward', 'query_answer'])))->toBe([])
+        ->and(collect($queue['items'])->where('case_id', $case->id)->pluck('action')->all())->toBe(['Answer Query'])
+        ->and(collect($queue['filters'])->firstWhere('key', 'queries')['href'])->toBe('/dashboard?filter=queries');
+
+    // The Technocrat holds no query work now: no Queries chip.
+    expect(array_keys(chipCounts(queueProp($this, $technocrat))))->not->toContain('queries');
 });
 
 it('treats an unknown filter, or one the user does not hold, as All', function (string $role, string $filter) {

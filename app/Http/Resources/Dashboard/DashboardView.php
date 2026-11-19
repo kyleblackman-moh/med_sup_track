@@ -48,7 +48,24 @@ final class DashboardView
         'hardcopy' => 'Hardcopy Pending',
         'returned' => 'Returned to CMO',
         'letter' => 'Letters to Draft',
+        'queries' => 'Queries',
     ];
+
+    /**
+     * FIX-2 (2): a filter that covers more than one WorkQueue step. Any other
+     * filter is the one step with its own key. "Queries" is the Forward Query
+     * and Answer Query rows; it shows when the user has either group (the CMO's
+     * desk always has Query to Forward), and its count is the sum of theirs.
+     */
+    public const FILTER_STEPS = [
+        'queries' => ['query_forward', 'query_answer'],
+    ];
+
+    /** @return list<string> the WorkQueue steps a filter shows */
+    public static function filterSteps(string $filter): array
+    {
+        return self::FILTER_STEPS[$filter] ?? [$filter];
+    }
 
     /** DASH-1: the queue card's empty states (server wording). */
     public const EMPTY_QUEUE = 'No cases need your action.';
@@ -206,12 +223,21 @@ final class DashboardView
             return null;
         }
 
-        $counts = array_column($queue['groups'], 'count', 'key');
-        $filter = array_key_exists($filter, self::FILTERS) && array_key_exists($filter, $counts) ? $filter : 'all';
+        $groupCounts = array_column($queue['groups'], 'count', 'key');
+        // A filter's count: its steps' WorkQueue counts, for the filters whose steps the user holds.
+        $counts = [];
+        foreach (array_keys(self::FILTERS) as $key) {
+            $held = array_intersect_key($groupCounts, array_flip(self::filterSteps($key)));
+            if ($held !== []) {
+                $counts[$key] = array_sum($held);
+            }
+        }
+        $filter = array_key_exists($filter, $counts) ? $filter : 'all';
 
+        $steps = self::filterSteps($filter);
         $items = $filter === 'all'
             ? $queue['items']
-            : array_values(array_filter($queue['items'], fn (array $item) => $item['step'] === $filter));
+            : array_values(array_filter($queue['items'], fn (array $item) => in_array($item['step'], $steps, true)));
 
         if ($search !== '' && $items !== []) {
             $matching = array_flip(self::matchingCaseIds($user, array_values(array_unique(array_column($items, 'case_id'))), $search));
