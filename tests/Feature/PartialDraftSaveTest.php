@@ -29,7 +29,7 @@ afterEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
-function requisitionOf(ProcurementCase $case): ?CaseRequisition
+function partialRequisitionOf(ProcurementCase $case): ?CaseRequisition
 {
     return CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->first();
 }
@@ -51,7 +51,7 @@ it('saves the valid fields and leaves out one bad number, with its message', fun
         'quantity_requested' => 'lots',
     ]]);
 
-    $r = requisitionOf($case);
+    $r = partialRequisitionOf($case);
     expect($r->item_description)->toBe('Paracetamol 500mg tablets')
         ->and($r->strength)->toBe('500mg')
         ->and($r->quantity_requested)->toBeNull()
@@ -70,8 +70,8 @@ it('keeps the saved value when a later value fails', function () {
 
     putDraft($case, $vendor, ['requisition' => ['quantity_requested' => 'abc', 'strength' => '250mg']]);
 
-    expect(requisitionOf($case)->quantity_requested)->toBe('100.00')
-        ->and(requisitionOf($case)->strength)->toBe('250mg');
+    expect(partialRequisitionOf($case)->quantity_requested)->toBe('100.00')
+        ->and(partialRequisitionOf($case)->strength)->toBe('250mg');
 });
 
 it('creates a new row with one bad cell, leaving that cell empty', function () {
@@ -95,7 +95,7 @@ it('leaves out only the end date when the tender cycle ends before it starts', f
 
     $saved = putDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => '2026-06-01', 'tender_cycle_end' => '2026-01-01']]);
 
-    $r = requisitionOf($case);
+    $r = partialRequisitionOf($case);
     expect($r->tender_cycle_start?->format('Y-m-d'))->toBe('2026-06-01')
         ->and($r->tender_cycle_end)->toBeNull()
         ->and(collect($saved['not_saved'])->pluck('key')->all())->toBe(['requisition.tender_cycle_end'])
@@ -110,7 +110,7 @@ it('never persists a value that failed its rule', function () {
         'quotations' => [['supplier_name' => 'Ok', 'lead_time_days' => '1.5', 'quantity_offered' => '1.234']],
     ]);
 
-    $r = requisitionOf($case);
+    $r = partialRequisitionOf($case);
     $q = CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->sole();
     expect($r->quantity_requested)->toBeNull()
         ->and($r->din)->toBeNull()
@@ -141,7 +141,7 @@ it('leaves a section unchanged when its rows cannot be matched safely', function
     ]);
 
     expect(CaseQuotation::withoutGlobalScopes()->where('case_id', $case->id)->pluck('supplier_name')->all())->toBe(['Kept'])
-        ->and(requisitionOf($case)->strength)->toBe('5mg');
+        ->and(partialRequisitionOf($case)->strength)->toBe('5mg');
 });
 
 it('still refuses the same payload strictly, and submit stays blocked', function () {
@@ -161,7 +161,7 @@ it('answers 404 to another organisation\'s vendor', function () {
     [, $other] = newDraft();
 
     $this->actingAs($other)->put(route('requests.update', $case), ['requisition' => ['strength' => 'x']])->assertNotFound();
-    expect(requisitionOf($case)->strength)->toBeNull();
+    expect(partialRequisitionOf($case)->strength)->toBeNull();
 });
 
 it('does not edit a case that is no longer a draft', function () {
@@ -170,7 +170,7 @@ it('does not edit a case that is no longer a draft', function () {
 
     $this->actingAs($vendor)->put(route('requests.update', $case), ['requisition' => ['strength' => 'x']]);
 
-    expect(requisitionOf($case)->strength)->toBeNull();
+    expect(partialRequisitionOf($case)->strength)->toBeNull();
 });
 
 it('lets the vendor choose a request type while a quotation cell is bad', function () {
@@ -200,5 +200,5 @@ it('keeps the older form strict', function () {
     $this->actingAs($vendor)->put(route('requests.update', $case), ['requisition' => ['item_description' => 'X', 'quantity_requested' => 'lots']])
         ->assertSessionHasErrors('requisition.quantity_requested');
 
-    expect(requisitionOf($case)->item_description)->toBeNull();
+    expect(partialRequisitionOf($case)->item_description)->toBeNull();
 });
