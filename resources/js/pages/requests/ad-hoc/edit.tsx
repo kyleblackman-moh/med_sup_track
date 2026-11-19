@@ -24,7 +24,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
 import { ArrowRight, Save, Trash2 } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Review = 'none' | 'issues' | 'ready';
 
@@ -93,6 +93,26 @@ export default function AdHocEdit({
             }
         },
     });
+
+    // FORM-SAVE-1 (A4): in-app navigation (sidebar, breadcrumbs, links) asks before leaving
+    // edits that are not saved yet, or that the last save left out. In memory only; the
+    // browser's own unload warning stays (useAutosave). Hover prefetches, partial reloads,
+    // non-GET visits (the autosave, submit, delete) and this page itself pass.
+    const unsavedRef = useRef(autosave.hasUnsaved);
+    unsavedRef.current = autosave.hasUnsaved;
+    useEffect(
+        () =>
+            router.on('before', (event) => {
+                const visit = event.detail.visit;
+                if (visit.method !== 'get' || visit.prefetch || visit.only.length > 0 || visit.url.pathname === window.location.pathname) {
+                    return;
+                }
+                if (unsavedRef.current() && !window.confirm(config.messages.leave_unsaved)) {
+                    event.preventDefault();
+                }
+            }),
+        [config.messages.leave_unsaved],
+    );
 
     const visibleKeys = (view: RequestFormView) => view.sections.filter((section) => section.visible).map((section) => section.key);
 

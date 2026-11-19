@@ -30,3 +30,19 @@ it('sends the type change even when the pending save fails, and says why other e
         ->and($body)->not->toContain('return;')
         ->and($body)->not->toContain('setReviewFailed');
 });
+
+it('asks before in-app navigation leaves unsaved edits, and keeps the unload warning', function () {
+    $page = editPageSource();
+    $autosave = file_get_contents(resource_path('js/components/requests/ad-hoc/use-autosave.ts'));
+
+    expect($page)->toContain("router.on('before'")
+        // Only real navigation away: not prefetches, partial reloads, saves, or this page.
+        ->and($page)->toContain("visit.method !== 'get' || visit.prefetch || visit.only.length > 0 || visit.url.pathname === window.location.pathname")
+        ->and($page)->toContain('unsavedRef.current() && !window.confirm(config.messages.leave_unsaved)')
+        ->and($page)->toContain('event.preventDefault()')
+        // Unsaved = edits not sent yet, a save in flight, or fields the last save left out.
+        ->and($autosave)->toContain('return !e.stopped && (e.version > e.savedVersion || e.inFlight || partialRef.current);')
+        ->and($autosave)->toContain("window.addEventListener('beforeunload', warn)")
+        // No browser storage.
+        ->and($page.$autosave)->not->toMatch('/localStorage|sessionStorage|indexedDB/');
+});
