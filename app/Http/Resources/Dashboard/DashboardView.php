@@ -317,7 +317,7 @@ final class DashboardView
 
         if ($case->status === CaseStatus::RETURNED_TO_CMO) {
             $from = $return?->from_status instanceof CaseStatus ? $return->from_status->returnedBySource() : null;
-            $tags[] = ['key' => 'returned', 'label' => $from === null ? 'Returned' : "Returned by {$from}", 'tone' => 'warning', 'icon' => 'undo'];
+            $tags[] = ['key' => 'returned', 'label' => $from === null ? 'Returned' : 'Returned by '.ucwords($from), 'tone' => 'warning', 'icon' => 'undo'];
         }
 
         if (in_array($case->status, RecordHardcopy::STATUSES, true) && ! $case->hardcopyReceived()) {

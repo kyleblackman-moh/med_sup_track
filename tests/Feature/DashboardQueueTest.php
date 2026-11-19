@@ -292,7 +292,7 @@ it('tags a returned case, naming who returned it when the return says so', funct
     expect($row['tags'])->toBe([['key' => 'returned', 'label' => $label, 'tone' => 'warning', 'icon' => 'undo']]);
 })->with([
     'by Legal' => ['WITH_LEGAL', 'Returned by Legal'],
-    'by the PS office' => ['WITH_PS', 'Returned by PS office'],
+    'by the PS office' => ['WITH_PS', 'Returned by PS Office'],
     'source unknown' => [null, 'Returned'],
 ]);
 
@@ -331,4 +331,60 @@ it('says "No cases match your search or filter." with a clear link when nothing 
     expect($queue['items'])->toBe([])
         ->and($queue['empty'])->toBe(['message' => 'No cases match your search or filter.', 'clear' => true])
         ->and($queue['clear_href'])->toBe('/dashboard');
+});
+
+// 4. Static guards ---------------------------------------------------------------------------------
+
+/** The dashboard's own sources. */
+function dashboardSources(): array
+{
+    return [
+        app_path('Http/Resources/Dashboard/DashboardView.php'),
+        app_path('Http/Controllers/DashboardController.php'),
+        resource_path('js/pages/dashboard.tsx'),
+        resource_path('js/components/dashboard/work-queue.tsx'),
+    ];
+}
+
+/** Every string literal and JSX text in $source (what a user can see), comments removed. */
+function visibleText(string $source): array
+{
+    $code = preg_replace(['#/\*.*?\*/#s', '#(?<![:"\'])//[^\n]*#'], '', $source);
+    preg_match_all('/\'(?:[^\'\\\n]|\\.)*\'|"(?:[^"\\\n]|\\.)*"|`[^`]*`|>([^<>{}]+)</', $code, $matches);
+
+    return $matches[0];
+}
+
+it('shows no SLA wording anywhere on the dashboard: no Overdue, Urgent, Late or target', function () {
+    foreach (dashboardSources() as $file) {
+        foreach (visibleText(file_get_contents($file)) as $text) {
+            expect($text)->not->toMatch('/\b(overdue|urgent|late|targets?)\b/i', basename($file).': '.$text);
+        }
+    }
+});
+
+it('sends no SLA values with the rows', function () {
+    $cmo = caseUser(Role::Cmo);
+    dashCase(CaseStatus::SUBMITTED);
+
+    foreach (queueProp($this, $cmo)['items'] as $row) {
+        expect(array_keys($row))->not->toContain('target', 'overdue', 'is_late', 'tone_waiting', 'urgent')
+            ->and($row['waiting'])->toMatch('/^(—|Today|1 day|[\d,]+ days)$/');
+    }
+});
+
+it('builds the queue table from real table cells, with a stretched row link and the same link on the action', function () {
+    $source = file_get_contents(resource_path('js/components/dashboard/work-queue.tsx'));
+
+    expect($source)->toContain('scope="col"')
+        ->toContain("const HEADERS = ['Reference', 'Request', 'Status', 'Waiting', 'Action'] as const;")
+        ->toContain('hover:bg-selected')
+        ->toContain('bg-subtle')
+        ->toContain('h-14')
+        ->toContain("cn('font-mono text-xs font-medium', rowLink)")
+        ->toContain('relative z-10')
+        ->toContain('aria-current={filter.active')
+        ->toContain('overflow-x-auto')
+        ->not->toContain('fetch(')->not->toContain('axios')->not->toContain('localStorage')
+        ->not->toContain('item.days_waiting'); // the waiting text comes from the server
 });

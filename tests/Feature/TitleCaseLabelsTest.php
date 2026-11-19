@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Resources\Dashboard\DashboardView;
 use App\Models\ProcurementType;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
@@ -60,3 +61,13 @@ it('seeds the five request types with Title Case labels', function (string $code
     expect($name)->not->toBeNull()
         ->and(isTitleCase($name))->toBeTrue($name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
+
+// DASH-1: the dashboard's new labels.
+it('writes the dashboard labels in Title Case', function (string $label) {
+    expect(isTitleCase($label))->toBeTrue($label);
+})->with(fn () => [
+    'Needs My Action', 'Open Cases', 'Awaiting Hardcopy', 'Ready for File',
+    'All', ...array_values(DashboardView::FILTERS),
+    'Reference', 'Request', 'Status', 'Waiting', 'Action',
+    'Clear Search and Filter', 'Hardcopy Pending', 'Emergency', 'Returned by Legal', 'Returned by PS Office',
+]);
