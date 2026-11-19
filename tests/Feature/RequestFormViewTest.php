@@ -367,3 +367,10 @@ it('renders no "(optional)" label suffix and marks required controls for assisti
     expect(substr_count($fields, 'aria-required={optional === false ? true : undefined}'))->toBe(2)
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/entry-fields.tsx')))->toContain('aria-required={required ? true : undefined}');
 });
+
+it('marks the request type cards as a required choice', function () {
+    // A type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
+    $cards = file_get_contents(resource_path('js/components/requests/ad-hoc/type-cards.tsx'));
+
+    expect($cards)->toMatch('/<input\s+type="radio"[^>]*\brequired\b/s');
+});

@@ -61,6 +61,9 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
                     name={ID}
                     value={option.code}
                     checked={value === option.code}
+                    // V2-4b item 7: a type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
+                    // No form element is submitted here, so this only tells assistive technology; validation is the server's.
+                    required
                     className="accent-primary size-4 shrink-0 outline-none"
                     onChange={() => onChange(option.code)}
                 />
