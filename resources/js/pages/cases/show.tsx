@@ -1,5 +1,5 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
-import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
+import { type CaseTab, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
@@ -128,7 +128,9 @@ function tabFromUrl(ids: TabId[]): TabId {
 /**
  * Staff view of one case (slice 9a), split into tabs so nobody scrolls far.
  * The open tab is kept in ?tab=, so an action's redirect back lands on the
- * same tab. Actions (intake, hardcopy, send for review) are the last tab.
+ * same tab. NEXT-STEP-1: the Next Step card sits above the tabs on every tab;
+ * the Actions tab keeps the less common actions. No numbered tabs and no
+ * Back / Next footer (design.md does not define them).
  */
 export default function CaseShow({
     case: detail,
@@ -387,8 +389,6 @@ export default function CaseShow({
                         key={routeTo ?? 'suggested'}
                     />
                 )}
-
-                <CaseTabNav tabs={tabs} active={active} onSelect={show} finishHref={route('cases.index')} />
             </div>
         </AppLayout>
     );

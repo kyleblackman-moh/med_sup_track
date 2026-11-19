@@ -1,6 +1,4 @@
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Link } from '@inertiajs/react';
 import { KeyboardEvent, useRef } from 'react';
 
 export interface CaseTab<T extends string = string> {
@@ -59,51 +57,10 @@ export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsP
                                 : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground border-transparent font-medium',
                         )}
                     >
-                        <span className="tabular-nums opacity-70">{index + 1}.</span>
                         {tab.label}
                     </button>
                 );
             })}
-        </div>
-    );
-}
-
-interface CaseTabNavProps<T extends string> {
-    tabs: CaseTab<T>[];
-    active: T;
-    onSelect: (tab: T) => void;
-    finishHref: string;
-}
-
-/**
- * Previous / Next, pinned to the bottom of the screen on every tab. Moves
- * between tabs only (it never saves). On the last tab Next becomes Finish.
- */
-export function CaseTabNav<T extends string>({ tabs, active, onSelect, finishHref }: CaseTabNavProps<T>) {
-    const index = tabs.findIndex((t) => t.id === active);
-    const prev = tabs[index - 1];
-    const next = tabs[index + 1];
-
-    return (
-        <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 z-10 -mx-4 border-t px-4 py-3 backdrop-blur">
-            <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" onClick={() => prev && onSelect(prev.id)} disabled={!prev}>
-                    {prev ? `Back: ${prev.label}` : 'Back'}
-                </Button>
-                <span className="text-muted-foreground ml-auto text-xs">
-                    {index + 1} of {tabs.length}
-                </span>
-                {next ? (
-                    <Button type="button" onClick={() => onSelect(next.id)}>
-                        Next: {next.label}
-                    </Button>
-                ) : (
-                    // The last tab (Actions) ends the walk-through: back to the case list.
-                    <Button asChild>
-                        <Link href={finishHref}>Finish: Back to Cases</Link>
-                    </Button>
-                )}
-            </div>
         </div>
     );
 }
