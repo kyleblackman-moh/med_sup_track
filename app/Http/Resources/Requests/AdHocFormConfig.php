@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Requests;
 
 use App\Enums\RfqAudience;
+use App\Submissions\FormWording;
 use App\Submissions\RequisitionRules;
 
 /**
@@ -27,6 +28,11 @@ final class AdHocFormConfig
                 'clinical_note' => 2000,
                 'price_note' => 1000,
                 'reason_accepted_excluded' => 500,
+            ],
+            // FORM-SAVE-1: the form's fixed notices, worded by the server (the browser only shows them).
+            'messages' => [
+                'leave_unsaved' => FormWording::LEAVE_UNSAVED,
+                'type_saved_others_pending' => FormWording::TYPE_SAVED_OTHERS_PENDING,
             ],
         ];
     }

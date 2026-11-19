@@ -77,6 +77,8 @@ export default function AdHocEdit({
     // V2-4: Save draft is pending while it waits for the autosave to finish.
     const [savingDraft, setSavingDraft] = useState(false);
     const [typeHidSections, setTypeHidSections] = useState(false);
+    // FORM-SAVE-1 (A3): the server's notice when the type was saved but other edits are pending.
+    const [typeNotice, setTypeNotice] = useState<string | null>(null);
     // V2-5: the note after the previous-request answer changes from Yes to No.
     const [variationHidden, setVariationHidden] = useState(false);
     const panelRef = useRef<HTMLElement | null>(null);
@@ -98,14 +100,16 @@ export default function AdHocEdit({
      * Save what was typed, then change the type through the server and reload
      * only the form's props. The note shows when a section that was visible
      * before the change is not visible after it.
+     *
+     * FORM-SAVE-1 (A3): the type is its own request and never waits on the
+     * other edits being valid: a partial save carries on, and if the save
+     * failed (network or server) the type is still sent, with a notice that
+     * the other edits are not saved yet.
      */
     const changeType = async (code: string) => {
         const before = visibleKeys(form);
-        if (!(await autosave.flush())) {
-            setReviewFailed(true);
-
-            return;
-        }
+        const othersSaved = await autosave.flush();
+        setTypeNotice(null);
         router.put(
             route('requests.type', detail.id),
             { procurement_type: code },
@@ -117,6 +121,9 @@ export default function AdHocEdit({
                     const after = visibleKeys((page.props as unknown as { form: RequestFormView }).form);
                     setTypeHidSections(before.some((key) => !after.includes(key)));
                     setReview('none');
+                    if (!othersSaved) {
+                        setTypeNotice(config.messages.type_saved_others_pending);
+                    }
                 },
                 onFinish: () => setChangingType(false),
             },
@@ -315,6 +322,11 @@ export default function AdHocEdit({
                 {reviewFailed && (
                     <p role="alert" className="text-destructive text-sm">
                         Your latest changes could not be saved, so the request was not reviewed. Try again.
+                    </p>
+                )}
+                {typeNotice && (
+                    <p role="status" className="bg-muted text-foreground rounded-md border px-4 py-2 text-sm">
+                        {typeNotice}
                     </p>
                 )}
 

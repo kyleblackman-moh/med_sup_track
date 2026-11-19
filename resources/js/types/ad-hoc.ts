@@ -42,6 +42,8 @@ export interface AdHocConfig {
     row_caps: Record<ChildSection, number>;
     max_lengths: Record<string, number>;
     uploads: UploadRules;
+    /** FORM-SAVE-1: fixed notices worded by the server (FormWording). */
+    messages: { leave_unsaved: string; type_saved_others_pending: string };
 }
 
 /** The "saved" flash after an autosave: new row ids by client key, and the saved rows' ids. */
