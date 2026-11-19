@@ -12,6 +12,7 @@ use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestFormView;
+use App\Http\Resources\Requests\RequestProgress;
 use App\Http\Resources\Requests\RequestReceipt;
 use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
@@ -156,6 +157,8 @@ class RequestController extends Controller
             // case page); null for the old Pharm and Non-Pharm types (RequisitionView).
             // NEXT part 5: without Documents; this page has its own document list with actions.
             'summary' => RequestSummary::for($procurementCase, $request->user(), withDocuments: false),
+            // OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft.
+            'progress' => RequestProgress::for($procurementCase),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),

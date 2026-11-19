@@ -1,6 +1,7 @@
 import { PageContent } from '@/components/page-header';
 import { CaseHero } from '@/components/requests/case-hero';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { ProgressTimeline } from '@/components/requests/progress-timeline';
 import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { SubmitPanel } from '@/components/requests/submit-panel';
@@ -8,7 +9,7 @@ import { SupportingDocuments } from '@/components/requests/supporting-documents'
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type DocumentGroup, type Readiness, type RequestDetail } from '@/types/requests';
+import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
 
@@ -19,6 +20,8 @@ interface Props {
     can: { submit: boolean };
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
+    /** OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft. */
+    progress: ProgressMilestone[];
 }
 
 /** A calendar date (Y-m-d), shown as-is: no time zone shift. */
@@ -26,7 +29,7 @@ function formatDay(day: string): string {
     return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function Show({ case: detail, documents, readiness, can, summary }: Props) {
+export default function Show({ case: detail, documents, readiness, can, summary, progress }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
@@ -78,6 +81,8 @@ export default function Show({ case: detail, documents, readiness, can, summary 
                         .
                     </p>
                 )}
+
+                <ProgressTimeline milestones={progress} />
 
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 

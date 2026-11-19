@@ -132,3 +132,12 @@ export interface Flash {
     error: string | null;
     info: string | null;
 }
+
+/** OVERNIGHT-2 (B1): one milestone on the vendor's Progress timeline (all text from the server). */
+export interface ProgressMilestone {
+    key: string;
+    label: string;
+    /** Y-m-d, Port of Spain. */
+    date: string;
+    date_label: string;
+}
