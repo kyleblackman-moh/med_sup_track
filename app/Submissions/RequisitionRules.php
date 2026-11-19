@@ -129,8 +129,9 @@ final class RequisitionRules
         $check = function (array $data, array $allowed, string $prefix) use (&$errors) {
             foreach (array_keys($data) as $key) {
                 if (! in_array($key, $allowed, true)) {
+                    // FORM-ERR-1: no key in the message (a forged or stale payload; the form never sends these).
                     $errors[$prefix.$key] = in_array($key, self::PROHIBITED_KEYS, true)
-                        ? "The {$key} field cannot be set."
+                        ? 'This field cannot be set from the form.'
                         : 'This field is not recognised.';
                 }
             }
@@ -403,7 +404,8 @@ final class RequisitionRules
             default => ['nullable'],
         };
 
-        return [...$presence, ...match ($spec['type']) {
+        // FORM-ERR-1: bail, so a field fails with one message (its first broken rule), never two.
+        return ['bail', ...$presence, ...match ($spec['type']) {
             'string' => ['string', 'max:'.$spec['max']],
             'text' => isset($spec['max']) ? ['string', 'max:'.$spec['max']] : ['string'],
             // A string, so leading zeros are kept.

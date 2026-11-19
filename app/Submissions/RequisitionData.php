@@ -36,7 +36,8 @@ final readonly class RequisitionData
     {
         $payload = self::trimText($payload, $type->code);
 
-        $validator = Validator::make($payload, RequisitionRules::for($type), RequisitionRules::MESSAGES);
+        // FORM-ERR-1: messages in the form's words (RequisitionMessages), never a dotted key.
+        $validator = Validator::make($payload, RequisitionRules::for($type), RequisitionMessages::for($type));
         $validator->after(function ($validator) use ($payload, $type) {
             foreach (RequisitionRules::unknownKeyErrors($payload, $type->code) as $key => $message) {
                 $validator->errors()->add($key, $message);

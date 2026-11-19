@@ -177,11 +177,11 @@ final class SaveRequisition
             unset($values['id'], $values['client_key']);
 
             if ($id !== null && ! $existing->has($id)) {
-                throw ValidationException::withMessages(["{$section}.{$index}.id" => 'This row no longer exists. Reload the page and try again.']);
+                throw ValidationException::withMessages(["{$section}.{$index}.id" => RequisitionMessages::rowLabel($section, $index).' no longer exists. Reload the page and try again.']);
             }
 
             if (($values['award_id'] ?? null) !== null && ! in_array($values['award_id'], $awardIds, true)) {
-                throw ValidationException::withMessages(["{$section}.{$index}.award_id" => 'Choose a supplier from the award rows.']);
+                throw ValidationException::withMessages(["{$section}.{$index}.award_id" => RequisitionMessages::rowLabel($section, $index).': Supplier must be one of the awarded suppliers.']);
             }
 
             $row = $id !== null ? $existing->get($id) : (new $model)->forceFill(['case_id' => $caseId]);
