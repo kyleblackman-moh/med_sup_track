@@ -253,26 +253,47 @@ it('shares the success flash on the next page', function () {
         ->assertInertia(fn (Assert $page) => $page->where('flash.success', 'Draft saved.')->where('flash.error', null));
 });
 
-it('rejects an invalid payload with dotted error keys and saves nothing', function () {
+it('saves the valid fields of an invalid payload and returns each failing field (partial save)', function () {
     [$case, $vendor] = vendorDraft();
 
     $payload = adHocPayload();
     $payload['quotations'][0]['unit_price'] = '1.59751';
     $payload['requisition']['din'] = '0234-5678';
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)
-        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.din' => 'Enter the DIN using letters and numbers only.']);
+    // FORM-SAVE-1 (6fda93f): the save succeeds; what failed comes back in the saved flash, not as errors.
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertRedirect()->assertSessionHasNoErrors();
+    $saved = session('saved');
+    $notSaved = collect($saved['not_saved'])->pluck('message', 'key');
 
-    expect(requisitionOf($case)->item_description)->toBeNull()
-        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(0);
+    expect($notSaved->keys()->sort()->values()->all())->toBe(['quotations.0.unit_price', 'requisition.din'])
+        ->and($notSaved['requisition.din'])->toBe('Enter the DIN using letters and numbers only.')
+        ->and($notSaved['quotations.0.unit_price'])->toStartWith('Quotation Row 1: Unit Price')
+        ->and($saved['status'])->toBe('Saved. 2 fields need attention and were not saved yet.');
+
+    // The failing values are never stored; everything else is.
+    $requisition = requisitionOf($case);
+    expect($requisition->item_description)->toBe('Infant feeding tube, size 6Fr')
+        ->and($requisition->din)->toBeNull();
+    $quotation = DB::table('case_quotations')->where('case_id', $case->id)->orderBy('id')->first();
+    expect($quotation)->not->toBeNull()
+        ->and($quotation->unit_price)->toBeNull();
 });
 
-it('rejects each prohibited key', function (array $payload, string $key) {
+it('never sets a prohibited key, and says so in the save result', function (array $payload, string $key) {
     [$case, $vendor] = vendorDraft();
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertSessionHasErrors($key);
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertRedirect()->assertSessionHasNoErrors();
 
-    expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('DRAFT');
+    expect(collect(session('saved')['not_saved'])->pluck('message', 'key')->all())
+        ->toHaveKey($key, 'This field cannot be set from the form.');
+
+    $row = DB::table('cases')->where('id', $case->id)->first();
+    expect($row->status)->toBe('DRAFT')
+        ->and($row->org_id)->toBe($vendor->org_id)
+        ->and($row->reference_no)->toBeNull()
+        // A new row keeps its PENDING default; the forged SAMPLE_ACCEPTED (staff only) never lands.
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->where('technical_status', '<>', 'PENDING')->count())->toBe(0)
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->whereNotNull('technical_status_set_by')->count())->toBe(0);
 })->with([
     [['status' => 'CLOSED'], 'status'],
     [['org_id' => 'x'], 'org_id'],
@@ -280,6 +301,19 @@ it('rejects each prohibited key', function (array $payload, string $key) {
     [['reference_no' => 'NOR-1'], 'reference_no'],
     [['requisition' => ['status' => 'CLOSED']], 'requisition.status'],
     [['quotations' => [['supplier_name' => 'S', 'unit_price' => '1', 'quantity_offered' => '1', 'technical_status' => 'SAMPLE_ACCEPTED']]], 'quotations.0.technical_status'],
+]);
+
+it('still rejects each prohibited key on the older form (strict save)', function (array $payload, string $key) {
+    [$case, $vendor] = draftOf('AD_HOC_PHARM');
+
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertSessionHasErrors($key);
+
+    expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('DRAFT');
+})->with([
+    [['status' => 'CLOSED'], 'status'],
+    [['org_id' => 'x'], 'org_id'],
+    [['reference_no' => 'NOR-1'], 'reference_no'],
+    [['requisition' => ['status' => 'CLOSED']], 'requisition.status'],
 ]);
 
 it('refuses to update a case that is no longer a draft', function () {
