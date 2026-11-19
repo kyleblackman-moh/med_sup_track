@@ -8,6 +8,7 @@ use App\Documents\Scanning\Scanner;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Notifications\NotificationSubscriber;
 use App\Policies\CasePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\UserPolicy;
@@ -51,6 +52,9 @@ class AppServiceProvider extends ServiceProvider
         // Audit auth events. Registered here once; see AuthEventAuditor for why it
         // is not in app/Listeners.
         Event::subscribe(AuthEventAuditor::class);
+
+        // NOTIF-1: the one place emails are hooked in (queued, after commit).
+        Event::subscribe(NotificationSubscriber::class);
 
         // SEC-1: the named rate limiters (login, password-reset, activation, create-request, uploads).
         RateLimits::register();
