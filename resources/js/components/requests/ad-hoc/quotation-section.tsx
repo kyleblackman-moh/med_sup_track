@@ -1,5 +1,5 @@
 import { EntryRow, EntryTable } from '@/components/ui/entry-table';
-import { EntryCheck, EntryInput } from './entry-fields';
+import { collectRowErrors, EntryCheck, EntryInput } from './entry-fields';
 import { Figure, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -64,6 +64,11 @@ export function QuotationSection({ api }: { api: FormApi }) {
                     {rows.map((row, index) => {
                         const rowLabel = `Quotation Row ${index + 1}`;
                         const id = (name: string) => fieldId.cell('quotations', row.key, name);
+                        // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                        const errorsId = fieldId.rowErrors('quotations', row.key);
+                        const errors = collectRowErrors(['id', ...columns.map((c) => c.key), 'reason_accepted_excluded'], (name) =>
+                            api.cellError('quotations', row, index, name),
+                        );
                         const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, className?: string) => (
                             <EntryInput
                                 id={id(name)}
@@ -75,6 +80,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('quotations', row.key, name, value)}
                                 error={api.cellError('quotations', row, index, name)}
+                                errorListId={errorsId}
                                 required={optional(`quotations.${name}`) === false}
                             />
                         );
@@ -85,6 +91,8 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 key={row.key}
                                 label={rowLabel}
                                 short={String(index + 1)}
+                                errors={errors}
+                                errorsId={errorsId}
                                 remove={
                                     <RemoveRowButton
                                         label={`Remove Quotation Row ${index + 1}`}
@@ -101,6 +109,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             value={text(row.values.reason_accepted_excluded)}
                                             onChange={(value) => api.setCell('quotations', row.key, 'reason_accepted_excluded', value)}
                                             error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
+                                            errorListId={errorsId}
                                             optional={optional('quotations.reason_accepted_excluded')}
                                             hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
                                         />

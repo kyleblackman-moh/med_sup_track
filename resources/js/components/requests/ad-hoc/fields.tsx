@@ -111,11 +111,16 @@ interface TextAreaFieldProps {
     maxLength?: number;
     /** Visible rows (default 3). */
     rows?: number;
+    /**
+     * FORM-ERR-1: a field inside a table row (the quotation's reason) shows its
+     * message in the row's error list, not under itself: the list's id.
+     */
+    errorListId?: string;
 }
 
-export function TextAreaField({ id, label, value, onChange, optional, hint, error, maxLength, rows = 3 }: TextAreaFieldProps) {
+export function TextAreaField({ id, label, value, onChange, optional, hint, error, maxLength, rows = 3, errorListId }: TextAreaFieldProps) {
     const hintId = `${id}-hint`;
-    const errorId = `${id}-error`;
+    const errorId = errorListId ?? `${id}-error`;
 
     return (
         <div className="grid gap-2">
@@ -138,7 +143,7 @@ export function TextAreaField({ id, label, value, onChange, optional, hint, erro
                     {hint}
                 </p>
             )}
-            <FieldError id={errorId} message={error} />
+            {!errorListId && <FieldError id={errorId} message={error} />}
         </div>
     );
 }

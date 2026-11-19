@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { CircleAlert } from 'lucide-react';
 import { createContext, type ReactNode, useContext } from 'react';
 
 /** The width at and above which each entry is one line of inputs (design.md section 7). */
@@ -131,6 +132,35 @@ export function EntryTable({
     );
 }
 
+/** FORM-ERR-1: one problem in a row; the message names the row and the column ("Quotation Row 1: Quantity must be ..."). */
+export interface RowError {
+    field: string;
+    message: string;
+}
+
+/**
+ * FORM-ERR-1 (A): the ONE place a table row's errors are shown: a full-width
+ * list directly under the row, spanning every column, one message per line.
+ * Never inside a narrow cell. Long words wrap; nothing overflows or is
+ * clipped. The failing controls point at this list with aria-describedby.
+ */
+export function RowErrorList({ id, errors }: { id: string; errors: RowError[] }) {
+    if (errors.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul id={id} className="text-destructive-text grid min-w-0 gap-1 text-sm">
+            {errors.map((error) => (
+                <li key={error.field} className="flex min-w-0 items-start gap-1.5">
+                    <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    <span className="min-w-0 break-words">{error.message}</span>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 interface EntryRowProps {
     /** For example "Supplier row 1"; also part of each input's accessible name. */
     label: string;
@@ -140,11 +170,15 @@ interface EntryRowProps {
     remove?: ReactNode;
     /** V2-2: content under the row's inputs, full width (for example a reason asked only for this row). */
     below?: ReactNode;
+    /** FORM-ERR-1: the row's errors, shown in one full-width list under the row (RowErrorList). */
+    errors?: RowError[];
+    /** The id of that list; each failing control's aria-describedby points at it. */
+    errorsId?: string;
     /** The cells (EntryCell). */
     children: ReactNode;
 }
 
-export function EntryRow({ label, short, remove, below, children }: EntryRowProps) {
+export function EntryRow({ label, short, remove, below, errors = [], errorsId, children }: EntryRowProps) {
     const { breakpoint, narrowRowLabel } = useContext(TableContext);
     const layout = LAYOUT[breakpoint];
     const narrow = narrowRowLabel && short !== undefined;
@@ -167,6 +201,7 @@ export function EntryRow({ label, short, remove, below, children }: EntryRowProp
                 {children}
                 <div className={cn('flex shrink-0 justify-end', layout.remove)}>{remove ?? <span className="w-9" />}</div>
             </div>
+            {errorsId && <RowErrorList id={errorsId} errors={errors} />}
             {below}
         </div>
     );

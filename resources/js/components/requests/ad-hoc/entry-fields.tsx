@@ -1,4 +1,4 @@
-import { EntryCell } from '@/components/ui/entry-table';
+import { EntryCell, type RowError } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -8,13 +8,18 @@ import { controlHeight, textareaClass } from './fields';
 // accessible name is "<column>, <row label>", so a screen reader user always
 // knows which row they are in; the visible label is the column's (shown above
 // the field below the table's breakpoint, as a column header at it).
+//
+// FORM-ERR-1 (A): a cell never shows an error message. A failing control gets
+// the error border and aria-invalid, and aria-describedby points at the row's
+// one full-width error list (EntryRow errors, RowErrorList).
 
-export function CellError({ id, message }: { id: string; message?: string }) {
-    return message ? (
-        <p id={id} className="text-destructive text-[13px]">
-            {message}
-        </p>
-    ) : null;
+/** The row's errors, in column order, for EntryRow's `errors`. */
+export function collectRowErrors(fields: string[], errorOf: (field: string) => string | undefined): RowError[] {
+    return fields.flatMap((field) => {
+        const message = errorOf(field);
+
+        return message ? [{ field, message }] : [];
+    });
 }
 
 interface EntryInputProps {
@@ -25,21 +30,35 @@ interface EntryInputProps {
     value: string;
     onChange: (value: string) => void;
     kind?: 'text' | 'decimal' | 'integer' | 'date';
+    /** The field's problem: marks the control invalid (the message itself is in the row's list). */
     error?: string;
+    /** The id of the row's error list (EntryRow errorsId). */
+    errorListId?: string;
     maxLength?: number;
     className?: string;
     /** V2-4b: the server requires the column whenever a row is entered (aria-required). */
     required?: boolean;
 }
 
-export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text', error, maxLength, className, required }: EntryInputProps) {
-    const errorId = `${id}-error`;
-
+export function EntryInput({
+    id,
+    label,
+    rowLabel,
+    value,
+    onChange,
+    kind = 'text',
+    error,
+    errorListId,
+    maxLength,
+    className,
+    required,
+}: EntryInputProps) {
     return (
         <EntryCell label={label} htmlFor={id} className={className}>
             <Input
                 id={id}
                 type={kind === 'date' ? 'date' : 'text'}
+                // FORM-ERR-1 (E): a keyboard hint only; the server validates and owns the message.
                 inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                 maxLength={maxLength}
                 value={value}
@@ -47,10 +66,9 @@ export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text'
                 aria-label={`${label}, ${rowLabel}`}
                 aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : undefined}
+                aria-describedby={error ? errorListId : undefined}
                 onChange={(e) => onChange(e.target.value)}
             />
-            <CellError id={errorId} message={error} />
         </EntryCell>
     );
 }
@@ -62,6 +80,7 @@ interface EntryTextAreaProps {
     value: string;
     onChange: (value: string) => void;
     error?: string;
+    errorListId?: string;
     maxLength?: number;
     /** Visible rows (V2-5: 2 for the variation details). */
     rows?: number;
@@ -70,9 +89,19 @@ interface EntryTextAreaProps {
 }
 
 /** V2-5: a short textarea cell, named "<column>, <row label>" like EntryInput. */
-export function EntryTextArea({ id, label, rowLabel, value, onChange, error, maxLength, rows = 2, className, required }: EntryTextAreaProps) {
-    const errorId = `${id}-error`;
-
+export function EntryTextArea({
+    id,
+    label,
+    rowLabel,
+    value,
+    onChange,
+    error,
+    errorListId,
+    maxLength,
+    rows = 2,
+    className,
+    required,
+}: EntryTextAreaProps) {
     return (
         <EntryCell label={label} htmlFor={id} className={className}>
             <textarea
@@ -84,10 +113,9 @@ export function EntryTextArea({ id, label, rowLabel, value, onChange, error, max
                 aria-label={`${label}, ${rowLabel}`}
                 aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : undefined}
+                aria-describedby={error ? errorListId : undefined}
                 onChange={(e) => onChange(e.target.value)}
             />
-            <CellError id={errorId} message={error} />
         </EntryCell>
     );
 }

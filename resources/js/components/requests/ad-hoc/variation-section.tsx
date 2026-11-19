@@ -1,5 +1,5 @@
 import { EntryRow, EntryTable } from '@/components/ui/entry-table';
-import { EntryInput, EntryTextArea } from './entry-fields';
+import { collectRowErrors, EntryInput, EntryTextArea } from './entry-fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -51,6 +51,11 @@ export function VariationSection({ api }: { api: FormApi }) {
             >
                 {rows.map((row, index) => {
                     const rowLabel = `Variation Row ${index + 1}`;
+                    // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                    const errorsId = fieldId.rowErrors('variation_rows', row.key);
+                    const errors = collectRowErrors(['id', ...columns.map((c) => c.key)], (name) =>
+                        api.cellError('variation_rows', row, index, name),
+                    );
                     const cell = (name: keyof typeof MAX) => ({
                         id: fieldId.cell('variation_rows', row.key, name),
                         label: label(name),
@@ -59,6 +64,7 @@ export function VariationSection({ api }: { api: FormApi }) {
                         value: text(row.values[name]),
                         onChange: (value: string) => api.setCell('variation_rows', row.key, name, value),
                         error: api.cellError('variation_rows', row, index, name),
+                        errorListId: errorsId,
                         required: optional(name) === false,
                         className: width(name),
                     });
@@ -68,6 +74,8 @@ export function VariationSection({ api }: { api: FormApi }) {
                             key={row.key}
                             label={rowLabel}
                             short={String(index + 1)}
+                            errors={errors}
+                            errorsId={errorsId}
                             remove={
                                 <RemoveRowButton
                                     label={`Remove Variation Row ${index + 1}`}

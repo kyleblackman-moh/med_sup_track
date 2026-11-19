@@ -1,7 +1,7 @@
 import { EntryCell, EntryRow, EntryTable } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { CellError, EntryInput, EntryValue } from './entry-fields';
+import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
 import { controlHeight, TextAreaField } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -53,6 +53,24 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                 >
                     {rows.map((row, index) => {
                         const rowLabel = `Order Row ${index + 1}`;
+                        // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                        const errorsId = fieldId.rowErrors('purchase_orders', row.key);
+                        const errorOf = (name: string) => api.cellError('purchase_orders', row, index, name);
+                        const errors = collectRowErrors(
+                            [
+                                'id',
+                                'award_id',
+                                'po_number',
+                                'quantity_ordered',
+                                'ordered_on',
+                                'quantity_delivered',
+                                'delivery_eta',
+                                'delivery_status',
+                            ],
+                            errorOf,
+                        );
+                        const etaError = errorOf('delivery_eta');
+                        const statusError = errorOf('delivery_status');
                         const input = (name: string, kind: 'text' | 'decimal' | 'date' = 'text', maxLength?: number) => (
                             <EntryInput
                                 id={fieldId.cell('purchase_orders', row.key, name)}
@@ -63,6 +81,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 value={text(row.values[name])}
                                 onChange={(value) => api.setCell('purchase_orders', row.key, name, value)}
                                 error={api.cellError('purchase_orders', row, index, name)}
+                                errorListId={errorsId}
                                 required={optional(`purchase_orders.${name}`) === false}
                             />
                         );
@@ -78,6 +97,8 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 key={row.key}
                                 label={rowLabel}
                                 short={String(index + 1)}
+                                errors={errors}
+                                errorsId={errorsId}
                                 remove={
                                     <RemoveRowButton
                                         label={`Remove order row ${index + 1}`}
@@ -95,7 +116,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                         aria-required={optional('purchase_orders.award_id') === false ? true : undefined}
                                         aria-invalid={supplierError ? true : undefined}
                                         aria-describedby={
-                                            [choosable.length === 0 ? `${supplierId}-hint` : null, supplierError ? `${supplierId}-error` : null]
+                                            [choosable.length === 0 ? `${supplierId}-hint` : null, supplierError ? errorsId : null]
                                                 .filter(Boolean)
                                                 .join(' ') || undefined
                                         }
@@ -113,7 +134,6 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             {awaitingSave ? 'Saving...' : 'Add an awarded supplier first.'}
                                         </p>
                                     )}
-                                    <CellError id={`${supplierId}-error`} message={supplierError} />
                                 </EntryCell>
                                 {input('po_number', 'text', 64)}
                                 {input('quantity_ordered', 'decimal')}
@@ -128,6 +148,8 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             className={cn(controlHeight, 'w-full min-w-0')}
                                             aria-label={`Delivery Date, ${rowLabel}`}
                                             aria-required={optional('purchase_orders.delivery_eta') === false ? true : undefined}
+                                            aria-invalid={etaError ? true : undefined}
+                                            aria-describedby={etaError ? errorsId : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
                                         />
                                         <Input
@@ -139,6 +161,8 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             className={cn(controlHeight, 'w-full min-w-0')}
                                             aria-label={`Delivery Status, ${rowLabel}`}
                                             aria-required={optional('purchase_orders.delivery_status') === false ? true : undefined}
+                                            aria-invalid={statusError ? true : undefined}
+                                            aria-describedby={statusError ? errorsId : undefined}
                                             onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
                                         />
                                     </div>

@@ -186,5 +186,7 @@ export function mergeSaved(state: FormState, saved: SavedFlash): FormState {
 export const fieldId = {
     requisition: (name: string) => `f-requisition-${name}`,
     cell: (section: ChildSection, key: string, name: string) => `f-${section}-${key}-${name}`,
+    /** FORM-ERR-1: a row's one error list (RowErrorList). */
+    rowErrors: (section: ChildSection, key: string) => `f-${section}-${key}-errors`,
     table: (section: ChildSection | 'documents') => `f-${section}`,
 };
