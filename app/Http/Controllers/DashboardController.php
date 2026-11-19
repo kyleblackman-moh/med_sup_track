@@ -35,8 +35,9 @@ class DashboardController extends Controller
             'stats' => fn () => DashboardView::stats($user, $loadQueue()['value']),
             'requestTypes' => fn () => DashboardView::requestTypes($loadQueue()['value']),
             'queue' => fn () => DashboardView::queue($user, $loadQueue()['value'], $filter, $search),
-            // OVERNIGHT-2 (C1): stage counts; null for users without the staff case list.
+            // OVERNIGHT-2 (C1, C2): stage counts and the In Review gate; each null for users without it.
             'pipeline' => fn () => DashboardView::pipeline($user),
+            'gateTracker' => fn () => DashboardView::gateTracker($user),
         ]);
     }
 }

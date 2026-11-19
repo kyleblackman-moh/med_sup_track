@@ -60,6 +60,20 @@ final class NextStep
         return (new self($case, $user))->build();
     }
 
+    /**
+     * OVERNIGHT-2 (C2): the checklist alone (the In Review gate items, each
+     * with done, state, holder and people), for the dashboard's Gate Tracker.
+     * The same code as the card, so the two never disagree.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function checklistFor(ProcurementCase $case, User $user): array
+    {
+        $case->loadMissing('organisation:id,name');
+
+        return (new self($case, $user))->checklist();
+    }
+
     /** @return array<string, mixed> */
     private function build(): array
     {

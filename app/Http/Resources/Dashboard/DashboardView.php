@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Submissions\ProcurementTypeProfile;
 use App\Support\SqlLike;
 use App\Workflow\Actions\RecordHardcopy;
+use App\Workflow\NextStep;
 use App\Workflow\StageWording;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
@@ -362,6 +363,12 @@ final class DashboardView
             ->all();
     }
 
+    /** OVERNIGHT-2 (C2): the Gate Tracker's short item labels, keyed by the Next Step checklist key. */
+    public const GATE_LABELS = ['technical' => 'Technical', 'funding' => 'Funding', 'hardcopy' => 'Hardcopy'];
+
+    /** OVERNIGHT-2 (C2): at most this many Gate Tracker rows; the rest are one link away. */
+    public const GATE_TRACKER_MAX = 50;
+
     /**
      * OVERNIGHT-2 (C1): a plain count per stage, in state-machine order, over
      * the cases $user can see (VisibleToUserScope: the CMO and PS all cases,
@@ -399,6 +406,61 @@ final class DashboardView
         }
 
         return $stages;
+    }
+
+    /**
+     * OVERNIGHT-2 (C2): In Review cases, one row each with the three gate
+     * items (Technical, Funding, Hardcopy) taken from the Next Step checklist
+     * (NextStep::checklistFor, which reads TransitionRules::gateMissing), and
+     * who holds each open item. case.view_all holders only; null otherwise.
+     *
+     * @return array{rows: list<array<string, mixed>>, total: int, more_href: string|null}|null
+     */
+    public static function gateTracker(User $user): ?array
+    {
+        if ($user->isVendor() || ! $user->can(Permission::CaseViewAll->value)
+            || ! Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
+            return null;
+        }
+
+        $query = ProcurementCase::withoutGlobalScopes()->with('organisation:id,name');
+        (new VisibleToUserScope)->applyFor($query, $user);
+        $query->where('cases.status', CaseStatus::IN_REVIEW->value);
+
+        $total = (clone $query)->count();
+        $cases = $query->orderBy('cases.submitted_at')->orderBy('cases.id')->limit(self::GATE_TRACKER_MAX)->get();
+
+        $rows = $cases->map(function (ProcurementCase $case) use ($user) {
+            $items = collect(NextStep::checklistFor($case, $user))
+                ->keyBy('key')
+                ->only(array_keys(self::GATE_LABELS));
+
+            return [
+                'id' => (string) $case->getKey(),
+                'reference' => (string) ($case->reference_no ?? ''),
+                'vendor' => (string) ($case->organisation?->name ?? ''),
+                'href' => route('cases.show', $case, false),
+                'items' => array_values(array_map(function (string $key) use ($items) {
+                    $item = $items->get($key);
+                    $done = (bool) ($item['done'] ?? false);
+
+                    return [
+                        'key' => $key,
+                        'label' => self::GATE_LABELS[$key],
+                        'done' => $done,
+                        'state' => (string) ($item['state'] ?? ''),
+                        // Who holds it, only while it is open.
+                        'held_by' => $done ? null : trim(($item['holder'] ?? '').(($item['people'] ?? []) !== [] ? ': '.implode(', ', $item['people']) : '')),
+                    ];
+                }, array_keys(self::GATE_LABELS))),
+            ];
+        })->values()->all();
+
+        return [
+            'rows' => $rows,
+            'total' => $total,
+            'more_href' => $total > count($rows) ? route('cases.index', ['status' => CaseStatus::IN_REVIEW->value], false) : null,
+        ];
     }
 
     /** @return array{key: string, label: string, value: string, description: string, href: string|null} */

@@ -3,10 +3,12 @@
 use App\Enums\CaseStatus as S;
 use App\Enums\ReviewDesk;
 use App\Enums\Role;
+use App\Enums\TrackStatus;
 use App\Http\Resources\Dashboard\DashboardView;
 use App\Models\CaseAssignment;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Workflow\NextStep;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -88,23 +90,74 @@ it('gives the CMO and PS every case, and others only their own', function () {
         ->and($total($this->technocrat) - $techBefore)->toBe(1);
 });
 
-it('gives no pipeline to users without the case list', function (Role $role) {
+it('gives no pipeline or gate tracker to users without the case list', function (Role $role) {
     $user = caseUser($role);
 
-    expect(DashboardView::pipeline($user))->toBeNull();
+    expect(DashboardView::pipeline($user))->toBeNull()
+        ->and(DashboardView::gateTracker($user))->toBeNull();
 })->with([Role::SystemAdmin, Role::Auditor]);
 
-it('gives a vendor no pipeline', function () {
+it('gives a vendor neither panel', function () {
     $vendor = vendorUser(vendorOrg());
 
     $this->actingAs($vendor)->get(route('dashboard'))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('pipeline', null));
+        ->assertInertia(fn (Assert $page) => $page->where('pipeline', null)->where('gateTracker', null));
 });
 
-it('sends the pipeline to the CMO on the dashboard', function () {
+it('shows the gate tracker to case.view_all holders only', function () {
+    expect(DashboardView::gateTracker($this->cmo))->not->toBeNull()
+        ->and(DashboardView::gateTracker($this->technocrat))->toBeNull();
+});
+
+it('ticks Technical, Funding and Hardcopy from the gate, and names who holds an open item', function () {
+    $open = pipelineCase(S::IN_REVIEW, ['technical_track' => TrackStatus::PENDING, 'funding_track' => TrackStatus::CONFIRMED]);
+    gateAssign($open, ReviewDesk::Technical, $this->technocrat);
+    gateAssign($open, ReviewDesk::Funding, $this->cab);
+
+    $clear = pipelineCase(S::IN_REVIEW, [
+        'technical_track' => TrackStatus::FAVOURABLE, 'funding_track' => TrackStatus::CONFIRMED,
+        'hardcopy_received_on' => CarbonImmutable::now('America/Port_of_Spain')->subDay()->toDateString(),
+        'hardcopy_received_at' => CarbonImmutable::now('UTC')->subDay(),
+        'hardcopy_received_by' => $this->cmo->id,
+    ]);
+    gateAssign($clear, ReviewDesk::Technical, $this->technocrat);
+    gateAssign($clear, ReviewDesk::Funding, $this->cab);
+
+    pipelineCase(S::WITH_LEGAL); // never a row
+
+    $rows = collect(DashboardView::gateTracker($this->cmo)['rows'])->keyBy('id');
+    $items = fn (ProcurementCase $c) => collect($rows[$c->id]['items'])->keyBy('key');
+
+    expect($rows->keys()->all())->toContain($open->id, $clear->id)
+        ->and($rows->pluck('items')->flatten(1)->pluck('label')->unique()->values()->all())->toBe(['Technical', 'Funding', 'Hardcopy'])
+        ->and($items($open)['technical']['done'])->toBeFalse()
+        ->and($items($open)['technical']['held_by'])->toBe('Technocrats: '.$this->technocrat->name)
+        ->and($items($open)['funding']['done'])->toBeTrue()
+        ->and($items($open)['funding']['held_by'])->toBeNull()
+        ->and($items($open)['hardcopy']['done'])->toBeFalse()
+        ->and($items($open)['hardcopy']['held_by'])->toBe("CMO's Office")
+        ->and($items($clear)->every(fn ($i) => $i['done'] === true))->toBeTrue()
+        ->and($rows[$open->id]['href'])->toBe('/cases/'.$open->id);
+});
+
+it('agrees with the Next Step card for every row', function () {
+    $case = pipelineCase(S::IN_REVIEW, ['technical_track' => TrackStatus::FAVOURABLE, 'funding_track' => TrackStatus::PENDING]);
+    gateAssign($case, ReviewDesk::Technical, $this->technocrat);
+    gateAssign($case, ReviewDesk::Funding, $this->cab);
+
+    $row = collect(DashboardView::gateTracker($this->cmo)['rows'])->firstWhere('id', $case->id);
+    $card = collect(NextStep::for(ProcurementCase::withoutGlobalScopes()->find($case->id), $this->cmo)['checklist'])->keyBy('key');
+
+    foreach ($row['items'] as $item) {
+        expect($item['done'])->toBe($card[$item['key']]['done']);
+    }
+});
+
+it('sends both panels to the CMO on the dashboard', function () {
     $this->actingAs($this->cmo)->get(route('dashboard'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('pipeline', count(S::cases()) - 1));
+            ->has('pipeline', count(S::cases()) - 1)
+            ->has('gateTracker.rows'));
 });
 
 it('filters the case list by a pipeline stage', function () {

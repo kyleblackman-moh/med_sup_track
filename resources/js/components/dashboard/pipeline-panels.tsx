@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Circle, CircleCheck } from 'lucide-react';
 
 /** OVERNIGHT-2 (C1): one stage of the Pipeline, counted and worded by the server. */
 export interface PipelineStage {
@@ -7,6 +8,33 @@ export interface PipelineStage {
     count: number;
     href: string;
 }
+
+/** OVERNIGHT-2 (C2): one gate item on a Gate Tracker row. */
+export interface GateItem {
+    key: string;
+    label: string;
+    done: boolean;
+    state: string;
+    /** Who holds the item while it is open; null once done. */
+    held_by: string | null;
+}
+
+export interface GateTrackerRow {
+    id: string;
+    reference: string;
+    vendor: string;
+    href: string;
+    items: GateItem[];
+}
+
+export interface GateTrackerData {
+    rows: GateTrackerRow[];
+    total: number;
+    /** The full In Review list, when there are more rows than shown. */
+    more_href: string | null;
+}
+
+const linkClass = 'focus-visible:ring-ring rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /** A plain count per stage, each linking to the case list for that stage. No time colouring. */
 export function PipelinePanel({ stages }: { stages: PipelineStage[] }) {
@@ -28,6 +56,63 @@ export function PipelinePanel({ stages }: { stages: PipelineStage[] }) {
                     </li>
                 ))}
             </ol>
+        </section>
+    );
+}
+
+/** In Review cases with the three gate items: an icon plus text for each, and who holds an open one. */
+export function GateTrackerPanel({ tracker }: { tracker: GateTrackerData }) {
+    return (
+        <section aria-labelledby="gate-tracker-heading" className="bg-card shadow-card space-y-3 rounded-xl border p-4">
+            <h2 id="gate-tracker-heading" className="text-[15px] font-semibold">
+                Gate Tracker
+            </h2>
+            {tracker.rows.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No cases are in review.</p>
+            ) : (
+                <ul className="divide-y">
+                    {tracker.rows.map((row) => (
+                        <li key={row.id} className="flex flex-col gap-2 py-3 md:flex-row md:items-start md:gap-4">
+                            <div className="min-w-0 md:w-56 md:shrink-0">
+                                <Link href={row.href} className={`font-mono text-sm font-medium ${linkClass}`}>
+                                    {row.reference}
+                                </Link>
+                                <p className="text-muted-foreground truncate text-[13px]">{row.vendor}</p>
+                            </div>
+                            <ul className="grid flex-1 gap-2 sm:grid-cols-3">
+                                {row.items.map((item) => {
+                                    const Icon = item.done ? CircleCheck : Circle;
+                                    return (
+                                        <li key={item.key} className="flex gap-2 text-sm">
+                                            <Icon
+                                                aria-hidden="true"
+                                                className={
+                                                    item.done ? 'text-primary mt-0.5 size-4 shrink-0' : 'text-muted-foreground mt-0.5 size-4 shrink-0'
+                                                }
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="sr-only">{item.done ? 'Done: ' : 'Not done: '}</span>
+                                                <span className="font-medium">{item.label}</span>
+                                                <span className="text-muted-foreground block text-[13px]">{item.state}</span>
+                                                {item.held_by && (
+                                                    <span className="text-muted-foreground block text-[13px]">Held by {item.held_by}</span>
+                                                )}
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {tracker.more_href && (
+                <p className="text-sm">
+                    <Link href={tracker.more_href} className={`text-primary ${linkClass}`}>
+                        See all {tracker.total} cases in review
+                    </Link>
+                </p>
+            )}
         </section>
     );
 }
