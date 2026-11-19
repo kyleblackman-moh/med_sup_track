@@ -7,14 +7,11 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Http\Responses\LoginResponse;
-use Illuminate\Auth\Events\Lockout;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Laravel\Fortify\Actions\AttemptToAuthenticate;
 use Laravel\Fortify\Actions\CanonicalizeUsername;
@@ -62,18 +59,8 @@ class FortifyServiceProvider extends ServiceProvider
             PrepareAuthenticatedSession::class,
         ]);
 
-        RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
-
-            // The throttle middleware does not fire Lockout by itself. Fire it here
-            // (AuthEventAuditor records it as auth.rate_limited), then throw the same
-            // 429 exception the middleware would have thrown.
-            return Limit::perMinute(5)->by($throttleKey)->response(function (Request $request, array $headers) {
-                event(new Lockout($request));
-
-                throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
-            });
-        });
+        // SEC-1: the "login" limiter (and the other named limiters) live in App\Support\RateLimits,
+        // registered by AppServiceProvider. It still fires Lockout (audited as auth.rate_limited).
 
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));

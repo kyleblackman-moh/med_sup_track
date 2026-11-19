@@ -35,7 +35,7 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('/', 'index')->name('index');
         // V2-1b: New request posts here and lands on the new draft's form; there is
         // no create page (GET /requests/create is 404: no case has that id).
-        Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
+        Route::post('/', 'store')->middleware('throttle:create-request')->name('store'); // SEC-1 (RateLimits)
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
@@ -56,7 +56,7 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
     ->group(function () {
         Route::scopeBindings()->group(function () {
             Route::post('requests/{procurementCase}/documents', 'store')
-                ->middleware('throttle:60,1')->name('requests.documents.store'); // F1: one request per file
+                ->middleware('throttle:uploads')->name('requests.documents.store'); // F1: one request per file; SEC-1 (RateLimits)
             Route::post('requests/{procurementCase}/documents/{document}/withdraw', 'withdraw')
                 ->middleware('throttle:30,1')->name('requests.documents.withdraw');
         });
@@ -110,7 +110,7 @@ Route::middleware(['auth', 'can:viewAny,'.User::class])
             Route::put('{user}/role', 'updateRole')->name('role');
             Route::post('{user}/disable', 'disable')->name('disable');
             Route::post('{user}/enable', 'enable')->name('enable');
-            Route::post('{user}/activation', 'resendActivation')->name('activation');
+            Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
         });
     });
 

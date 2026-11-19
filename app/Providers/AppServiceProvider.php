@@ -12,6 +12,7 @@ use App\Policies\CasePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\UserPolicy;
 use App\Support\AuthEventAuditor;
+use App\Support\RateLimits;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -50,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         // Audit auth events. Registered here once; see AuthEventAuditor for why it
         // is not in app/Listeners.
         Event::subscribe(AuthEventAuditor::class);
+
+        // SEC-1: the named rate limiters (login, password-reset, activation, create-request, uploads).
+        RateLimits::register();
 
         // Named CasePolicy, not ProcurementCasePolicy, so auto-discovery would miss it.
         Gate::policy(ProcurementCase::class, CasePolicy::class);
