@@ -9,7 +9,11 @@ export const MIN_GAP_MS = 5000;
 /** Props reloaded after a save: the saved figures, the section status and the new row ids. */
 const RELOAD = ['case', 'request_sections', 'form', 'saved'];
 
-export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+/**
+ * FORM-ERR-1 (D): "invalid" = the server refused the save for validation (the
+ * fields are marked in red); "error" = a network or server failure.
+ */
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'invalid' | 'error';
 
 interface Options {
     url: string;
@@ -84,6 +88,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
 
             const sent = e.version;
             let ok = false;
+            let invalid = false;
             e.inFlight = true;
             e.lastStart = Date.now();
             setStatus('saving');
@@ -93,6 +98,10 @@ export function useAutosave({ url, payload, onSaved }: Options) {
                 preserveScroll: true,
                 async: true,
                 only: RELOAD,
+                // Validation refused the save (the errors arrive as page props); not a network or server failure.
+                onError: () => {
+                    invalid = true;
+                },
                 onSuccess: (page) => {
                     ok = true;
                     e.savedVersion = Math.max(e.savedVersion, sent);
@@ -103,7 +112,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
                 onFinish: () => {
                     e.inFlight = false;
                     if (!ok) {
-                        setStatus('error');
+                        setStatus(invalid ? 'invalid' : 'error');
                         settle(false);
 
                         return;
