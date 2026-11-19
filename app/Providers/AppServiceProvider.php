@@ -7,8 +7,10 @@ use App\Documents\Scanning\EicarDevScanner;
 use App\Documents\Scanning\Scanner;
 use App\Models\Document;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use App\Policies\CasePolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\UserPolicy;
 use App\Support\AuthEventAuditor;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -52,5 +54,6 @@ class AppServiceProvider extends ServiceProvider
         // Named CasePolicy, not ProcurementCasePolicy, so auto-discovery would miss it.
         Gate::policy(ProcurementCase::class, CasePolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(User::class, UserPolicy::class); // ADMIN-1: Admin > Users
     }
 }

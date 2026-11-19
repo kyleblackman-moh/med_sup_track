@@ -91,6 +91,8 @@ class HandleInertiaRequests extends Middleware
              */
             'nav' => [
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
+                // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes.
+                'users' => $user !== null && $user->can(Permission::UsersManage->value),
                 'section' => self::navSection($request),
             ],
             /*
@@ -139,7 +141,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The sidebar sections, by the first segment of the URL path. */
-    private const NAV_SECTIONS = ['dashboard', 'requests', 'cases'];
+    private const NAV_SECTIONS = ['dashboard', 'requests', 'cases', 'admin'];
 
     /** The section the current URL falls under (the path itself or anything below it), else null. */
     public static function navSection(Request $request): ?string

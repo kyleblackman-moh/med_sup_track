@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use App\Support\LandingPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +94,16 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
         });
+    });
+
+// ADMIN-1: Admin > Users. 403 without users.manage (UserPolicy); a missing user is 404.
+Route::middleware(['auth', 'can:viewAny,'.User::class])
+    ->prefix('admin/users')
+    ->name('admin.users.')
+    ->controller(UserController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{user}', 'show')->whereNumber('user')->name('show');
     });
 
 // The short-lived signed link issued by documents.download and cases.documents.download.

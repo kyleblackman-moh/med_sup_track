@@ -4,7 +4,7 @@ import { SidebarWatermark } from '@/components/sidebar-watermark';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid } from 'lucide-react';
+import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid, UsersRound } from 'lucide-react';
 import { SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -42,17 +42,22 @@ const cmoNavItems: NavItem[] = [
     { title: 'Drafts', url: '/cases?status=NON_OBJECTION_GRANTED', icon: FilePen },
 ];
 
+// ADMIN-1: the Administration group. Shown when the server shares nav.users; the routes authorise.
+const adminNavItems: NavItem[] = [{ title: 'Users', url: '/admin/users', icon: UsersRound, section: 'admin' }];
+
 export function AppSidebar() {
     const { can, nav, brand } = usePage<SharedData>().props;
     const page = usePage();
     const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
     const showCmo = Boolean(nav?.cmo_office);
+    const adminItems = nav?.users ? adminNavItems : [];
 
     // NEXT: one active item. A saved CMO view that matches exactly wins; otherwise the
     // main item whose section the server matched by URL prefix (nav.section), so
     // /requests/{id}/edit activates Requests and /cases/{id} the cases item.
     const activeView = showCmo ? cmoNavItems.find((item) => isViewActive(item.url, page.url)) : undefined;
-    const activeUrl = activeView?.url ?? navItems.find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
+    const activeUrl =
+        activeView?.url ?? [...navItems, ...adminItems].find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
 
     return (
         // V2-4 (design.md sections 5 and 6): the navy sidebar, flush to the left edge,
@@ -74,6 +79,7 @@ export function AppSidebar() {
             <SidebarContent className="gap-0 pt-4">
                 <NavMain items={navItems} activeUrl={activeUrl} first />
                 {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} activeUrl={activeUrl} />}
+                <NavMain label="Administration" items={adminItems} activeUrl={activeUrl} />
             </SidebarContent>
 
             {/* Decorative, between the nav items and the user card (never behind nav text). */}

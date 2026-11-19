@@ -43,6 +43,7 @@ enum Permission: string
     // Administration and oversight
     case AuditView = 'audit.view';
     case UserCreate = 'user.create';
+    case UsersManage = 'users.manage'; // ADMIN-1: Admin > Users (list, view, change role, disable, enable)
     case VendorUserInvite = 'vendor_user.invite';
     case UserResetCredentials = 'user.reset_credentials';
     case ConfigManage = 'config.manage';

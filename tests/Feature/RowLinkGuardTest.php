@@ -7,6 +7,7 @@ const ROW_LINK_TABLES = [
     'js/pages/requests/index.tsx',
     'js/components/cases/case-table.tsx',
     'js/components/dashboard/work-queue.tsx',
+    'js/components/admin/user-table.tsx', // ADMIN-1
 ];
 
 it('has no navigation onClick on table rows, cells or divs in the list tables', function () {

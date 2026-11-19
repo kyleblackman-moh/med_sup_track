@@ -76,13 +76,23 @@ enum Role: string
             ],
             // No case-content permissions: administers users and configuration only.
             self::SystemAdmin => [
-                P::AuditView, P::UserCreate, P::VendorUserInvite, P::UserResetCredentials,
+                P::AuditView, P::UserCreate, P::UsersManage, P::VendorUserInvite, P::UserResetCredentials,
                 P::ConfigManage, P::AssignmentReassign, P::DelegationManage,
             ],
             self::Auditor => [
                 P::AuditView,
             ],
         };
+    }
+
+    /**
+     * ADMIN-1: the kind of account this role is assigned to. A vendor role
+     * belongs to a VENDOR organisation; every other role to the MOH. Used only
+     * when assigning a role (Admin > Users, app:user-create), never for access.
+     */
+    public function userType(): UserType
+    {
+        return $this === self::VendorApplicant ? UserType::Vendor : UserType::Staff;
     }
 
     /** @return list<string> */
