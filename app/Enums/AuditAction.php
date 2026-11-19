@@ -50,7 +50,11 @@ enum AuditAction: string
     case DocumentWithdrawn = 'document.withdrawn';
     case DocumentDownloaded = 'document.downloaded';
 
-    // Accounts and organisations (console).
+    // Accounts and organisations (console, and Admin > Users from ADMIN-1). Ids and fixed codes only.
     case UserCreated = 'user.created';
+    case UserRoleChanged = 'user.role_changed';
+    case UserDisabled = 'user.disabled';
+    case UserEnabled = 'user.enabled';
+    case UserActivationResent = 'user.activation_resent';
     case OrganisationCreated = 'organisation.created';
 }

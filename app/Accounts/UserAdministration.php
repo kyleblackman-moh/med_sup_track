@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Throwable;
 
 /**
@@ -31,6 +32,8 @@ use Throwable;
 final class UserAdministration
 {
     public const PASSWORD_LENGTH = 32;
+
+    private const GUARD = 'web';
 
     /**
      * Create an account with a random password nobody sees, then email the
@@ -99,12 +102,24 @@ final class UserAdministration
             return;
         }
 
-        DB::transaction(function () use ($user, $role) {
+        DB::transaction(function () use ($actor, $user, $role) {
             if (! in_array(Permission::UsersManage, $role->permissions(), true)) {
                 $this->guardLastManager($user, 'role', 'This is the last active account that can manage users. Give another account that role first.');
             }
 
+            $old = $user->roles()->get(['roles.id', 'roles.name']);
+            $new = SpatieRole::findByName($role->value, self::GUARD);
+
             $user->syncRoles([$role->value]);
+
+            Audit::record(AuditAction::UserRoleChanged, ['type' => 'user', 'id' => $user->id], null, [
+                'user_id' => $user->id,
+                // A user holds one role in practice; a list in case older data holds more.
+                'old_role_ids' => $old->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+                'old_roles' => $old->pluck('name')->values()->all(),
+                'new_role_id' => (int) $new->id,
+                'new_role' => $role->value,
+            ], $actor);
         });
     }
 
@@ -131,7 +146,12 @@ final class UserAdministration
                 'remember_token' => Str::random(60),
             ])->save();
 
-            DB::table('sessions')->where('user_id', $user->id)->delete();
+            $ended = DB::table('sessions')->where('user_id', $user->id)->delete();
+
+            Audit::record(AuditAction::UserDisabled, ['type' => 'user', 'id' => $user->id], null, [
+                'user_id' => $user->id,
+                'sessions_ended' => $ended,
+            ], $actor);
         });
     }
 
@@ -142,12 +162,16 @@ final class UserAdministration
             return;
         }
 
-        DB::transaction(function () use ($user) {
+        DB::transaction(function () use ($actor, $user) {
             $user->forceFill([
                 'status' => User::STATUS_ACTIVE,
                 'disabled_at' => null,
                 'disabled_by' => null,
             ])->save();
+
+            Audit::record(AuditAction::UserEnabled, ['type' => 'user', 'id' => $user->id], null, [
+                'user_id' => $user->id,
+            ], $actor);
         });
     }
 
@@ -164,7 +188,15 @@ final class UserAdministration
             throw ValidationException::withMessages(['account' => 'Enable the account before sending a sign-in link.']);
         }
 
-        return $this->sendActivation($user);
+        $sent = $this->sendActivation($user);
+
+        // Recorded whether or not the mail went out ("sent"), so a failed attempt is visible too.
+        Audit::record(AuditAction::UserActivationResent, ['type' => 'user', 'id' => $user->id], null, [
+            'user_id' => $user->id,
+            'sent' => $sent,
+        ], $actor);
+
+        return $sent;
     }
 
     /**
