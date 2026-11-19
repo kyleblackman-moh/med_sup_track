@@ -6,13 +6,6 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ChevronRight, FileCheck, FileClock, FileText, FolderOpen, Inbox, type LucideIcon } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
-
 interface Destination {
     title: string;
     description: string;
@@ -60,6 +53,8 @@ const STAT_ICONS: Record<string, LucideIcon> = {
  */
 export default function Dashboard({ workQueue, header, stats, queue }: Props) {
     const { can } = usePage<SharedData>().props;
+    // DASH-1: the one crumb is the page itself, from the named route.
+    const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: route('dashboard') }];
 
     const destinations: Destination[] = [
         ...(can?.requests
@@ -81,6 +76,7 @@ export default function Dashboard({ workQueue, header, stats, queue }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <PageContent>
+                {/* DASH-1: the shared page header (h1 20px/600, 13px muted subtitle); greeting and date line from the server. */}
                 <PageHeader title={header.title} subtitle={header.subtitle} />
 
                 {/* DASH-1: equal-height tiles, 4 columns at lg, 2 at md, 1 below. Values and descriptions come from the server. */}
@@ -102,32 +98,38 @@ export default function Dashboard({ workQueue, header, stats, queue }: Props) {
 
                 {queue && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
 
+                {/* DASH-1: for users without a queue, the places they can go, as L3 cards like the stat tiles
+                    (30px tinted icon square, --shadow-card); the empty state is centred muted text. */}
                 {!workQueue &&
                     (destinations.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">There is nothing for you to work on here yet.</p>
+                        <div className="bg-card shadow-card rounded-xl border px-6 py-12 text-center">
+                            <p className="text-muted-foreground text-sm">There is nothing for you to work on here yet.</p>
+                        </div>
                     ) : (
-                        <ul className="grid gap-3 sm:grid-cols-2">
-                            {destinations.map((d) => (
-                                <li key={d.title}>
-                                    <Link
-                                        href={d.href}
-                                        className="bg-card hover:border-input focus-visible:ring-ring flex items-center gap-4 rounded-xl border p-5 shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                                    >
-                                        <span
-                                            className="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
-                                            aria-hidden
+                        <nav aria-label="Where to go">
+                            <ul className="grid gap-3 md:grid-cols-2">
+                                {destinations.map((d) => (
+                                    <li key={d.title} className="h-full">
+                                        <Link
+                                            href={d.href}
+                                            className="bg-card shadow-card hover:border-input focus-visible:ring-ring flex h-full items-center gap-3 rounded-xl border p-4 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transition-none"
                                         >
-                                            <d.icon className="size-4" />
-                                        </span>
-                                        <span className="flex-1">
-                                            <span className="block font-semibold">{d.title}</span>
-                                            <span className="text-muted-foreground block text-sm">{d.description}</span>
-                                        </span>
-                                        <ChevronRight className="text-muted-foreground size-4" aria-hidden />
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
+                                            <span
+                                                className="bg-accent text-accent-foreground flex size-[30px] shrink-0 items-center justify-center rounded-lg"
+                                                aria-hidden="true"
+                                            >
+                                                <d.icon className="size-5" />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-[15px] font-semibold">{d.title}</span>
+                                                <span className="text-muted-foreground block text-[13px]">{d.description}</span>
+                                            </span>
+                                            <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
                     ))}
             </PageContent>
         </AppLayout>
