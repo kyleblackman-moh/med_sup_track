@@ -211,3 +211,129 @@ it('runs a Legal query through the CMO to the Technocrats and back', function ()
     e2ePost($u['legal'], 'cases.legal.decide', $case, ['decision' => RecordLegalDecision::CONFIRMED]);
     expect(e2eFresh($case)->status)->toBe(S::WITH_PS);
 });
+
+// FIX-2 (4): the PS paths and Legal's "No", through the real routes. -------------------------
+
+/** The Queries tab entries $user sees on the staff case page. */
+function e2eQueries(ProcurementCase $case, User $user): array
+{
+    return test()->actingAs($user)->get(route('cases.show', [$case, 'tab' => 'queries']))->assertOk()->viewData('page')['props']['queries']['queries'];
+}
+
+/** The query actions on $user's Next Step card (null when the query asks nothing of them). */
+function e2eQueryActions(ProcurementCase $case, User $user): array
+{
+    test()->actingAs($user);
+
+    return collect(NextStep::for(e2eFresh($case), $user)['queries'] ?? [])->pluck('action')->all();
+}
+
+/**
+ * One via-CMO query loop through the real routes: $raiser asks, held for the
+ * CMO; the CMO forwards; $recipient answers, held again; the CMO forwards the
+ * answer back. At every step the main card ($cards: user key => card) is
+ * unchanged, the held message stays hidden, and the vendor sees nothing.
+ *
+ * @param  array<string, User>  $u
+ */
+function e2eViaCmoLoop(ProcurementCase $case, array $u, string $raiser, string $recipient, string $fromRole, string $toRole, array $labels): void
+{
+    $route = QueryRoute::query()->where('from_role', $fromRole)->where('to_role', $toRole)->firstOrFail();
+    $cards = collect(['cmo', $raiser, $recipient])->mapWithKeys(fn (string $k) => [$k => e2eCard($case, $u[$k])])->all();
+    $status = e2eFresh($case)->status;
+    $unchanged = function (string $step) use ($case, $u, $cards, $status) {
+        foreach ($cards as $k => $card) {
+            expect(e2eCard($case, $u[$k]))->toBe($card, "main card of {$k} after {$step}");
+        }
+        expect(e2eFresh($case)->status)->toBe($status, "case status after {$step}");
+        test()->actingAs($u['vendor'])->get(route('requests.show', $case))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('queries', []));
+    };
+
+    // 1. Raised: held for the CMO; the recipient sees nothing yet.
+    test()->actingAs($u[$raiser])->post(route('cases.queries.store', $case), ['route' => $route->id, 'body' => 'E2E question words.'])
+        ->assertSessionHasNoErrors();
+    $query = CaseQuery::withoutGlobalScopes()->where('case_id', $case->id)->latest('id')->firstOrFail();
+    expect($query->status)->toBe(QueryStatus::AWAITING_FORWARD)
+        ->and(e2eQueries($case, $u[$recipient]))->toBe([])
+        ->and(e2eQueryActions($case, $u['cmo']))->toBe([$labels['forward']])
+        ->and(e2eQueryActions($case, $u[$raiser]))->toBe([null]);
+    $unchanged('raise');
+
+    // 2. The CMO forwards: the recipient is asked to answer.
+    $held = QueryMessage::query()->where('query_id', $query->id)->whereNull('forwarded_at')->firstOrFail();
+    test()->actingAs($u['cmo'])->post(route('cases.queries.forward', [$case, $query->id, $held->id]))->assertSessionHasNoErrors();
+    expect(e2eQueries($case, $u[$recipient])[0]['messages'][0]['body'])->toBe('E2E question words.')
+        ->and(e2eQueryActions($case, $u[$recipient]))->toBe(['Answer Query'])
+        ->and(e2eQueryActions($case, $u['cmo']))->toBe([null]);
+    $unchanged('forward');
+
+    // 3. The recipient answers: held for the CMO; the raiser does not see it yet.
+    test()->actingAs($u[$recipient])->post(route('cases.queries.reply', [$case, $query->id]), ['body' => 'E2E answer words.'])
+        ->assertSessionHasNoErrors();
+    expect(collect(e2eQueries($case, $u[$raiser])[0]['messages'])->pluck('body')->all())->toBe(['E2E question words.'])
+        ->and(e2eQueryActions($case, $u['cmo']))->toBe([$labels['back']]);
+    $unchanged('answer');
+
+    // 4. The CMO forwards the answer back: answered, nothing left to do.
+    $answer = QueryMessage::query()->where('query_id', $query->id)->whereNull('forwarded_at')->firstOrFail();
+    test()->actingAs($u['cmo'])->post(route('cases.queries.forward', [$case, $query->id, $answer->id]))->assertSessionHasNoErrors();
+    expect(collect(e2eQueries($case, $u[$raiser])[0]['messages'])->pluck('body')->all())->toBe(['E2E question words.', 'E2E answer words.'])
+        ->and(CaseQuery::withoutGlobalScopes()->find($query->id)->status)->toBe(QueryStatus::ANSWERED)
+        ->and(e2eQueryActions($case, $u['cmo']))->toBe([null])
+        ->and(e2eQueryActions($case, $u[$raiser]))->toBe([null])
+        ->and(e2eQueryActions($case, $u[$recipient]))->toBe([null]);
+    $unchanged('forward back');
+}
+
+it('runs a PS technical query through the CMO to the Technocrats and back, leaving the card as With PS', function () {
+    $u = e2eUsers();
+    $case = e2eSample('with_ps');
+
+    expect(e2eCard($case, $u['ps']))->toBe([
+        'stage' => 'With PS',
+        'holder' => 'PS Office',
+        'instruction' => 'Waiting on the PS Office to grant non-objection or return the file with a query.',
+        'actions' => ['Record PS Decision'],
+    ]);
+
+    e2eViaCmoLoop($case, $u, 'ps', 'technocrat', 'ps_office', 'technocrat',
+        ['forward' => 'Forward Query to Technocrats', 'back' => 'Forward Query to PS Office']);
+
+    // The PS can still decide once the answer is back.
+    e2ePost($u['ps'], 'cases.ps.decide', $case, ['decision' => RecordPsDecision::GRANT]);
+    expect(e2eFresh($case)->status)->toBe(S::NON_OBJECTION_GRANTED);
+});
+
+it('runs a PS legal-related query through the CMO to Legal and back, leaving the card as With PS', function () {
+    $u = e2eUsers();
+    $case = e2eSample('with_ps');
+
+    e2eViaCmoLoop($case, $u, 'ps', 'legal', 'ps_office', 'legal_officer',
+        ['forward' => 'Forward Query to Legal Unit', 'back' => 'Forward Query to PS Office']);
+
+    expect(e2eCard($case, $u['ps'])['actions'])->toBe(['Record PS Decision']);
+});
+
+it("returns the file to the CMO on Legal's No, then runs Legal's query through the CMO to the Technocrats and back", function () {
+    $u = e2eUsers();
+    $case = e2eSample('with_legal');
+
+    // Legal's "No": the file goes back to the CMO, with a reason.
+    e2ePost($u['legal'], 'cases.legal.decide', $case, ['decision' => RecordLegalDecision::RETURN_TO_CMO, 'reason' => 'Clause 7 is not acceptable as drafted.']);
+    $returned = [
+        'stage' => 'Returned to CMO',
+        'holder' => "CMO's Office",
+        'instruction' => 'The Legal Unit returned the file with a query. Forward it to the Technocrats, or choose another destination the rules allow.',
+    ];
+    expect(e2eFresh($case)->status)->toBe(S::RETURNED_TO_CMO)
+        ->and(e2eCard($case, $u['cmo']))->toBe([...$returned, 'actions' => ['Send to Technocrats', 'Send to Legal Unit']])
+        ->and(e2eCard($case, $u['legal']))->toBe([...$returned, 'actions' => []]);
+
+    // Legal then raises its query, as the diagram's "Legal queries" sub-process.
+    e2eViaCmoLoop($case, $u, 'legal', 'technocrat', 'legal_officer', 'technocrat',
+        ['forward' => 'Forward Query to Technocrats', 'back' => 'Forward Query to Legal Unit']);
+
+    // The CMO can then send the file back to Legal (T12).
+    expect(e2eCard($case, $u['cmo'])['actions'])->toContain('Send to Legal Unit');
+});
