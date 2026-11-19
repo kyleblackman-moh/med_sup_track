@@ -141,3 +141,13 @@ export interface ProgressMilestone {
     date: string;
     date_label: string;
 }
+
+/** OVERNIGHT-2 (D3): a query from the Ministry, as the vendor sees it (external, delivered messages only). */
+export interface VendorQuery {
+    id: string;
+    title: string;
+    status_label: string;
+    raised_on: string | null;
+    can_reply: boolean;
+    messages: { id: string; from_label: string; body: string; sent_on: string | null }[];
+}

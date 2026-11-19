@@ -48,6 +48,9 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
             ->middleware('throttle:10,1')->name('submit');
+        // OVERNIGHT-2 (D3): the vendor's text reply to a query from the Ministry.
+        Route::post('{procurementCase}/queries/{query}/messages', [CaseQueryController::class, 'vendorReply'])
+            ->middleware('throttle:20,1')->name('queries.reply');
     });
 
 // Request documents. {document} is bound through the case (scopeBindings), so a

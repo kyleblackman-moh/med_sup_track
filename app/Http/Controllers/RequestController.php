@@ -18,6 +18,7 @@ use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
+use App\Queries\QueryView;
 use App\Submissions\CaseEraser;
 use App\Submissions\ChangeRequestType;
 use App\Submissions\CreateDraftCase;
@@ -159,6 +160,8 @@ class RequestController extends Controller
             'summary' => RequestSummary::for($procurementCase, $request->user(), withDocuments: false),
             // OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft.
             'progress' => RequestProgress::for($procurementCase),
+            // OVERNIGHT-2 (D3): external, delivered queries addressed to this organisation only.
+            'queries' => $isDraft ? [] : QueryView::forVendor($procurementCase, $request->user()),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),

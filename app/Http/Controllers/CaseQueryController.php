@@ -47,6 +47,18 @@ class CaseQueryController extends Controller
         return back()->with('success', 'Message sent.');
     }
 
+    /**
+     * D3: a vendor's text reply. Another organisation's case is 404 through the
+     * binding; an internal, held or unknown query is 404; a closed case or a
+     * closed query is 403. Documents still go through the Documents tab.
+     */
+    public function vendorReply(Request $request, ProcurementCase $procurementCase, string $query, QueryService $service): RedirectResponse
+    {
+        abort_unless($request->user()->isVendor(), 404);
+
+        return $this->reply($request, $procurementCase, $query, $service);
+    }
+
     public function forward(Request $request, ProcurementCase $procurementCase, string $query, string $message, QueryService $service): RedirectResponse
     {
         $caseQuery = $this->visibleQuery($request, $procurementCase, $query);

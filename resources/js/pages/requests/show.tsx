@@ -6,10 +6,11 @@ import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
+import { VendorQueries } from '@/components/requests/vendor-queries';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail } from '@/types/requests';
+import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
 
@@ -22,6 +23,8 @@ interface Props {
     summary: RequestSummaryView | null;
     /** OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft. */
     progress: ProgressMilestone[];
+    /** OVERNIGHT-2 (D3): queries from the Ministry addressed to this organisation; empty for a draft. */
+    queries: VendorQuery[];
 }
 
 /** A calendar date (Y-m-d), shown as-is: no time zone shift. */
@@ -29,7 +32,7 @@ function formatDay(day: string): string {
     return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function Show({ case: detail, documents, readiness, can, summary, progress }: Props) {
+export default function Show({ case: detail, documents, readiness, can, summary, progress, queries }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
         // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
@@ -83,6 +86,8 @@ export default function Show({ case: detail, documents, readiness, can, summary,
                 )}
 
                 <ProgressTimeline milestones={progress} />
+
+                <VendorQueries caseId={detail.id} queries={queries} />
 
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 

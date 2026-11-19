@@ -241,3 +241,59 @@ it('returns 404 for a query on another case, and for staff who cannot see the ca
     $this->actingAs($this->a['other_technocrat'])->post(route('cases.queries.reply', [$this->case, $query->id]), ['body' => 'Hi there'])->assertNotFound();
     $this->actingAs($this->a['system_admin'])->post(route('cases.queries.store', $this->case), ['route' => 1, 'body' => 'Hi there'])->assertNotFound();
 });
+
+// D3: the vendor -------------------------------------------------------------------
+
+function qlVendorQueries(User $vendor, ProcurementCase $case): array
+{
+    return test()->actingAs($vendor)->get(route('requests.show', $case))->assertOk()->viewData('page')['props']['queries'];
+}
+
+it('shows the vendor a direct Technocrat query and takes a text reply', function () {
+    $query = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'), 'Please send the batch certificate.');
+
+    $queries = qlVendorQueries($this->a['vendor'], $this->case);
+    expect($queries)->toHaveCount(1)
+        ->and($queries[0]['title'])->toBe('Query From the Ministry of Health')
+        ->and($queries[0]['messages'][0]['from_label'])->toBe('Ministry of Health')
+        ->and($queries[0]['messages'][0]['body'])->toBe('Please send the batch certificate.')
+        ->and($queries[0]['can_reply'])->toBeTrue();
+
+    $this->actingAs($this->a['vendor'])->post(route('requests.queries.reply', [$this->case, $query->id]), ['body' => 'Attached in Documents today.'])
+        ->assertSessionHasNoErrors()->assertRedirect();
+
+    $reply = QueryMessage::where('query_id', $query->id)->latest('created_at')->latest('id')->firstOrFail();
+    expect($reply->author_role)->toBe('vendor_applicant')
+        ->and($reply->recipient_role)->toBe('technocrat')
+        ->and($reply->visibility)->toBe('external')
+        ->and(qlFresh($query)->status)->toBe(QueryStatus::ANSWERED)
+        ->and(qlVendorQueries($this->a['vendor'], $this->case)[0]['messages'][1]['from_label'])->toBe('You');
+});
+
+it('never shows the vendor an internal or held query', function () {
+    qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'), 'Internal legal text');
+    qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'cmo'), 'Internal technocrat text');
+
+    expect(qlVendorQueries($this->a['vendor'], $this->case))->toBe([]);
+
+    $page = $this->actingAs($this->a['vendor'])->get(route('requests.show', $this->case))->getContent();
+    expect($page)->not->toContain('Internal legal text')->not->toContain('Internal technocrat text');
+});
+
+it('returns 404 to another organisation, and to a vendor on an internal query', function () {
+    $direct = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'));
+    $internal = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'cmo'));
+
+    $this->actingAs($this->a['other_vendor'])->post(route('requests.queries.reply', [$this->case, $direct->id]), ['body' => 'Not mine'])->assertNotFound();
+    $this->actingAs($this->a['vendor'])->post(route('requests.queries.reply', [$this->case, $internal->id]), ['body' => 'Hello there'])->assertNotFound();
+    // The staff routes are not for vendors.
+    $this->actingAs($this->a['vendor'])->post(route('cases.queries.reply', [$this->case, $direct->id]), ['body' => 'Hello there'])->assertForbidden();
+});
+
+it('refuses a vendor reply once the case is closed', function () {
+    $query = qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'));
+    DB::table('cases')->where('id', $this->case->id)->update(['status' => S::CLOSED->value]);
+
+    expect(qlVendorQueries($this->a['vendor'], $this->case)[0]['can_reply'])->toBeFalse();
+    $this->actingAs($this->a['vendor'])->post(route('requests.queries.reply', [$this->case, $query->id]), ['body' => 'Too late'])->assertForbidden();
+});
