@@ -10,7 +10,7 @@ function entryRowFiles(): array
     $files = [];
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js')));
     foreach ($iterator as $file) {
-        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && preg_match('/<Entry(?:Card)?Row\b/',file_get_contents($file->getPathname())) === 1) {
+        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && preg_match('/<Entry(?:Card)?Row\b/', file_get_contents($file->getPathname())) === 1) {
             $files[] = str_replace('\\', '/', $file->getPathname());
         }
     }

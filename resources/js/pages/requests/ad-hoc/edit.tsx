@@ -360,7 +360,7 @@ export default function AdHocEdit({
                     </p>
                 )}
 
-                <div className="bg-background/95 sticky top-0 z-10 -mx-4 px-4 py-3 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
+                <div data-sticky-strip className="bg-background/95 sticky top-0 z-10 -mx-4 px-4 py-3 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
                     <ProgressStrip items={progress} label="Form sections" />
                 </div>
 

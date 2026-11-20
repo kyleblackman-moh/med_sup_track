@@ -255,6 +255,32 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* FORM-COMPACT-1 (4), WCAG 2.2 2.4.11: a field focused by Tab, an anchor
+       target (the progress strip's links, the error summary's links) and
+       scrollIntoView never end up under a sticky bar. scroll-padding on the
+       page's scroll container applies to all three.
+       Top: the request form's sticky progress strip, at most about 134px
+       (12px padding twice, the 40px marker row, 8px, three lines of 14px
+       labels at 19.25px), plus 16px: 152px. The 72px application header is
+       not sticky; it scrolls away, and 152px clears it too.
+       Bottom: the sticky action bar sits 12px above the screen's bottom edge
+       and is 78px tall in one row (16px padding twice, 44px buttons, 1px
+       borders): 90px, plus 22px: 112px. Below 40rem its groups wrap to up
+       to three rows of 44px buttons (186px with the gaps): 208px. */
+    html:has([data-sticky-strip]) {
+        scroll-padding-top: 9.5rem;
+    }
+
+    html:has([data-sticky-bar]) {
+        scroll-padding-bottom: 7rem;
+    }
+
+    @media (width < 40rem) {
+        html:has([data-sticky-bar]) {
+            scroll-padding-bottom: 13rem;
+        }
+    }
 }
 
 /* Print (design.md section 10): no sidebar (nor the space it holds), the workspace

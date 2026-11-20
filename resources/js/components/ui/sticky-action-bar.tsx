@@ -16,10 +16,13 @@ interface StickyActionBarProps {
  * width. It sits in the flow after the last section, so at the end of the page
  * it never covers the last field or message. Below sm the two groups wrap and
  * the buttons share the row. The only place form actions live. Hidden in print.
+ * FORM-COMPACT-1 (4): data-sticky-bar gives the page a matching scroll-padding
+ * at the bottom (app.css), so Tab never leaves a focused field behind the bar.
  */
 export function StickyActionBar({ left, right, className }: StickyActionBarProps) {
     return (
         <div
+            data-sticky-bar
             className={cn(
                 'bg-card shadow-card sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 print:hidden',
                 className,
