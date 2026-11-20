@@ -2,7 +2,6 @@
 // validates every save, computes every figure and decides what is complete.
 
 import { type DocumentGroup, type OptionList, type RequestDetail, type Row, type UploadRules } from './requests';
-import { type RequestSummaryView } from './summary';
 
 export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations' | 'variation_rows';
 
@@ -85,8 +84,6 @@ export interface AdHocPageProps {
     request_sections: RequestSectionStatus[];
     /** V2-2: numbered sections, display strings and the expiry warning. */
     form: RequestFormView;
-    /** V2-3: the read-only summary; only after Review and submit asks for it (an optional prop). */
-    summary?: RequestSummaryView | null;
     config: AdHocConfig;
     documents: DocumentGroup[];
     saved: SavedFlash | null;

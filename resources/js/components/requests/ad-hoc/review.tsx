@@ -1,8 +1,6 @@
-import { RequestSummary } from '@/components/requests/request-summary';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { type ChildSection, type NotSavedItem, type RequestSectionStatus, type SectionIssue } from '@/types/ad-hoc';
-import { type RequestSummaryView } from '@/types/summary';
 import { type RefObject } from 'react';
 import { CHILD_SECTIONS, fieldId, type FormState } from './form-state';
 import { PREVIOUS_REQUEST_ID } from './request-type-section';
@@ -151,40 +149,6 @@ export function IssuesPanel({ panelRef, heading, items, onJump, announce = true 
                     </li>
                 ))}
             </ul>
-        </section>
-    );
-}
-
-interface SummaryPanelProps {
-    panelRef: RefObject<HTMLElement | null>;
-    /** V2-3: the server's RequestSummary of what is saved. */
-    summary: RequestSummaryView;
-    onSubmit: () => void;
-}
-
-/** A read-only summary of everything saved (the server's RequestSummary), then Submit. */
-export function SummaryPanel({ panelRef, summary, onSubmit }: SummaryPanelProps) {
-    return (
-        <section
-            ref={panelRef}
-            tabIndex={-1}
-            aria-labelledby="review-summary-heading"
-            className="bg-card focus-visible:ring-ring space-y-6 rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
-        >
-            <div>
-                <h2 id="review-summary-heading" className="text-base font-semibold">
-                    Review Your Request
-                </h2>
-                <p className="text-muted-foreground text-sm">Everything below is saved. Check it, then submit.</p>
-            </div>
-
-            <RequestSummary summary={summary} idPrefix="review" />
-
-            <div>
-                <Button type="button" className="h-11 md:h-9" onClick={onSubmit}>
-                    Submit Request
-                </Button>
-            </div>
         </section>
     );
 }

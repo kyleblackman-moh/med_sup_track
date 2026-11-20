@@ -43,7 +43,7 @@ it('does not add a second offset to the sections (it would double the strip clea
 it('keeps one primary action in the bar and no "Continue to Next Step"', function () {
     $page = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
 
-    expect($page)->toContain("variant={review === 'ready' ? 'outline' : 'default'}")
+    expect($page)->toContain('variant="default"')
         ->and(substr_count($page, 'variant="outline"'))->toBe(2) // Delete Draft and Save Draft
         ->and($page)->not->toContain('Continue to Next Step');
 });

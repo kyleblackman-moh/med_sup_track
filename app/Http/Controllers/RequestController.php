@@ -400,8 +400,6 @@ class RequestController extends Controller
 
                 return RequestFormView::for($case, $report);
             },
-            // V2-3: the read-only summary for Review and submit; sent only when Review asks for it.
-            'summary' => Inertia::optional(fn () => RequestSummary::for($case, $request->user())),
             'config' => fn () => [...AdHocFormConfig::for(), 'uploads' => RequestDocuments::uploadRules()],
             'documents' => fn () => RequestDocuments::for($case, $request->user()),
             'saved' => fn () => $request->session()->get('saved'),

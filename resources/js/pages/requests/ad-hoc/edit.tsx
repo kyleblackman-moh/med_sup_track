@@ -7,7 +7,7 @@ import { fieldId, initialState, mergeSaved, newRow, toPayload, type FormState } 
 import { ItemTenderSection } from '@/components/requests/ad-hoc/item-tender-section';
 import { QuotationSection } from '@/components/requests/ad-hoc/quotation-section';
 import { RequestTypeSection } from '@/components/requests/ad-hoc/request-type-section';
-import { IssuesPanel, SubmitDialog, summaryItems, SummaryPanel } from '@/components/requests/ad-hoc/review';
+import { IssuesPanel, summaryItems } from '@/components/requests/ad-hoc/review';
 import { SaveChip } from '@/components/requests/ad-hoc/save-chip';
 import { StockSection } from '@/components/requests/ad-hoc/stock-section';
 import { useAutosave } from '@/components/requests/ad-hoc/use-autosave';
@@ -26,7 +26,8 @@ import { Head, router } from '@inertiajs/react';
 import { ArrowRight, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-type Review = 'none' | 'issues' | 'ready';
+/** OVERNIGHT-3 (A2): a ready draft goes to the Review page; only the blocked state stays here. */
+type Review = 'none' | 'issues';
 
 /** The props a save, a type change or a review reloads (never the whole page). */
 const FORM_PROPS = ['case', 'request_sections', 'form', 'documents'];
@@ -52,17 +53,7 @@ function focusTarget(id: string) {
  * computes and formats every figure, and decides what is complete and what
  * is optional (the "form" prop). Issues show only after Review and submit.
  */
-export default function AdHocEdit({
-    case: detail,
-    request_sections,
-    form,
-    summary,
-    config,
-    documents,
-    hardcopy_notice,
-    errors,
-    can,
-}: AdHocPageProps) {
+export default function AdHocEdit({ case: detail, request_sections, form, config, documents, errors, can }: AdHocPageProps) {
     const [state, setState] = useState<FormState>(() => initialState(detail));
     const stateRef = useRef(state);
     stateRef.current = state;
@@ -70,8 +61,6 @@ export default function AdHocEdit({
     const [showIssues, setShowIssues] = useState(false);
     const [review, setReview] = useState<Review>('none');
     const [reviewFailed, setReviewFailed] = useState(false);
-    const [confirming, setConfirming] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [changingType, setChangingType] = useState(false);
     // V2-4: Save draft is pending while it waits for the autosave to finish.
@@ -155,8 +144,6 @@ export default function AdHocEdit({
     const update = (change: (current: FormState) => FormState) => {
         setState(change);
         autosave.changed();
-        // The summary shows what was saved; a change makes it out of date.
-        setReview((current) => (current === 'ready' ? 'none' : current));
     };
 
     const updateRows = (section: ChildSection, change: (rows: FormState['rows'][ChildSection]) => FormState['rows'][ChildSection]) =>
@@ -229,7 +216,11 @@ export default function AdHocEdit({
         }
     };
 
-    /** Save everything, then ask the server what (if anything) still needs doing. */
+    /**
+     * Save everything, then ask the server what (if anything) still needs
+     * doing. OVERNIGHT-3 (A2): a ready draft goes on to the Review page; a
+     * blocked one stays here with the error summary (unchanged).
+     */
     const startReview = async () => {
         setReviewing(true);
         const saved = await autosave.flush();
@@ -242,36 +233,32 @@ export default function AdHocEdit({
         setReviewFailed(false);
         // FORM-SAVE-1: Review and Submit stays strict. Fields the last save left out block it like any issue.
         const fieldsLeftOut = autosave.hasUnsaved();
+        let toReviewPage = false;
         router.reload({
-            // V2-3: plus the read-only summary (an optional prop, sent only when asked for).
-            only: [...FORM_PROPS, 'summary'],
+            only: FORM_PROPS,
             onSuccess: (page) => {
                 const latest = (page.props as unknown as AdHocPageProps).request_sections;
+                const blocked = fieldsLeftOut || latest.some((section) => section.issues.length > 0);
+                if (!blocked) {
+                    toReviewPage = true;
+                    router.visit(route('requests.review', detail.id), { onFinish: () => setReviewing(false) });
+
+                    return;
+                }
                 setShowIssues(true);
-                setReview(fieldsLeftOut || latest.some((section) => section.issues.length > 0) ? 'issues' : 'ready');
+                setReview('issues');
                 window.setTimeout(() => {
                     panelRef.current?.scrollIntoView({ block: 'start' });
                     panelRef.current?.focus();
                 }, 0);
             },
-            onFinish: () => setReviewing(false),
+            onFinish: () => {
+                if (!toReviewPage) {
+                    setReviewing(false);
+                }
+            },
         });
     };
-
-    const submit = () =>
-        router.post(
-            route('requests.submit', detail.id),
-            {},
-            {
-                onStart: () => setSubmitting(true),
-                // Refused (something changed meanwhile): close, then show what the server says.
-                onError: () => {
-                    setConfirming(false);
-                    void startReview();
-                },
-                onFinish: () => setSubmitting(false),
-            },
-        );
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
@@ -376,9 +363,6 @@ export default function AdHocEdit({
                             {body[section.key]}
                         </FormPanel>
                     ))}
-
-                    {/* The summary of what is saved sits just above the action bar that asked for it. */}
-                    {review === 'ready' && summary && <SummaryPanel panelRef={panelRef} summary={summary} onSubmit={() => setConfirming(true)} />}
                 </div>
 
                 {/* V2-4: the white card action bar at the end of the content (design.md section 7). */}
@@ -418,10 +402,10 @@ export default function AdHocEdit({
                                     {savingDraft ? 'Saving…' : 'Save Draft'}
                                 </Button>
                             )}
-                            {/* One primary action per view: once the summary is up, Submit is the primary one. */}
+                            {/* One primary action per view. OVERNIGHT-3 (A2): Submit Request is on the Review page. */}
                             <Button
                                 type="button"
-                                variant={review === 'ready' ? 'outline' : 'default'}
+                                variant="default"
                                 size="lg"
                                 className="text-label px-5 font-semibold"
                                 disabled={reviewing}
@@ -449,14 +433,6 @@ export default function AdHocEdit({
 
                     return autosave.flush();
                 }}
-            />
-
-            <SubmitDialog
-                open={confirming}
-                onOpenChange={setConfirming}
-                hardcopyNotice={hardcopy_notice}
-                submitting={submitting}
-                onConfirm={submit}
             />
         </AppLayout>
     );

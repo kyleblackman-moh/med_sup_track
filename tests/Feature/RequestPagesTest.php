@@ -536,7 +536,9 @@ it('gives a request-form request page the request summary, and no other type', f
     ['AD_HOC_PHARM', false],
 ]);
 
-it('sends the edit page\'s summary only when Review asks for it', function () {
+// OVERNIGHT-3 (A2, A3): the form page no longer carries the summary, not even when asked
+// for it; the Review page (requests/review) has it.
+it('keeps the summary off the edit page and gives it to the Review page', function () {
     [$case, $vendor] = vendorDraft('TENDER_EXCESS');
     $full = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk();
     expect($full->viewData('page')['props'])->not->toHaveKey('summary');
@@ -547,8 +549,10 @@ it('sends the edit page\'s summary only when Review asks for it', function () {
         'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
         'X-Inertia-Partial-Data' => 'summary',
     ])->assertOk()->json('props');
+    expect($props['summary'] ?? null)->toBeNull();
 
-    expect(array_column($props['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible('TENDER_EXCESS'), 'key'));
+    $review = pageProps($this->actingAs($vendor)->get(route('requests.review', $case->id))->assertOk());
+    expect(array_column($review['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible('TENDER_EXCESS'), 'key'));
 });
 
 it('keeps form actions out of the request form headers', function () {

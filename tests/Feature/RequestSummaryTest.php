@@ -334,14 +334,8 @@ it('lists documents only on the Review step, never on the request page or the ca
     $visible = RequestSections::visible($code, true, $code === 'TENDER_VARIATION');
     $numbers = array_combine(array_column($visible, 'key'), range(1, count($visible)));
 
-    // Review and submit: the summary is a partial reload of the edit page; Documents is the last section.
-    $version = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->viewData('page')['version'];
-    $review = $this->actingAs($vendor)->get(route('requests.edit', $case->id), [
-        'X-Inertia' => 'true',
-        'X-Inertia-Version' => (string) $version,
-        'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
-        'X-Inertia-Partial-Data' => 'summary',
-    ])->assertOk()->json('props.summary');
+    // Review and submit: OVERNIGHT-3 (A1) the summary is on the Review page; Documents is the last section.
+    $review = pageProps($this->actingAs($vendor)->get(route('requests.review', $case->id))->assertOk())['summary'];
 
     expect(array_column($review['sections'], 'number', 'key'))->toBe($numbers)
         ->and(summarySection($review, 'documents'))->not->toBeNull();
