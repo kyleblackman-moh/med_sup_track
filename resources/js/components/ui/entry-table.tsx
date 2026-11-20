@@ -1,35 +1,21 @@
+import { ENTRY_WIDTH, type EntryWidth } from '@/components/ui/field-width';
 import { cn } from '@/lib/utils';
 import { CircleAlert } from 'lucide-react';
 import { createContext, type ReactNode, useContext } from 'react';
 
+export { ENTRY_WIDTH, type EntryWidth };
+
 /**
  * FORM-ERR-1 (B): the CARD width (a container query, not the viewport) at and
  * above which each entry is one line of inputs. Each table picks the size at
- * which all its columns fit at their minimum widths (ENTRY_WIDTH), plus the row
- * label, the remove button, the 12px gaps and the 16px row padding. Below it
- * the entry wraps into labelled fields. So a row never overlaps, whatever the
- * viewport or the sidebar state.
+ * which all its columns fit at their minimum widths (ENTRY_WIDTH, the form's
+ * one width scale), plus the row label, the remove button, the 12px gaps and
+ * the 16px row padding. Below it the entry wraps into labelled fields. So a
+ * row never overlaps, whatever the viewport or the sidebar state.
+ * FORM-COMPACT-1 (2): a card table (variant "cards") needs each of its LINES
+ * to fit instead (EntryCardRow).
  */
-export type EntryBreakpoint = '32rem' | '45rem' | '66rem' | '88rem';
-
-/**
- * A column's width (header and cells use the same classes, so they line up).
- * Fixed widths are a flex basis and grow widths a minimum: both apply only
- * in the one-line flex layout, except the minimum, which is always below the
- * 10rem columns of the wrapped grid, so it never forces an overflow there.
- */
-export type EntryWidth = 'check' | 'check-wide' | 'value' | 'number' | 'text' | 'select' | 'date' | 'long';
-
-export const ENTRY_WIDTH: Record<EntryWidth, string> = {
-    'check': 'flex-none basis-20 min-w-20', // 80px: a checkbox or radio
-    'check-wide': 'flex-none basis-24 min-w-24', // 96px: "Recommended"
-    'value': 'flex-none basis-24 min-w-24', // 96px: a server figure (a dash until saved)
-    'number': 'flex-1 min-w-24', // 96px minimum: quantities, prices, days
-    'text': 'flex-1 min-w-28', // 112px minimum
-    'select': 'flex-1 min-w-32', // 128px minimum
-    'date': 'flex-1 min-w-36', // 144px minimum: a date input with its picker icon
-    'long': 'flex-[2] min-w-40', // 160px minimum, twice the share of the rest
-};
+export type EntryBreakpoint = '32rem' | '45rem' | '54rem' | '66rem' | '88rem';
 
 // Static class strings per breakpoint, so Tailwind can see every class. The
 // table's root is the @container. Below the breakpoint an entry wraps into a
@@ -47,6 +33,8 @@ const LAYOUT: Record<
         fullOnly: string;
         shortOnly: string;
         remove: string;
+        /** FORM-COMPACT-1: a group of checks in a card line, level with the inputs (under their 20px label and 8px gap). */
+        checks: string;
     }
 > = {
     '32rem': {
@@ -58,6 +46,7 @@ const LAYOUT: Record<
         fullOnly: '@min-[32rem]:sr-only',
         shortOnly: 'hidden tabular-nums @min-[32rem]:inline',
         remove: 'absolute top-2 right-3 @min-[32rem]:static',
+        checks: '@min-[32rem]:pt-7',
     },
     '45rem': {
         header: 'hidden @min-[45rem]:flex',
@@ -68,6 +57,18 @@ const LAYOUT: Record<
         fullOnly: '@min-[45rem]:sr-only',
         shortOnly: 'hidden tabular-nums @min-[45rem]:inline',
         remove: 'absolute top-2 right-3 @min-[45rem]:static',
+        checks: '@min-[45rem]:pt-7',
+    },
+    '54rem': {
+        header: 'hidden @min-[54rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[54rem]:flex @min-[54rem]:flex-row @min-[54rem]:items-start',
+        cellLabel: '@min-[54rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[54rem]:w-32 @min-[54rem]:shrink-0 @min-[54rem]:pt-2 @min-[54rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[54rem]:w-8 @min-[54rem]:shrink-0 @min-[54rem]:pt-2 @min-[54rem]:pr-0',
+        fullOnly: '@min-[54rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[54rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[54rem]:static',
+        checks: '@min-[54rem]:pt-7',
     },
     '66rem': {
         header: 'hidden @min-[66rem]:flex',
@@ -78,6 +79,7 @@ const LAYOUT: Record<
         fullOnly: '@min-[66rem]:sr-only',
         shortOnly: 'hidden tabular-nums @min-[66rem]:inline',
         remove: 'absolute top-2 right-3 @min-[66rem]:static',
+        checks: '@min-[66rem]:pt-7',
     },
     '88rem': {
         header: 'hidden @min-[88rem]:flex',
@@ -88,6 +90,7 @@ const LAYOUT: Record<
         fullOnly: '@min-[88rem]:sr-only',
         shortOnly: 'hidden tabular-nums @min-[88rem]:inline',
         remove: 'absolute top-2 right-3 @min-[88rem]:static',
+        checks: '@min-[88rem]:pt-7',
     },
 };
 
@@ -96,7 +99,7 @@ const TableContext = createContext<{ breakpoint: EntryBreakpoint; narrowRowLabel
 export interface EntryColumn {
     key: string;
     label: string;
-    /** The column's width (ENTRY_WIDTH); the row's cell passes the same one. Default "text". */
+    /** The column's width (ENTRY_WIDTH); the row's cell passes the same one. Default "md". */
     width?: EntryWidth;
 }
 
@@ -139,7 +142,7 @@ export function EntryTable({ caption, columns, children, addAction, empty, foot,
                 <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
                     <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : 'Row'}</span>
                     {columns.map((column) => (
-                        <span key={column.key} className={cn('break-words', ENTRY_WIDTH[column.width ?? 'text'])}>
+                        <span key={column.key} className={cn('break-words', ENTRY_WIDTH[column.width ?? 'md'])}>
                             {column.label}
                         </span>
                     ))}
@@ -236,13 +239,13 @@ interface EntryCellProps {
     label: string;
     /** The id of the input it labels. */
     htmlFor?: string;
-    /** The same width as the column (ENTRY_WIDTH). Default "text". */
+    /** The same width as the column (ENTRY_WIDTH). Default "md". */
     width?: EntryWidth;
     className?: string;
     children: ReactNode;
 }
 
-export function EntryCell({ label, htmlFor, width = 'text', className, children }: EntryCellProps) {
+export function EntryCell({ label, htmlFor, width = 'md', className, children }: EntryCellProps) {
     const layout = LAYOUT[useContext(TableContext).breakpoint];
 
     return (

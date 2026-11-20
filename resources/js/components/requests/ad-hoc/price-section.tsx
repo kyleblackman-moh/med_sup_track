@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { CheckboxField, controlHeight, Figure, TextAreaField, TextField } from './fields';
+import { CheckboxField, controlHeight, FieldGrid, Figure, GridRow, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 
@@ -42,37 +42,40 @@ export function PriceSection({ api }: { api: FormApi }) {
     }
 
     return (
-        <div className="grid grid-cols-1 gap-5">
-            <div className="grid gap-5 md:grid-cols-2">
-                <TextField
-                    id={fieldId.requisition('tender_price')}
-                    label="Tender Price"
-                    optional
-                    inputMode="decimal"
-                    value={text(state.requisition.tender_price)}
-                    onChange={(value) => api.setField('tender_price', value)}
-                    error={api.fieldError('tender_price')}
-                    hint="Unit price on the tender."
-                />
-                <TextField
-                    id={fieldId.requisition('previous_price')}
-                    label="Previous Price"
-                    optional
-                    inputMode="decimal"
-                    value={text(state.requisition.previous_price)}
-                    onChange={(value) => api.setField('previous_price', value)}
-                    error={api.fieldError('previous_price')}
-                    hint="Unit price paid last time."
-                />
-            </div>
+        <FieldGrid>
+            <TextField
+                width="xs"
+                id={fieldId.requisition('tender_price')}
+                label="Tender Price"
+                optional
+                inputMode="decimal"
+                value={text(state.requisition.tender_price)}
+                onChange={(value) => api.setField('tender_price', value)}
+                error={api.fieldError('tender_price')}
+                hint="Unit price on the tender."
+            />
+            <TextField
+                width="xs"
+                id={fieldId.requisition('previous_price')}
+                label="Previous Price"
+                optional
+                inputMode="decimal"
+                value={text(state.requisition.previous_price)}
+                onChange={(value) => api.setField('previous_price', value)}
+                error={api.fieldError('previous_price')}
+                hint="Unit price paid last time."
+            />
 
-            <dl className="grid gap-5 sm:grid-cols-3">
-                <Figure label="Quoted Price (Recommended Quotation)" value={figures?.recommended_unit_price} />
-                <Figure label="Change Against Tender Price" value={api.form.display.price_change_vs_tender} />
-                <Figure label="Change Against Previous Price" value={api.form.display.price_change_vs_previous} />
-            </dl>
+            <GridRow>
+                <FieldGrid as="dl">
+                    <Figure width="md" label="Quoted Price (Recommended Quotation)" value={figures?.recommended_unit_price} />
+                    <Figure width="md" label="Change Against Tender Price" value={api.form.display.price_change_vs_tender} />
+                    <Figure width="md" label="Change Against Previous Price" value={api.form.display.price_change_vs_previous} />
+                </FieldGrid>
+            </GridRow>
 
             <CheckboxField
+                width="full"
                 id={fieldId.requisition('quoted_price_acceptable')}
                 label="Quoted Price Is Acceptable"
                 checked={state.requisition.quoted_price_acceptable === true}
@@ -80,6 +83,7 @@ export function PriceSection({ api }: { api: FormApi }) {
             />
 
             <TextAreaField
+                width="full"
                 id={fieldId.requisition('price_note')}
                 label="Note on the Price"
                 optional
@@ -89,6 +93,6 @@ export function PriceSection({ api }: { api: FormApi }) {
                 error={api.fieldError('price_note')}
                 hint={`Up to ${config.max_lengths.price_note} characters.`}
             />
-        </div>
+        </FieldGrid>
     );
 }

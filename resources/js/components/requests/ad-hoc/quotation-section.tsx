@@ -1,6 +1,6 @@
 import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryCheck, EntryInput } from './entry-fields';
-import { Figure, RadioGroupField, TextAreaField, TextField } from './fields';
+import { FieldGrid, Figure, GridRow, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -26,21 +26,22 @@ export function QuotationSection({ api }: { api: FormApi }) {
         { key: 'considered', label: 'Considered', width: 'check' },
         { key: 'is_recommended', label: 'Recommended', width: 'check-wide' },
         { key: 'supplier_name', label: 'Supplier' },
-        { key: 'quantity_offered', label: 'Quantity', width: 'number' },
-        { key: 'unit_price', label: 'Unit Price', width: 'number' },
+        { key: 'quantity_offered', label: 'Quantity', width: 'xs' },
+        { key: 'unit_price', label: 'Unit Price', width: 'xs' },
         { key: 'ex_stock', label: 'Ex Stock', width: 'check' },
-        { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'number' },
+        { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' },
         { key: 'brand', label: 'Brand' },
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'remarks', label: 'Remarks', width: 'long' },
+        { key: 'remarks', label: 'Remarks', width: 'lg' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
     const width = (key: string) => columns.find((c) => c.key === key)?.width;
 
     return (
-        <div className="grid grid-cols-1 gap-5">
+        <FieldGrid>
             <RadioGroupField
+                width="md"
                 id={fieldId.requisition('rfq_audience')}
                 legend={'RFQ Sent To'}
                 options={config.options.rfq_audience}
@@ -49,134 +50,141 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 error={api.fieldError('rfq_audience')}
             />
 
-            <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                <p className="text-muted-foreground text-[13px]">Choose one recommended quotation. Give a reason for any quotation not considered.</p>
-                {tableError && <p className="text-destructive text-sm">{tableError}</p>}
-                <EntryTable
-                    caption="Quotations Received"
-                    columns={columns}
-                    breakpoint="88rem"
-                    narrowRowLabel
-                    empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
-                    addAction={
-                        <AddRowButton label="Add Quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
-                    }
-                >
-                    {rows.map((row, index) => {
-                        const rowLabel = `Quotation Row ${index + 1}`;
-                        const id = (name: string) => fieldId.cell('quotations', row.key, name);
-                        // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
-                        const errorsId = fieldId.rowErrors('quotations', row.key);
-                        const errors = collectRowErrors(['id', ...columns.map((c) => c.key), 'reason_accepted_excluded'], (name) =>
-                            api.cellError('quotations', row, index, name),
-                        );
-                        const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => (
-                            <EntryInput
-                                id={id(name)}
-                                label={label(name)}
-                                rowLabel={rowLabel}
-                                kind={kind}
-                                maxLength={maxLength}
-                                width={width(name)}
-                                value={text(row.values[name])}
-                                onChange={(value) => api.setCell('quotations', row.key, name, value)}
-                                error={api.cellError('quotations', row, index, name)}
-                                errorListId={errorsId}
-                                required={optional(`quotations.${name}`) === false}
-                            />
-                        );
-                        const considered = row.values.considered === true;
+            <GridRow>
+                <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
+                    <p className="text-muted-foreground text-[13px]">
+                        Choose one recommended quotation. Give a reason for any quotation not considered.
+                    </p>
+                    {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+                    <EntryTable
+                        caption="Quotations Received"
+                        columns={columns}
+                        breakpoint="88rem"
+                        narrowRowLabel
+                        empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
+                        addAction={
+                            <AddRowButton label="Add Quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
+                        }
+                    >
+                        {rows.map((row, index) => {
+                            const rowLabel = `Quotation Row ${index + 1}`;
+                            const id = (name: string) => fieldId.cell('quotations', row.key, name);
+                            // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                            const errorsId = fieldId.rowErrors('quotations', row.key);
+                            const errors = collectRowErrors(['id', ...columns.map((c) => c.key), 'reason_accepted_excluded'], (name) =>
+                                api.cellError('quotations', row, index, name),
+                            );
+                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => (
+                                <EntryInput
+                                    id={id(name)}
+                                    label={label(name)}
+                                    rowLabel={rowLabel}
+                                    kind={kind}
+                                    maxLength={maxLength}
+                                    width={width(name)}
+                                    value={text(row.values[name])}
+                                    onChange={(value) => api.setCell('quotations', row.key, name, value)}
+                                    error={api.cellError('quotations', row, index, name)}
+                                    errorListId={errorsId}
+                                    required={optional(`quotations.${name}`) === false}
+                                />
+                            );
+                            const considered = row.values.considered === true;
 
-                        return (
-                            <EntryRow
-                                key={row.key}
-                                label={rowLabel}
-                                short={String(index + 1)}
-                                errors={errors}
-                                errorsId={errorsId}
-                                remove={
-                                    <RemoveRowButton
-                                        label={`Remove Quotation Row ${index + 1}`}
-                                        onClick={() => api.removeRow('quotations', row.key)}
-                                    />
-                                }
-                                below={
-                                    !considered && (
-                                        <TextAreaField
-                                            id={id('reason_accepted_excluded')}
-                                            label={`Reason Quotation ${index + 1} Was Not Considered`}
-                                            rows={2}
-                                            maxLength={config.max_lengths.reason_accepted_excluded}
-                                            value={text(row.values.reason_accepted_excluded)}
-                                            onChange={(value) => api.setCell('quotations', row.key, 'reason_accepted_excluded', value)}
-                                            error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
-                                            errorListId={errorsId}
-                                            optional={optional('quotations.reason_accepted_excluded')}
-                                            hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
+                            return (
+                                <EntryRow
+                                    key={row.key}
+                                    label={rowLabel}
+                                    short={String(index + 1)}
+                                    errors={errors}
+                                    errorsId={errorsId}
+                                    remove={
+                                        <RemoveRowButton
+                                            label={`Remove Quotation Row ${index + 1}`}
+                                            onClick={() => api.removeRow('quotations', row.key)}
                                         />
-                                    )
-                                }
-                            >
-                                <EntryCheck
-                                    id={id('considered')}
-                                    label="Considered"
-                                    rowLabel={rowLabel}
-                                    type="checkbox"
-                                    checked={considered}
-                                    onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
-                                    width="check"
-                                />
-                                <EntryCheck
-                                    id={id('is_recommended')}
-                                    label="Recommended"
-                                    rowLabel={rowLabel}
-                                    type="radio"
-                                    name="recommended-quotation"
-                                    checked={row.values.is_recommended === true}
-                                    onChange={() => api.chooseRecommended(row.key)}
-                                    width="check-wide"
-                                />
-                                {input('supplier_name', 'text', 200)}
-                                {input('quantity_offered', 'decimal')}
-                                {input('unit_price', 'decimal')}
-                                <EntryCheck
-                                    id={id('ex_stock')}
-                                    label="Ex Stock"
-                                    rowLabel={rowLabel}
-                                    type="checkbox"
-                                    checked={row.values.ex_stock === true}
-                                    onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
-                                    width="check"
-                                />
-                                {input('lead_time_days', 'integer')}
-                                {input('brand', 'text', 200)}
-                                {input('manufacturer', 'text', 200)}
-                                {input('country_of_origin', 'text', 100)}
-                                {input('remarks', 'text', 255)}
-                            </EntryRow>
-                        );
-                    })}
-                </EntryTable>
-            </div>
+                                    }
+                                    below={
+                                        !considered && (
+                                            <TextAreaField
+                                                id={id('reason_accepted_excluded')}
+                                                label={`Reason Quotation ${index + 1} Was Not Considered`}
+                                                rows={2}
+                                                maxLength={config.max_lengths.reason_accepted_excluded}
+                                                value={text(row.values.reason_accepted_excluded)}
+                                                onChange={(value) => api.setCell('quotations', row.key, 'reason_accepted_excluded', value)}
+                                                error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
+                                                errorListId={errorsId}
+                                                optional={optional('quotations.reason_accepted_excluded')}
+                                                hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
+                                            />
+                                        )
+                                    }
+                                >
+                                    <EntryCheck
+                                        id={id('considered')}
+                                        label="Considered"
+                                        rowLabel={rowLabel}
+                                        type="checkbox"
+                                        checked={considered}
+                                        onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
+                                        width="check"
+                                    />
+                                    <EntryCheck
+                                        id={id('is_recommended')}
+                                        label="Recommended"
+                                        rowLabel={rowLabel}
+                                        type="radio"
+                                        name="recommended-quotation"
+                                        checked={row.values.is_recommended === true}
+                                        onChange={() => api.chooseRecommended(row.key)}
+                                        width="check-wide"
+                                    />
+                                    {input('supplier_name', 'text', 200)}
+                                    {input('quantity_offered', 'decimal')}
+                                    {input('unit_price', 'decimal')}
+                                    <EntryCheck
+                                        id={id('ex_stock')}
+                                        label="Ex Stock"
+                                        rowLabel={rowLabel}
+                                        type="checkbox"
+                                        checked={row.values.ex_stock === true}
+                                        onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
+                                        width="check"
+                                    />
+                                    {input('lead_time_days', 'integer')}
+                                    {input('brand', 'text', 200)}
+                                    {input('manufacturer', 'text', 200)}
+                                    {input('country_of_origin', 'text', 100)}
+                                    {input('remarks', 'text', 255)}
+                                </EntryRow>
+                            );
+                        })}
+                    </EntryTable>
+                </div>
+            </GridRow>
 
-            <div className="grid items-start gap-5 md:grid-cols-2">
-                <TextField
-                    id={fieldId.requisition('quantity_to_purchase')}
-                    label="Quantity to Purchase"
-                    optional={optional('quantity_to_purchase')}
-                    inputMode="decimal"
-                    value={text(state.requisition.quantity_to_purchase)}
-                    onChange={(value) => api.setField('quantity_to_purchase', value)}
-                    error={api.fieldError('quantity_to_purchase')}
-                    suffix={unit || undefined}
-                />
+            <TextField
+                width="xs"
+                id={fieldId.requisition('quantity_to_purchase')}
+                label="Quantity to Purchase"
+                optional={optional('quantity_to_purchase')}
+                inputMode="decimal"
+                value={text(state.requisition.quantity_to_purchase)}
+                onChange={(value) => api.setField('quantity_to_purchase', value)}
+                error={api.fieldError('quantity_to_purchase')}
+                suffix={unit || undefined}
+            />
+            <GridRow width="md">
                 <dl>
                     <Figure label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
                 </dl>
-            </div>
-            <p className="text-muted-foreground -mt-3 text-[13px]">The total is worked out by the system and updates after each save.</p>
+                <p className="text-muted-foreground mt-1 text-[13px]">The total is worked out by the system and updates after each save.</p>
+            </GridRow>
 
-            <PriceSection api={api} />
-        </div>
+            <GridRow>
+                <PriceSection api={api} />
+            </GridRow>
+        </FieldGrid>
     );
 }

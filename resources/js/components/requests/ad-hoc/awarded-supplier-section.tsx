@@ -20,8 +20,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'brand', label: 'Brand' },
         { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'number' },
-        { key: 'unit_cost', label: 'Unit Cost', width: 'number' },
+        { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'xs' },
+        { key: 'unit_cost', label: 'Unit Cost', width: 'xs' },
         { key: 'percentage', label: '% Awarded', width: 'value' },
         { key: 'line_cost', label: 'Line Cost', width: 'value' },
     ];
@@ -58,7 +58,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             label={label(name)}
                             rowLabel={rowLabel}
                             kind={kind}
-                            width={kind === 'decimal' ? 'number' : 'text'}
+                            width={kind === 'decimal' ? 'xs' : 'md'}
                             maxLength={maxLength}
                             value={text(row.values[name])}
                             onChange={(value) => api.setCell('tender_awards', row.key, name, value)}

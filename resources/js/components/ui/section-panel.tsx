@@ -24,7 +24,8 @@ interface SectionPanelProps {
 
 /**
  * UI-4: an L2 section panel (grey, 16px radius, 16px padding) holding an L3
- * white card (1px border, 12px radius, --shadow-card, 24px padding, 20px below md).
+ * white card (1px border, 12px radius, --shadow-card, 20px padding, 16px below md;
+ * FORM-COMPACT-1, was 24px and 20px). The title sits 12px above the card (was 16px).
  * V2-4: the panel has a 1px --border, since the workspace and --muted are close.
  */
 export function SectionPanel({ title, description, variant = 'stacked', id, aside, titleClassName, number, children, className }: SectionPanelProps) {
@@ -60,12 +61,12 @@ export function SectionPanel({ title, description, variant = 'stacked', id, asid
             aria-labelledby={headingId}
             className={cn(
                 'bg-muted scroll-mt-36 rounded-2xl border p-4',
-                variant === 'split' ? 'grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]' : 'space-y-4',
+                variant === 'split' ? 'grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]' : 'space-y-3',
                 className,
             )}
         >
             {heading}
-            <div className="bg-card shadow-card min-w-0 rounded-xl border p-5 md:p-6">{children}</div>
+            <div className="bg-card shadow-card min-w-0 rounded-xl border p-4 md:p-5">{children}</div>
         </section>
     );
 }

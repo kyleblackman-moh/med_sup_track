@@ -23,8 +23,8 @@ export function VariationSection({ api }: { api: FormApi }) {
 
     const columns: EntryColumn[] = [
         { key: 'variation_type', label: 'Variation Type' },
-        { key: 'existing_detail', label: 'Existing Approved Detail', width: 'long' },
-        { key: 'proposed_detail', label: 'Proposed Revised Detail', width: 'long' },
+        { key: 'existing_detail', label: 'Existing Approved Detail', width: 'lg' },
+        { key: 'proposed_detail', label: 'Proposed Revised Detail', width: 'lg' },
         { key: 'effective_detail', label: 'Effective Date / Application P.O.' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;

@@ -1,6 +1,7 @@
+import { FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
 import { cn } from '@/lib/utils';
 import { type RequestTypeOption } from '@/types/requests';
-import { FieldError, fieldLabel, TextField } from './fields';
+import { FieldError, FieldGrid, fieldLabel, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { TypeCards } from './type-cards';
@@ -27,9 +28,9 @@ interface RequestTypeSectionProps {
 }
 
 /**
- * V2-5 section 1 "Request Type": the five type cards (unchanged), then in one
- * row at lg (stacked below) the tender cycle start and end and the Yes/No
- * question. Every value is saved by the form's autosave; the server decides
+ * V2-5 section 1 "Request Type": the five type cards (unchanged), then the
+ * tender cycle start and end and the Yes/No question, in one row once the
+ * card is 56rem wide (FORM-COMPACT-1, FieldGrid), stacked below. Every value is saved by the form's autosave; the server decides
  * what the answer shows (Details of Variation Requested only when Yes).
  */
 export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }: RequestTypeSectionProps) {
@@ -42,20 +43,22 @@ export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }:
     });
 
     return (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4">
             {typeChoice && <TypeCards {...typeChoice} />}
 
-            <div className="grid items-start gap-5 lg:grid-cols-3">
-                <TextField {...field('tender_cycle_start')} label="Tender Cycle Start" type="date" />
-                <TextField {...field('tender_cycle_end')} label="Tender Cycle End" type="date" hint="Not before the start." />
+            {/* FORM-COMPACT-1: the two dates (xs) and the question (lg) share one row from a 56rem card. */}
+            <FieldGrid>
+                <TextField {...field('tender_cycle_start')} width="xs" label="Tender Cycle Start" type="date" />
+                <TextField {...field('tender_cycle_end')} width="xs" label="Tender Cycle End" type="date" hint="Not before the start." />
                 <PreviousRequestQuestion
+                    width="lg"
                     value={api.state.previousRequest}
                     onChange={api.setPreviousRequest}
                     error={api.tableError('previous_request_in_cycle')}
                     required={api.optional('request_type', 'previous_request_in_cycle') === false}
                     showHiddenNote={showVariationHiddenNote}
                 />
-            </div>
+            </FieldGrid>
         </div>
     );
 }
@@ -66,6 +69,7 @@ interface PreviousRequestQuestionProps {
     error?: string;
     required: boolean;
     showHiddenNote: boolean;
+    width: FieldWidth;
 }
 
 /**
@@ -74,7 +78,7 @@ interface PreviousRequestQuestionProps {
  * chosen pill is solid --primary with white text; the focus ring shows on the
  * pill of the focused radio. Arrow keys move between the two (native radios).
  */
-function PreviousRequestQuestion({ value, onChange, error, required, showHiddenNote }: PreviousRequestQuestionProps) {
+function PreviousRequestQuestion({ value, onChange, error, required, showHiddenNote, width }: PreviousRequestQuestionProps) {
     const errorId = `${PREVIOUS_REQUEST_ID}-error`;
     const noteId = `${PREVIOUS_REQUEST_ID}-note`;
     const legendId = `${PREVIOUS_REQUEST_ID}-legend`;
@@ -101,7 +105,7 @@ function PreviousRequestQuestion({ value, onChange, error, required, showHiddenN
     );
 
     return (
-        <fieldset id={PREVIOUS_REQUEST_ID} className="grid gap-2" aria-describedby={describedBy} tabIndex={-1}>
+        <fieldset id={PREVIOUS_REQUEST_ID} className={cn('grid min-w-0 gap-2', FIELD_WIDTH[width])} aria-describedby={describedBy} tabIndex={-1}>
             <legend id={legendId} className={cn('mb-2', fieldLabel)}>
                 {PREVIOUS_REQUEST_QUESTION}
             </legend>

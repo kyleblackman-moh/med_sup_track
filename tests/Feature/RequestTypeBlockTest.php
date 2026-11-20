@@ -115,11 +115,15 @@ it('keeps section 1 incomplete while no type is chosen', function () {
     expect(requestTypeIssues($case))->toBe(['request_type']);
 });
 
-it('renders section 1 with the type cards, then the cycle dates and the question in one row at lg', function () {
+it('renders section 1 with the type cards, then the cycle dates and the question in one row on the width scale', function () {
     $section = file_get_contents(resource_path('js/components/requests/ad-hoc/request-type-section.tsx'));
 
+    // FORM-COMPACT-1 (1): two xs dates and the lg question share one row of the field grid (3 + 3 + 6 of 12 columns from a 56rem card).
     expect($section)->toContain('<TypeCards {...typeChoice} />')
-        ->toContain('lg:grid-cols-3')
+        ->toContain('<FieldGrid>')
+        ->toMatch('/field\(\'tender_cycle_start\'\)\}\s+width="xs"/')
+        ->toMatch('/field\(\'tender_cycle_end\'\)\}\s+width="xs"/')
+        ->toContain('width="lg"')
         ->toContain("field('tender_cycle_start')")
         ->toContain("field('tender_cycle_end')")
         ->toContain("'Was a request previously made for this drug in this current tender cycle?'")

@@ -1,9 +1,32 @@
+import { FIELD_GRID, FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { type OptionList } from '@/types/requests';
 import { CircleAlert } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { type ElementType, type ReactNode } from 'react';
+
+/**
+ * FORM-COMPACT-1 (1): a group of stacked fields, 1 to 12 columns by the
+ * card's width (FIELD_GRID). Every child takes a width from the one scale:
+ * a field through its `width` prop, anything else (a table, a note) through
+ * <GridRow>. `as="dl"` for a group of server figures.
+ */
+export function FieldGrid({ children, as: Tag = 'div' }: { children: ReactNode; as?: ElementType }) {
+    return (
+        <div className="@container min-w-0">
+            <Tag className={FIELD_GRID}>{children}</Tag>
+        </div>
+    );
+}
+
+/** A FieldGrid child that is not a field (a table, a helper line, a notice): the whole row by default. */
+export function GridRow({ width = 'full', children, className }: { width?: FieldWidth; children: ReactNode; className?: string }) {
+    return <div className={cn('min-w-0', FIELD_WIDTH[width], className)}>{children}</div>;
+}
+
+/** The grid span of a field (empty when the field is not in a FieldGrid). */
+const span = (width?: FieldWidth) => (width ? FIELD_WIDTH[width] : undefined);
 
 // Labelled native controls for the AD_HOC form (slice F2). 40px high (V2-2b), 44px
 // below md. V2-4b: no "(optional)" suffix on labels; a field the server marks
@@ -50,6 +73,8 @@ interface TextFieldProps {
     maxLength?: number;
     /** Static text after the control, for example the unit of measure. */
     suffix?: ReactNode;
+    /** FORM-COMPACT-1: the field's width on the scale (its span in a FieldGrid). */
+    width?: FieldWidth;
     className?: string;
 }
 
@@ -65,13 +90,14 @@ export function TextField({
     type = 'text',
     maxLength,
     suffix,
+    width,
     className,
 }: TextFieldProps) {
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
 
     return (
-        <div className={cn('grid content-start gap-2', className)}>
+        <div className={cn('grid min-w-0 content-start gap-2', span(width), className)}>
             <Label htmlFor={id} className={fieldLabel}>
                 {label}
             </Label>
@@ -116,16 +142,34 @@ interface TextAreaFieldProps {
      * message in the row's error list, not under itself: the list's id.
      */
     errorListId?: string;
+    /** FORM-COMPACT-1: the field's width on the scale. */
+    width?: FieldWidth;
+    /** Read after the label by screen readers only (the row a reason belongs to). */
+    srLabelSuffix?: string;
 }
 
-export function TextAreaField({ id, label, value, onChange, optional, hint, error, maxLength, rows = 3, errorListId }: TextAreaFieldProps) {
+export function TextAreaField({
+    id,
+    label,
+    value,
+    onChange,
+    optional,
+    hint,
+    error,
+    maxLength,
+    rows = 3,
+    errorListId,
+    width,
+    srLabelSuffix,
+}: TextAreaFieldProps) {
     const hintId = `${id}-hint`;
     const errorId = errorListId ?? `${id}-error`;
 
     return (
-        <div className="grid gap-2">
+        <div className={cn('grid min-w-0 gap-2', span(width))}>
             <Label htmlFor={id} className={fieldLabel}>
                 {label}
+                {srLabelSuffix && <span className="sr-only">{srLabelSuffix}</span>}
             </Label>
             <textarea
                 id={id}
@@ -156,14 +200,16 @@ interface RadioGroupFieldProps {
     value: string;
     onChange: (value: string) => void;
     error?: string;
+    /** FORM-COMPACT-1: the field's width on the scale. */
+    width?: FieldWidth;
 }
 
 /** A native radio group in a fieldset with a legend. The first radio carries the id suffix "-0". */
-export function RadioGroupField({ id, legend, options, value, onChange, error }: RadioGroupFieldProps) {
+export function RadioGroupField({ id, legend, options, value, onChange, error, width }: RadioGroupFieldProps) {
     const errorId = `${id}-error`;
 
     return (
-        <fieldset id={id} className="grid gap-2" aria-describedby={error ? errorId : undefined}>
+        <fieldset id={id} className={cn('grid min-w-0 gap-2', span(width))} aria-describedby={error ? errorId : undefined}>
             <legend className={cn('mb-1', fieldLabel)}>{legend}</legend>
             {options.map((option, i) => {
                 const optionId = `${id}-${i}`;
@@ -196,13 +242,15 @@ interface CheckboxFieldProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
     hint?: string;
+    /** FORM-COMPACT-1: the field's width on the scale. */
+    width?: FieldWidth;
 }
 
-export function CheckboxField({ id, label, checked, onChange, hint }: CheckboxFieldProps) {
+export function CheckboxField({ id, label, checked, onChange, hint, width }: CheckboxFieldProps) {
     const hintId = `${id}-hint`;
 
     return (
-        <div className="grid gap-1">
+        <div className={cn('grid min-w-0 gap-1', span(width))}>
             <div className="flex min-h-11 items-center gap-2 md:min-h-10">
                 <input
                     id={id}
@@ -226,9 +274,9 @@ export function CheckboxField({ id, label, checked, onChange, hint }: CheckboxFi
 }
 
 /** A server-computed value shown read-only: a label and the value (or a dash). */
-export function Figure({ label, value, suffix }: { label: string; value: ReactNode; suffix?: ReactNode }) {
+export function Figure({ label, value, suffix, width }: { label: string; value: ReactNode; suffix?: ReactNode; width?: FieldWidth }) {
     return (
-        <div className="grid gap-0.5">
+        <div className={cn('grid min-w-0 gap-0.5', span(width))}>
             <dt className="text-muted-foreground text-[13px]">{label}</dt>
             <dd className="text-sm font-medium tabular-nums">
                 {value === null || value === undefined || value === '' ? '—' : value}
