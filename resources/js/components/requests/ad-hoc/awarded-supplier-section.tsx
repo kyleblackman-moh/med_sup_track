@@ -1,5 +1,6 @@
 import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
+import { TableError } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -29,7 +30,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
 
     return (
         <div id={fieldId.table('tender_awards')} tabIndex={-1} className="grid gap-2 outline-none">
-            {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+            <TableError message={tableError || undefined} />
             <EntryTable
                 caption="Awarded Suppliers"
                 columns={columns}

@@ -39,7 +39,7 @@ export function SaveChip({
                 <button
                     type="button"
                     onClick={onRetry}
-                    className="text-destructive focus-visible:ring-ring min-h-11 rounded-md text-left underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-hidden md:min-h-9"
+                    className="text-destructive-text focus-visible:ring-ring min-h-11 rounded-md text-left underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-hidden md:min-h-9"
                 >
                     {failed}
                 </button>

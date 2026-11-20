@@ -63,7 +63,7 @@ export function FormPanel({ section, issues, children }: FormPanelProps) {
             aside={<StatePill state={section.state} text={section.note ?? STATE_TEXT[section.state]} />}
             description={
                 issues.length > 0 && (
-                    <span className="text-destructive">
+                    <span className="text-destructive-text">
                         {issues.length} {issues.length === 1 ? 'thing' : 'things'} to fix
                     </span>
                 )
@@ -71,7 +71,7 @@ export function FormPanel({ section, issues, children }: FormPanelProps) {
         >
             <div className="grid grid-cols-1 gap-4">
                 {issues.length > 0 && (
-                    <ul className="text-destructive list-disc space-y-0.5 pl-5 text-sm" aria-label={`${section.label}: things to fix`}>
+                    <ul className="text-destructive-text list-disc space-y-0.5 pl-5 text-sm" aria-label={`${section.label}: things to fix`}>
                         {issues.map((issue) => (
                             <li key={issue.key}>{issue.message}</li>
                         ))}

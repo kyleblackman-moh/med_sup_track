@@ -2,7 +2,7 @@ import { EntryCell, EntryRow, EntryTable, type EntryColumn } from '@/components/
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
-import { controlHeight, FieldGrid, GridRow, TextAreaField } from './fields';
+import { controlHeight, FieldGrid, GridRow, TableError, TextAreaField } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -41,7 +41,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
             <GridRow>
                 <div id={fieldId.table('purchase_orders')} tabIndex={-1} className="grid gap-2 outline-none">
                     <p className="text-muted-foreground text-helper">One supplier can have several orders.</p>
-                    {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+                    <TableError message={tableError || undefined} />
                     <EntryTable
                         caption="Orders"
                         columns={columns}

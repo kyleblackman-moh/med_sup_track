@@ -56,6 +56,20 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
     ) : null;
 }
 
+/**
+ * A message about a whole table or list ("Add at least one quotation."), shown
+ * above it: the same icon and --destructive-text as a field's message
+ * (MASTER.md section 7). Row and cell problems stay in the row's error list.
+ */
+export function TableError({ message }: { message?: string }) {
+    return message ? (
+        <p className="text-destructive-text flex items-start gap-1.5 text-sm">
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 break-words">{message}</span>
+        </p>
+    ) : null;
+}
+
 function describedBy(...ids: (string | false | undefined)[]) {
     return ids.filter(Boolean).join(' ') || undefined;
 }

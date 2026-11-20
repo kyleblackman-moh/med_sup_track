@@ -2,7 +2,7 @@ import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-ta
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
 import { collectRowErrors, EntryInput } from './entry-fields';
-import { CheckboxField, FieldGrid, Figure, GridRow, TextField } from './fields';
+import { CheckboxField, FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -66,7 +66,7 @@ export function StockSection({ api }: { api: FormApi }) {
             {!noStock && (
                 <GridRow>
                     <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">
-                        {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+                        <TableError message={tableError || undefined} />
                         <EntryTable
                             caption="Stock Batches"
                             breakpoint="32rem"

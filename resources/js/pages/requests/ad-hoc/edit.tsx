@@ -23,7 +23,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
-import { ArrowRight, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Review = 'none' | 'issues' | 'ready';
@@ -76,6 +76,8 @@ export default function AdHocEdit({
     const [changingType, setChangingType] = useState(false);
     // V2-4: Save draft is pending while it waits for the autosave to finish.
     const [savingDraft, setSavingDraft] = useState(false);
+    // MASTER.md section 7: Review and Submit is busy while it saves and asks the server (no second press).
+    const [reviewing, setReviewing] = useState(false);
     const [typeHidSections, setTypeHidSections] = useState(false);
     // FORM-SAVE-1 (A3): the server's notice when the type was saved but other edits are pending.
     const [typeNotice, setTypeNotice] = useState<string | null>(null);
@@ -229,9 +231,11 @@ export default function AdHocEdit({
 
     /** Save everything, then ask the server what (if anything) still needs doing. */
     const startReview = async () => {
+        setReviewing(true);
         const saved = await autosave.flush();
         if (!saved) {
             setReviewFailed(true);
+            setReviewing(false);
 
             return;
         }
@@ -250,6 +254,7 @@ export default function AdHocEdit({
                     panelRef.current?.focus();
                 }, 0);
             },
+            onFinish: () => setReviewing(false),
         });
     };
 
@@ -341,7 +346,7 @@ export default function AdHocEdit({
 
                 <FlashMessages />
                 {reviewFailed && (
-                    <p role="alert" className="text-destructive text-sm">
+                    <p role="alert" className="text-destructive-text text-sm">
                         Your latest changes could not be saved, so the request was not reviewed. Try again.
                     </p>
                 )}
@@ -419,10 +424,16 @@ export default function AdHocEdit({
                                 variant={review === 'ready' ? 'outline' : 'default'}
                                 size="lg"
                                 className="text-label px-5 font-semibold"
+                                disabled={reviewing}
+                                aria-busy={reviewing || undefined}
                                 onClick={() => void startReview()}
                             >
                                 Review and Submit
-                                <ArrowRight aria-hidden="true" />
+                                {reviewing ? (
+                                    <LoaderCircle aria-hidden="true" className="motion-safe:animate-spin" />
+                                ) : (
+                                    <ArrowRight aria-hidden="true" />
+                                )}
                             </Button>
                         </>
                     }

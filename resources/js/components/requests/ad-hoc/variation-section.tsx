@@ -1,5 +1,6 @@
 import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryInput, EntryTextArea } from './entry-fields';
+import { TableError } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -32,7 +33,7 @@ export function VariationSection({ api }: { api: FormApi }) {
 
     return (
         <div id={fieldId.table('variation_rows')} tabIndex={-1} className="grid gap-2 outline-none">
-            {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+            <TableError message={tableError || undefined} />
             <EntryTable
                 caption="Details of Variation Requested"
                 columns={columns}

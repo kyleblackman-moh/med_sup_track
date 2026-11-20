@@ -1,6 +1,6 @@
 import { EntryCardRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryCheckGroup, EntryInlineCheck, EntryInput } from './entry-fields';
-import { FieldGrid, Figure, GridRow, RadioGroupField, TextAreaField, TextField } from './fields';
+import { FieldGrid, Figure, GridRow, RadioGroupField, TableError, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -82,7 +82,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                     <p className="text-muted-foreground text-helper">
                         Choose one recommended quotation. Give a reason for any quotation not considered.
                     </p>
-                    {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+                    <TableError message={tableError || undefined} />
                     <EntryTable
                         caption="Quotations Received"
                         columns={columns}

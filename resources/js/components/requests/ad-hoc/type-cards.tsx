@@ -98,7 +98,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
             )}
 
             {error && (
-                <p id={`${ID}-error`} role="alert" className="text-destructive text-sm">
+                <p id={`${ID}-error`} role="alert" className="text-destructive-text text-sm">
                     {error}
                 </p>
             )}
