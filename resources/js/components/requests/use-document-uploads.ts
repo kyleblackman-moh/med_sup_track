@@ -48,7 +48,8 @@ interface Options {
  * one Inertia request per file (as the server expects), one file at a time,
  * with Inertia's own progress events. The server stays the authority on type,
  * size, scan, permissions and the upload throttle; the PDF and size checks
- * here only spare a pointless upload. No fetch, no axios, no storage.
+ * here only spare a pointless upload. Inertia is the only transport; nothing
+ * is kept in browser storage.
  */
 export function useDocumentUploads({ caseId, purpose, maxBytes, reloadProps, onBusyChange }: Options) {
     const queue = useRef<UploadItem[]>([]);

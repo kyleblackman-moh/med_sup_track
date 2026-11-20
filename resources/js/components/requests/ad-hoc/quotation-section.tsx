@@ -173,6 +173,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         // Only for a quotation that was not considered; no space otherwise.
                                         !considered && (
                                             <TextAreaField
+                                                width="full"
                                                 id={id('reason_accepted_excluded')}
                                                 label="Reason Quotation Wasn't Considered"
                                                 srLabelSuffix={`, ${rowLabel}`}
@@ -207,7 +208,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
             />
             <GridRow width="md">
                 <dl>
-                    <Figure label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
+                    <Figure width="full" label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
                 </dl>
                 <p className="text-muted-foreground mt-1 text-[13px]">The total is worked out by the system and updates after each save.</p>
             </GridRow>
