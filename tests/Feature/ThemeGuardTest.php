@@ -83,14 +83,13 @@ it('defines the navy shell tokens and exposes them in the theme', function () {
 
 // V2-4 shell guards (static) -------------------------------------------------
 
-/** The navy sidebar and white header components. */
+/** The app shell: the daisyUI drawer, its side panel, the top bar and the brand. */
 function shellFiles(): array
 {
     return array_map(fn (string $path) => resource_path("js/{$path}"), [
         'components/app-sidebar.tsx', 'components/app-sidebar-header.tsx', 'components/nav-main.tsx',
-        'components/nav-user.tsx', 'components/sidebar-watermark.tsx', 'components/app-logo.tsx',
-        'components/breadcrumbs.tsx', 'components/app-content.tsx', 'components/ui/sidebar.tsx',
-        'layouts/app/app-sidebar-layout.tsx',
+        'components/nav-user.tsx', 'components/app-logo.tsx', 'components/app-shell.tsx',
+        'components/breadcrumbs.tsx', 'layouts/app/app-sidebar-layout.tsx',
     ]);
 }
 
@@ -107,19 +106,16 @@ it('has no hex colour and no inline colour style in the sidebar and header compo
 it('marks the active nav link with aria-current and the active style together', function () {
     $nav = file_get_contents(resource_path('js/components/nav-main.tsx'));
 
-    expect($nav)->toContain('isActive={item.url === activeUrl}')
-        ->and($nav)->toContain("aria-current={item.url === activeUrl ? 'page' : undefined}");
-
-    // The active style carries the white indicator bar, not colour alone (design.md section 2).
-    expect(file_get_contents(resource_path('js/components/ui/sidebar.tsx')))
-        ->toContain('data-[active=true]:before:w-[3px]')
-        ->toContain('data-[active=true]:font-semibold');
+    // One flag drives both: daisyUI menu-active (shape and weight, not colour alone) and aria-current.
+    expect($nav)->toContain('const active = item.url === activeUrl;')
+        ->and($nav)->toContain("aria-current={active ? 'page' : undefined}")
+        ->and($nav)->toMatch("/active\\s*\\?\\s*'menu-active /");
 });
 
 it('takes the header title and the tab title from the app name config, never "Laravel"', function () {
     $header = file_get_contents(resource_path('js/components/app-sidebar-header.tsx'));
 
-    expect($header)->toContain('const { name, auth } = usePage<SharedData>().props;')
+    expect($header)->toContain('const { name } = usePage<SharedData>().props;')
         ->and($header)->toContain('{name}');
 
     foreach ([...shellFiles(), resource_path('js/app.tsx'), resource_path('views/app.blade.php')] as $file) {
@@ -131,26 +127,4 @@ it('never names NOT_SELECTED in frontend code', function () {
     $hits = collect(themeGuardFiles())->flatMap(fn ($f) => themeGuardHits($f, '/NOT_SELECTED/'))->all();
 
     expect($hits)->toBe([]);
-});
-
-// V2-4b: the sidebar hover pop never ships without its reduced-motion variant.
-it('gives the sidebar item pop a reduced-motion variant and a shadow token', function () {
-    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
-    preg_match("/const sidebarMenuButtonVariants = cva\(\s*'([^']*)'/", $sidebar, $base);
-
-    expect($base)->not->toBeEmpty()
-        ->and($base[1])->toContain('motion-reduce:')
-        ->and($base[1])->toContain('motion-safe:hover:-translate-y-px')
-        ->and($base[1])->toContain('motion-safe:hover:shadow-nav-hover')
-        ->and(file_get_contents(resource_path('css/app.css')))->toMatch('/--shadow-nav-hover:\s*[^;]+;/');
-});
-
-// V2-4b: the sidebar's rounded right corners come from a token, with the surface clipped to them.
-it('rounds the sidebar through --radius-sidebar and clips its surface', function () {
-    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
-
-    expect(file_get_contents(resource_path('css/app.css')))->toMatch('/--radius-sidebar:\s*24px;/')
-        ->and(substr_count($sidebar, 'rounded-r-sidebar'))->toBe(2) // desktop surface and mobile sheet
-        ->and($sidebar)->toContain('overflow-hidden rounded-r-sidebar')
-        ->and($sidebar)->toContain('data-[active=true]:before:left-1');
 });
