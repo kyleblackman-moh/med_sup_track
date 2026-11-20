@@ -4,6 +4,7 @@ import { GateTracker } from '@/components/cases/gate-tracker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { type GateState, type ReturnedBanner, type RouteDestination, type RoutePanel } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
@@ -196,37 +197,29 @@ export function SendOnwardPanel({
                         </div>
                     ) : (
                         <form onSubmit={review} className="space-y-4" noValidate>
-                            <fieldset className="fieldset gap-2 py-0" aria-describedby="route-destination-hint route-destination-error">
-                                <legend className="fieldset-legend pt-0 capitalize">Send to</legend>
-                                {panel.suggested_line && (
-                                    <p id="route-destination-hint" className="text-base-content/70 text-sm">
-                                        {panel.suggested_line}
-                                    </p>
-                                )}
-                                {panel.destinations.map((d) => (
-                                    <label
-                                        key={d.value}
-                                        htmlFor={`route-${d.value}`}
-                                        className="label text-base-content cursor-pointer items-start gap-2 text-sm whitespace-normal"
-                                    >
-                                        <input
-                                            type="radio"
-                                            id={`route-${d.value}`}
-                                            name="route-destination"
-                                            value={d.value}
-                                            checked={form.data.destination === d.value}
-                                            disabled={!d.available}
-                                            onChange={() => form.setData('destination', d.value)}
-                                            className="radio radio-sm mt-0.5"
-                                        />
-                                        <span className="grid gap-0.5">
-                                            <span className="font-medium">{d.label}</span>
-                                            <span className="text-base-content/70">{d.consequence}</span>
-                                        </span>
-                                    </label>
-                                ))}
+                            <RadioGroup
+                                name="route-destination"
+                                legend="Send to"
+                                options={panel.destinations.map((d) => ({
+                                    value: d.value,
+                                    label: d.label,
+                                    description: d.consequence,
+                                    disabled: !d.available,
+                                }))}
+                                value={form.data.destination}
+                                onChange={(value) => form.setData('destination', value)}
+                                optionId={(d) => `route-${d.value}`}
+                                describedBy="route-destination-hint route-destination-error"
+                                intro={
+                                    panel.suggested_line && (
+                                        <p id="route-destination-hint" className="text-base-content/70 text-sm">
+                                            {panel.suggested_line}
+                                        </p>
+                                    )
+                                }
+                            >
                                 <InputError id="route-destination-error" message={errors.destination ?? errors.route} />
-                            </fieldset>
+                            </RadioGroup>
 
                             {toTechnocrats && (
                                 <fieldset className="fieldset gap-2 py-0" aria-describedby="route-reviewers-hint route-reviewers-error">

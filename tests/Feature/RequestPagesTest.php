@@ -628,7 +628,8 @@ it('gives a submitted request a hero with its reference and "Submitted On"', fun
         ->and($hero['date']['value'])->toBe($submittedAt->copy()->subDay()->format('j M Y'))
         // A vendor sees the vendor label and tone, never the internal stage.
         ->and($hero['status_label'])->toBe('Under review')
-        ->and($hero['status_tone'])->toBe('info')
+        ->and($hero['status_tone'])->toBe('violet')
+        ->and($hero['status_tone'])->toBe(CaseStatus::IN_REVIEW->vendorTone())
         ->and(json_encode($hero))->not->toContain(CaseHero::DRAFT_DATE_LABEL);
     expectVendorSafe($props);
 });

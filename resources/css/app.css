@@ -40,6 +40,21 @@
     --color-error: hsl(0, 73.9%, 45.1%); /* #c81e1e */
     --color-error-content: hsl(0, 0%, 100%);
 
+    /* Status palette: change a colour here and every badge, dot and legend using it follows.
+       One line per case-status tone (CaseStatus::tone / vendorTone decide which tone a
+       status gets). Pills draw the colour as text on a 10% tint of itself over white
+       (e.g. bg-status-teal/10 with text-status-teal); contrast on that tint is noted per line, all >= 4.5:1.
+       Values are the Tailwind/Flowbite 700-800 steps, so they sit beside the palette above.
+       neutral, info, success, warning and danger use the semantic colours above. */
+    --status-indigo: hsl(244.5, 57.9%, 50.6%); /* #4338ca CMO intake, 6.7:1 */
+    --status-violet: hsl(263.4, 70%, 50.4%); /* #6d28d9 in review; vendor "under review", 6.0:1 */
+    --status-teal: hsl(175.3, 77.4%, 26.1%); /* #0f766e ready for file, 4.8:1 */
+    --status-cyan: hsl(192.9, 82.3%, 31%); /* #0e7490 file prepared, 4.7:1 */
+    --status-purple: hsl(272.1, 71.7%, 47.1%); /* #7e22ce with Legal, 5.9:1 */
+    --status-fuchsia: hsl(294.7, 72.4%, 39.8%); /* #a21caf with PS, 5.4:1 */
+    --status-lime: hsl(86.2, 69%, 22.7%); /* #3f6212 letter issued (olive, apart from success green), 6.1:1 */
+    --status-slate: hsl(215.3, 19.3%, 34.5%); /* #475569 closed, 6.5:1 */
+
     --radius-selector: 0.375rem;
     --radius-field: 0.5rem;
     --radius-box: 0.5rem;
@@ -172,6 +187,15 @@
     --color-status-warning-foreground: var(--status-warning-foreground);
     --color-status-danger: var(--status-danger);
     --color-status-danger-foreground: var(--status-danger-foreground);
+    /* The case-status palette (defined in the "moh" theme above). */
+    --color-status-indigo: var(--status-indigo);
+    --color-status-violet: var(--status-violet);
+    --color-status-teal: var(--status-teal);
+    --color-status-cyan: var(--status-cyan);
+    --color-status-purple: var(--status-purple);
+    --color-status-fuchsia: var(--status-fuchsia);
+    --color-status-lime: var(--status-lime);
+    --color-status-slate: var(--status-slate);
 
     /* V2-4 (design.md 0.7.2 section 2): the navy application shell. */
     --color-navy: var(--navy);
@@ -291,7 +315,8 @@
     --sidebar-accent-foreground: var(--navy-foreground);
     --sidebar-border: var(--navy-border);
     --sidebar-ring: hsl(0, 0%, 100%); /* white: the MOH-blue ring is nearly invisible on navy */
-    /* Status pill tones (design.md section 3). Each pair is 5.2:1 or better. */
+    /* Notice and form-tab tones (notice.tsx, form-tabs.tsx). Each pair is 5.2:1 or better.
+       Status pills use the status palette in the "moh" theme block instead. */
     --status-neutral: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
     --status-neutral-foreground: hsl(213.3, 13%, 40.6%); /* #5a6675 */
     --status-info: hsl(207, 66.7%, 94.1%); /* #e6f1fa */

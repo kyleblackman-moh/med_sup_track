@@ -2,6 +2,7 @@ import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/case
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { type ReviewForm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { CircleCheck, ClipboardCheck } from 'lucide-react';
@@ -94,24 +95,17 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                 </>
             }
         >
-            <fieldset className="fieldset gap-2 py-0" aria-describedby={`${id}-outcome-error`}>
-                <legend className="fieldset-legend pt-0 capitalize">Outcome</legend>
-                {def.outcomes.map((o) => (
-                    <label key={o.value} htmlFor={`${id}-${o.value}`} className="label text-base-content cursor-pointer gap-2 text-sm">
-                        <input
-                            type="radio"
-                            id={`${id}-${o.value}`}
-                            name={`${id}-outcome`}
-                            value={o.value}
-                            checked={form.data.outcome === o.value}
-                            onChange={() => form.setData('outcome', o.value)}
-                            className="radio radio-sm"
-                        />
-                        {o.label}
-                    </label>
-                ))}
+            <RadioGroup
+                name={`${id}-outcome`}
+                legend="Outcome"
+                options={def.outcomes}
+                value={form.data.outcome}
+                onChange={(value) => form.setData('outcome', value)}
+                optionId={(o) => `${id}-${o.value}`}
+                describedBy={`${id}-outcome-error`}
+            >
                 <InputError id={`${id}-outcome-error`} message={errors.outcome} />
-            </fieldset>
+            </RadioGroup>
 
             <fieldset className="fieldset py-0">
                 <label className="label text-base-content text-sm font-medium capitalize" htmlFor={`${id}-reason`}>

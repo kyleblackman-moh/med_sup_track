@@ -127,13 +127,13 @@ it('renders section 1 with the type cards, then the cycle dates and the question
         ->toContain("field('tender_cycle_start')")
         ->toContain("field('tender_cycle_end')")
         ->toContain("'Was a request previously made for this drug in this current tender cycle?'")
-        ->toContain('<fieldset')
-        ->toContain('<legend')
-        ->toContain('type="radio"')
-        ->toContain('checked={value === answer}') // nothing preselected: null matches neither
-        ->toContain('has-[:checked]:bg-primary has-[:checked]:text-primary-foreground')
-        ->toContain('has-[:focus-visible]:ring-2')
-        ->toContain('h-10')
+        // RADIO-1: the question is the shared RadioGroup (a fieldset, its legend, the answers stacked).
+        ->toContain('<RadioGroup')
+        ->toContain('legend={PREVIOUS_REQUEST_QUESTION}')
+        ->toContain('legendCase="sentence"')
+        ->toContain("const answer = value === null ? null : value ? 'yes' : 'no';") // nothing preselected: null matches neither
+        ->toContain('value={answer}')
+        ->toContain('tabIndex={-1}')
         ->not->toContain('defaultChecked')
         ->toContain('Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.');
 

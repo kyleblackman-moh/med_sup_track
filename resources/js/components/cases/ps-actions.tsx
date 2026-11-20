@@ -2,6 +2,7 @@ import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/case
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Select } from '@/components/ui/select';
 import { type PsForm, type PsOutcome } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
@@ -62,24 +63,17 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
                 </Button>
             }
         >
-            <fieldset className="fieldset gap-2 py-0" aria-describedby="ps-decision-error">
-                <legend className="fieldset-legend pt-0 capitalize">Decision</legend>
-                {def.decisions.map((d) => (
-                    <label key={d.value} htmlFor={`ps-${d.value}`} className="label text-base-content cursor-pointer gap-2 text-sm">
-                        <input
-                            type="radio"
-                            id={`ps-${d.value}`}
-                            name="ps-decision"
-                            value={d.value}
-                            checked={form.data.decision === d.value}
-                            onChange={() => choose(d.value)}
-                            className="radio radio-sm"
-                        />
-                        {d.label}
-                    </label>
-                ))}
+            <RadioGroup
+                name="ps-decision"
+                legend="Decision"
+                options={def.decisions}
+                value={form.data.decision}
+                onChange={choose}
+                optionId={(d) => `ps-${d.value}`}
+                describedBy="ps-decision-error"
+            >
                 <InputError id="ps-decision-error" message={errors.decision ?? errors.ps_decision} />
-            </fieldset>
+            </RadioGroup>
 
             {isReturn && (
                 <fieldset className="fieldset py-0">
