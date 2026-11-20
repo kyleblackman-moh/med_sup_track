@@ -25,7 +25,7 @@ export function FormActions({ isFirst, isLast, dirty, processing, onBack, onSave
                     <Button
                         type="button"
                         variant="outline"
-                        className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text"
                         onClick={onDelete}
                         disabled={processing}
                     >

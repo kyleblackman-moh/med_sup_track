@@ -165,7 +165,7 @@ export default function Edit({ case: detail, readiness, config, documents, can }
                     {errorEntries.length > 0 && (
                         <div
                             role="alert"
-                            className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+                            className="bg-status-danger text-status-danger-foreground border-destructive/30 rounded-md border p-3 text-sm"
                         >
                             <p className="font-medium">This tab was not saved. Please fix the following:</p>
                             <ul className="mt-1 list-disc space-y-0.5 pl-5">

@@ -108,8 +108,8 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
                             className={cn(
                                 '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-3 px-3 py-2 text-sm whitespace-nowrap transition-colors',
                                 complete
-                                    ? 'bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-200 dark:hover:bg-blue-950'
-                                    : 'bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-950',
+                                    ? 'bg-status-info text-status-info-foreground hover:bg-selected'
+                                    : 'bg-status-warning text-status-warning-foreground hover:bg-status-warning/80',
                                 selected ? 'border-current font-semibold' : 'border-transparent font-medium',
                             )}
                         >
@@ -121,7 +121,7 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
                                     <span className="sr-only"> (complete)</span>
                                 </>
                             ) : (
-                                <span className="rounded-full bg-amber-200 px-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-800 dark:text-amber-50">
+                                <span className="bg-card text-status-warning-foreground border-status-warning-foreground/30 rounded-full border px-1.5 text-xs font-semibold">
                                     {errors.length}
                                     <span className="sr-only"> {errors.length === 1 ? 'item' : 'items'} still needed</span>
                                 </span>
@@ -132,10 +132,10 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
             </div>
             <p className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-hidden>
                 <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-blue-500" /> Complete
+                    <span className="bg-status-info-foreground size-2.5 rounded-sm" /> Complete
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-amber-500" /> Still needs information (number = items left)
+                    <span className="bg-status-warning-foreground size-2.5 rounded-sm" /> Still needs information (number = items left)
                 </span>
                 <span>Updates each time you save.</span>
             </p>

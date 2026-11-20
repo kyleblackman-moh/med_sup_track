@@ -148,7 +148,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                 </Button>
             </div>
 
-            {sectionError && !editing && <p className="text-sm text-red-600 dark:text-red-400">{sectionError}</p>}
+            {sectionError && !editing && <p className="text-destructive-text text-sm">{sectionError}</p>}
 
             {rows.length === 0 ? (
                 <p className="text-muted-foreground rounded-md border border-dashed p-4 text-sm">No {rowLabel}s yet.</p>
@@ -264,7 +264,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                             </DialogHeader>
 
                             {showErrors && (
-                                <ul className="space-y-1 text-sm text-red-600 empty:hidden dark:text-red-400">
+                                <ul className="text-destructive-text space-y-1 text-sm empty:hidden">
                                     {errors[section] && <li>{errors[section]}</li>}
                                     {/* Problems in other saved rows also block the save; name the row. */}
                                     {Object.entries(errors)
