@@ -82,6 +82,26 @@ final class WorkQueue
         return false;
     }
 
+    /**
+     * The statuses where this user has queue steps: their "desk" on the
+     * dashboard's stage rail. Empty for vendors and users with no queue.
+     *
+     * @return list<CaseStatus>
+     */
+    public static function deskStatuses(?User $user): array
+    {
+        if (! self::appliesTo($user)) {
+            return [];
+        }
+
+        return collect(self::steps())
+            ->filter(fn (array $step) => self::holdsAny($user, $step[2]))
+            ->flatMap(fn (array $step) => $step[3])
+            ->unique(fn (CaseStatus $s) => $s->value)
+            ->values()
+            ->all();
+    }
+
     /** Does the user hold any queue permission? Vendors never get a queue. */
     public static function appliesTo(?User $user): bool
     {
