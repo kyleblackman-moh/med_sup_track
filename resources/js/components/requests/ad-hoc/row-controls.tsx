@@ -26,7 +26,7 @@ export function AddRowButton({ label, onClick, disabled, cap, variant = 'outline
                 <Plus aria-hidden />
                 {label}
             </Button>
-            {disabled && <span className="text-muted-foreground text-[13px]">This list is full ({cap} rows).</span>}
+            {disabled && <span className="text-muted-foreground text-helper">This list is full ({cap} rows).</span>}
         </div>
     );
 }

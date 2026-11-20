@@ -79,7 +79,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <p className="text-muted-foreground text-[13px]">
+                    <p className="text-muted-foreground text-helper">
                         Choose one recommended quotation. Give a reason for any quotation not considered.
                     </p>
                     {tableError && <p className="text-destructive text-sm">{tableError}</p>}
@@ -210,7 +210,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 <dl>
                     <Figure width="full" label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
                 </dl>
-                <p className="text-muted-foreground mt-1 text-[13px]">The total is worked out by the system and updates after each save.</p>
+                <p className="text-muted-foreground text-helper mt-1">The total is worked out by the system and updates after each save.</p>
             </GridRow>
 
             <GridRow>

@@ -38,13 +38,13 @@ const span = (width?: FieldWidth) => (width ? FIELD_WIDTH[width] : undefined);
 // --destructive border with a 3px --destructive-wash halo.
 
 /** The control size and fill for every input and select on the form. */
-export const controlHeight = 'h-11 md:h-10 bg-input-bg aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive-wash';
+export const controlHeight = 'h-11 md:h-10 bg-input-bg aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive-wash';
 
 /** The field label (15px/600). */
-export const fieldLabel = 'text-[15px] leading-snug font-semibold';
+export const fieldLabel = 'text-label leading-snug font-semibold';
 
 export const textareaClass =
-    'border-input bg-input-bg aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive-wash placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
+    'border-input bg-input-bg aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive-wash placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
 
 /** Error text, linked from the control with aria-describedby. */
 export function FieldError({ id, message }: { id: string; message?: string }) {
@@ -117,7 +117,7 @@ export function TextField({
                 {suffix && <span className="text-muted-foreground shrink-0 text-sm">{suffix}</span>}
             </div>
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-[13px]">
+                <p id={hintId} className="text-muted-foreground text-helper">
                     {hint}
                 </p>
             )}
@@ -183,7 +183,7 @@ export function TextAreaField({
                 onChange={(e) => onChange(e.target.value)}
             />
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-[13px]">
+                <p id={hintId} className="text-muted-foreground text-helper">
                     {hint}
                 </p>
             )}
@@ -265,7 +265,7 @@ export function CheckboxField({ id, label, checked, onChange, hint, width }: Che
                 </Label>
             </div>
             {hint && (
-                <p id={hintId} className="text-muted-foreground text-[13px]">
+                <p id={hintId} className="text-muted-foreground text-helper">
                     {hint}
                 </p>
             )}
@@ -277,7 +277,7 @@ export function CheckboxField({ id, label, checked, onChange, hint, width }: Che
 export function Figure({ label, value, suffix, width }: { label: string; value: ReactNode; suffix?: ReactNode; width?: FieldWidth }) {
     return (
         <div className={cn('grid min-w-0 gap-0.5', span(width))}>
-            <dt className="text-muted-foreground text-[13px]">{label}</dt>
+            <dt className="text-muted-foreground text-helper">{label}</dt>
             <dd className="text-sm font-medium tabular-nums">
                 {value === null || value === undefined || value === '' ? '—' : value}
                 {suffix && value !== null && value !== undefined && value !== '' && (

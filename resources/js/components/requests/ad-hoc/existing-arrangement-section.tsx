@@ -40,7 +40,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
         <FieldGrid>
             <GridRow>
                 <div id={fieldId.table('purchase_orders')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <p className="text-muted-foreground text-[13px]">One supplier can have several orders.</p>
+                    <p className="text-muted-foreground text-helper">One supplier can have several orders.</p>
                     {tableError && <p className="text-destructive text-sm">{tableError}</p>}
                     <EntryTable
                         caption="Orders"
@@ -132,7 +132,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             ))}
                                         </select>
                                         {choosable.length === 0 && (
-                                            <p id={`${supplierId}-hint`} className="text-muted-foreground text-[13px]">
+                                            <p id={`${supplierId}-hint`} className="text-muted-foreground text-helper">
                                                 {awaitingSave ? 'Saving...' : 'Add an awarded supplier first.'}
                                             </p>
                                         )}

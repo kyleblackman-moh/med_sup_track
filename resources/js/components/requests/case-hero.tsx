@@ -37,22 +37,22 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
                     {/* The icon tile: the one gradient on the page besides the sidebar (design.md section 2). */}
                     <span
                         aria-hidden="true"
-                        className="from-tile-from to-tile-to text-primary-foreground shadow-card flex size-20 shrink-0 items-center justify-center rounded-[20px] bg-linear-to-b"
+                        className="from-tile-from to-tile-to text-primary-foreground shadow-card rounded-tile flex size-20 shrink-0 items-center justify-center bg-linear-to-b"
                     >
                         <FileText className="size-9" strokeWidth={1.75} />
                     </span>
                     <div className="min-w-0 space-y-1 md:border-l md:pl-5">
-                        <p className="text-muted-foreground text-xs font-medium tracking-[0.08em] uppercase">Request</p>
+                        <p className="text-muted-foreground tracking-caption text-xs font-medium uppercase">Request</p>
                         {/* V2-4b: the page's one h1 is the server's heading (the item description, else "New
                             Request"). With a reference it sits under the number; before there is one it is the
                             large text itself (never "Draft": the status pill says that). */}
                         {hero.reference ? (
                             <>
-                                <p className="text-[30px] leading-tight font-bold tracking-[-0.01em] tabular-nums">{hero.reference}</p>
-                                <h1 className="text-[22px] leading-snug font-semibold break-words">{hero.heading}</h1>
+                                <p className="text-hero-ref tracking-title leading-tight font-bold tabular-nums">{hero.reference}</p>
+                                <h1 className="text-hero-title leading-snug font-semibold break-words">{hero.heading}</h1>
                             </>
                         ) : (
-                            <h1 className="text-[30px] leading-tight font-bold tracking-[-0.01em] break-words">{hero.heading}</h1>
+                            <h1 className="text-hero-ref tracking-title leading-tight font-bold break-words">{hero.heading}</h1>
                         )}
                     </div>
                 </div>

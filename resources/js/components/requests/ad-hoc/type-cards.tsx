@@ -45,6 +45,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
     const card = (option: RequestTypeOption) => {
         const Icon = option.icon ? ICONS[option.icon] : undefined;
 
+        // The card border is 1.5px (design.md section 7; Tailwind has no 1.5 width step): DECISIONS.md D7.
         return (
             <label
                 key={option.code}
@@ -86,7 +87,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
             {groups.map((group, g) =>
                 group.label ? (
                     <fieldset key={group.label} className="space-y-2">
-                        <legend className="text-muted-foreground text-[13px] font-medium">{group.label}</legend>
+                        <legend className="text-muted-foreground text-helper font-medium">{group.label}</legend>
                         <div className={GRID}>{group.options.map(card)}</div>
                     </fieldset>
                 ) : (

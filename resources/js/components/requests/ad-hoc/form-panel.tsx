@@ -29,7 +29,7 @@ function StatePill({ state, text }: { state: FormSectionState; text: string }) {
     const { icon: Icon, pill, iconTone } = STATE_PILL[state];
 
     return (
-        <span className={cn('inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] font-medium', pill)}>
+        <span className={cn('text-helper inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-medium', pill)}>
             <Icon aria-hidden="true" className={cn('size-4 shrink-0', iconTone)} />
             {text}
         </span>

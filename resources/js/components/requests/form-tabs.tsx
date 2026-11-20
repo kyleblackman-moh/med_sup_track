@@ -106,7 +106,7 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
                             onClick={() => onSelect(tab.id)}
                             onKeyDown={(e) => onKeyDown(e, index)}
                             className={cn(
-                                '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-[3px] px-3 py-2 text-sm whitespace-nowrap transition-colors',
+                                '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-3 px-3 py-2 text-sm whitespace-nowrap transition-colors',
                                 complete
                                     ? 'bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-200 dark:hover:bg-blue-950'
                                     : 'bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-950',

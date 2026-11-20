@@ -115,7 +115,7 @@ function PreviousRequestQuestion({ value, onChange, error, required, showHiddenN
             </div>
             <FieldError id={errorId} message={error} />
             {showHiddenNote && (
-                <p id={noteId} role="status" className="text-muted-foreground text-[13px]">
+                <p id={noteId} role="status" className="text-muted-foreground text-helper">
                     Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.
                 </p>
             )}

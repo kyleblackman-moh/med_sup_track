@@ -128,7 +128,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                                 Reference, item, strength, DIN or type.
                             </p>
                         </div>
-                        <p aria-live="polite" className="text-muted-foreground text-[13px] tabular-nums">
+                        <p aria-live="polite" className="text-muted-foreground text-helper tabular-nums">
                             {resultText}
                         </p>
                     </div>

@@ -26,7 +26,7 @@ function ReplyForm({ caseId, queryId }: { caseId: string; queryId: string }) {
                     aria-required="true"
                     rows={4}
                     maxLength={BODY_MAX}
-                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-3"
                     value={form.data.body}
                     onChange={(e) => form.setData('body', e.target.value)}
                     aria-invalid={errors.body ? true : undefined}
@@ -64,7 +64,7 @@ export function VendorQueries({ caseId, queries }: { caseId: string; queries: Ve
                         <h3 id={`vendor-query-${q.id}`} className="font-medium">
                             {q.title}
                         </h3>
-                        <p className="text-muted-foreground text-[13px]">
+                        <p className="text-muted-foreground text-helper">
                             {q.status_label}
                             {q.raised_on && ` · ${q.raised_on}`}
                         </p>
@@ -72,7 +72,7 @@ export function VendorQueries({ caseId, queries }: { caseId: string; queries: Ve
                     <ol className="space-y-2">
                         {q.messages.map((m) => (
                             <li key={m.id} className="space-y-1">
-                                <p className="text-[13px]">
+                                <p className="text-helper">
                                     <span className="font-medium">{m.from_label}</span>
                                     {m.sent_on && <span className="text-muted-foreground"> · {m.sent_on}</span>}
                                 </p>

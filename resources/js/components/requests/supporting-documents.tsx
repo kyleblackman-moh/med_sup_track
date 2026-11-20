@@ -72,7 +72,7 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false, r
                     Supporting Documents
                 </h2>
                 {!readOnly && rules && (
-                    <p className="text-muted-foreground text-[13px]">PDF only, up to {Math.round(rules.max_size_kb / 1024)} MB each.</p>
+                    <p className="text-muted-foreground text-helper">PDF only, up to {Math.round(rules.max_size_kb / 1024)} MB each.</p>
                 )}
             </div>
 
@@ -173,10 +173,10 @@ function DocumentCell({ caseId, group, rules, readOnly, reloadProps, onBusyChang
     return (
         <article aria-labelledby={titleId} className="bg-subtle grid min-w-0 content-start gap-2 rounded-xl border p-3">
             <header className="flex flex-wrap items-center justify-between gap-2">
-                <h3 id={titleId} className="text-[15px] leading-snug font-semibold">
+                <h3 id={titleId} className="text-label leading-snug font-semibold">
                     {group.label}
                 </h3>
-                {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-[13px]">Optional</span>}
+                {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-helper">Optional</span>}
             </header>
             {/* The category's example list stays available to screen readers; the cell shows only the label and the control. */}
             {group.hint && (
@@ -209,10 +209,10 @@ function DocumentCell({ caseId, group, rules, readOnly, reloadProps, onBusyChang
                 </div>
             )}
 
-            {note && <p className="text-muted-foreground text-[13px]">{note}</p>}
+            {note && <p className="text-muted-foreground text-helper">{note}</p>}
 
             {nothing ? (
-                <p className="text-muted-foreground text-[13px]">No file yet.</p>
+                <p className="text-muted-foreground text-helper">No file yet.</p>
             ) : (
                 <ul className="grid gap-2" aria-label={`Files: ${group.label}`}>
                     {uploads.items.map((item) => (
@@ -241,7 +241,7 @@ function FileName({ name, meta }: { name: string; meta?: string }) {
                     {name}
                 </span>
             </p>
-            {meta && <p className="text-muted-foreground truncate pl-6 text-[13px]">{meta}</p>}
+            {meta && <p className="text-muted-foreground text-helper truncate pl-6">{meta}</p>}
         </div>
     );
 }
@@ -249,7 +249,7 @@ function FileName({ name, meta }: { name: string; meta?: string }) {
 /** A friendly failure line (icon and text; never only colour). */
 function Failure({ children }: { children: string }) {
     return (
-        <p className="text-destructive-text flex items-start gap-1.5 text-[13px]">
+        <p className="text-destructive-text text-helper flex items-start gap-1.5">
             <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 break-words">{children}</span>
         </p>
@@ -262,7 +262,7 @@ function UploadRow({ item, onRetry, onDismiss }: { item: UploadItem; onRetry: ()
     return (
         <li className="bg-card grid gap-1.5 rounded-lg border px-3 py-2">
             <FileName name={item.file.name} meta={item.replaces ? `Replaces ${item.replaces.display_name}` : undefined} />
-            {state.kind === 'waiting' && <p className="text-muted-foreground text-[13px]">Waiting to upload</p>}
+            {state.kind === 'waiting' && <p className="text-muted-foreground text-helper">Waiting to upload</p>}
             {state.kind === 'uploading' && <UploadProgress name={item.file.name} percent={state.percent} />}
             {state.kind === 'failed' && (
                 <>
@@ -288,7 +288,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
 
     if (status === 'Ready') {
         return (
-            <span className="text-status-success-foreground inline-flex items-center gap-1.5 text-[13px] font-medium">
+            <span className="text-status-success-foreground text-helper inline-flex items-center gap-1.5 font-medium">
                 <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
                 {text}
             </span>
@@ -296,7 +296,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
     }
     if (status === 'Rejected') {
         return (
-            <span className="text-destructive-text inline-flex items-center gap-1.5 text-[13px] font-medium">
+            <span className="text-destructive-text text-helper inline-flex items-center gap-1.5 font-medium">
                 <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
                 {text}
             </span>
@@ -304,7 +304,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
     }
 
     return (
-        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[13px] font-medium">
+        <span className="text-muted-foreground text-helper inline-flex items-center gap-1.5 font-medium">
             <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />
             {text}
         </span>

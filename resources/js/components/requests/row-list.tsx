@@ -252,6 +252,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
             )}
 
             <Dialog open={editing !== null} onOpenChange={(open) => !open && !processing && setEditing(null)}>
+                {/* max-h-[90vh]: the dialog scrolls inside the screen (a layout limit, not a design value): DECISIONS.md D7. */}
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
                     {editing && (
                         <form onSubmit={submitDialog} noValidate className="grid gap-4">

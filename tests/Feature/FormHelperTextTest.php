@@ -23,5 +23,6 @@ it('keeps the other item helpers', function (string $hint) {
 it('renders helper text as 13px muted text', function () {
     $fields = file_get_contents(resource_path('js/components/requests/ad-hoc/fields.tsx'));
 
-    expect($fields)->toContain('<p id={hintId} className="text-muted-foreground text-[13px]">');
+    // MASTER.md: 13px helper text is the --text-helper token (text-helper).
+    expect($fields)->toContain('<p id={hintId} className="text-muted-foreground text-helper">');
 });

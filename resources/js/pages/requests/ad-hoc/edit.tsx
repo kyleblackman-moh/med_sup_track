@@ -384,7 +384,7 @@ export default function AdHocEdit({
                                 type="button"
                                 variant="outline"
                                 size="lg"
-                                className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text px-4 text-[15px] font-semibold"
+                                className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text text-label px-4 font-semibold"
                                 onClick={() => setDeleting(true)}
                             >
                                 <Trash2 aria-hidden="true" />
@@ -405,7 +405,7 @@ export default function AdHocEdit({
                                     type="button"
                                     variant="outline"
                                     size="lg"
-                                    className="text-primary hover:text-primary-strong px-4 text-[15px] font-semibold"
+                                    className="text-primary hover:text-primary-strong text-label px-4 font-semibold"
                                     disabled={savingDraft}
                                     onClick={() => void saveDraft()}
                                 >
@@ -418,7 +418,7 @@ export default function AdHocEdit({
                                 type="button"
                                 variant={review === 'ready' ? 'outline' : 'default'}
                                 size="lg"
-                                className="px-5 text-[15px] font-semibold"
+                                className="text-label px-5 font-semibold"
                                 onClick={() => void startReview()}
                             >
                                 Review and Submit

@@ -17,7 +17,7 @@ export function UploadProgress({ name, percent }: { name: string; percent: numbe
             >
                 <div className="bg-primary h-full rounded-full motion-safe:transition-[width]" style={{ width: `${percent}%` }} />
             </div>
-            <span className="text-muted-foreground w-10 shrink-0 text-right text-[13px] tabular-nums">{percent}%</span>
+            <span className="text-muted-foreground text-helper w-10 shrink-0 text-right tabular-nums">{percent}%</span>
         </div>
     );
 }

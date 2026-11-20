@@ -45,6 +45,17 @@
     --radius-2xl: calc(var(--radius) + 4px);
     /* V2-4b (design.md sections 5 and 6): the sidebar's right corners. */
     --radius-sidebar: 24px;
+    /* The hero icon tile (design.md section 7; design-system/medprocurement/MASTER.md). */
+    --radius-tile: 20px;
+
+    /* Vendor form type tokens (design.md section 4; MASTER.md section 2). Font size only:
+       line height is inherited, as with the bracket values they replace. */
+    --text-helper: 13px;
+    --text-label: 15px;
+    --text-hero-title: 22px;
+    --text-hero-ref: 30px;
+    --tracking-caption: 0.08em;
+    --tracking-title: -0.01em;
 
     /* design.md section 2: short shadows only. */
     --shadow-xs: 0 1px 2px rgb(13 27 42 / 0.04);
