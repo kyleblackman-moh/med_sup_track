@@ -1,6 +1,8 @@
 import { GateTrackerPanel, PipelinePanel, type GateTrackerData, type PipelineStage } from '@/components/dashboard/pipeline-panels';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageContent, PageHeader } from '@/components/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Panel } from '@/components/ui/panel';
 import { StatTile } from '@/components/ui/stat-tile';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -111,9 +113,9 @@ export default function Dashboard({ workQueue, header, stats, queue, pipeline, g
                     (30px tinted icon square, --shadow-card); the empty state is centred muted text. */}
                 {!workQueue &&
                     (destinations.length === 0 ? (
-                        <div className="bg-card shadow-card rounded-xl border px-6 py-12 text-center">
-                            <p className="text-muted-foreground text-sm">There is nothing for you to work on here yet.</p>
-                        </div>
+                        <Panel as="div" padding="none">
+                            <EmptyState message="There is nothing for you to work on here yet." />
+                        </Panel>
                     ) : (
                         <nav aria-label="Where to go">
                             <ul className="grid gap-3 md:grid-cols-2">
@@ -130,8 +132,8 @@ export default function Dashboard({ workQueue, header, stats, queue, pipeline, g
                                                 <d.icon className="size-5" />
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block text-[15px] font-semibold">{d.title}</span>
-                                                <span className="text-muted-foreground block text-[13px]">{d.description}</span>
+                                                <span className="text-label block font-semibold">{d.title}</span>
+                                                <span className="text-muted-foreground text-helper block">{d.description}</span>
                                             </span>
                                             <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
                                         </Link>

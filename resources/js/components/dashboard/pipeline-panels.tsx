@@ -1,3 +1,4 @@
+import { Panel } from '@/components/ui/panel';
 import { Link } from '@inertiajs/react';
 import { Circle, CircleCheck } from 'lucide-react';
 
@@ -39,10 +40,7 @@ const linkClass = 'focus-visible:ring-ring rounded-sm outline-none hover:underli
 /** A plain count per stage, each linking to the case list for that stage. No time colouring. */
 export function PipelinePanel({ stages }: { stages: PipelineStage[] }) {
     return (
-        <section aria-labelledby="pipeline-heading" className="bg-card shadow-card space-y-3 rounded-xl border p-4">
-            <h2 id="pipeline-heading" className="text-[15px] font-semibold">
-                Pipeline
-            </h2>
+        <Panel title="Pipeline">
             <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {stages.map((stage) => (
                     <li key={stage.status}>
@@ -50,23 +48,20 @@ export function PipelinePanel({ stages }: { stages: PipelineStage[] }) {
                             href={stage.href}
                             className="hover:border-input focus-visible:ring-ring flex h-full flex-col rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                         >
-                            <span className="text-muted-foreground text-[13px]">{stage.label}</span>
+                            <span className="text-muted-foreground text-helper">{stage.label}</span>
                             <span className="text-lg font-semibold tabular-nums">{stage.count}</span>
                         </Link>
                     </li>
                 ))}
             </ol>
-        </section>
+        </Panel>
     );
 }
 
 /** In Review cases with the three gate items: an icon plus text for each, and who holds an open one. */
 export function GateTrackerPanel({ tracker }: { tracker: GateTrackerData }) {
     return (
-        <section aria-labelledby="gate-tracker-heading" className="bg-card shadow-card space-y-3 rounded-xl border p-4">
-            <h2 id="gate-tracker-heading" className="text-[15px] font-semibold">
-                Gate Tracker
-            </h2>
+        <Panel title="Gate Tracker" bodyClassName="space-y-3">
             {tracker.rows.length === 0 ? (
                 <p className="text-muted-foreground text-sm">No cases are in review.</p>
             ) : (
@@ -77,7 +72,7 @@ export function GateTrackerPanel({ tracker }: { tracker: GateTrackerData }) {
                                 <Link href={row.href} className={`font-mono text-sm font-medium ${linkClass}`}>
                                     {row.reference}
                                 </Link>
-                                <p className="text-muted-foreground truncate text-[13px]">{row.vendor}</p>
+                                <p className="text-muted-foreground text-helper truncate">{row.vendor}</p>
                             </div>
                             <ul className="grid flex-1 gap-2 sm:grid-cols-3">
                                 {row.items.map((item) => {
@@ -93,9 +88,9 @@ export function GateTrackerPanel({ tracker }: { tracker: GateTrackerData }) {
                                             <span className="min-w-0">
                                                 <span className="sr-only">{item.done ? 'Done: ' : 'Not done: '}</span>
                                                 <span className="font-medium">{item.label}</span>
-                                                <span className="text-muted-foreground block text-[13px]">{item.state}</span>
+                                                <span className="text-muted-foreground text-helper block">{item.state}</span>
                                                 {item.held_by && (
-                                                    <span className="text-muted-foreground block text-[13px]">Held by {item.held_by}</span>
+                                                    <span className="text-muted-foreground text-helper block">Held by {item.held_by}</span>
                                                 )}
                                             </span>
                                         </li>
@@ -113,6 +108,6 @@ export function GateTrackerPanel({ tracker }: { tracker: GateTrackerData }) {
                     </Link>
                 </p>
             )}
-        </section>
+        </Panel>
     );
 }

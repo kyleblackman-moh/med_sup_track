@@ -1,3 +1,6 @@
+import { DataTable, DataTableCell, DataTableHeaderCell, DataTableRow, dataTableRefClass } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { FilterChips, type FilterChip } from '@/components/ui/filter-chips';
 import { Input } from '@/components/ui/input';
 import { StatusPill, TONE_CLASSES } from '@/components/ui/status-pill';
 import { useLiveSearch } from '@/hooks/use-live-search';
@@ -5,7 +8,7 @@ import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { FileClock, type LucideIcon, Search, Siren, Undo2 } from 'lucide-react';
+import { FileClock, Search, Siren, Undo2, type LucideIcon } from 'lucide-react';
 
 /** One WorkQueue item (WorkQueue::for), as the "workQueue" prop sends it. */
 export interface WorkQueueItem {
@@ -45,15 +48,8 @@ export interface QueueRow extends WorkQueueItem {
     tags: QueueTag[];
 }
 
-/** DASH-1: one filter chip, built by the server (DashboardView::queue). */
-export interface QueueFilter {
-    key: string;
-    label: string;
-    count: number;
-    /** A real link: the filter with the current search. */
-    href: string;
-    active: boolean;
-}
+/** DASH-1: one filter chip, built by the server (DashboardView::queue); the shared FilterChip shape. */
+export type QueueFilter = FilterChip;
 
 /** DASH-1: the queue card after the server applied the filter and the search. */
 export interface DashboardQueue {
@@ -120,7 +116,8 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
         only: QUEUE_PROPS,
         maxLength: SEARCH_MAX,
     });
-    const cell = 'border-divider h-14 border-b px-4 py-2 align-middle';
+    // OVERNIGHT-3 (B2): the shared DataTable; queue rows are 56px (two lines).
+    const cell = 'h-14 px-4';
 
     return (
         <section aria-labelledby="work-queue-heading" className="bg-card overflow-hidden rounded-xl border shadow-xs">
@@ -150,122 +147,90 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
                     </div>
                 </div>
 
-                <nav aria-label="Filter the work queue">
-                    <ul className="flex flex-wrap gap-2">
-                        {queue.filters.map((filter) => (
-                            <li key={filter.key}>
-                                <Link
-                                    href={filter.href}
-                                    only={QUEUE_PROPS}
-                                    preserveState
-                                    preserveScroll
-                                    aria-current={filter.active ? 'true' : undefined}
-                                    className={cn(
-                                        'focus-visible:ring-ring inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-                                        filter.active ? 'border-primary bg-primary text-primary-foreground' : 'bg-card border-border hover:bg-muted',
-                                    )}
-                                >
-                                    {filter.label}
-                                    <span
-                                        className={cn(
-                                            'rounded-full px-1.5 text-xs tabular-nums',
-                                            filter.active ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground',
-                                        )}
-                                    >
-                                        {filter.count}
-                                    </span>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </nav>
+                <FilterChips label="Filter the work queue" chips={queue.filters} linkProps={{ only: QUEUE_PROPS }} />
             </div>
 
             {queue.empty ? (
-                <div className="flex flex-col items-center gap-2 px-6 py-12 text-center" role="status">
-                    <p className="text-muted-foreground text-sm">{queue.empty.message}</p>
-                    {queue.empty.clear ? (
-                        <Link
-                            href={queue.clear_href}
-                            only={QUEUE_PROPS}
-                            preserveState
-                            preserveScroll
-                            className="text-primary text-sm font-medium underline-offset-2 hover:underline"
-                        >
-                            Clear Search and Filter
-                        </Link>
-                    ) : (
-                        casesHref && (
-                            <Link href={casesHref} className="text-primary text-sm font-medium underline-offset-2 hover:underline">
-                                Open File Tracking
+                <EmptyState
+                    live
+                    message={queue.empty.message}
+                    action={
+                        queue.empty.clear ? (
+                            <Link
+                                href={queue.clear_href}
+                                only={QUEUE_PROPS}
+                                preserveState
+                                preserveScroll
+                                className="text-primary text-sm font-medium underline-offset-2 hover:underline"
+                            >
+                                Clear Search and Filter
                             </Link>
+                        ) : (
+                            casesHref && (
+                                <Link href={casesHref} className="text-primary text-sm font-medium underline-offset-2 hover:underline">
+                                    Open File Tracking
+                                </Link>
+                            )
                         )
-                    )}
-                </div>
+                    }
+                />
             ) : (
-                <div className={cn('overflow-x-auto', search.searching && 'opacity-70')}>
-                    <table className="w-full min-w-[52rem] border-separate border-spacing-0 text-sm lg:min-w-0">
-                        <caption className="sr-only">Cases waiting on you, oldest first</caption>
-                        <thead>
-                            <tr className="text-muted-foreground text-left text-xs">
-                                {HEADERS.map((h) => (
-                                    <th
-                                        key={h}
-                                        scope="col"
-                                        className={cn(
-                                            'bg-subtle border-divider h-10 border-b px-4 font-medium whitespace-nowrap',
-                                            h === 'Request' && 'w-full',
-                                            h === 'Waiting' && 'text-right',
-                                            h === 'Action' && 'text-right',
-                                        )}
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {queue.items.map((item) => (
-                                // The reference link covers the row (rowLink); no onClick on the row.
-                                <tr key={item.id} className="hover:bg-selected focus-within:bg-selected relative">
-                                    <td className={cn(cell, 'whitespace-nowrap')}>
-                                        <Link href={item.href} className={cn('font-mono text-xs font-medium', rowLink)}>
-                                            {item.reference_no ?? '—'}
-                                            <span className="sr-only">: {item.action}</span>
-                                        </Link>
-                                    </td>
-                                    <td className={cn(cell, 'max-w-0')}>
-                                        <span className="block truncate font-semibold" title={item.item_description ?? undefined}>
-                                            {item.item_description ?? '—'}
-                                        </span>
-                                        <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-[13px]">
-                                            {item.tags.map((tag) => (
-                                                <Tag key={tag.key} tag={tag} />
-                                            ))}
-                                            <span className="truncate">
-                                                {[item.type_label, item.organisation].filter(Boolean).join(' · ') || '—'}
-                                            </span>
-                                        </span>
-                                    </td>
-                                    <td className={cn(cell, 'whitespace-nowrap')}>
-                                        <StatusPill label={item.status_label} tone={item.status_tone} inColumn />
-                                    </td>
-                                    <td className={cn(cell, 'text-right whitespace-nowrap tabular-nums')}>{item.waiting}</td>
-                                    <td className={cn(cell, 'text-right whitespace-nowrap')}>
-                                        {/* A real link to the same case page, above the row overlay. */}
-                                        <Link
-                                            href={item.href}
-                                            tabIndex={-1}
-                                            className="bg-primary text-primary-foreground hover:bg-primary-strong focus-visible:ring-ring relative z-10 inline-flex h-8 items-center rounded-md px-3 text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                                        >
-                                            {item.action}
-                                        </Link>
-                                    </td>
-                                </tr>
+                <DataTable
+                    caption="Cases waiting on you, oldest first"
+                    className="min-w-[52rem] lg:min-w-0"
+                    wrapperClassName={cn(search.searching && 'opacity-70')}
+                >
+                    <thead>
+                        <tr>
+                            {HEADERS.map((h) => (
+                                <DataTableHeaderCell
+                                    key={h}
+                                    className={cn('px-4', h === 'Request' && 'w-full', (h === 'Waiting' || h === 'Action') && 'text-right')}
+                                >
+                                    {h}
+                                </DataTableHeaderCell>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {queue.items.map((item) => (
+                            // The reference link covers the row (rowLink); no onClick on the row.
+                            <DataTableRow key={item.id} linked>
+                                <DataTableCell className={cn(cell, 'whitespace-nowrap')}>
+                                    <Link href={item.href} className={cn(dataTableRefClass, rowLink)}>
+                                        {item.reference_no ?? '—'}
+                                        <span className="sr-only">: {item.action}</span>
+                                    </Link>
+                                </DataTableCell>
+                                <DataTableCell className={cn(cell, 'max-w-0')}>
+                                    <span className="block truncate font-semibold" title={item.item_description ?? undefined}>
+                                        {item.item_description ?? '—'}
+                                    </span>
+                                    <span className="text-muted-foreground text-helper flex min-w-0 items-center gap-1.5">
+                                        {item.tags.map((tag) => (
+                                            <Tag key={tag.key} tag={tag} />
+                                        ))}
+                                        <span className="truncate">{[item.type_label, item.organisation].filter(Boolean).join(' · ') || '—'}</span>
+                                    </span>
+                                </DataTableCell>
+                                <DataTableCell className={cn(cell, 'whitespace-nowrap')}>
+                                    <StatusPill label={item.status_label} tone={item.status_tone} inColumn />
+                                </DataTableCell>
+                                <DataTableCell className={cn(cell, 'text-right whitespace-nowrap tabular-nums')}>{item.waiting}</DataTableCell>
+                                <DataTableCell className={cn(cell, 'text-right whitespace-nowrap')}>
+                                    {/* A real link to the same case page, above the row overlay. */}
+                                    <Link
+                                        href={item.href}
+                                        tabIndex={-1}
+                                        className="bg-primary text-primary-foreground hover:bg-primary-strong focus-visible:ring-ring text-helper relative z-10 inline-flex h-8 items-center rounded-md px-3 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                                    >
+                                        {item.action}
+                                    </Link>
+                                </DataTableCell>
+                            </DataTableRow>
+                        ))}
+                    </tbody>
+                </DataTable>
             )}
             {queue.truncated && (
                 <p className="text-muted-foreground border-t px-4 py-2.5 text-sm">

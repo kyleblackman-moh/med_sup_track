@@ -410,15 +410,16 @@ it('sends no SLA values with the rows', function () {
 it('builds the queue table from real table cells, with a stretched row link and the same link on the action', function () {
     $source = file_get_contents(resource_path('js/components/dashboard/work-queue.tsx'));
 
-    expect($source)->toContain('scope="col"')
+    // OVERNIGHT-3 (B2): the shared DataTable (scope="col", --subtle header, overflow-x-auto) and FilterChips (aria-current).
+    expect($source)->toContain('<DataTableHeaderCell')
         ->toContain("const HEADERS = ['Reference', 'Request', 'Status', 'Waiting', 'Action'] as const;")
-        ->toContain('hover:bg-selected')
-        ->toContain('bg-subtle')
+        ->toContain('<DataTableRow key={item.id} linked>')
+        ->toContain('<DataTable')
         ->toContain('h-14')
-        ->toContain("cn('font-mono text-xs font-medium', rowLink)")
+        ->toContain('cn(dataTableRefClass, rowLink)')
         ->toContain('relative z-10')
-        ->toContain('aria-current={filter.active')
-        ->toContain('overflow-x-auto')
+        ->toContain('<FilterChips')
+        ->toContain('min-w-[52rem] lg:min-w-0')
         ->not->toContain('fetch(')->not->toContain('axios')->not->toContain('localStorage')
         ->not->toContain('item.days_waiting'); // the waiting text comes from the server
 });
