@@ -187,15 +187,13 @@ it('never changes the chip counts with the search', function () {
     expect(chipCounts(queueProp($this, $cmo, ['q' => 'no-such-text-'.Str::random(12)])))->toBe(chipCounts(queueProp($this, $cmo)));
 });
 
-it('keeps "Needs My Action" equal to the queue\'s item count whatever the filter or search', function () {
+it('keeps the queue total equal to the queue\'s item count whatever the filter or search', function () {
     $cmo = caseUser(Role::Cmo);
     dashCase(CaseStatus::SUBMITTED);
 
     $props = pageProps($this->actingAs($cmo)->get(route('dashboard', ['filter' => 'intake', 'q' => 'zzz'])));
-    $tile = collect($props['stats'])->firstWhere('key', 'needs_action');
 
-    expect((int) str_replace(',', '', $tile['value']))->toBe(count($props['workQueue']['items']))
-        ->and($props['queue']['total'])->toBe(count($props['workQueue']['items']));
+    expect($props['queue']['total'])->toBe(count($props['workQueue']['items']));
 });
 
 // 2. Search -------------------------------------------------------------------------------------

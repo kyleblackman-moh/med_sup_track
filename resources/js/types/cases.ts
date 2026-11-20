@@ -18,8 +18,24 @@ export interface StaffCaseSummary {
     days_since_submitted: number | null;
 }
 
-/** Badge tone decided by the server (design.md section 3). */
-export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+/**
+ * Badge tone decided by the server (CaseStatus::tone / vendorTone). The colours
+ * live in the status palette in resources/css/app.css; TONE_CLASSES maps each one.
+ */
+export type StatusTone =
+    | 'neutral'
+    | 'info'
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'indigo'
+    | 'violet'
+    | 'teal'
+    | 'cyan'
+    | 'purple'
+    | 'fuchsia'
+    | 'lime'
+    | 'slate';
 
 /** A row of the staff case list. */
 export interface StaffCaseListRow extends StaffCaseSummary {

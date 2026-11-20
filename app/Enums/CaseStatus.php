@@ -46,34 +46,45 @@ enum CaseStatus: string
     }
 
     /**
-     * Staff badge tone (design.md section 3). The server decides it; React maps
-     * the tone to classes and never reads status codes.
+     * Staff badge tone. The server decides it; React maps the tone to classes
+     * (TONE_CLASSES) and never reads status codes. Each stage has its own tone so
+     * the stages read apart at a glance; the colours are the status palette in
+     * resources/css/app.css (one line per tone, change it there).
      */
     public function tone(): string
     {
-        // UI-4: the design.md 0.5 section 3 table (was: the in-progress stages neutral,
-        // CLOSED success and WITHDRAWN danger). Changed on purpose.
+        // Was: every in-progress stage "info". Changed on purpose: one tone per stage.
         return match ($this) {
-            self::DRAFT, self::CLOSED, self::WITHDRAWN => 'neutral',
-            self::SUBMITTED, self::CMO_INTAKE, self::IN_REVIEW, self::READY_FOR_FILE,
-            self::FILE_PREPARED, self::WITH_LEGAL, self::WITH_PS => 'info',
-            self::NON_OBJECTION_GRANTED, self::LETTER_ISSUED => 'success',
+            self::DRAFT, self::WITHDRAWN => 'neutral',
+            self::SUBMITTED => 'info',
+            self::CMO_INTAKE => 'indigo',
+            self::IN_REVIEW => 'violet',
+            self::READY_FOR_FILE => 'teal',
+            self::FILE_PREPARED => 'cyan',
+            self::WITH_LEGAL => 'purple',
+            self::WITH_PS => 'fuchsia',
+            self::NON_OBJECTION_GRANTED => 'success',
+            self::LETTER_ISSUED => 'lime',
+            self::CLOSED => 'slate',
             self::RETURNED_TO_CMO => 'warning',
             self::REJECTED_FINAL => 'danger',
         };
     }
 
     /**
-     * UI-4: the vendor pill's tone, from the vendor group (design.md section 3), so
-     * the vendor never sees an internal stage through a colour: every internal
-     * stage is "Under review" (info), including a return to the CMO.
+     * The vendor pill's tone, from the vendor group, so the vendor never sees an
+     * internal stage through a colour: every internal stage is "Under review" and
+     * shares one tone (violet), including a return to the CMO. Colours: the status
+     * palette in resources/css/app.css.
      */
     public function vendorTone(): string
     {
         return match ($this->vendorGroup()) {
             'DRAFT', 'WITHDRAWN' => 'neutral',
-            'SUBMITTED', 'UNDER_REVIEW' => 'info',
-            'LETTER_ISSUED', 'CLOSED' => 'success',
+            'SUBMITTED' => 'info',
+            'UNDER_REVIEW' => 'violet',
+            'LETTER_ISSUED' => 'success',
+            'CLOSED' => 'slate',
             'NOT_APPROVED' => 'danger',
         };
     }

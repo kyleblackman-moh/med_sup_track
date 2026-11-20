@@ -31,21 +31,21 @@ it('loads no fonts from a third-party host', function () {
 });
 
 // UI-4: JetBrains Mono moved from a whole-package JS import (every subset) to a
-// latin-only @font-face in app.css, like Roboto. Changed on purpose.
-it('imports no font package in the JS entry, and no Inter', function () {
+// latin-only @font-face in app.css. Flowbite look: Inter replaced Roboto the
+// same way (CSS @font-face, never a JS import). Changed on purpose.
+it('imports no font package in the JS entry', function () {
     $entry = file_get_contents(resource_path('js/app.tsx'));
 
-    expect($entry)->not->toContain('@fontsource')
-        ->and($entry)->not->toContain('@fontsource-variable/inter');
+    expect($entry)->not->toContain('@fontsource');
 });
 
-it('declares Roboto and JetBrains Mono latin-only from the installed packages and uses them for the font tokens', function () {
+it('declares Inter and JetBrains Mono latin-only from the installed packages and uses them for the font tokens', function () {
     $css = file_get_contents(resource_path('css/app.css'));
 
     expect(substr_count($css, '@font-face'))->toBe(2)
-        ->and($css)->toContain("url('../../node_modules/@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2')")
+        ->and($css)->toContain("url('../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')")
         ->and($css)->toContain("url('../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2')")
-        ->and($css)->toMatch("/--font-sans:\\s*'Roboto Variable',/")
+        ->and($css)->toMatch("/--font-sans:\\s*'Inter Variable',/")
         ->and($css)->toMatch("/--font-mono:\\s*'JetBrains Mono Variable',/")
-        ->and($css)->not->toContain('Inter Variable');
+        ->and($css)->not->toContain('Roboto');
 });

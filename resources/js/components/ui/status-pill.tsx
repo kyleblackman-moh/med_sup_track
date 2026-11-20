@@ -2,9 +2,11 @@ import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
 
 /**
- * Tone → daisyUI badge classes (design.md section 3). The SERVER decides each tone (staff:
+ * Tone → full static badge classes. The SERVER decides each tone (staff:
  * CaseStatus::tone, vendor: CaseStatus::vendorTone) and sends it with the
- * label; React never reads status codes.
+ * label; React never reads status codes. The colours live in the status
+ * palette in resources/css/app.css ("moh" theme): change one line there and
+ * every pill, dot and legend using that tone follows. The dot is bg-current.
  */
 export const TONE_CLASSES: Record<StatusTone, string> = {
     neutral: 'badge-soft badge-neutral',
@@ -12,6 +14,14 @@ export const TONE_CLASSES: Record<StatusTone, string> = {
     success: 'badge-soft badge-success',
     warning: 'badge-soft badge-warning',
     danger: 'badge-soft badge-error',
+    indigo: 'bg-status-indigo/10 text-status-indigo border-status-indigo/20',
+    violet: 'bg-status-violet/10 text-status-violet border-status-violet/20',
+    teal: 'bg-status-teal/10 text-status-teal border-status-teal/20',
+    cyan: 'bg-status-cyan/10 text-status-cyan border-status-cyan/20',
+    purple: 'bg-status-purple/10 text-status-purple border-status-purple/20',
+    fuchsia: 'bg-status-fuchsia/10 text-status-fuchsia border-status-fuchsia/20',
+    lime: 'bg-status-lime/10 text-status-lime border-status-lime/20',
+    slate: 'bg-status-slate/10 text-status-slate border-status-slate/20',
 };
 
 interface StatusPillProps {
@@ -25,7 +35,7 @@ interface StatusPillProps {
 }
 
 /**
- * UI-4: the one status pill (design.md sections 3 and 7): 24px high, full
+ * UI-4: the one status pill (design.md section 7; colours: the status palette in app.css): 24px high, full
  * radius, 12px/500, a 6px dot in the text colour, always a text label. A
  * shared min-width (96px) keeps pills in a column lined up.
  */

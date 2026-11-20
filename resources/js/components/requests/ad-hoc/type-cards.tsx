@@ -1,12 +1,11 @@
 import { TYPE_ICONS as ICONS } from '@/components/requests/type-icons';
+import { RadioOption, RadioStack } from '@/components/ui/radio-group';
 import { type RequestTypeOption } from '@/types/requests';
 
-// V2-2: the request type as cards, the first block of the form. Native radios
-// (V2-2b, design.md 0.6: 14px padding, 12px radius, 14px/600 label, --shadow-card;
-// selected: 1.5px --primary border, --selected background and the 3px --ring-wash
-// halo; unselected hover darkens the border in 150ms, no motion when reduced)
-// in one fieldset (arrow keys move between them); the label only, no
-// descriptions. The options, their order and their group ("Ad Hoc") come from
+// V2-2: the request type as the first block of the form. RADIO-1: the shared
+// radio rows (RadioOption) stacked one per line, never side by side, with the
+// type's icon square; native radios in one fieldset (arrow keys move between
+// them); the label only, no descriptions. The options, their order and their group ("Ad Hoc") come from
 // the server (type_options); no type code is known or checked here.
 
 interface TypeCardsProps {
@@ -21,9 +20,6 @@ interface TypeCardsProps {
 }
 
 const ID = 'request-type';
-
-/** 3 columns at lg, 2 at md, 1 below: every row's cards share one width. */
-const GRID = 'grid gap-3 md:grid-cols-2 lg:grid-cols-3';
 
 export function TypeCards({ value, options, onChange, disabled, error, showHiddenNote }: TypeCardsProps) {
     const groups: { label: string | null; options: RequestTypeOption[] }[] = [];
@@ -45,31 +41,29 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
     const card = (option: RequestTypeOption) => {
         const Icon = option.icon ? ICONS[option.icon] : undefined;
 
-        // The card border is 1.5px (design.md section 7; Tailwind has no 1.5 width step): DECISIONS.md D7.
         return (
-            <label
+            <RadioOption
                 key={option.code}
-                className="bg-card border-border shadow-card hover:border-input has-[:checked]:border-primary has-[:checked]:bg-selected has-[:checked]:shadow-card-selected has-[:focus-visible]:ring-ring flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border-[1.5px] p-3.5 text-sm font-semibold transition-[border-color,background-color,box-shadow] duration-150 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 motion-reduce:transition-none"
-            >
-                {/* design.md section 7: the tinted icon square, the radio indicator, the label. */}
-                {Icon && (
-                    <span className="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg" aria-hidden="true">
-                        <Icon className="size-4" />
-                    </span>
-                )}
-                <input
-                    type="radio"
-                    name={ID}
-                    value={option.code}
-                    checked={value === option.code}
-                    // V2-4b item 7: a type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
-                    // No form element is submitted here, so this only tells assistive technology; validation is the server's.
-                    required
-                    className="accent-primary size-4 shrink-0 outline-none"
-                    onChange={() => onChange(option.code)}
-                />
-                <span>{option.label}</span>
-            </label>
+                id={`${ID}-${option.code}`}
+                name={ID}
+                value={option.code}
+                checked={value === option.code}
+                onChange={onChange}
+                label={option.label}
+                // V2-4b item 7: a type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
+                // No form element is submitted here, so this only tells assistive technology; validation is the server's.
+                required
+                icon={
+                    Icon && (
+                        <span
+                            className="bg-accent text-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-lg"
+                            aria-hidden="true"
+                        >
+                            <Icon className="size-3.5" />
+                        </span>
+                    )
+                }
+            />
         );
     };
 
@@ -86,14 +80,12 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
 
             {groups.map((group, g) =>
                 group.label ? (
-                    <fieldset key={group.label} className="space-y-2">
-                        <legend className="text-muted-foreground text-helper font-medium">{group.label}</legend>
-                        <div className={GRID}>{group.options.map(card)}</div>
+                    <fieldset key={group.label} className="fieldset min-w-0 gap-2 py-0">
+                        <legend className="fieldset-legend pt-0 text-sm capitalize">{group.label}</legend>
+                        <RadioStack>{group.options.map(card)}</RadioStack>
                     </fieldset>
                 ) : (
-                    <div key={`group-${g}`} className={GRID}>
-                        {group.options.map(card)}
-                    </div>
+                    <RadioStack key={`group-${g}`}>{group.options.map(card)}</RadioStack>
                 ),
             )}
 

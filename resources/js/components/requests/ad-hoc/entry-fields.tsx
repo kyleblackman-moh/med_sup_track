@@ -189,7 +189,12 @@ export function EntryInlineCheck({ id, label, rowLabel, type, name, checked, onC
                 name={name}
                 checked={checked}
                 aria-label={`${label}, ${rowLabel}`}
-                className="accent-primary focus-visible:ring-ring size-4 shrink-0 focus-visible:ring-2 focus-visible:ring-offset-2"
+                // RADIO-1: a radio is the shared daisyUI radio-sm (one Recommended per quotation row, chosen across the rows).
+                className={
+                    type === 'radio'
+                        ? 'radio radio-sm shrink-0'
+                        : 'accent-primary focus-visible:ring-ring size-4 shrink-0 focus-visible:ring-2 focus-visible:ring-offset-2'
+                }
                 onChange={(e) => onChange(e.target.checked)}
             />
             {label}

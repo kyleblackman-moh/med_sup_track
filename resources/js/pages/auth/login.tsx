@@ -32,7 +32,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
  * UI-4: the sign-in page in the Layered Surface Theme (design.md sections 2, 5
  * and 11): a centred white card on the L0 background with the brand stripe on
  * top, token classes only. The product name and logo are the shell's own
- * (APP_BRAND, AppLogoMark: the sidebar's shield-plus tile); no logo or tagline is invented here.
+ * (APP_BRAND, AppLogoMark: the sidebar's pill tile); no logo or tagline is invented here.
  */
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({

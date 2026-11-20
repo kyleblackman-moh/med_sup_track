@@ -372,5 +372,7 @@ it('marks the request type cards as a required choice', function () {
     // A type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
     $cards = file_get_contents(resource_path('js/components/requests/ad-hoc/type-cards.tsx'));
 
-    expect($cards)->toMatch('/<input\s+type="radio"[^>]*\brequired\b/s');
+    // RADIO-1: each card is the shared RadioOption, which puts `required` on its native radio.
+    expect($cards)->toMatch('/<RadioOption\b[^>]*\brequired\b/s')
+        ->and(file_get_contents(resource_path('js/components/ui/radio-group.tsx')))->toMatch('/<input\s+type="radio"[^>]*\brequired=\{required\}/s');
 });

@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\PermissionRegistrar;
 
-// OVERNIGHT-2 (C1, C2): the dashboard's Pipeline and Gate Tracker panels.
+// OVERNIGHT-2 (C1, C2): the Pipeline and Gate Tracker panels, on the Analytics page (ANALYTICS).
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -99,11 +99,15 @@ it('gives no pipeline or gate tracker to users without the case list', function 
         ->and(DashboardView::gateTracker($user))->toBeNull();
 })->with([Role::SystemAdmin, Role::Auditor]);
 
-it('gives a vendor neither panel', function () {
+it('gives a vendor neither panel, and no Analytics page', function () {
     $vendor = vendorUser(vendorOrg());
 
+    expect(DashboardView::pipeline($vendor))->toBeNull()
+        ->and(DashboardView::gateTracker($vendor))->toBeNull();
+
     $this->actingAs($vendor)->get(route('dashboard'))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('pipeline', null)->where('gateTracker', null));
+        ->assertInertia(fn (Assert $page) => $page->missing('pipeline')->missing('gateTracker'));
+    $this->actingAs($vendor)->get(route('analytics'))->assertForbidden();
 });
 
 it('shows the gate tracker to case.view_all holders only', function () {
@@ -155,12 +159,17 @@ it('agrees with the Next Step card for every row', function () {
     }
 });
 
-it('sends both panels to the CMO on the dashboard', function () {
-    $this->actingAs($this->cmo)->get(route('dashboard'))->assertOk()
+it('sends both panels to the CMO and PS on the Analytics page, not the dashboard', function (string $who) {
+    $user = $this->{$who};
+
+    $this->actingAs($user)->get(route('analytics'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('pipeline', count(S::cases()) - 1)
             ->has('gateTracker.rows'));
-});
+
+    $this->actingAs($user)->get(route('dashboard'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('pipeline')->missing('gateTracker'));
+})->with(['cmo', 'ps']);
 
 it('filters the case list by a pipeline stage', function () {
     $case = pipelineCase(S::FILE_PREPARED);

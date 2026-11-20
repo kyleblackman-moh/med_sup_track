@@ -38,39 +38,41 @@ function Tile({ stat }: { stat: DashboardStat }) {
     const body = (
         <>
             {Icon && (
-                <div className="stat-figure text-primary">
-                    <Icon className="size-5" aria-hidden="true" />
+                <div className="stat-figure text-base-content/40">
+                    <Icon className="size-6" aria-hidden="true" />
                 </div>
             )}
-            <div className="stat-title capitalize">{stat.label}</div>
-            <div className="stat-value text-3xl tabular-nums">{text}</div>
+            <div className="stat-title text-sm capitalize">{stat.label}</div>
+            <div className="stat-value text-3xl font-bold tabular-nums">{text}</div>
             <div className="stat-desc truncate" title={stat.description}>
                 {stat.description}
             </div>
         </>
     );
 
-    return stat.href ? (
-        <Link
-            href={stat.href}
-            className="stat hover:bg-base-200 min-w-0 px-4 py-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2"
-        >
-            {body}
-        </Link>
-    ) : (
-        <div className="stat min-w-0 px-4 py-3">{body}</div>
+    return (
+        <div className="stats bg-base-100 border-base-300 min-w-0 border shadow-xs transition-shadow duration-200 hover:shadow-md">
+            {stat.href ? (
+                <Link
+                    href={stat.href}
+                    className="stat hover:bg-base-200 min-w-0 px-5 py-4 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2"
+                >
+                    {body}
+                </Link>
+            ) : (
+                <div className="stat min-w-0 px-5 py-4">{body}</div>
+            )}
+        </div>
     );
 }
 
-/** The KPI band (Blueprint stats): one band for every role, tiles chosen and worded by the server; values count up on load. */
+/** The stat row (Blueprint stats, Flowbite look): one white card per tile, chosen and worded by the server; values count up on load. */
 export function KpiBand({ stats }: { stats: DashboardStat[] }) {
     return (
-        <section aria-label="Summary">
-            <div className="stats stats-vertical lg:stats-horizontal bg-base-100 border-base-300 w-full border">
-                {stats.map((stat) => (
-                    <Tile key={stat.key} stat={stat} />
-                ))}
-            </div>
+        <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {stats.map((stat) => (
+                <Tile key={stat.key} stat={stat} />
+            ))}
         </section>
     );
 }
