@@ -32,7 +32,10 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
 
             <div className="mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
                 <nav className="flex items-center justify-between gap-4 print:hidden">
-                    <Link href={route('requests.show', receipt.id)} className="text-sm underline">
+                    <Link
+                        href={route('requests.show', receipt.id)}
+                        className="text-primary focus-visible:ring-ring rounded-sm text-sm underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
+                    >
                         Back to Request
                     </Link>
                     <Button type="button" onClick={() => window.print()}>
