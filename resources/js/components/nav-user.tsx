@@ -45,11 +45,7 @@ export function NavUser() {
                             <ChevronDown className="text-navy-muted ml-auto size-4 group-data-[collapsible=icon]:hidden" aria-hidden="true" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                        align="end"
-                        side={isMobile ? 'bottom' : state === 'collapsed' ? 'left' : 'bottom'}
-                    >
+                    <DropdownMenuContent className="w-full min-w-56" align="end" side={!isMobile && state === 'collapsed' ? 'right' : 'top'}>
                         <UserMenuContent user={auth.user} />
                     </DropdownMenuContent>
                 </DropdownMenu>

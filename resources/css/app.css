@@ -2,6 +2,50 @@
 
 @plugin 'tailwindcss-animate';
 
+/* daisyUI 5 is the component kit. One theme, "moh", light only; values are
+   the Ministry palette below (design.md section 2). Not from a registry. */
+@plugin 'daisyui' {
+    themes: moh --default;
+    logs: false;
+}
+
+@plugin 'daisyui/theme' {
+    name: 'moh';
+    default: true;
+    prefersdark: false;
+    color-scheme: light;
+
+    --color-base-100: hsl(0, 0%, 100%); /* #ffffff L1 */
+    --color-base-200: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
+    --color-base-300: hsl(211.8, 33.3%, 90%); /* #dde5ee */
+    --color-base-content: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --color-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
+    --color-primary-content: hsl(0, 0%, 100%);
+    --color-secondary: hsl(85.3, 51.4%, 92.7%); /* #eef6e3 */
+    --color-secondary-content: hsl(87.3, 62.2%, 24.9%); /* #436718 */
+    --color-accent: hsl(194.4, 86.2%, 94.3%); /* #e4f7fd */
+    --color-accent-content: hsl(196.1, 100%, 27.1%); /* #00658a */
+    --color-neutral: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --color-neutral-content: hsl(0, 0%, 100%);
+    --color-info: hsl(204.7, 100%, 30%); /* #005a99 */
+    --color-info-content: hsl(0, 0%, 100%);
+    --color-success: hsl(87.5, 62.1%, 22.7%); /* #3d5e16 */
+    --color-success-content: hsl(0, 0%, 100%);
+    --color-warning: hsl(22.7, 82.5%, 31.4%); /* #92400e */
+    --color-warning-content: hsl(0, 0%, 100%);
+    --color-error: hsl(0, 73.7%, 41.8%); /* #b91c1c */
+    --color-error-content: hsl(0, 0%, 100%);
+
+    --radius-selector: 9999px;
+    --radius-field: 0.5rem;
+    --radius-box: 0.75rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
@@ -94,7 +138,7 @@
     --color-destructive-text: var(--destructive-text);
     --color-destructive-wash: var(--destructive-wash);
 
-    --color-border: var(--border);
+    --color-border: var(--color-base-300);
     --color-input: var(--input);
     --color-ring: var(--ring);
     --color-ring-wash: var(--ring-wash);
@@ -200,7 +244,6 @@
     --destructive-foreground: hsl(0, 0%, 100%); /* #ffffff */
     --destructive-text: hsl(0, 73.7%, 41.8%); /* #b91c1c */
     --destructive-wash: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
-    --border: hsl(211.8, 33.3%, 90%); /* #dde5ee decorative */
     --input: hsl(212.3, 11.3%, 54.9%); /* #7f8b99 form-field borders */
     --ring: hsl(204.2, 100%, 36.5%); /* #006fba */
     --ring-wash: hsl(207, 66.7%, 94.1%); /* #e6f1fa */

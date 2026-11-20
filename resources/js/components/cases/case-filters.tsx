@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { type CaseListOptions, type CaseFilters as Filters } from '@/types/cases';
 import { type OptionList } from '@/types/requests';
 import { Search, X } from 'lucide-react';
@@ -40,18 +40,18 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
     }, [search, filters.ref, onChange]);
 
     const select = (key: 'status' | 'type' | 'org', label: string, list: OptionList, all: string) => (
-        <Select value={filters[key] || ALL} onValueChange={(v) => onChange({ [key]: v === ALL ? '' : v })}>
-            <SelectTrigger aria-label={label} className="border-input bg-card h-9 w-full sm:w-44">
-                <SelectValue placeholder={all} />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value={ALL}>{all}</SelectItem>
-                {list.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                    </SelectItem>
-                ))}
-            </SelectContent>
+        <Select
+            aria-label={label}
+            value={filters[key] || ALL}
+            onChange={(e) => onChange({ [key]: e.target.value === ALL ? '' : e.target.value })}
+            className="bg-base-100 h-9 w-full sm:w-44"
+        >
+            <option value={ALL}>{all}</option>
+            {list.map((o) => (
+                <option key={o.value} value={o.value}>
+                    {o.label}
+                </option>
+            ))}
         </Select>
     );
 

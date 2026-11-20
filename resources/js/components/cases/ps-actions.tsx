@@ -2,7 +2,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { type PsForm, type PsOutcome } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
@@ -72,22 +72,22 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
             {isReturn && (
                 <div className="grid max-w-sm gap-1.5">
                     <Label htmlFor="ps-return-kind">Query Type (required)</Label>
-                    <Select value={form.data.return_kind} onValueChange={(v) => form.setData('return_kind', v)}>
-                        <SelectTrigger
-                            id="ps-return-kind"
-                            aria-required="true"
-                            aria-invalid={errors.return_kind ? true : undefined}
-                            aria-describedby="ps-return-kind-error"
-                        >
-                            <SelectValue placeholder="Choose a query type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {def.kinds.map((k) => (
-                                <SelectItem key={k.value} value={k.value}>
-                                    {k.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
+                    <Select
+                        id="ps-return-kind"
+                        aria-required="true"
+                        value={form.data.return_kind}
+                        onChange={(e) => form.setData('return_kind', e.target.value)}
+                        aria-invalid={errors.return_kind ? true : undefined}
+                        aria-describedby="ps-return-kind-error"
+                    >
+                        <option value="" disabled>
+                            Choose a query type
+                        </option>
+                        {def.kinds.map((k) => (
+                            <option key={k.value} value={k.value}>
+                                {k.label}
+                            </option>
+                        ))}
                     </Select>
                     <InputError id="ps-return-kind-error" message={errors.return_kind} />
                 </div>
