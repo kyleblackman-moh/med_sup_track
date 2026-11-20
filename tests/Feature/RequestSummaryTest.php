@@ -368,6 +368,7 @@ it('has no fetch or axios in the summary and the pages that show it', function (
     $files = [
         resource_path('js/components/requests/request-summary.tsx'),
         resource_path('js/components/requests/ad-hoc/review.tsx'),
+        resource_path('js/pages/requests/review.tsx'),
         resource_path('js/pages/requests/show.tsx'),
         resource_path('js/pages/cases/show.tsx'),
     ];

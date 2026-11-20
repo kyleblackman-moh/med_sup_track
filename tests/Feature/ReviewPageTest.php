@@ -151,3 +151,29 @@ it('writes no audit row when the review page is viewed', function () {
 
     expect(DB::table('audit_logs')->where('case_id', $case->id)->count())->toBe($count);
 });
+
+// A2, A3: the form page and the review page, statically --------------------------------------
+
+it('has no inline review on the form page', function () {
+    $page = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
+
+    expect($page)->not->toContain('RequestSummary')
+        ->not->toContain('SummaryPanel')
+        ->not->toContain('SubmitDialog')
+        ->not->toContain("route('requests.submit'")
+        // Review and Submit saves first, then goes to the Review page when nothing blocks.
+        ->and($page)->toContain('await autosave.flush()')
+        ->and($page)->toContain("router.visit(route('requests.review', detail.id)");
+});
+
+it('submits from the review page through the existing route and confirmation, with no fetch', function () {
+    $page = file_get_contents(resource_path('js/pages/requests/review.tsx'));
+
+    expect($page)->toContain("route('requests.submit', detail.id)")
+        ->and($page)->toContain('<SubmitDialog')
+        ->and($page)->toContain('<IssuesPanel')
+        ->and($page)->toContain('<RequestSummary')
+        ->and($page)->toContain('Back to Edit')
+        ->and($page)->toContain('disabled={!can.submit || submitting}')
+        ->and(preg_match('/\bfetch\s*\(|axios|XMLHttpRequest|localStorage|sessionStorage/', $page))->toBe(0);
+});
