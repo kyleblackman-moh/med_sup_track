@@ -101,7 +101,7 @@ interface DataTableRowProps extends ComponentProps<'tr'> {
 }
 
 export function DataTableRow({ linked = false, className, ...props }: DataTableRowProps) {
-    return <tr className={cn(linked && 'hover:bg-selected focus-within:bg-selected relative', '[&:last-child>*]:border-b-0', className)} {...props} />;
+    return <tr className={cn(linked && 'hover:bg-selected focus-within:bg-selected relative', linked && 'transition-colors', '[&:last-child>*]:border-b-0', className)} {...props} />;
 }
 
 /** A reference number in a table: JetBrains Mono 12px/500 (design.md section 4). */

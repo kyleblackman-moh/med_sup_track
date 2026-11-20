@@ -1,14 +1,13 @@
 import { DataTable, DataTableCell, DataTableHeaderCell, DataTableRow, dataTableRefClass } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterChips, type FilterChip } from '@/components/ui/filter-chips';
-import { Input } from '@/components/ui/input';
 import { StatusPill, TONE_CLASSES } from '@/components/ui/status-pill';
 import { useLiveSearch } from '@/hooks/use-live-search';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { FileClock, Search, Siren, Undo2, type LucideIcon } from 'lucide-react';
+import { ArrowRight, FileClock, Inbox, Search, Siren, Undo2, type LucideIcon } from 'lucide-react';
 
 /** One WorkQueue item (WorkQueue::for), as the "workQueue" prop sends it. */
 export interface WorkQueueItem {
@@ -79,15 +78,28 @@ const TAG_ICONS: Record<string, LucideIcon> = {
 
 const HEADERS = ['Reference', 'Request', 'Status', 'Waiting', 'Action'] as const;
 
+/** The row's action: a real link to the case page (the same place the row opens). */
+const ACTION_BTN = 'btn btn-primary btn-sm whitespace-nowrap capitalize transition-transform active:scale-[0.97]';
+
 function Tag({ tag }: { tag: QueueTag }) {
     const Icon = TAG_ICONS[tag.icon];
 
     return (
-        <span
-            className={cn('inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-medium whitespace-nowrap', TONE_CLASSES[tag.tone])}
-        >
+        <span className={cn('badge badge-sm shrink-0 gap-1 whitespace-nowrap capitalize', TONE_CLASSES[tag.tone])}>
             {Icon && <Icon className="size-3 shrink-0" aria-hidden="true" />}
             {tag.label}
+        </span>
+    );
+}
+
+/** The second line of a row: the tags, then the request type and organisation. */
+function RowMeta({ item }: { item: QueueRow }) {
+    return (
+        <span className="text-base-content/60 flex min-w-0 items-center gap-1.5 text-xs">
+            {item.tags.map((tag) => (
+                <Tag key={tag.key} tag={tag} />
+            ))}
+            <span className="truncate">{[item.type_label, item.organisation].filter(Boolean).join(' · ') || '—'}</span>
         </span>
     );
 }
@@ -99,13 +111,14 @@ interface WorkQueueProps {
 }
 
 /**
- * "Needs My Action" (DASH-1): one L3 card. The header holds the title, the
- * server-side search and the filter chips (real links, partial reloads of
- * "queue"). The table: Reference (the row's real link, stretched over the row
- * with rowLink), Request, Status, Waiting and Action (a real link to the same
- * case page). Rows, order, labels, tags and the waiting text all come from the
- * server (WorkQueue, DashboardView::queue). Below lg the table scrolls inside
- * the card. No SLA wording, targets or colouring of time.
+ * "Needs My Action" (DASH-1), restyled as the Blueprint queue card: the title
+ * with its count, the server-side search and the filter chips (real links,
+ * partial reloads of "queue"), then the table (md and up) or a list (phones).
+ * Table rows: Reference (the row's real link, stretched over the row with
+ * rowLink), Request, Status, Waiting and Action (a real link to the same case
+ * page). Rows, order, labels, tags and the waiting text all come from the
+ * server (WorkQueue, DashboardView::queue). Between md and lg the table
+ * scrolls inside the card. No SLA wording, targets or colouring of time.
  */
 export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
     const search = useLiveSearch({
@@ -120,31 +133,32 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
     const cell = 'h-14 px-4';
 
     return (
-        <section aria-labelledby="work-queue-heading" className="bg-card overflow-hidden rounded-xl border shadow-xs">
-            <div className="grid gap-3 border-b px-4 py-3">
+        <section
+            aria-labelledby="work-queue-heading"
+            className="card bg-base-100 border-base-300 min-w-0 overflow-hidden border transition-shadow duration-200 hover:shadow-md"
+        >
+            <div className="border-base-300 grid gap-3 border-b p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="work-queue-heading" className="flex items-center gap-2 text-base font-semibold">
+                    <h2 id="work-queue-heading" className="card-title text-base capitalize">
+                        <Inbox className="text-primary size-4" aria-hidden="true" />
                         Needs My Action
-                        <span className="bg-primary text-primary-foreground inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums">
+                        <span className="badge badge-primary badge-sm tabular-nums">
                             {queue.total}
                             <span className="sr-only"> {queue.total === 1 ? 'item' : 'items'}</span>
                         </span>
                     </h2>
-                    <div className="relative w-full sm:w-72">
-                        <Search
-                            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-                            aria-hidden="true"
-                        />
-                        <Input
+                    <label className={search.searching ? 'input input-sm w-full opacity-70 sm:w-72' : 'input input-sm w-full sm:w-72'}>
+                        <Search className="text-base-content/60 size-4 shrink-0" aria-hidden="true" />
+                        <input
                             type="search"
+                            className="grow"
                             value={search.value}
                             onChange={(e) => search.setValue(e.target.value)}
                             maxLength={SEARCH_MAX}
                             placeholder="Reference, item or organisation"
                             aria-label="Search the work queue"
-                            className={cn('h-10 pl-9', search.searching && 'opacity-70')}
                         />
-                    </div>
+                    </label>
                 </div>
 
                 <FilterChips label="Filter the work queue" chips={queue.filters} linkProps={{ only: QUEUE_PROPS }} />
@@ -161,13 +175,13 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
                                 only={QUEUE_PROPS}
                                 preserveState
                                 preserveScroll
-                                className="text-primary text-sm font-medium underline-offset-2 hover:underline"
+                                className="btn btn-sm capitalize transition-transform active:scale-[0.97]"
                             >
                                 Clear Search and Filter
                             </Link>
                         ) : (
                             casesHref && (
-                                <Link href={casesHref} className="text-primary text-sm font-medium underline-offset-2 hover:underline">
+                                <Link href={casesHref} className="btn btn-sm capitalize transition-transform active:scale-[0.97]">
                                     Open File Tracking
                                 </Link>
                             )
@@ -175,71 +189,93 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
                     }
                 />
             ) : (
-                <DataTable
-                    caption="Cases waiting on you, oldest first"
-                    className="min-w-[52rem] lg:min-w-0"
-                    wrapperClassName={cn(search.searching && 'opacity-70')}
-                >
-                    <thead>
-                        <tr>
-                            {HEADERS.map((h) => (
-                                <DataTableHeaderCell
-                                    key={h}
-                                    className={cn('px-4', h === 'Request' && 'w-full', (h === 'Waiting' || h === 'Action') && 'text-right')}
-                                >
-                                    {h}
-                                </DataTableHeaderCell>
+                <div className={search.searching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
+                    <DataTable
+                        caption="Cases waiting on you, oldest first"
+                        className="table-sm table min-w-[52rem] lg:min-w-0"
+                        wrapperClassName="max-md:hidden"
+                    >
+                        <thead>
+                            <tr className="capitalize">
+                                {HEADERS.map((h) => (
+                                    <DataTableHeaderCell
+                                        key={h}
+                                        className={cn(
+                                            'bg-base-200 text-base-content/70 border-base-300 px-4',
+                                            h === 'Request' && 'w-full',
+                                            (h === 'Waiting' || h === 'Action') && 'text-right',
+                                        )}
+                                    >
+                                        {h}
+                                    </DataTableHeaderCell>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {queue.items.map((item) => (
+                                // The reference link covers the row (rowLink); no onClick on the row.
+                                <DataTableRow key={item.id} linked>
+                                    <DataTableCell className={cn(cell, 'border-base-300 whitespace-nowrap')}>
+                                        <Link href={item.href} className={cn(dataTableRefClass, rowLink)}>
+                                            {item.reference_no ?? '—'}
+                                            <span className="sr-only">: {item.action}</span>
+                                        </Link>
+                                    </DataTableCell>
+                                    <DataTableCell className={cn(cell, 'border-base-300 max-w-0')}>
+                                        <span className="block truncate font-semibold" title={item.item_description ?? undefined}>
+                                            {item.item_description ?? '—'}
+                                        </span>
+                                        <RowMeta item={item} />
+                                    </DataTableCell>
+                                    <DataTableCell className={cn(cell, 'border-base-300 whitespace-nowrap')}>
+                                        <StatusPill label={item.status_label} tone={item.status_tone} inColumn className="capitalize" />
+                                    </DataTableCell>
+                                    <DataTableCell className={cn(cell, 'border-base-300 text-right whitespace-nowrap tabular-nums')}>
+                                        {item.waiting}
+                                    </DataTableCell>
+                                    <DataTableCell className={cn(cell, 'border-base-300 text-right whitespace-nowrap')}>
+                                        {/* A real link to the same case page, above the row overlay. */}
+                                        <Link href={item.href} tabIndex={-1} className={cn(ACTION_BTN, 'relative z-10')}>
+                                            {item.action}
+                                        </Link>
+                                    </DataTableCell>
+                                </DataTableRow>
                             ))}
-                        </tr>
-                    </thead>
-                    <tbody>
+                        </tbody>
+                    </DataTable>
+
+                    {/* Phones: the same rows as a list; the reference link covers the row, the action sits at the end. */}
+                    <ul className="list md:hidden" aria-label="Cases waiting on you, oldest first">
                         {queue.items.map((item) => (
-                            // The reference link covers the row (rowLink); no onClick on the row.
-                            <DataTableRow key={item.id} linked>
-                                <DataTableCell className={cn(cell, 'whitespace-nowrap')}>
+                            <li key={item.id} className="list-row hover:bg-base-200 focus-within:bg-base-200 relative items-center transition-colors">
+                                <div className="list-col-grow min-w-0">
                                     <Link href={item.href} className={cn(dataTableRefClass, rowLink)}>
                                         {item.reference_no ?? '—'}
                                         <span className="sr-only">: {item.action}</span>
                                     </Link>
-                                </DataTableCell>
-                                <DataTableCell className={cn(cell, 'max-w-0')}>
-                                    <span className="block truncate font-semibold" title={item.item_description ?? undefined}>
-                                        {item.item_description ?? '—'}
-                                    </span>
-                                    <span className="text-muted-foreground text-helper flex min-w-0 items-center gap-1.5">
-                                        {item.tags.map((tag) => (
-                                            <Tag key={tag.key} tag={tag} />
-                                        ))}
-                                        <span className="truncate">{[item.type_label, item.organisation].filter(Boolean).join(' · ') || '—'}</span>
-                                    </span>
-                                </DataTableCell>
-                                <DataTableCell className={cn(cell, 'whitespace-nowrap')}>
-                                    <StatusPill label={item.status_label} tone={item.status_tone} inColumn />
-                                </DataTableCell>
-                                <DataTableCell className={cn(cell, 'text-right whitespace-nowrap tabular-nums')}>{item.waiting}</DataTableCell>
-                                <DataTableCell className={cn(cell, 'text-right whitespace-nowrap')}>
-                                    {/* A real link to the same case page, above the row overlay. */}
-                                    <Link
-                                        href={item.href}
-                                        tabIndex={-1}
-                                        className="bg-primary text-primary-foreground hover:bg-primary-strong focus-visible:ring-ring text-helper relative z-10 inline-flex h-8 items-center rounded-md px-3 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                                    >
-                                        {item.action}
-                                    </Link>
-                                </DataTableCell>
-                            </DataTableRow>
+                                    <div className="truncate text-sm font-semibold">{item.item_description ?? '—'}</div>
+                                    <RowMeta item={item} />
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                                        <StatusPill label={item.status_label} tone={item.status_tone} className="capitalize" />
+                                        <span className="text-base-content/70 tabular-nums">{item.waiting}</span>
+                                    </div>
+                                </div>
+                                <Link href={item.href} tabIndex={-1} className={cn(ACTION_BTN, 'relative z-10')}>
+                                    {item.action}
+                                </Link>
+                            </li>
                         ))}
-                    </tbody>
-                </DataTable>
+                    </ul>
+                </div>
             )}
             {queue.truncated && (
-                <p className="text-muted-foreground border-t px-4 py-2.5 text-sm">
-                    Showing the oldest cases only. Use{' '}
-                    <Link href={route('cases.index')} className="text-primary underline-offset-2 hover:underline">
+                <div className="border-base-300 text-base-content/70 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2.5 text-sm">
+                    <p>Showing the oldest cases only. Use File Tracking for the full list.</p>
+                    <Link href={route('cases.index')} className="btn btn-ghost btn-sm capitalize transition-transform active:scale-[0.97]">
                         File Tracking
-                    </Link>{' '}
-                    for the full list.
-                </p>
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                    </Link>
+                </div>
             )}
         </section>
     );
