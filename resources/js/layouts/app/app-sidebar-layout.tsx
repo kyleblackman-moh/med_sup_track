@@ -1,31 +1,55 @@
-import { AppContent } from '@/components/app-content';
-import { AppShell } from '@/components/app-shell';
+import { AppShell, useAppDrawer } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { BrandStripe } from '@/components/brand-stripe';
 import { type BreadcrumbItem } from '@/types';
 
+interface LayoutProps {
+    children: React.ReactNode;
+    breadcrumbs?: BreadcrumbItem[];
+}
+
 /**
- * UI-4 app shell (design.md sections 5 and 6): the sidebar sits on the L0
- * background; the page lives on the L1 canvas (white, bordered, rounded) with
- * the brand stripe on top and an in-flow top row (sidebar toggle and
- * breadcrumbs). A skip link jumps past the navigation to the canvas.
+ * The daisyUI drawer (Blueprint: drawer + menu + navbar) in one place: the
+ * toggle, the page area (brand stripe, top bar, page, full width on the
+ * base-200 canvas) and the side with its overlay. A skip link jumps past the
+ * navigation to the page.
  */
-export default function AppSidebarLayout({ children, breadcrumbs = [] }: { children: React.ReactNode; breadcrumbs?: BreadcrumbItem[] }) {
+function Drawer({ children, breadcrumbs = [] }: LayoutProps) {
+    const { open, setOpen, id } = useAppDrawer();
+
     return (
-        <AppShell variant="sidebar">
-            <a
-                href="#main-content"
-                className="bg-primary text-primary-foreground focus-visible:ring-ring sr-only z-50 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus-visible:ring-2 focus-visible:ring-offset-2"
-            >
-                Skip to content
-            </a>
-            <AppSidebar />
-            <AppContent variant="sidebar" id="main-content" tabIndex={-1}>
+        <div className="drawer lg:drawer-open bg-base-200 min-h-svh">
+            <input
+                id={id}
+                type="checkbox"
+                className="drawer-toggle"
+                aria-label="Show navigation"
+                checked={open}
+                onChange={(e) => setOpen(e.target.checked)}
+            />
+            <div className="drawer-content flex min-w-0 flex-col">
+                <a href="#main-content" className="btn btn-primary btn-sm sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50">
+                    Skip to content
+                </a>
                 <BrandStripe />
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                {children}
-            </AppContent>
+                <main id="main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
+                    {children}
+                </main>
+            </div>
+            <div className="drawer-side is-drawer-close:overflow-visible z-30 print:hidden">
+                <label htmlFor={id} aria-label="Close navigation" className="drawer-overlay" />
+                <AppSidebar />
+            </div>
+        </div>
+    );
+}
+
+export default function AppSidebarLayout({ children, breadcrumbs = [] }: LayoutProps) {
+    return (
+        <AppShell>
+            <Drawer breadcrumbs={breadcrumbs}>{children}</Drawer>
         </AppShell>
     );
 }

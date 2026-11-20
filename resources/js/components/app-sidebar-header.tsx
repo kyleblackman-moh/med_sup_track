@@ -1,18 +1,28 @@
+import { useAppDrawer } from '@/components/app-shell';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
+import { PanelLeft } from 'lucide-react';
 
 /**
- * UI-4: the top row of the L1 canvas, in flow (not sticky): the sidebar toggle
- * (always reachable, also below md) and the 12px muted breadcrumb (design.md
- * section 6). The page's own header (PageHeader: title, subtitle, actions)
- * follows inside the page. Hidden in print.
+ * Top bar of the page area (daisyUI navbar): the drawer toggle, which pins or
+ * collapses the side on desktop and opens it on phones, then the breadcrumbs.
+ * Hidden in print.
  */
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
+    const { id, open } = useAppDrawer();
+
     return (
-        <div className="flex min-h-12 shrink-0 items-center gap-2 px-4 pt-3 text-xs md:px-6 print:hidden">
-            <SidebarTrigger className="-ml-1" />
-            <Breadcrumbs breadcrumbs={breadcrumbs} />
+        <div className="navbar bg-base-100 border-base-300 min-h-12 gap-2 border-b px-2 py-0 lg:px-4 print:hidden">
+            <label
+                htmlFor={id}
+                className="btn btn-ghost btn-square btn-sm transition-transform active:scale-95"
+                aria-label={open ? 'Collapse navigation' : 'Expand navigation'}
+            >
+                <PanelLeft className="size-4" aria-hidden="true" />
+            </label>
+            <div className="min-w-0 text-xs capitalize">
+                <Breadcrumbs breadcrumbs={breadcrumbs} />
+            </div>
         </div>
     );
 }

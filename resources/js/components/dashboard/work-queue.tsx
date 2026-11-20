@@ -1,10 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/status-pill';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Inbox } from 'lucide-react';
 import { useState } from 'react';
 
 export interface WorkQueueItem {
@@ -33,12 +32,13 @@ function waitingLabel(days: number | null): string {
     return days === 1 ? '1 day' : `${days} days`;
 }
 
-/** "Needs my action": built on the server (WorkQueue), oldest first. Each row opens the case, where the action is taken. */
+const actionBtn = 'btn btn-sm whitespace-nowrap capitalize transition-transform active:scale-[0.97]';
+
+/** "Needs your action": built on the server (WorkQueue), oldest first. Each row opens the case, where the action is taken. */
 export function WorkQueue({ queue }: { queue: WorkQueueData }) {
     const [step, setStep] = useState<string | null>(null);
     const groups = queue.groups.filter((g) => g.count > 0);
     const items = step ? queue.items.filter((i) => i.step === step) : queue.items;
-    const cell = 'h-12 border-b border-border px-3 whitespace-nowrap';
 
     const chip = (key: string | null, label: string, count: number) => (
         <button
@@ -46,120 +46,114 @@ export function WorkQueue({ queue }: { queue: WorkQueueData }) {
             type="button"
             aria-pressed={step === key}
             onClick={() => setStep(key)}
-            className={cn(
-                'focus-visible:ring-ring inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm outline-none focus-visible:ring-2',
-                step === key ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-muted/60',
-            )}
+            className={cn('btn btn-sm gap-1.5 capitalize transition-colors', step === key ? 'btn-neutral' : 'btn-ghost border-base-300 border')}
         >
             {label}
-            <span className="tabular-nums opacity-80">{count}</span>
+            <span className="badge badge-sm badge-ghost tabular-nums">{count}</span>
         </button>
     );
 
     return (
-        <section aria-labelledby="work-queue-heading" className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="work-queue-heading" className="text-base font-semibold">
-                    Work queue
-                </h2>
-                <span className="text-muted-foreground text-sm">Oldest first</span>
-            </div>
-
-            {groups.length > 0 && (
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Filter the work queue">
-                    {chip(null, 'All', queue.items.length)}
-                    {groups.map((g) => chip(g.key, g.label, g.count))}
+        <section
+            aria-labelledby="work-queue-heading"
+            className="card bg-base-100 border-base-300 min-w-0 border transition-shadow duration-200 hover:shadow-md"
+        >
+            <div className="card-body min-w-0 gap-3 p-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
+                    <h2 id="work-queue-heading" className="card-title text-base capitalize">
+                        <Inbox className="text-primary size-4" aria-hidden="true" />
+                        Needs your action
+                    </h2>
+                    <span className="text-base-content/60 text-xs capitalize">Oldest first</span>
                 </div>
-            )}
 
-            <div className="bg-card border-border rounded-lg border shadow-sm">
+                {groups.length > 1 && (
+                    <div className="flex flex-wrap gap-2 px-4" role="group" aria-label="Filter the work queue">
+                        {chip(null, 'All', queue.items.length)}
+                        {groups.map((g) => chip(g.key, g.label, g.count))}
+                    </div>
+                )}
+
                 {items.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-                        <CircleCheck className="text-status-success-foreground size-8" aria-hidden="true" />
-                        <p className="text-sm font-medium">Nothing needs your action right now.</p>
+                        <CircleCheck className="text-success size-8" aria-hidden="true" />
+                        <p className="font-medium">Nothing needs your action right now.</p>
+                        <p className="text-base-content/70 max-w-sm text-sm">New work appears here as soon as a case reaches your desk.</p>
                     </div>
                 ) : (
                     <>
-                        <div className="hidden overflow-x-auto md:block">
-                            <table className="w-full border-separate border-spacing-0 text-sm">
+                        <div className="hidden max-w-full overflow-x-auto md:block">
+                            <table className="table-sm table">
                                 <caption className="sr-only">Cases waiting on you, oldest first</caption>
                                 <thead>
-                                    <tr className="text-muted-foreground text-left text-xs">
-                                        {['Action', 'Reference', 'Item', 'Organisation', 'Status', 'Waiting'].map((h, i) => (
-                                            <th
-                                                key={h}
-                                                scope="col"
-                                                className={cn(
-                                                    'bg-muted/60 border-border h-10 border-b px-3 font-medium whitespace-nowrap',
-                                                    i === 0 && 'rounded-tl-lg',
-                                                    i === 5 && 'rounded-tr-lg text-right',
-                                                    h === 'Item' && 'w-full',
-                                                    h === 'Organisation' && 'hidden lg:table-cell',
-                                                )}
-                                            >
-                                                {h}
-                                            </th>
-                                        ))}
+                                    <tr className="capitalize">
+                                        <th>Action</th>
+                                        <th>Reference</th>
+                                        <th className="w-full">Item</th>
+                                        <th>Status</th>
+                                        <th className="text-right">Waiting</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody
+                                    className="motion-safe:transition-opacity motion-safe:duration-300 motion-safe:starting:opacity-0"
+                                    key={step ?? 'all'}
+                                >
                                     {items.map((item) => (
-                                        <tr
-                                            key={item.id}
-                                            // The action link covers the row (rowLink); no onClick on the row.
-                                            className="hover:bg-muted/60 focus-within:bg-muted/60 relative"
-                                        >
-                                            <td className={cell}>
-                                                <Button asChild size="sm" className={cn('h-8', rowLink)}>
-                                                    <Link href={route('cases.show', item.case_id)}>
-                                                        {item.action}
-                                                        <span className="sr-only"> for {item.reference_no ?? 'this case'}</span>
-                                                    </Link>
-                                                </Button>
+                                        // The action link covers the row (rowLink); no onClick on the row.
+                                        <tr key={item.id} className="hover:bg-base-200 focus-within:bg-base-200 relative transition-colors">
+                                            <td>
+                                                <Link href={route('cases.show', item.case_id)} className={cn(actionBtn, rowLink)}>
+                                                    {item.action}
+                                                    <span className="sr-only"> for {item.reference_no ?? 'this case'}</span>
+                                                </Link>
                                             </td>
-                                            <td className={cn(cell, 'font-mono text-[13px] font-medium')}>{item.reference_no ?? '—'}</td>
-                                            <td className={cn(cell, 'max-w-0 truncate')} title={item.item_description ?? undefined}>
-                                                {item.item_description ?? '—'}
+                                            <td className="font-mono text-[13px] font-medium whitespace-nowrap">{item.reference_no ?? '—'}</td>
+                                            <td className="max-w-0 min-w-44">
+                                                <span className="block truncate" title={item.item_description ?? undefined}>
+                                                    {item.item_description ?? '—'}
+                                                </span>
+                                                {item.organisation && (
+                                                    <span className="text-base-content/60 block truncate text-xs">{item.organisation}</span>
+                                                )}
                                             </td>
-                                            <td className={cn(cell, 'hidden lg:table-cell')}>{item.organisation ?? '—'}</td>
-                                            <td className={cell}>
+                                            <td>
                                                 <StatusPill label={item.status_label} tone={item.status_tone} />
                                             </td>
-                                            <td className={cn(cell, 'text-right tabular-nums')}>{waitingLabel(item.days_waiting)}</td>
+                                            <td className="text-right whitespace-nowrap tabular-nums">{waitingLabel(item.days_waiting)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
 
-                        <ul className="divide-border divide-y md:hidden">
+                        <ul className="list md:hidden">
                             {items.map((item) => (
-                                <li key={item.id}>
-                                    <Link
-                                        href={route('cases.show', item.case_id)}
-                                        className="hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-ring block space-y-1 p-4 outline-none focus-visible:ring-2 focus-visible:ring-inset"
-                                    >
-                                        <span className="flex items-center justify-between gap-2">
-                                            <span className="text-primary text-sm font-semibold">{item.action}</span>
-                                            <span className="text-xs tabular-nums">{waitingLabel(item.days_waiting)}</span>
-                                        </span>
-                                        <span className="font-mono text-[13px] font-medium">{item.reference_no ?? '—'}</span>
-                                        <span className="text-muted-foreground block truncate text-sm">{item.item_description ?? '—'}</span>
+                                <li key={item.id} className="list-row items-center">
+                                    <div className="list-col-grow min-w-0">
+                                        <div className="font-mono text-[13px] font-medium">{item.reference_no ?? '—'}</div>
+                                        <div className="truncate text-sm">{item.item_description ?? '—'}</div>
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                            <StatusPill label={item.status_label} tone={item.status_tone} />
+                                            <span className="tabular-nums">{waitingLabel(item.days_waiting)}</span>
+                                        </div>
+                                    </div>
+                                    <Link href={route('cases.show', item.case_id)} className={actionBtn}>
+                                        {item.action}
+                                        <span className="sr-only"> for {item.reference_no ?? 'this case'}</span>
                                     </Link>
                                 </li>
                             ))}
                         </ul>
                     </>
                 )}
-                {queue.truncated && (
-                    <p className="text-muted-foreground border-border border-t px-3 py-2.5 text-sm">
-                        Showing the oldest cases only. Use{' '}
-                        <Link href={route('cases.index')} className="text-primary underline-offset-2 hover:underline">
-                            File tracking
-                        </Link>{' '}
-                        for the full list.
-                    </p>
-                )}
+
+                <div className="border-base-300 text-base-content/70 border-t px-4 py-3 text-sm">
+                    {queue.truncated ? 'Showing the oldest cases only. ' : ''}Everything else is in{' '}
+                    <Link href={route('cases.index')} className="link">
+                        File tracking
+                    </Link>
+                    .
+                </div>
             </div>
         </section>
     );

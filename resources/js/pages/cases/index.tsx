@@ -14,7 +14,7 @@ interface Props {
     abilities: CaseListCan;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Cases', href: '/cases' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'File tracking', href: '/cases' }];
 
 /** Staff case register (slice 9a). Read-only; filters, sorting and paging are server-side and live in the URL. */
 export default function CasesIndex({ cases, filters, options, abilities }: Props) {
@@ -52,14 +52,14 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Cases" />
+            <Head title="File tracking" />
 
-            <div className="bg-background text-foreground w-full p-6">
-                <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-baseline gap-3">
-                        <h1 className="text-xl font-semibold">Cases</h1>
-                        <span className="text-muted-foreground text-sm tabular-nums" aria-live="polite">
-                            {cases.total} {cases.total === 1 ? 'case' : 'cases'}
+            <div className="w-full min-w-0 px-4 py-4 lg:px-6">
+                <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-baseline gap-3">
+                        <h1 className="text-xl font-semibold capitalize">File tracking</h1>
+                        <span className="text-base-content/70 text-sm tabular-nums" aria-live="polite">
+                            {cases.total > 0 ? `Showing ${cases.from}–${cases.to} of ${cases.total}` : 'No cases'}
                         </span>
                     </div>
                     {abilities.create && <NewRequestButton />}

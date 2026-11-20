@@ -1,32 +1,29 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
 import { ChevronsUpDown } from 'lucide-react';
 
+/** The signed-in user at the foot of the drawer; opens Settings and Log out. */
 export function NavUser() {
     const { auth } = usePage<SharedData>().props;
-    const { state } = useSidebar();
-    const isMobile = useIsMobile();
 
     return (
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton size="lg" className="text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent group">
-                            <UserInfo user={auth.user} />
-                            <ChevronsUpDown className="ml-auto size-4" />
-                        </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-full min-w-56" align="end" side={!isMobile && state === 'collapsed' ? 'right' : 'top'}>
-                        <UserMenuContent user={auth.user} />
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </SidebarMenuItem>
-        </SidebarMenu>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    className="btn btn-ghost is-drawer-close:justify-center is-drawer-close:px-0 is-drawer-close:[&>.grid]:hidden h-auto w-full justify-start gap-2 px-2 py-2 font-normal"
+                    aria-label={`Account menu for ${auth.user.name}`}
+                >
+                    <UserInfo user={auth.user} />
+                    <ChevronsUpDown className="is-drawer-close:hidden ml-auto size-4" aria-hidden="true" />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-56" align="start" side="top">
+                <UserMenuContent user={auth.user} />
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

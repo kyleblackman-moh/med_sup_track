@@ -1,6 +1,5 @@
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid } from 'lucide-react';
@@ -30,7 +29,6 @@ const casesNavItem: NavItem = {
 
 // Office of the CMO shortcuts: saved views of the case register. Shown when the
 // server shares nav.cmo_office; the /cases routes authorise as usual.
-// Queries & responses is added when queries are built (Phase 2).
 const cmoNavItems: NavItem[] = [
     { title: 'To review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
     { title: 'CAB', url: '/cases?awaiting=funding', icon: Landmark },
@@ -38,36 +36,31 @@ const cmoNavItems: NavItem[] = [
     { title: 'Drafts', url: '/cases?status=NON_OBJECTION_GRANTED', icon: FilePen },
 ];
 
+/**
+ * The drawer side's panel (Blueprint: menu w-full); the layout places it in drawer-side. Full width when open,
+ * an icon rail with tooltips when collapsed on desktop, an overlay on phones.
+ */
 export function AppSidebar() {
     const { can, nav } = usePage<SharedData>().props;
     const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
     const showCmo = Boolean(nav?.cmo_office);
 
     return (
-        // UI-4: the sidebar sits on L0 with no background or border of its own; the "inset"
-        // variant puts the page on the L1 canvas beside it (design.md sections 5 and 6).
-        <Sidebar collapsible="icon" variant="inset" className="print:hidden">
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href="/dashboard" prefetch>
-                                <AppLogo />
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
-
-            <SidebarContent>
+        <aside className="bg-base-100 border-base-300 is-drawer-close:w-16 flex min-h-full w-64 flex-col border-r transition-[width] duration-200">
+            <Link
+                href="/dashboard"
+                prefetch
+                className="is-drawer-close:justify-center is-drawer-close:px-0 is-drawer-close:[&>.grid]:hidden flex h-14 shrink-0 items-center gap-2 px-4"
+            >
+                <AppLogo />
+            </Link>
+            <nav aria-label="Main" className="flex grow flex-col">
                 <NavMain items={navItems} />
                 {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} />}
-            </SidebarContent>
-
-            <SidebarFooter className="border-t">
-                {/* The starter kit's Repository and Documentation links are removed (design.md section 6). */}
+            </nav>
+            <div className="border-base-300 border-t p-2">
                 <NavUser />
-            </SidebarFooter>
-        </Sidebar>
+            </div>
+        </aside>
     );
 }

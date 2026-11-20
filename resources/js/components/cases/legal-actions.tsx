@@ -1,15 +1,11 @@
+import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/cases/action-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { type LegalForm, type ReviewerOption } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
+import { FolderPen, Gavel, Scale } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-
-const TEXTAREA =
-    'border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]';
 
 /** First error for a field or any of its items (legal_officers, legal_officers.0, ...). */
 function fieldError(errors: Record<string, string>, field: string): string | undefined {
@@ -30,28 +26,37 @@ export function PrepareFileForm({ caseId, defaultFileNo }: { caseId: string; def
     };
 
     return (
-        <form onSubmit={submit} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Prepare the file</h3>
-            <div className="grid max-w-sm gap-1.5">
-                <Label htmlFor="file-no">File number</Label>
-                <Input
+        <ActionPanel
+            title="Prepare the file"
+            icon={FolderPen}
+            description="Give the case its file number, then mark the file prepared."
+            onSubmit={submit}
+            actions={
+                <Button type="submit" size="sm" disabled={form.processing || form.data.file_no.trim() === ''}>
+                    {form.processing ? 'Saving…' : 'Mark file prepared'}
+                </Button>
+            }
+        >
+            <fieldset className="fieldset py-0">
+                <label className="label text-base-content text-sm font-medium" htmlFor="file-no">
+                    File number
+                </label>
+                <input
                     id="file-no"
-                    className="font-mono"
+                    type="text"
+                    className="input input-sm w-full max-w-sm font-mono"
                     maxLength={30}
                     value={form.data.file_no}
                     onChange={(e) => form.setData('file_no', e.target.value)}
                     aria-invalid={errors.file_no ? true : undefined}
                     aria-describedby="file-no-hint file-no-error"
                 />
-                <p id="file-no-hint" className="text-muted-foreground text-xs">
+                <p id="file-no-hint" className="label whitespace-normal">
                     Starts with the file series. Add the rest of the number, or edit it. Up to 30 characters. Staff only.
                 </p>
                 <InputError id="file-no-error" message={errors.file_no ?? errors.prepare} />
-            </div>
-            <Button type="submit" disabled={form.processing || form.data.file_no.trim() === ''}>
-                {form.processing ? 'Saving…' : 'Mark file prepared'}
-            </Button>
-        </form>
+            </fieldset>
+        </ActionPanel>
     );
 }
 
@@ -79,11 +84,16 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
     };
 
     return (
-        <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Legal</h3>
-            <Button type="button" onClick={() => setOpen(true)} disabled={form.processing}>
-                Send to Legal
-            </Button>
+        <ActionPanel
+            title="Send to Legal"
+            icon={Scale}
+            description="Assign 1 or 2 Legal officers to review the file."
+            actions={
+                <Button type="button" size="sm" onClick={() => setOpen(true)} disabled={form.processing}>
+                    Send to Legal
+                </Button>
+            }
+        >
             <InputError message={errors.send_to_legal} />
 
             <Dialog open={open} onOpenChange={(next) => !form.processing && setOpen(next)}>
@@ -94,27 +104,29 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
                             <DialogDescription>The chosen Legal officers are assigned to the case and can see it in their list.</DialogDescription>
                         </DialogHeader>
 
-                        <fieldset className="grid gap-2" aria-describedby="legal-officers-hint legal-officers-error">
-                            <legend className="text-sm font-medium">Legal officers</legend>
-                            <p id="legal-officers-hint" className="text-muted-foreground text-xs">
+                        <fieldset className="fieldset gap-2 py-0" aria-describedby="legal-officers-hint legal-officers-error">
+                            <legend className="fieldset-legend pt-0">Legal officers</legend>
+                            <p id="legal-officers-hint" className="label whitespace-normal">
                                 Choose 1 or 2.
                             </p>
                             {officers.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">No eligible officers are available.</p>
+                                <p className="text-base-content/70 text-sm">No eligible officers are available.</p>
                             ) : (
-                                <ul className="grid max-h-48 gap-2 overflow-y-auto rounded-md border p-3 sm:grid-cols-2">
+                                <ul className="border-base-300 rounded-box grid max-h-48 gap-2 overflow-y-auto border p-3 sm:grid-cols-2">
                                     {officers.map((o) => {
                                         const id = `legal-officer-${o.id}`;
                                         return (
-                                            <li key={o.id} className="flex items-center gap-2">
-                                                <Checkbox
-                                                    id={id}
-                                                    checked={form.data.legal_officers.includes(o.id)}
-                                                    onCheckedChange={(v) => toggle(o.id, v === true)}
-                                                />
-                                                <Label htmlFor={id} className="font-normal">
+                                            <li key={o.id}>
+                                                <label htmlFor={id} className="label text-base-content cursor-pointer gap-2 text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={id}
+                                                        className="checkbox checkbox-sm"
+                                                        checked={form.data.legal_officers.includes(o.id)}
+                                                        onChange={(e) => toggle(o.id, e.target.checked)}
+                                                    />
                                                     {o.name}
-                                                </Label>
+                                                </label>
                                             </li>
                                         );
                                     })}
@@ -123,23 +135,25 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
                             <InputError id="legal-officers-error" message={fieldError(errors, 'legal_officers')} />
                         </fieldset>
 
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="legal-instruction">Instruction (optional)</Label>
+                        <fieldset className="fieldset py-0">
+                            <label className="label text-base-content text-sm font-medium" htmlFor="legal-instruction">
+                                Instruction (optional)
+                            </label>
                             <textarea
                                 id="legal-instruction"
                                 rows={3}
                                 maxLength={500}
-                                className={TEXTAREA}
+                                className={actionTextareaClass}
                                 value={form.data.instruction}
                                 onChange={(e) => form.setData('instruction', e.target.value)}
                                 aria-invalid={errors.instruction ? true : undefined}
                                 aria-describedby="legal-instruction-hint legal-instruction-error"
                             />
-                            <p id="legal-instruction-hint" className="text-muted-foreground text-xs">
+                            <p id="legal-instruction-hint" className="label whitespace-normal">
                                 Up to 500 characters. Shown to staff in the case timeline.
                             </p>
                             <InputError id="legal-instruction-error" message={errors.instruction} />
-                        </div>
+                        </fieldset>
 
                         <DialogFooter className="gap-2">
                             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={form.processing}>
@@ -152,7 +166,7 @@ export function SendToLegal({ caseId, reference, officers }: { caseId: string; r
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </ActionPanel>
     );
 }
 
@@ -182,13 +196,21 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
         });
 
     return (
-        <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Legal decision</h3>
-
-            <fieldset className="grid gap-2" aria-describedby="legal-decision-error">
-                <legend className="text-sm font-medium">Decision</legend>
+        <ActionPanel
+            title="Legal decision"
+            icon={Gavel}
+            description="Choose a decision. You confirm a summary before it is recorded."
+            onSubmit={review}
+            actions={
+                <Button type="submit" size="sm" disabled={form.processing || form.data.decision === ''}>
+                    Record decision
+                </Button>
+            }
+        >
+            <fieldset className="fieldset gap-2 py-0" aria-describedby="legal-decision-error">
+                <legend className="fieldset-legend pt-0">Decision</legend>
                 {def.decisions.map((d) => (
-                    <div key={d.value} className="flex items-center gap-2">
+                    <label key={d.value} htmlFor={`legal-${d.value}`} className="label text-base-content cursor-pointer gap-2 text-sm">
                         <input
                             type="radio"
                             id={`legal-${d.value}`}
@@ -196,37 +218,33 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
                             value={d.value}
                             checked={form.data.decision === d.value}
                             onChange={() => form.setData('decision', d.value)}
-                            className="accent-primary focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                            className="radio radio-sm"
                         />
-                        <Label htmlFor={`legal-${d.value}`} className="font-normal">
-                            {d.label}
-                        </Label>
-                    </div>
+                        {d.label}
+                    </label>
                 ))}
                 <InputError id="legal-decision-error" message={errors.decision ?? errors.legal_decision} />
             </fieldset>
 
-            <div className="grid gap-1.5">
-                <Label htmlFor="legal-reason">{needsReason ? 'Reason for the query (required)' : 'Note (optional)'}</Label>
+            <fieldset className="fieldset py-0">
+                <label className="label text-base-content text-sm font-medium" htmlFor="legal-reason">
+                    {needsReason ? 'Reason for the query (required)' : 'Note (optional)'}
+                </label>
                 <textarea
                     id="legal-reason"
                     rows={3}
                     maxLength={500}
-                    className={TEXTAREA}
+                    className={actionTextareaClass}
                     value={form.data.reason}
                     onChange={(e) => form.setData('reason', e.target.value)}
                     aria-invalid={errors.reason ? true : undefined}
                     aria-describedby="legal-reason-hint legal-reason-error"
                 />
-                <p id="legal-reason-hint" className="text-muted-foreground text-xs">
+                <p id="legal-reason-hint" className="label whitespace-normal">
                     {needsReason ? '10 to 500 characters. Staff can see it; the vendor cannot.' : 'Up to 500 characters. Staff only.'}
                 </p>
                 <InputError id="legal-reason-error" message={errors.reason} />
-            </div>
-
-            <Button type="submit" disabled={form.processing || form.data.decision === ''}>
-                Record decision
-            </Button>
+            </fieldset>
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
                 <DialogContent>
@@ -234,14 +252,13 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
                         <DialogTitle>Record this Legal decision?</DialogTitle>
                         <DialogDescription>Check the summary. Once recorded, the decision cannot be changed here.</DialogDescription>
                     </DialogHeader>
-                    <dl className="grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
-                        <dt className="text-muted-foreground">Decision</dt>
-                        <dd className="font-medium">{chosen?.label}</dd>
-                        <dt className="text-muted-foreground">{needsReason ? 'Reason' : 'Note'}</dt>
-                        <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
-                        <dt className="text-muted-foreground">Next</dt>
-                        <dd>{needsReason ? 'The case returns to the CMO.' : 'The case goes to the PS office.'}</dd>
-                    </dl>
+                    <ActionFacts
+                        items={[
+                            ['Decision', chosen?.label ?? ''],
+                            [needsReason ? 'Reason' : 'Note', reason === '' ? 'None' : reason],
+                            ['Next', needsReason ? 'The case returns to the CMO.' : 'The case goes to the PS office.'],
+                        ]}
+                    />
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
                             Go back
@@ -252,6 +269,6 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </form>
+        </ActionPanel>
     );
 }

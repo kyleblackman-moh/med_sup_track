@@ -1,6 +1,5 @@
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { KeyboardEvent, useRef } from 'react';
 
 export interface CaseTab<T extends string = string> {
@@ -15,8 +14,8 @@ interface CaseTabsProps<T extends string> {
 }
 
 /**
- * Tab strip for the staff case view, the same pattern as the vendor request
- * form: wraps on narrow screens, arrow keys move between tabs. Neutral token
+ * Tab strip for the staff case view (daisyUI tabs-border). One row that
+ * scrolls sideways on narrow screens; arrow keys move between tabs. Neutral
  * colours only (no complete/incomplete or lateness meaning).
  */
 export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsProps<T>) {
@@ -34,36 +33,36 @@ export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsP
     };
 
     return (
-        <div role="tablist" aria-label="Case sections" className="flex flex-wrap gap-1 border-b">
-            {tabs.map((tab, index) => {
-                const selected = tab.id === active;
+        <div className="border-base-300 -mx-1 overflow-x-auto border-b">
+            <div role="tablist" aria-label="Case sections" className="tabs tabs-border flex-nowrap px-1">
+                {tabs.map((tab, index) => {
+                    const selected = tab.id === active;
 
-                return (
-                    <button
-                        key={tab.id}
-                        ref={(el) => {
-                            refs.current[tab.id] = el;
-                        }}
-                        type="button"
-                        role="tab"
-                        id={`tab-${tab.id}`}
-                        aria-selected={selected}
-                        aria-controls={`panel-${tab.id}`}
-                        tabIndex={selected ? 0 : -1}
-                        onClick={() => onSelect(tab.id)}
-                        onKeyDown={(e) => onKeyDown(e, index)}
-                        className={cn(
-                            '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-[3px] px-3 py-2 text-sm whitespace-nowrap transition-colors',
-                            selected
-                                ? 'border-primary bg-muted text-foreground font-semibold'
-                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground border-transparent font-medium',
-                        )}
-                    >
-                        <span className="tabular-nums opacity-70">{index + 1}.</span>
-                        {tab.label}
-                    </button>
-                );
-            })}
+                    return (
+                        <button
+                            key={tab.id}
+                            ref={(el) => {
+                                refs.current[tab.id] = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            id={`tab-${tab.id}`}
+                            aria-selected={selected}
+                            aria-controls={`panel-${tab.id}`}
+                            tabIndex={selected ? 0 : -1}
+                            onClick={() => onSelect(tab.id)}
+                            onKeyDown={(e) => onKeyDown(e, index)}
+                            className={
+                                selected
+                                    ? 'tab tab-active shrink-0 font-semibold whitespace-nowrap capitalize transition-colors'
+                                    : 'tab shrink-0 whitespace-nowrap capitalize transition-colors'
+                            }
+                        >
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }
@@ -76,8 +75,8 @@ interface CaseTabNavProps<T extends string> {
 }
 
 /**
- * Previous / Next, pinned to the bottom of the screen on every tab. Moves
- * between tabs only (it never saves). On the last tab Next becomes Finish.
+ * Back / Next at the end of the tab content. Moves between tabs only (it
+ * never saves). On the last tab Next becomes Finish, back to the case list.
  */
 export function CaseTabNav<T extends string>({ tabs, active, onSelect, finishHref }: CaseTabNavProps<T>) {
     const index = tabs.findIndex((t) => t.id === active);
@@ -85,25 +84,24 @@ export function CaseTabNav<T extends string>({ tabs, active, onSelect, finishHre
     const next = tabs[index + 1];
 
     return (
-        <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 z-10 -mx-4 border-t px-4 py-3 backdrop-blur">
-            <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" onClick={() => prev && onSelect(prev.id)} disabled={!prev}>
-                    {prev ? `Back: ${prev.label}` : 'Back'}
-                </Button>
-                <span className="text-muted-foreground ml-auto text-xs">
-                    {index + 1} of {tabs.length}
-                </span>
-                {next ? (
-                    <Button type="button" onClick={() => onSelect(next.id)}>
-                        Next: {next.label}
-                    </Button>
-                ) : (
-                    // The last tab (Actions) ends the walk-through: back to the case list.
-                    <Button asChild>
-                        <Link href={finishHref}>Finish: back to cases</Link>
-                    </Button>
-                )}
-            </div>
+        <div className="border-base-300 flex flex-wrap items-center gap-2 border-t pt-3 [&_.btn]:capitalize">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => prev && onSelect(prev.id)} disabled={!prev}>
+                <ArrowLeft className="size-4" aria-hidden="true" />
+                {prev ? prev.label : 'Back'}
+            </button>
+            <span className="text-base-content/60 ml-auto text-xs tabular-nums">
+                {index + 1} of {tabs.length}
+            </span>
+            {next ? (
+                <button type="button" className="btn btn-sm" onClick={() => onSelect(next.id)}>
+                    {next.label}
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                </button>
+            ) : (
+                <Link href={finishHref} className="btn btn-sm">
+                    Back to cases
+                </Link>
+            )}
         </div>
     );
 }

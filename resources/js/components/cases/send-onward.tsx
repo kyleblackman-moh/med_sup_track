@@ -1,20 +1,16 @@
+import { ActionFacts, actionTextareaClass } from '@/components/cases/action-panel';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { type GateState, type ReturnedBanner, type RouteDestination, type RoutePanel } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, type ReactNode, useState } from 'react';
 
 const TZ = 'America/Port_of_Spain';
-
-const TEXTAREA =
-    'border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]';
 
 function formatDateTime(iso: string | null): string {
     return iso ? new Date(iso).toLocaleString('en-TT', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -28,7 +24,7 @@ function fieldError(errors: Record<string, string>, field: string): string | und
 function Block({ title, children }: { title: string; children: ReactNode }) {
     return (
         <section className="space-y-2">
-            <h3 className="text-sm font-semibold">{title}</h3>
+            <h3 className="text-base-content text-sm font-semibold">{title}</h3>
             {children}
         </section>
     );
@@ -120,7 +116,7 @@ export function SendOnwardPanel({
 
     return (
         <Sheet open={open} onOpenChange={close}>
-            <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+            <SheetContent side="right" className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
                 <SheetHeader className="pr-8">
                     <SheetTitle>Send onward</SheetTitle>
                     <SheetDescription className="sr-only">Choose where this returned case goes next.</SheetDescription>
@@ -128,21 +124,21 @@ export function SendOnwardPanel({
                         <span className="font-mono font-semibold">{reference ?? 'Case'}</span>
                         <Badge variant="outline">{statusLabel}</Badge>
                     </div>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-base-content/70 text-sm">
                         {[procurementType, itemDescription].filter((part) => part).join(' · ') || 'No item description'}
                     </p>
                 </SheetHeader>
 
-                <div className="mt-4 space-y-5">
+                <div className="space-y-5">
                     {returned && (
                         <Block title="Why it came back">
-                            <div className="bg-muted space-y-1 rounded-lg border p-3 text-sm">
+                            <div className="bg-base-200 border-base-300 rounded-box space-y-1 border p-3 text-sm">
                                 <p className="font-medium">
                                     Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
                                     {returned.kind ? ` (${returned.kind})` : ''}
                                 </p>
                                 {returned.reason && <p className="whitespace-pre-line">{returned.reason}</p>}
-                                <p className="text-muted-foreground">
+                                <p className="text-base-content/70">
                                     {[returned.by, returned.at ? formatDateTime(returned.at) : null].filter((part) => part).join(', ')}
                                 </p>
                             </div>
@@ -160,46 +156,36 @@ export function SendOnwardPanel({
                     <Separator />
 
                     {confirming && chosen ? (
-                        <div className="space-y-4">
-                            <Block title="Check before sending">
-                                <dl className="grid gap-2 text-sm">
-                                    <div>
-                                        <dt className="text-muted-foreground">Send to</dt>
-                                        <dd className="font-medium">{chosen.label}</dd>
-                                        <dd className="text-muted-foreground">{chosen.consequence}</dd>
-                                    </div>
-                                    {toTechnocrats && (
-                                        <div>
-                                            <dt className="text-muted-foreground">Technocrats</dt>
-                                            <dd className="font-medium">{chosenNames.join(', ')}</dd>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <dt className="text-muted-foreground">Note</dt>
-                                        <dd className="whitespace-pre-line">{note}</dd>
-                                    </div>
-                                </dl>
-                            </Block>
-                            <div className="flex flex-wrap justify-end gap-2">
-                                <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={form.processing}>
-                                    Back
-                                </Button>
-                                <Button type="button" onClick={send} disabled={form.processing}>
-                                    {form.processing ? 'Sending…' : 'Send now'}
-                                </Button>
-                            </div>
-                        </div>
+                        <Block title="Check before sending">
+                            <ActionFacts
+                                items={[
+                                    [
+                                        'Send to',
+                                        <>
+                                            {chosen.label}
+                                            <span className="text-base-content/70 block font-normal">{chosen.consequence}</span>
+                                        </>,
+                                    ],
+                                    ...(toTechnocrats ? ([['Technocrats', chosenNames.join(', ')]] as [string, string][]) : []),
+                                    ['Note', note],
+                                ]}
+                            />
+                        </Block>
                     ) : (
-                        <form onSubmit={review} className="space-y-4" noValidate>
-                            <fieldset className="grid gap-2" aria-describedby="route-destination-hint route-destination-error">
-                                <legend className="text-sm font-semibold">Send to</legend>
+                        <form id="route-onward-form" onSubmit={review} className="space-y-4" noValidate>
+                            <fieldset className="fieldset gap-2 py-0" aria-describedby="route-destination-hint route-destination-error">
+                                <legend className="fieldset-legend pt-0">Send to</legend>
                                 {panel.suggested_line && (
-                                    <p id="route-destination-hint" className="text-muted-foreground text-sm">
+                                    <p id="route-destination-hint" className="text-base-content/70 text-sm">
                                         {panel.suggested_line}
                                     </p>
                                 )}
                                 {panel.destinations.map((d) => (
-                                    <div key={d.value} className="flex items-start gap-2">
+                                    <label
+                                        key={d.value}
+                                        htmlFor={`route-${d.value}`}
+                                        className="label text-base-content cursor-pointer items-start gap-2 text-sm whitespace-normal"
+                                    >
                                         <input
                                             type="radio"
                                             id={`route-${d.value}`}
@@ -208,39 +194,41 @@ export function SendOnwardPanel({
                                             checked={form.data.destination === d.value}
                                             disabled={!d.available}
                                             onChange={() => form.setData('destination', d.value)}
-                                            className="accent-primary focus-visible:ring-ring mt-0.5 size-4 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                                            className="radio radio-sm mt-0.5"
                                         />
-                                        <Label htmlFor={`route-${d.value}`} className="grid gap-0.5 font-normal">
+                                        <span className="grid gap-0.5">
                                             <span className="font-medium">{d.label}</span>
-                                            <span className="text-muted-foreground">{d.consequence}</span>
-                                        </Label>
-                                    </div>
+                                            <span className="text-base-content/70">{d.consequence}</span>
+                                        </span>
+                                    </label>
                                 ))}
                                 <InputError id="route-destination-error" message={errors.destination ?? errors.route} />
                             </fieldset>
 
                             {toTechnocrats && (
-                                <fieldset className="grid gap-2" aria-describedby="route-reviewers-hint route-reviewers-error">
-                                    <legend className="text-sm font-semibold">Technocrats</legend>
-                                    <p id="route-reviewers-hint" className="text-muted-foreground text-xs">
+                                <fieldset className="fieldset gap-2 py-0" aria-describedby="route-reviewers-hint route-reviewers-error">
+                                    <legend className="fieldset-legend pt-0">Technocrats</legend>
+                                    <p id="route-reviewers-hint" className="label whitespace-normal">
                                         Choose {panel.reviewers_min} to {panel.reviewers_max}.
                                     </p>
                                     {panel.technocrats.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm">No eligible Technocrats are available.</p>
+                                        <p className="text-base-content/70 text-sm">No eligible Technocrats are available.</p>
                                     ) : (
-                                        <ul className="grid max-h-48 gap-2 overflow-y-auto rounded-md border p-3 sm:grid-cols-2">
+                                        <ul className="border-base-300 rounded-box grid max-h-48 gap-2 overflow-y-auto border p-3 sm:grid-cols-2">
                                             {panel.technocrats.map((t) => {
                                                 const id = `route-reviewer-${t.id}`;
                                                 return (
-                                                    <li key={t.id} className="flex items-center gap-2">
-                                                        <Checkbox
-                                                            id={id}
-                                                            checked={form.data.reviewers.includes(t.id)}
-                                                            onCheckedChange={(v) => toggle(t.id, v === true)}
-                                                        />
-                                                        <Label htmlFor={id} className="font-normal">
+                                                    <li key={t.id}>
+                                                        <label htmlFor={id} className="label text-base-content cursor-pointer gap-2 text-sm">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={id}
+                                                                className="checkbox checkbox-sm"
+                                                                checked={form.data.reviewers.includes(t.id)}
+                                                                onChange={(e) => toggle(t.id, e.target.checked)}
+                                                            />
                                                             {t.name}
-                                                        </Label>
+                                                        </label>
                                                     </li>
                                                 );
                                             })}
@@ -250,35 +238,51 @@ export function SendOnwardPanel({
                                 </fieldset>
                             )}
 
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="route-note">Note</Label>
+                            <fieldset className="fieldset py-0">
+                                <label className="label text-base-content text-sm font-medium" htmlFor="route-note">
+                                    Note
+                                </label>
                                 <textarea
                                     id="route-note"
                                     rows={4}
                                     maxLength={panel.note_max}
-                                    className={TEXTAREA}
+                                    className={actionTextareaClass}
                                     value={form.data.note}
                                     onChange={(e) => form.setData('note', e.target.value)}
                                     aria-invalid={errors.note ? true : undefined}
                                     aria-describedby="route-note-hint route-note-error"
                                 />
-                                <p id="route-note-hint" className="text-muted-foreground text-xs">
+                                <p id="route-note-hint" className="label whitespace-normal">
                                     {panel.note_min} to {panel.note_max} characters. Shown to staff in the case history.
                                 </p>
                                 <InputError id="route-note-error" message={errors.note} />
-                            </div>
-
-                            <div className="flex flex-wrap justify-end gap-2">
-                                <Button type="button" variant="ghost" onClick={() => close(false)}>
-                                    Cancel
-                                </Button>
-                                <Button type="submit" disabled={!ready}>
-                                    Review
-                                </Button>
-                            </div>
+                            </fieldset>
                         </form>
                     )}
                 </div>
+
+                {/* The sheet's buttons, always last: pinned to the bottom edge while the body scrolls. */}
+                <SheetFooter className="border-base-300 bg-base-100 sticky bottom-0 -mx-6 mt-auto -mb-6 flex-row flex-wrap justify-end border-t px-6 py-3">
+                    {confirming && chosen ? (
+                        <>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={form.processing}>
+                                Back
+                            </Button>
+                            <Button type="button" size="sm" onClick={send} disabled={form.processing}>
+                                {form.processing ? 'Sending…' : 'Send now'}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => close(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" form="route-onward-form" size="sm" disabled={!ready}>
+                                Review
+                            </Button>
+                        </>
+                    )}
+                </SheetFooter>
             </SheetContent>
         </Sheet>
     );

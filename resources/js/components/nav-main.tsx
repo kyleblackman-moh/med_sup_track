@@ -1,4 +1,3 @@
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 
@@ -13,23 +12,37 @@ function isActive(itemUrl: string, pageUrl: string): boolean {
     return VIEW_KEYS.every((key) => (item.searchParams.get(key) ?? '') === (page.searchParams.get(key) ?? ''));
 }
 
-export function NavMain({ items = [], label = 'Platform' }: { items: NavItem[]; label?: string }) {
+/**
+ * One group of drawer links (daisyUI menu). In the icon rail the label hides
+ * and a tooltip names the link.
+ */
+export function NavMain({ items = [], label }: { items: NavItem[]; label?: string }) {
     const page = usePage();
+
     return (
-        <SidebarGroup className="px-2 py-0">
-            <SidebarGroupLabel>{label}</SidebarGroupLabel>
-            <SidebarMenu>
-                {items.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={isActive(item.url, page.url)} tooltip={item.title}>
-                            <Link href={item.url} prefetch>
-                                {item.icon && <item.icon />}
-                                <span>{item.title}</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                ))}
-            </SidebarMenu>
-        </SidebarGroup>
+        <ul className="menu w-full capitalize">
+            {label && <li className="menu-title is-drawer-close:hidden">{label}</li>}
+            {items.map((item) => {
+                const active = isActive(item.url, page.url);
+                return (
+                    <li key={item.title}>
+                        <Link
+                            href={item.url}
+                            prefetch
+                            className={
+                                active
+                                    ? 'menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
+                                    : 'is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
+                            }
+                            data-tip={item.title}
+                            aria-current={active ? 'page' : undefined}
+                        >
+                            {item.icon && <item.icon className="size-4 shrink-0" aria-hidden="true" />}
+                            <span className="is-drawer-close:hidden">{item.title}</span>
+                        </Link>
+                    </li>
+                );
+            })}
+        </ul>
     );
 }

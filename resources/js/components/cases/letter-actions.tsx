@@ -1,10 +1,10 @@
+import { ActionFacts, ActionPanel } from '@/components/cases/action-panel';
 import { formatDay } from '@/components/cases/case-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/react';
+import { Lock, MailCheck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 type LetterData = { letter_date: string; letter_reference: string; emailed_on: string; hardcopy_sent_on: string };
@@ -36,11 +36,15 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
         });
 
     const dateField = (field: keyof LetterData, id: string, label: string, hint?: string) => (
-        <div className="grid gap-1.5">
-            <Label htmlFor={id}>{label}</Label>
-            <Input
+        <fieldset className="fieldset py-0">
+            <label className="label text-base-content text-sm font-medium" htmlFor={id}>
+                {label}
+            </label>
+            <input
                 id={id}
                 type="date"
+                aria-label={label}
+                className="input input-sm w-full"
                 max={today}
                 value={d[field]}
                 onChange={(e) => form.setData(field, e.target.value)}
@@ -48,12 +52,12 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                 aria-describedby={`${id}-hint ${id}-error`}
             />
             {hint && (
-                <p id={`${id}-hint`} className="text-muted-foreground text-xs">
+                <p id={`${id}-hint`} className="label whitespace-normal">
                     {hint}
                 </p>
             )}
             <InputError id={`${id}-error`} message={errors[field]} />
-        </div>
+        </fieldset>
     );
 
     const summary: [string, string][] = [
@@ -64,37 +68,43 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
     ];
 
     return (
-        <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Issue the letter</h3>
-            <p className="text-muted-foreground text-sm">Send the letter by email and hardcopy yourself, then record it here.</p>
-
-            <div className="grid max-w-xl gap-4 sm:grid-cols-2">
+        <ActionPanel
+            title="Issue the letter"
+            icon={MailCheck}
+            description="Send the letter by email and hardcopy yourself, then record it here."
+            onSubmit={review}
+            actions={
+                <Button type="submit" size="sm" disabled={!ready || form.processing}>
+                    Review
+                </Button>
+            }
+        >
+            <div className="grid max-w-xl gap-x-4 gap-y-2 sm:grid-cols-2">
                 {dateField('letter_date', 'letter-date', 'Letter date', 'The date on the signed letter.')}
-                <div className="grid gap-1.5">
-                    <Label htmlFor="letter-reference">Reference (optional)</Label>
-                    <Input
+                <fieldset className="fieldset py-0">
+                    <label className="label text-base-content text-sm font-medium" htmlFor="letter-reference">
+                        Reference (optional)
+                    </label>
+                    <input
                         id="letter-reference"
-                        className="font-mono"
+                        type="text"
+                        className="input input-sm w-full font-mono"
                         maxLength={40}
                         value={d.letter_reference}
                         onChange={(e) => form.setData('letter_reference', e.target.value)}
                         aria-invalid={errors.letter_reference ? true : undefined}
                         aria-describedby="letter-reference-hint letter-reference-error"
                     />
-                    <p id="letter-reference-hint" className="text-muted-foreground text-xs">
+                    <p id="letter-reference-hint" className="label whitespace-normal">
                         As written on the letter. Up to 40 characters.
                     </p>
                     <InputError id="letter-reference-error" message={errors.letter_reference} />
-                </div>
+                </fieldset>
                 {dateField('emailed_on', 'letter-emailed-on', 'Emailed on')}
                 {dateField('hardcopy_sent_on', 'letter-hardcopy-sent-on', 'Hardcopy sent on')}
             </div>
-            <p className="text-muted-foreground text-xs">Record at least one: the email date, the hardcopy date, or both.</p>
+            <p className="text-base-content/70 text-xs">Record at least one: the email date, the hardcopy date, or both.</p>
             <InputError message={errors.issue_letter} />
-
-            <Button type="submit" disabled={!ready || form.processing}>
-                Review
-            </Button>
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
                 <DialogContent>
@@ -102,14 +112,7 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                         <DialogTitle>Record the letter as issued?</DialogTitle>
                         <DialogDescription>The vendor will see that non-objection is granted, with the letter date and reference.</DialogDescription>
                     </DialogHeader>
-                    <dl className="grid gap-2 text-sm">
-                        {summary.map(([label, value]) => (
-                            <div key={label} className="grid grid-cols-[10rem_1fr] gap-2">
-                                <dt className="text-muted-foreground">{label}</dt>
-                                <dd className="font-medium break-all">{value}</dd>
-                            </div>
-                        ))}
-                    </dl>
+                    <ActionFacts items={summary} />
                     <DialogFooter className="gap-2">
                         <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={form.processing}>
                             Back
@@ -120,7 +123,7 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </form>
+        </ActionPanel>
     );
 }
 
@@ -137,11 +140,16 @@ export function CloseCaseButton({ caseId, reference }: { caseId: string; referen
         });
 
     return (
-        <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Close the case</h3>
-            <Button type="button" onClick={() => setConfirming(true)} disabled={form.processing}>
-                Close case
-            </Button>
+        <ActionPanel
+            title="Close the case"
+            icon={Lock}
+            description="A closed case is read-only and cannot be reopened."
+            actions={
+                <Button type="button" size="sm" onClick={() => setConfirming(true)} disabled={form.processing}>
+                    Close case
+                </Button>
+            }
+        >
             <InputError message={errors.close_case} />
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
@@ -160,6 +168,6 @@ export function CloseCaseButton({ caseId, reference }: { caseId: string; referen
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </ActionPanel>
     );
 }
