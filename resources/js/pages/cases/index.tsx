@@ -55,10 +55,11 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Cases" />
 
-            {/* NEXT: PageHeader and PageContent, as the other pages; the filters and search are unchanged. */}
-            <PageContent>
+            {/* Full width beside the drawer: px-4 py-4, lg:px-6 (PageContent's md:p-6 reset to p-4 first). */}
+            <PageContent className="space-y-3 px-4 py-4 md:p-4 lg:px-6">
                 <PageHeader
                     title="Cases"
+                    titleClassName="capitalize"
                     subtitle={
                         <span className="tabular-nums" aria-live="polite">
                             {cases.total} {cases.total === 1 ? 'case' : 'cases'}

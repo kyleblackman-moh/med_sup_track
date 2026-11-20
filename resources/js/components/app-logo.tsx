@@ -42,23 +42,22 @@ export default function AppLogo() {
 }
 
 /**
- * V2-4: the navy sidebar's header block (design.md section 6): the Ministry
- * crest when the server supplies its URL (brand.logo), else the shield-plus
- * tile; then "Ministry of Health" 16px/600 white and "Trinidad & Tobago" 13px
- * --navy-muted, centred. Collapsed to icons, only the mark shows. The crest is
+ * The drawer's header block: the Ministry crest when the server supplies its
+ * URL (brand.logo), else the shield-plus tile; then "Ministry of Health" and
+ * "Trinidad & Tobago". In the icon rail only the mark shows. The crest is
  * decorative here: the text beside it names the Ministry.
  */
 export function SidebarBrand({ logo }: { logo?: string | null }) {
     return (
-        <span className="flex flex-col items-center gap-2 text-center">
+        <span className="flex items-center gap-3">
             {logo ? (
-                <img src={logo} alt="" className="h-16 w-auto object-contain group-data-[collapsible=icon]:size-8" />
+                <img src={logo} alt="" className="is-drawer-close:size-8 h-10 w-auto object-contain" />
             ) : (
-                <AppLogoMark className="bg-nav-active text-nav-active-foreground size-11 group-data-[collapsible=icon]:size-8" />
+                <AppLogoMark className="is-drawer-close:size-8" />
             )}
-            <span className="grid gap-0.5 group-data-[collapsible=icon]:hidden">
-                <span className="text-navy-foreground text-base leading-tight font-semibold">{APP_BRAND.descriptor}</span>
-                <span className="text-navy-muted text-[13px] leading-tight">{APP_BRAND.country}</span>
+            <span className="is-drawer-close:hidden grid gap-0.5">
+                <span className="text-base-content text-sm leading-tight font-semibold">{APP_BRAND.descriptor}</span>
+                <span className="text-base-content/60 text-xs leading-tight">{APP_BRAND.country}</span>
             </span>
         </span>
     );

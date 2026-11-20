@@ -1,5 +1,3 @@
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
 
@@ -19,38 +17,43 @@ interface NavMainProps {
     label?: string;
     /** The url of the one active item in the whole sidebar (worked out by AppSidebar), or null. */
     activeUrl: string | null;
-    /** The first group sits right under the header block, whose bottom padding already gives the space. */
-    first?: boolean;
 }
 
 /**
- * A sidebar group on the navy sidebar (V2-4, design.md sections 4 and 6): the
- * 11px --navy-muted group label and 44px items (8px radius, 20px icon,
- * 14px/500). The active item is the solid --nav-active pill with a 3px white
- * indicator bar, semibold, and aria-current="page" (SidebarMenuButton's
- * data-active style). A group with no items renders nothing, label included.
+ * One group of drawer links (Blueprint: daisyUI menu w-full). The active item
+ * carries menu-active and aria-current="page" together. In the icon rail the
+ * label hides and a tooltip names the link. A group with no items renders
+ * nothing, label included.
  */
-export function NavMain({ items = [], label = 'Platform', activeUrl, first = false }: NavMainProps) {
+export function NavMain({ items = [], label, activeUrl }: NavMainProps) {
     if (items.length === 0) {
         return null;
     }
 
     return (
-        // 12px inner padding; 8px when collapsed to icons (the 48px rail fits a 32px icon button).
-        <SidebarGroup className="px-3 py-0 group-data-[collapsible=icon]:px-2">
-            <SidebarGroupLabel className={cn('mb-1 h-auto py-1', first ? 'mt-0' : 'mt-5')}>{label}</SidebarGroupLabel>
-            <SidebarMenu className="gap-1">
-                {items.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={item.url === activeUrl} tooltip={item.title} className="h-11 gap-3 px-3 [&>svg]:size-5">
-                            <Link href={item.url} prefetch aria-current={item.url === activeUrl ? 'page' : undefined}>
-                                {item.icon && <item.icon />}
-                                <span>{item.title}</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                ))}
-            </SidebarMenu>
-        </SidebarGroup>
+        <ul className="menu w-full capitalize">
+            {label && <li className="menu-title is-drawer-close:hidden">{label}</li>}
+            {items.map((item) => {
+                const active = item.url === activeUrl;
+                return (
+                    <li key={item.title}>
+                        <Link
+                            href={item.url}
+                            prefetch
+                            className={
+                                active
+                                    ? 'menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
+                                    : 'is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
+                            }
+                            data-tip={item.title}
+                            aria-current={active ? 'page' : undefined}
+                        >
+                            {item.icon && <item.icon className="size-4 shrink-0" aria-hidden="true" />}
+                            <span className="is-drawer-close:hidden">{item.title}</span>
+                        </Link>
+                    </li>
+                );
+            })}
+        </ul>
     );
 }

@@ -1,3 +1,4 @@
+import { ActionPanel } from '@/components/cases/action-panel';
 import { HardcopyRecordForm } from '@/components/cases/case-actions';
 import { ForwardForReview } from '@/components/cases/forward-for-review';
 import { LegalDecisionForm, PrepareFileForm, SendToLegal } from '@/components/cases/legal-actions';
@@ -19,7 +20,7 @@ import {
     type RouteDestination,
 } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { Circle, CircleCheck } from 'lucide-react';
+import { Circle, CircleCheck, Info, MessagesSquare, Signpost } from 'lucide-react';
 import { useState } from 'react';
 
 /** Actions that post with no input: the card's own confirmation dialog, then the route. */
@@ -49,23 +50,22 @@ interface Props {
 }
 
 /** "Received on ...", "Favourable", plus who holds the item. All text from the server. */
-function ChecklistRow({ caseId, item }: { caseId: string; item: NextStepItem }) {
+function ChecklistRow({ item }: { item: NextStepItem }) {
     const Icon = item.done ? CircleCheck : Circle;
 
     return (
-        <li className="flex gap-3 py-2">
-            <Icon aria-hidden="true" className={item.done ? 'text-primary mt-0.5 size-5 shrink-0' : 'text-muted-foreground mt-0.5 size-5 shrink-0'} />
-            <div className="min-w-0 flex-1 space-y-1 text-sm">
+        <li className="list-row items-start gap-3 px-3 py-2.5">
+            <Icon aria-hidden="true" className={item.done ? 'text-primary mt-0.5 size-4 shrink-0' : 'text-base-content/50 mt-0.5 size-4 shrink-0'} />
+            <div className="list-col-grow min-w-0 space-y-0.5 text-sm">
                 <p>
                     <span className="sr-only">{item.done ? 'Done: ' : 'Not done: '}</span>
                     <span className="font-medium">{item.label}</span>
-                    <span className="text-muted-foreground"> · {item.state}</span>
+                    <span className="text-base-content/70"> · {item.state}</span>
                 </p>
-                <p className="text-muted-foreground">
+                <p className="text-base-content/70">
                     Held by {item.holder}
                     {item.people.length > 0 && `: ${item.people.join(', ')}`}
                 </p>
-                {item.hardcopy_form && <HardcopyRecordForm caseId={caseId} dates={item.hardcopy_form} />}
             </div>
         </li>
     );
@@ -114,7 +114,7 @@ function ConfirmAction({
 /**
  * NEXT-STEP-1: where the file is, who holds it, what happens next, what is
  * missing, and the actions this user may take now, at the top of the staff
- * case page on every tab. Every word comes from the server's NextStep DTO;
+ * case page's action column on every tab (ActionPanel, buttons in its footer). Every word comes from the server's NextStep DTO;
  * this only renders it. A user without the permission sees the holder and the
  * instruction but no button. Disabled actions stay visible with their reason.
  */
@@ -134,8 +134,12 @@ export function NextStepCard({
     const [dialog, setDialog] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
 
-    const ordered = [...next.actions.filter((a) => a.primary), ...next.actions.filter((a) => !a.primary)];
+    // Buttons at the end of the panel: secondary first, the primary step last.
+    const ordered = [...next.actions.filter((a) => !a.primary), ...next.actions.filter((a) => a.primary)];
     const expandedAction = next.actions.find((a) => a.key === expanded) ?? null;
+    const reasons = ordered.filter((a) => a.disabled_reason);
+    const hardcopyForms = next.checklist.filter((item) => item.hardcopy_form);
+    const queryActions = next.queries.filter((q) => q.action);
 
     /** Inline forms (they carry their own confirmation step); everything else opens a dialog or the panel. */
     const inlineForm = (action: NextStepAction) => {
@@ -171,133 +175,147 @@ export function NextStepCard({
     };
 
     return (
-        <section aria-labelledby="next-step-heading" className="bg-card space-y-4 rounded-lg border p-4">
-            <div className="space-y-1">
-                <h2 id="next-step-heading" className="text-lg font-semibold">
-                    Next Step
-                </h2>
-                <p className="text-sm">
-                    <span className="text-muted-foreground">Where This File Is: </span>
-                    <span className="font-medium">{next.stage}</span>
-                    {next.holder && (
+        <>
+            <ActionPanel
+                title="Next Step"
+                icon={Signpost}
+                description={
+                    <>
+                        <span>Where This File Is: </span>
+                        <span className="text-base-content font-medium">{next.stage}</span>
+                        {next.holder && (
+                            <>
+                                <span> · Held by </span>
+                                <span className="text-base-content font-medium">{next.holder}</span>
+                                {next.assigned.length > 0 && <span className="text-base-content"> ({next.assigned.join(', ')})</span>}
+                            </>
+                        )}
+                        {next.since_label && (
+                            <>
+                                <span> · Since </span>
+                                <time dateTime={next.since ?? undefined} className="text-base-content tabular-nums">
+                                    {next.since_label}
+                                </time>
+                            </>
+                        )}
+                    </>
+                }
+                actions={
+                    ordered.length > 0 ? (
                         <>
-                            <span className="text-muted-foreground"> · Held by </span>
-                            <span className="font-medium">{next.holder}</span>
-                            {next.assigned.length > 0 && <span> ({next.assigned.join(', ')})</span>}
-                        </>
-                    )}
-                    {next.since_label && (
-                        <>
-                            <span className="text-muted-foreground"> · Since </span>
-                            <time dateTime={next.since ?? undefined} className="tabular-nums">
-                                {next.since_label}
-                            </time>
-                        </>
-                    )}
-                </p>
-            </div>
-
-            <p className="text-sm">{next.instruction}</p>
-
-            {next.checklist.length > 0 && (
-                <ul aria-label="Checklist" className="divide-y rounded-md border px-3">
-                    {next.checklist.map((item) => (
-                        <ChecklistRow key={item.key} caseId={caseId} item={item} />
-                    ))}
-                </ul>
-            )}
-
-            {ordered.length > 0 && (
-                <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
-                    {ordered.map((action) => {
-                        const reasonId = `next-step-${action.key}-reason`;
-
-                        return (
-                            <div key={action.key} className="flex flex-wrap items-center gap-2">
+                            {ordered.map((action) => (
                                 <Button
+                                    key={action.key}
                                     type="button"
-                                    size={action.primary ? 'lg' : 'default'}
+                                    size="sm"
                                     variant={action.primary ? 'default' : 'outline'}
+                                    className="active:scale-[0.97]"
                                     disabled={!action.enabled}
                                     aria-expanded={INLINE.includes(action.key) ? expanded === action.key : undefined}
-                                    aria-describedby={action.disabled_reason ? reasonId : undefined}
+                                    aria-describedby={action.disabled_reason ? `next-step-${action.key}-reason` : undefined}
                                     onClick={() => open(action)}
                                 >
                                     {action.label}
                                 </Button>
-                                {action.disabled_reason && (
-                                    <p id={reasonId} className="text-muted-foreground max-w-prose text-sm">
-                                        {action.disabled_reason}
-                                    </p>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+                            ))}
+                        </>
+                    ) : undefined
+                }
+            >
+                <p className="text-sm">{next.instruction}</p>
 
-            {expandedAction && <div className="border-t pt-4">{inlineForm(expandedAction)}</div>}
+                {next.checklist.length > 0 && (
+                    <ul aria-label="Checklist" className="list border-base-300 rounded-box border">
+                        {next.checklist.map((item) => (
+                            <ChecklistRow key={item.key} item={item} />
+                        ))}
+                    </ul>
+                )}
+
+                {reasons.map((action) => (
+                    <p key={action.key} id={`next-step-${action.key}-reason`} className="text-base-content/70 flex items-start gap-2 text-sm">
+                        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        <span>{action.disabled_reason}</span>
+                    </p>
+                ))}
+
+                {next.actions
+                    .filter((a) => a.key in SIMPLE_ROUTES)
+                    .map((action) => (
+                        <ConfirmAction
+                            key={action.key}
+                            caseId={caseId}
+                            action={action}
+                            open={dialog === action.key}
+                            onOpenChange={(o) => setDialog(o ? action.key : null)}
+                        />
+                    ))}
+
+                {next.actions.map((action) => {
+                    if (action.key === 'forward_for_review' && reviewers) {
+                        return (
+                            <ForwardForReview
+                                key={action.key}
+                                caseId={caseId}
+                                reviewers={reviewers}
+                                open={dialog === action.key}
+                                onOpenChange={(o) => setDialog(o ? action.key : null)}
+                                confirm={action.confirm}
+                            />
+                        );
+                    }
+                    if (action.key === 'send_to_legal' && legalOfficers) {
+                        return (
+                            <SendToLegal
+                                key={action.key}
+                                caseId={caseId}
+                                officers={legalOfficers}
+                                open={dialog === action.key}
+                                onOpenChange={(o) => setDialog(o ? action.key : null)}
+                                confirm={action.confirm}
+                            />
+                        );
+                    }
+                    return null;
+                })}
+            </ActionPanel>
+
+            {/* The checklist's Date Received form, as its own panel. */}
+            {hardcopyForms.map((item) => item.hardcopy_form && <HardcopyRecordForm key={item.key} caseId={caseId} dates={item.hardcopy_form} />)}
+
+            {/* The step's own form opens as the next panel in the column. */}
+            {expandedAction && inlineForm(expandedAction)}
 
             {next.queries.length > 0 && (
-                <div className="space-y-2 border-t pt-4">
-                    <h3 className="text-sm font-semibold">Open Queries</h3>
-                    <ul className="space-y-2">
-                        {next.queries.map((q) => (
-                            <li key={q.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                                <span className="font-medium">{q.title}</span>
-                                <span className="text-muted-foreground">{q.status_label}</span>
-                                {q.action ? (
-                                    <Button type="button" size="sm" onClick={onOpenQueries}>
+                <ActionPanel
+                    title="Open Queries"
+                    icon={MessagesSquare}
+                    actions={
+                        queryActions.length > 0 ? (
+                            <>
+                                {queryActions.map((q) => (
+                                    <Button key={q.id} type="button" size="sm" className="active:scale-[0.97]" onClick={onOpenQueries}>
                                         {q.action}
+                                        <span className="sr-only">: {q.title}</span>
                                     </Button>
-                                ) : (
-                                    q.waiting_on && <span className="text-muted-foreground">{q.waiting_on}</span>
-                                )}
+                                ))}
+                            </>
+                        ) : undefined
+                    }
+                >
+                    <ul className="list border-base-300 rounded-box border">
+                        {next.queries.map((q) => (
+                            <li key={q.id} className="list-row block space-y-0.5 px-3 py-2.5 text-sm">
+                                <p className="font-medium">{q.title}</p>
+                                <p className="text-base-content/70">
+                                    {q.status_label}
+                                    {!q.action && q.waiting_on && ` · ${q.waiting_on}`}
+                                </p>
                             </li>
                         ))}
                     </ul>
-                </div>
+                </ActionPanel>
             )}
-
-            {next.actions
-                .filter((a) => a.key in SIMPLE_ROUTES)
-                .map((action) => (
-                    <ConfirmAction
-                        key={action.key}
-                        caseId={caseId}
-                        action={action}
-                        open={dialog === action.key}
-                        onOpenChange={(o) => setDialog(o ? action.key : null)}
-                    />
-                ))}
-
-            {next.actions.map((action) => {
-                if (action.key === 'forward_for_review' && reviewers) {
-                    return (
-                        <ForwardForReview
-                            key={action.key}
-                            caseId={caseId}
-                            reviewers={reviewers}
-                            open={dialog === action.key}
-                            onOpenChange={(o) => setDialog(o ? action.key : null)}
-                            confirm={action.confirm}
-                        />
-                    );
-                }
-                if (action.key === 'send_to_legal' && legalOfficers) {
-                    return (
-                        <SendToLegal
-                            key={action.key}
-                            caseId={caseId}
-                            officers={legalOfficers}
-                            open={dialog === action.key}
-                            onOpenChange={(o) => setDialog(o ? action.key : null)}
-                            confirm={action.confirm}
-                        />
-                    );
-                }
-                return null;
-            })}
-        </section>
+        </>
     );
 }

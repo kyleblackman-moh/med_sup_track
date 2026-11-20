@@ -11,6 +11,7 @@ use App\Models\Scopes\VisibleToUserScope;
 use App\Models\User;
 use App\Submissions\ProcurementTypeProfile;
 use App\Support\SqlLike;
+use App\Support\WorkQueue;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\NextStep;
 use App\Workflow\StageWording;
@@ -417,6 +418,9 @@ final class DashboardView
             ->groupBy('cases.status')
             ->pluck('total', 'status');
 
+        // The stages where the user has queue steps: marked as their desk on the rail.
+        $desk = array_map(fn (CaseStatus $s) => $s->value, WorkQueue::deskStatuses($user));
+
         $stages = [];
         foreach (CaseStatus::cases() as $status) {
             if ($status === CaseStatus::DRAFT) {
@@ -428,6 +432,7 @@ final class DashboardView
                 'label' => StageWording::STAGES[$status->value]['stage'],
                 'count' => (int) ($counts[$status->value] ?? 0),
                 'href' => route('cases.index', ['status' => $status->value], false),
+                'mine' => in_array($status->value, $desk, true),
             ];
         }
 

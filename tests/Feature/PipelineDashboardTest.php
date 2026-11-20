@@ -72,7 +72,9 @@ it('counts every visible case per stage, in state-machine order, with a filtered
         ->and($after['SUBMITTED'] - $before['SUBMITTED'])->toBe(2)
         ->and($after['WITH_LEGAL'] - $before['WITH_LEGAL'])->toBe(1)
         ->and($after)->not->toHaveKey('DRAFT')
-        ->and($pipeline[0])->toBe(['status' => 'SUBMITTED', 'label' => 'Submitted', 'count' => $after['SUBMITTED'], 'href' => '/cases?status=SUBMITTED']);
+        ->and($pipeline[0])->toBe(['status' => 'SUBMITTED', 'label' => 'Submitted', 'count' => $after['SUBMITTED'], 'href' => '/cases?status=SUBMITTED', 'mine' => true])
+        // The CMO's desk: intake is theirs, the Legal review is not.
+        ->and(collect($pipeline)->firstWhere('status', 'WITH_LEGAL')['mine'])->toBeFalse();
 });
 
 it('gives the CMO and PS every case, and others only their own', function () {

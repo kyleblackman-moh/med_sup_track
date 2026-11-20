@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { type AdminUserFilters, type AdminUserOptions } from '@/types/admin';
 import { type OptionList } from '@/types/requests';
 import { Search } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_CHARS = 2;
-/** Radix Select items cannot have an empty value. */
+/** The "all" option's value; the URL keeps an empty filter. */
 const ALL = 'all';
 
 interface Props {
@@ -37,18 +37,18 @@ export function UserFilters({ filters, options, errors, onChange }: Props) {
     }, [search, filters.q, onChange]);
 
     const select = (key: 'org' | 'role' | 'status', label: string, list: OptionList, all: string) => (
-        <Select value={filters[key] || ALL} onValueChange={(v) => onChange({ [key]: v === ALL ? '' : v })}>
-            <SelectTrigger aria-label={label} className="border-input bg-card h-9 w-full sm:w-48">
-                <SelectValue placeholder={all} />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value={ALL}>{all}</SelectItem>
-                {list.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                    </SelectItem>
-                ))}
-            </SelectContent>
+        <Select
+            value={filters[key] || ALL}
+            onChange={(e) => onChange({ [key]: e.target.value === ALL ? '' : e.target.value })}
+            aria-label={label}
+            className="select-sm w-full sm:w-48"
+        >
+            <option value={ALL}>{all}</option>
+            {list.map((o) => (
+                <option key={o.value} value={o.value}>
+                    {o.label}
+                </option>
+            ))}
         </Select>
     );
 

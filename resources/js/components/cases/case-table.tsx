@@ -1,12 +1,9 @@
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { StatusPill } from '@/components/ui/status-pill';
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type CaseFilters, type CaseListPage } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, FilterX, SearchX } from 'lucide-react';
 
 /** Short labels for the seeded procurement type names; any other name shows in full. */
 const TYPE_SHORT: Record<string, string> = {
@@ -45,59 +42,60 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
         { key: 'ref', label: 'Reference', sort: 'reference_no' },
         { key: 'type', label: 'Type' },
         { key: 'item', label: 'Item', className: 'w-full' },
-        ...(showOrganisation ? [{ key: 'org', label: 'Organisation', className: 'hidden lg:table-cell' }] : []),
+        ...(showOrganisation ? [{ key: 'org', label: 'Organisation', className: 'max-lg:hidden' }] : []),
         { key: 'status', label: 'Status' },
-        { key: 'holder', label: 'Holder', className: 'hidden lg:table-cell' },
+        { key: 'holder', label: 'Holder', className: 'max-lg:hidden' },
         { key: 'submitted', label: 'Submitted', sort: 'submitted_at' },
         { key: 'days', label: 'Days', sort: 'days', className: 'text-right' },
     ];
 
-    const cell = 'h-12 border-b border-divider px-3 py-0 whitespace-nowrap';
     const rows = page.data;
 
     return (
-        <div className="bg-card rounded-xl border shadow-xs">
+        <div className="card card-border bg-base-100 min-w-0">
             {!loading && rows.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-                    <p className="text-muted-foreground text-sm">{filtersActive ? 'No cases match these filters' : 'No cases yet'}</p>
+                <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+                    <SearchX className="size-8 opacity-60" aria-hidden="true" />
+                    <p className="text-sm font-medium">{filtersActive ? 'No cases match these filters' : 'No cases yet'}</p>
+                    <p className="text-base-content/70 max-w-sm text-sm">
+                        {filtersActive
+                            ? 'Try another reference or remove a filter to see more cases.'
+                            : 'Requests appear here once a vendor submits them.'}
+                    </p>
                     {filtersActive && (
-                        <Button variant="outline" size="sm" onClick={onClearFilters}>
+                        <button type="button" className="btn btn-sm mt-2 capitalize" onClick={onClearFilters}>
+                            <FilterX className="size-4" aria-hidden="true" />
                             Clear Filters
-                        </Button>
+                        </button>
                     )}
                 </div>
             ) : (
                 <>
-                    {/* md and up: table. Below lg it scrolls sideways, which stops the header sticking. */}
-                    <div className="hidden overflow-x-auto md:block lg:overflow-visible" aria-busy={loading}>
-                        <table className="w-full border-separate border-spacing-0 text-sm">
+                    {/* md and up: table. Below lg it scrolls sideways inside its wrapper; from lg the header pins to the page. */}
+                    <div className="hidden max-w-full min-w-0 overflow-x-auto md:block lg:overflow-visible" aria-busy={loading}>
+                        <table className="table-sm table-pin-rows table">
                             <caption className="sr-only">Cases. Sortable columns have buttons in their headers.</caption>
-                            <TableHeader className="[&_tr]:border-0">
-                                <TableRow className="border-0 hover:bg-transparent">
-                                    {columns.map((col, i) => {
+                            <thead>
+                                <tr className="capitalize">
+                                    {columns.map((col) => {
                                         const active = col.sort !== undefined && sort === col.sort;
                                         const Icon = active ? (dir === 'asc' ? ChevronUp : ChevronDown) : ChevronsUpDown;
                                         return (
-                                            <TableHead
+                                            <th
                                                 key={col.key}
                                                 scope="col"
                                                 aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                                                // NEXT: the header on --subtle (opaque, so rows never show through the sticky header).
-                                                className={cn(
-                                                    'bg-subtle text-muted-foreground border-divider sticky top-0 z-10 h-10 border-b px-3 text-xs font-medium whitespace-nowrap',
-                                                    i === 0 && 'rounded-tl-xl',
-                                                    i === columns.length - 1 && 'rounded-tr-xl',
-                                                    col.className,
-                                                )}
+                                                className={cn('whitespace-nowrap', col.className)}
                                             >
                                                 {col.sort ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => onSort(col.sort!)}
-                                                        className={cn(
-                                                            'hover:text-foreground focus-visible:ring-ring -mx-1 inline-flex items-center gap-1 rounded-sm px-1 outline-none focus-visible:ring-2',
-                                                            active && 'text-foreground',
-                                                        )}
+                                                        className={
+                                                            active
+                                                                ? 'btn btn-ghost btn-xs -mx-2 gap-1 font-medium capitalize'
+                                                                : 'btn btn-ghost btn-xs text-base-content/70 -mx-2 gap-1 font-medium capitalize'
+                                                        }
                                                     >
                                                         {col.label}
                                                         <Icon className="size-3.5" aria-hidden="true" />
@@ -105,82 +103,78 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                 ) : (
                                                     col.label
                                                 )}
-                                            </TableHead>
+                                            </th>
                                         );
                                     })}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                                </tr>
+                            </thead>
+                            <tbody
+                                key={loading ? 'loading' : 'rows'}
+                                className="motion-safe:transition-opacity motion-safe:duration-300 motion-safe:starting:opacity-0"
+                            >
                                 {loading
                                     ? Array.from({ length: 5 }, (_, r) => (
-                                          <TableRow key={r} className="border-0 hover:bg-transparent">
+                                          <tr key={r}>
                                               {columns.map((col) => (
-                                                  <TableCell key={col.key} className={cn(cell, col.className)}>
-                                                      <Skeleton className="h-4 w-full min-w-12" />
-                                                  </TableCell>
+                                                  <td key={col.key} className={col.className}>
+                                                      <div className="skeleton h-4 w-full min-w-12" />
+                                                  </td>
                                               ))}
-                                          </TableRow>
+                                          </tr>
                                       ))
                                     : rows.map((row) => (
-                                          <TableRow
+                                          <tr
                                               key={row.id}
                                               // The reference link covers the row (rowLink); no onClick on the row.
-                                              className="hover:bg-muted/60 focus-within:bg-muted/60 relative border-0"
+                                              className="hover:bg-base-200 focus-within:bg-base-200 relative transition-colors"
                                           >
-                                              <TableCell className={cell}>
-                                                  <Link
-                                                      href={route('cases.show', row.id)}
-                                                      className={cn('font-mono text-[13px] font-medium', rowLink)}
-                                                  >
+                                              <td className="whitespace-nowrap">
+                                                  <Link href={route('cases.show', row.id)} className={cn('font-mono font-medium', rowLink)}>
                                                       {row.reference_no ?? '—'}
                                                   </Link>
-                                              </TableCell>
-                                              <TableCell className={cell}>{typeLabel(row.procurement_type)}</TableCell>
-                                              <TableCell className={cn(cell, 'max-w-0 truncate')} title={row.item_description ?? undefined}>
+                                              </td>
+                                              <td className="whitespace-nowrap">{typeLabel(row.procurement_type)}</td>
+                                              <td className="max-w-0 truncate" title={row.item_description ?? undefined}>
                                                   {row.item_description ?? '—'}
-                                              </TableCell>
-                                              {showOrganisation && (
-                                                  <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.organisation ?? '—'}</TableCell>
-                                              )}
-                                              <TableCell className={cell}>
+                                              </td>
+                                              {showOrganisation && <td className="whitespace-nowrap max-lg:hidden">{row.organisation ?? '—'}</td>}
+                                              <td className="whitespace-nowrap">
                                                   <StatusPill
                                                       label={row.status_label}
                                                       tone={row.status_tone}
                                                       openQuery={row.has_open_query}
                                                       inColumn
                                                   />
-                                              </TableCell>
-                                              <TableCell className={cn(cell, 'hidden lg:table-cell')}>{row.holder_label ?? '—'}</TableCell>
-                                              <TableCell className={cn(cell, 'tabular-nums')}>{formatDate(row.submitted_at)}</TableCell>
-                                              <TableCell className={cn(cell, 'text-right tabular-nums')}>{row.days_since_submitted ?? '—'}</TableCell>
-                                          </TableRow>
+                                              </td>
+                                              <td className="whitespace-nowrap max-lg:hidden">{row.holder_label ?? '—'}</td>
+                                              <td className="whitespace-nowrap tabular-nums">{formatDate(row.submitted_at)}</td>
+                                              <td className="text-right whitespace-nowrap tabular-nums">{row.days_since_submitted ?? '—'}</td>
+                                          </tr>
                                       ))}
-                            </TableBody>
+                            </tbody>
                         </table>
                     </div>
 
-                    {/* Below md: stacked cards. */}
-                    <ul className="divide-divider divide-y md:hidden" aria-busy={loading}>
+                    {/* Below md: stacked list rows; the reference link covers each row (rowLink). */}
+                    <ul className="list md:hidden" aria-busy={loading}>
                         {loading
                             ? Array.from({ length: 5 }, (_, r) => (
-                                  <li key={r} className="space-y-2 p-4">
-                                      <Skeleton className="h-4 w-2/5" />
-                                      <Skeleton className="h-4 w-4/5" />
-                                      <Skeleton className="h-3 w-1/3" />
+                                  <li key={r} className="list-row">
+                                      <div className="list-col-grow flex flex-col gap-2">
+                                          <div className="skeleton h-4 w-2/5" />
+                                          <div className="skeleton h-4 w-4/5" />
+                                          <div className="skeleton h-3 w-1/3" />
+                                      </div>
                                   </li>
                               ))
                             : rows.map((row) => (
-                                  <li key={row.id}>
-                                      <Link
-                                          href={route('cases.show', row.id)}
-                                          className="hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-ring block space-y-1 p-4 outline-none focus-visible:ring-2 focus-visible:ring-inset"
-                                      >
-                                          <span className="flex items-center justify-between gap-2">
-                                              <span className="font-mono text-[13px] font-medium">{row.reference_no ?? '—'}</span>
-                                              <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} inColumn />
-                                          </span>
+                                  <li key={row.id} className="list-row hover:bg-base-200 focus-within:bg-base-200 relative transition-colors">
+                                      <div className="list-col-grow min-w-0 space-y-1">
+                                          <Link href={route('cases.show', row.id)} className={cn('block font-mono text-sm font-medium', rowLink)}>
+                                              {row.reference_no ?? '—'}
+                                          </Link>
                                           <span className="block truncate text-sm">{row.item_description ?? '—'}</span>
-                                          <span className="text-muted-foreground block text-xs">
+                                          <span className="text-base-content/70 block text-xs">
                                               {row.holder_label ?? '—'} ·{' '}
                                               <span className="tabular-nums">
                                                   {row.days_since_submitted === null
@@ -188,7 +182,8 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                       : `${row.days_since_submitted} ${row.days_since_submitted === 1 ? 'day' : 'days'}`}
                                               </span>
                                           </span>
-                                      </Link>
+                                      </div>
+                                      <StatusPill label={row.status_label} tone={row.status_tone} openQuery={row.has_open_query} inColumn />
                                   </li>
                               ))}
                     </ul>
@@ -196,30 +191,36 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
             )}
 
             {page.total > 0 && (
-                <nav aria-label="Case list pages" className="flex items-center justify-between gap-3 border-t px-3 py-2.5 text-sm">
-                    <span className="text-muted-foreground tabular-nums">
-                        Showing {page.from}–{page.to} of {page.total}
-                    </span>
-                    <span className="flex gap-2">
-                        <PageLink href={page.prev_page_url} label="Previous" />
-                        <PageLink href={page.next_page_url} label="Next" />
-                    </span>
+                <nav aria-label="Case list pages" className="border-base-300 flex justify-end border-t px-3 py-2">
+                    <div className="join">
+                        <PageLink href={page.prev_page_url} label="Previous" icon="prev" />
+                        <span className="join-item border-base-300 bg-base-100 flex items-center border px-3 text-sm tabular-nums">
+                            Showing {page.from}–{page.to} of {page.total}
+                        </span>
+                        <PageLink href={page.next_page_url} label="Next" icon="next" />
+                    </div>
                 </nav>
             )}
         </div>
     );
 }
 
-function PageLink({ href, label }: { href: string | null; label: string }) {
-    return href ? (
-        <Button asChild variant="outline" size="sm">
-            <Link href={href} preserveScroll preserveState>
-                {label}
-            </Link>
-        </Button>
-    ) : (
-        <Button variant="outline" size="sm" disabled>
+function PageLink({ href, label, icon }: { href: string | null; label: string; icon: 'prev' | 'next' }) {
+    const content = (
+        <>
+            {icon === 'prev' && <ChevronLeft className="size-4" aria-hidden="true" />}
             {label}
-        </Button>
+            {icon === 'next' && <ChevronRight className="size-4" aria-hidden="true" />}
+        </>
+    );
+
+    return href ? (
+        <Link href={href} preserveScroll preserveState className="btn btn-sm join-item capitalize">
+            {content}
+        </Link>
+    ) : (
+        <button type="button" className="btn btn-sm join-item capitalize" disabled>
+            {content}
+        </button>
     );
 }
