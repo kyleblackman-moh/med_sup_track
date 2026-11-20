@@ -3,7 +3,7 @@
 @plugin 'tailwindcss-animate';
 
 /* daisyUI 5 is the component kit. One theme, "moh", light only; values are
-   the Ministry palette below (design.md section 2). Not from a registry. */
+   the Flowbite admin palette below (MIT), recreated by hand. Not from a registry. */
 @plugin 'daisyui' {
     themes: moh --default;
     logs: false;
@@ -15,30 +15,34 @@
     prefersdark: false;
     color-scheme: light;
 
-    --color-base-100: hsl(0, 0%, 100%); /* #ffffff L1 */
-    --color-base-200: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
-    --color-base-300: hsl(211.8, 33.3%, 90%); /* #dde5ee */
-    --color-base-content: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
-    --color-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
+    /* Flowbite admin palette (MIT; approved preview .blueprint/previews/flowbite-look.html).
+       Contrast (WCAG 2.x): base-content on base-100 17.7:1, on base-200 17.0:1, on
+       base-300 14.3:1; primary 6.2:1; secondary 16.1:1; accent 7.7:1; neutral 14.7:1;
+       info 5.1:1; success 5.4:1; warning 6.1:1; error 5.7:1. All pass AA for body text. */
+    --color-base-100: hsl(0, 0%, 100%); /* #ffffff */
+    --color-base-200: hsl(210, 20%, 98%); /* #f9fafb */
+    --color-base-300: hsl(220, 13%, 91%); /* #e5e7eb */
+    --color-base-content: hsl(220.9, 39.3%, 11%); /* #111827 */
+    --color-primary: hsl(221.3, 78.8%, 48%); /* #1a56db */
     --color-primary-content: hsl(0, 0%, 100%);
-    --color-secondary: hsl(85.3, 51.4%, 92.7%); /* #eef6e3 */
-    --color-secondary-content: hsl(87.3, 62.2%, 24.9%); /* #436718 */
-    --color-accent: hsl(194.4, 86.2%, 94.3%); /* #e4f7fd */
-    --color-accent-content: hsl(196.1, 100%, 27.1%); /* #00658a */
-    --color-neutral: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --color-secondary: hsl(220, 14.3%, 95.9%); /* #f3f4f6 */
+    --color-secondary-content: hsl(220.9, 39.3%, 11%); /* #111827 */
+    --color-accent: hsl(211, 93.5%, 93.9%); /* #e1effe */
+    --color-accent-content: hsl(223.3, 68.3%, 37.1%); /* #1e429f */
+    --color-neutral: hsl(215, 27.9%, 16.9%); /* #1f2937 */
     --color-neutral-content: hsl(0, 0%, 100%);
-    --color-info: hsl(204.7, 100%, 30%); /* #005a99 */
+    --color-info: hsl(219.8, 89.2%, 52.9%); /* #1c64f2 */
     --color-info-content: hsl(0, 0%, 100%);
-    --color-success: hsl(87.5, 62.1%, 22.7%); /* #3d5e16 */
+    --color-success: hsl(161, 92.1%, 24.9%); /* #057a55 */
     --color-success-content: hsl(0, 0%, 100%);
-    --color-warning: hsl(22.7, 82.5%, 31.4%); /* #92400e */
+    --color-warning: hsl(16.6, 96.7%, 35.9%); /* #b43403 */
     --color-warning-content: hsl(0, 0%, 100%);
-    --color-error: hsl(0, 73.7%, 41.8%); /* #b91c1c */
+    --color-error: hsl(0, 73.9%, 45.1%); /* #c81e1e */
     --color-error-content: hsl(0, 0%, 100%);
 
-    --radius-selector: 9999px;
+    --radius-selector: 0.375rem;
     --radius-field: 0.5rem;
-    --radius-box: 0.75rem;
+    --radius-box: 0.5rem;
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
     --border: 1px;
@@ -54,11 +58,11 @@
    installed @fontsource-variable packages (their own CSS loads every subset).
    Same blocks as each package's wght.css. No font CDN. */
 @font-face {
-    font-family: 'Roboto Variable';
+    font-family: 'Inter Variable';
     font-style: normal;
     font-display: swap;
     font-weight: 100 900;
-    src: url('../../node_modules/@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2') format('woff2-variations');
+    src: url('../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
     unicode-range:
         U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
         U+2212, U+2215, U+FEFF, U+FFFD;
@@ -76,8 +80,7 @@
 }
 
 @theme {
-    --font-sans:
-        'Roboto Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
     /* design.md section 5: --radius 0.75rem; controls rounded-lg (8px), cards
@@ -314,7 +317,7 @@
        target (the progress strip's links, the error summary's links) and
        scrollIntoView never end up under a sticky bar. scroll-padding on the
        page's scroll container applies to all three.
-       Top: the request form's sticky progress strip, at most about 134px
+       Top: the 4rem app top bar plus the request form's sticky progress strip, at most about 134px
        (12px padding twice, the 40px marker row, 8px, three lines of 14px
        labels at 19.25px), plus 16px: 152px. The 72px application header is
        not sticky; it scrolls away, and 152px clears it too.
@@ -323,7 +326,7 @@
        borders): 90px, plus 22px: 112px. Below 40rem its groups wrap to up
        to three rows of 44px buttons (186px with the gaps): 208px. */
     html:has([data-sticky-strip]) {
-        scroll-padding-top: 9.5rem;
+        scroll-padding-top: 13.5rem;
     }
 
     html:has([data-sticky-bar]) {

@@ -13,8 +13,8 @@ function clearanceCss(): string
 it('pads the page scroll for the sticky strip and the sticky bar', function () {
     $css = clearanceCss();
 
-    // Strip at most ~134px (three label lines) + 16px; bar 90px from the bottom edge + 22px; 208px below 40rem.
-    expect($css)->toMatch('/html:has\(\[data-sticky-strip\]\)\s*\{\s*scroll-padding-top:\s*9\.5rem;/')
+    // 64px top bar + strip at most ~134px (three label lines) + 16px; bar 90px from the bottom edge + 22px; 208px below 40rem.
+    expect($css)->toMatch('/html:has\(\[data-sticky-strip\]\)\s*\{\s*scroll-padding-top:\s*13\.5rem;/')
         ->and($css)->toMatch('/html:has\(\[data-sticky-bar\]\)\s*\{\s*scroll-padding-bottom:\s*7rem;/')
         ->and($css)->toMatch('/@media \(width < 40rem\)\s*\{\s*html:has\(\[data-sticky-bar\]\)\s*\{\s*scroll-padding-bottom:\s*13rem;/');
 });
@@ -23,7 +23,7 @@ it('marks the sticky strip and the sticky bar the padding is for', function () {
     $page = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
     $bar = file_get_contents(resource_path('js/components/ui/sticky-action-bar.tsx'));
 
-    expect($page)->toMatch('/<div data-sticky-strip className="[^"]*\bsticky top-0\b/')
+    expect($page)->toMatch('/<div data-sticky-strip className="[^"]*\bsticky top-16\b/')
         ->and($bar)->toMatch('/data-sticky-bar\s+className=\{cn\(\s*\'[^\']*\bsticky bottom-3\b/');
 });
 

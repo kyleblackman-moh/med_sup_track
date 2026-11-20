@@ -2,6 +2,7 @@
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -25,6 +26,12 @@ Route::get('/', function (Request $request) {
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 });
+
+// ANALYTICS: charts and tracking for the CMO's office and the PS office only
+// (case.view_all). Everyone else, vendors included, gets 403.
+Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
+    ->get('analytics', AnalyticsController::class)
+    ->name('analytics');
 
 // Vendor requests. Hidden or missing cases are 404 (ProcurementCase's global
 // scope applies to route model binding).

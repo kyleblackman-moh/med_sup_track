@@ -21,7 +21,7 @@ interface NavMainProps {
 
 /**
  * One group of drawer links (Blueprint: daisyUI menu w-full). The active item
- * carries menu-active and aria-current="page" together. In the icon rail the
+ * carries menu-active (light grey, base-300) and aria-current="page" together. In the icon rail the
  * label hides and a tooltip names the link. A group with no items renders
  * nothing, label included.
  */
@@ -31,7 +31,7 @@ export function NavMain({ items = [], label, activeUrl }: NavMainProps) {
     }
 
     return (
-        <ul className="menu w-full capitalize">
+        <ul className="menu w-full capitalize [--menu-active-bg:var(--color-base-300)] [--menu-active-fg:var(--color-base-content)]">
             {label && <li className="menu-title is-drawer-close:hidden">{label}</li>}
             {items.map((item) => {
                 const active = item.url === activeUrl;
@@ -42,8 +42,8 @@ export function NavMain({ items = [], label, activeUrl }: NavMainProps) {
                             prefetch
                             className={
                                 active
-                                    ? 'menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
-                                    : 'is-drawer-close:tooltip is-drawer-close:tooltip-right transition-colors'
+                                    ? 'menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right motion-safe:transition-colors'
+                                    : 'is-drawer-close:tooltip is-drawer-close:tooltip-right motion-safe:transition-colors'
                             }
                             data-tip={item.title}
                             aria-current={active ? 'page' : undefined}

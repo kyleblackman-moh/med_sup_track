@@ -25,9 +25,9 @@ use Illuminate\Support\Str;
  * the server; the page shows it as is.
  *
  * - header(): the page title (greeting) and one subtitle line, in local time.
- * - stats(): up to four stat tiles from ONE grouped COUNT over the cases the
- *   viewer can see (VisibleToUserScope, applied for $user explicitly). No
- *   targets, trends or SLA values.
+ * - stats(): the Analytics page's stat tiles from ONE grouped COUNT over the
+ *   cases the viewer can see (VisibleToUserScope, applied for $user
+ *   explicitly). No targets, trends or SLA values.
  * - requestTypes(): case id => request type name for the queue's rows, so the
  *   queue (WorkQueue) itself is unchanged.
  * - queue() (DASH-1): the queue card: the filter chips with their counts, the
@@ -78,7 +78,6 @@ final class DashboardView
 
     /** DASH-1: one short sentence-case description per tile (shown in the tile's footer strip). No targets or trends. */
     public const TILE_DESCRIPTIONS = [
-        'needs_action' => 'Cases waiting for you to act',
         'open' => 'Cases that are not yet closed',
         'awaiting_hardcopy' => 'Submitted, signed copy not yet received',
         'ready_for_file' => 'All three conditions are met',
@@ -109,39 +108,31 @@ final class DashboardView
     }
 
     /**
-     * The tiles for $user, or null when there are none (vendors; staff with
-     * neither a queue nor the staff case list).
+     * ANALYTICS: the Analytics page's tiles for $user, or null when there are
+     * none (vendors; staff without the staff case list). "Needs My Action" is
+     * no longer a tile: the dashboard is the work queue itself.
      *
-     * - needs_action: the queue's own count (no query of its own).
      * - open: visible cases that are not closed, withdrawn or rejected.
      * - awaiting_hardcopy and ready_for_file: case.view_all holders only.
      *
-     * @param  array{items: list<array<string, mixed>>}|null  $queue
      * @return list<array{key: string, label: string, value: string, description: string, href: string|null}>|null
      */
-    public static function stats(User $user, ?array $queue): ?array
+    public static function stats(User $user): ?array
     {
-        if ($user->isVendor()) {
+        if ($user->isVendor() || ! Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
             return null;
         }
 
-        $tiles = [];
-        if ($queue !== null) {
-            $tiles[] = self::tile('needs_action', 'Needs My Action', count($queue['items']));
+        $counts = self::counts($user);
+        $tiles = [self::tile('open', 'Open Cases', $counts['open'])];
+
+        if ($user->can(Permission::CaseViewAll->value)) {
+            $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting Hardcopy', $counts['awaiting_hardcopy']);
+            $tiles[] = self::tile('ready_for_file', 'Ready for File', $counts['ready_for_file'],
+                route('cases.index', self::READY_FOR_FILE_FILTER, false));
         }
 
-        if (Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
-            $counts = self::counts($user);
-            $tiles[] = self::tile('open', 'Open Cases', $counts['open']);
-
-            if ($user->can(Permission::CaseViewAll->value)) {
-                $tiles[] = self::tile('awaiting_hardcopy', 'Awaiting Hardcopy', $counts['awaiting_hardcopy']);
-                $tiles[] = self::tile('ready_for_file', 'Ready for File', $counts['ready_for_file'],
-                    route('cases.index', self::READY_FOR_FILE_FILTER, false));
-            }
-        }
-
-        return $tiles === [] ? null : $tiles;
+        return $tiles;
     }
 
     /**

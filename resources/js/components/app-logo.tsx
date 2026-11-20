@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ShieldPlus } from 'lucide-react';
+import { Pill } from 'lucide-react';
 
 /** The system name and descriptor shown next to the logo. Change them here only. */
 export const APP_BRAND = {
@@ -10,20 +10,17 @@ export const APP_BRAND = {
 } as const;
 
 /**
- * The logo mark, used by the sidebar and the sign-in pages: a 34px --primary
- * tile, corners 4px except one 16px bottom-left (design.md section 6), with
- * the shield-plus mark (V2-2c). Decorative: the system name beside it is the text.
+ * The logo mark, used by the top bar, the phone drawer header and the sign-in
+ * pages: a 32px primary tile with field corners (the Flowbite look) holding a
+ * drug pill. Decorative: the system name beside it is the text.
  */
 export function AppLogoMark({ className }: { className?: string }) {
     return (
         <span
             aria-hidden="true"
-            className={cn(
-                'bg-primary text-primary-foreground flex aspect-square size-[34px] shrink-0 items-center justify-center rounded-[4px] rounded-bl-2xl',
-                className,
-            )}
+            className={cn('bg-primary text-primary-content rounded-field grid aspect-square size-8 shrink-0 place-items-center', className)}
         >
-            <ShieldPlus className="size-5" />
+            <Pill className="size-5" />
         </span>
     );
 }
@@ -43,7 +40,7 @@ export default function AppLogo() {
 
 /**
  * The drawer's header block: the Ministry crest when the server supplies its
- * URL (brand.logo), else the shield-plus tile; then "Ministry of Health" and
+ * URL (brand.logo), else the pill tile; then "Ministry of Health" and
  * "Trinidad & Tobago". In the icon rail only the mark shows. The crest is
  * decorative here: the text beside it names the Ministry.
  */

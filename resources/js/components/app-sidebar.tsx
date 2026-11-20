@@ -1,9 +1,10 @@
+import { useAppDrawer } from '@/components/app-shell';
 import { isViewActive, NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid, UsersRound } from 'lucide-react';
-import { SidebarBrand } from './app-logo';
+import { ChartColumn, ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid, UsersRound, X } from 'lucide-react';
+import { AppLogoMark, SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
@@ -44,15 +45,21 @@ const adminNavItems: NavItem[] = [{ title: 'Users', url: '/admin/users', icon: U
 
 /**
  * The drawer side's panel (Blueprint: drawer + menu w-full); the layout places
- * it in drawer-side. Full width when open, an icon rail with tooltips when
- * collapsed on desktop, an overlay on phones. One active item for the whole
+ * it in drawer-side. White, below the top bar from lg: full width when open,
+ * an icon rail with tooltips when collapsed. On phones an overlay above the
+ * top bar with its own header row (pill tile, "Menu", close). One active item for the whole
  * sidebar: a matching CMO saved view, else the item for the server's
  * nav.section.
  */
 export function AppSidebar() {
     const { can, nav, brand } = usePage<SharedData>().props;
     const page = usePage();
-    const navItems = [...mainNavItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
+    const { id } = useAppDrawer();
+    // Shown only when the server shares nav.analytics; route() is called only then.
+    const analyticsItems: NavItem[] = nav?.analytics
+        ? [{ title: 'Analytics', url: route('analytics'), icon: ChartColumn, section: 'analytics' }]
+        : [];
+    const navItems = [...mainNavItems, ...analyticsItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
     const showCmo = Boolean(nav?.cmo_office);
     const adminItems = nav?.users ? adminNavItems : [];
 
@@ -61,11 +68,20 @@ export function AppSidebar() {
         activeView?.url ?? [...navItems, ...adminItems].find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
 
     return (
-        <aside className="bg-base-100 border-base-300 is-drawer-close:w-16 flex min-h-full w-64 flex-col border-r transition-[width] duration-200">
+        <aside className="bg-base-100 border-base-300 is-drawer-close:w-16 flex min-h-full w-64 flex-col border-r motion-safe:transition-[width] motion-safe:duration-200">
+            <div className="border-base-300 flex h-16 shrink-0 items-center justify-between border-b px-4 lg:hidden">
+                <span className="flex items-center gap-2 font-semibold capitalize">
+                    <AppLogoMark />
+                    Menu
+                </span>
+                <label htmlFor={id} aria-label="Close navigation" className="btn btn-ghost btn-square btn-sm">
+                    <X className="size-5" aria-hidden="true" />
+                </label>
+            </div>
             <Link
                 href="/dashboard"
                 prefetch
-                className="border-base-300 is-drawer-close:px-2 flex shrink-0 items-center gap-2 border-b px-4 py-3 outline-none focus-visible:ring-2"
+                className="border-base-300 is-drawer-close:px-2 hidden shrink-0 items-center gap-2 border-b px-4 py-3 outline-none focus-visible:ring-2 lg:flex"
             >
                 <SidebarBrand logo={brand?.logo} />
             </Link>

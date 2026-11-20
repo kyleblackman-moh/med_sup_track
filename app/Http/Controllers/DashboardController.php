@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Dashboard\DashboardDrafts;
 use App\Http\Resources\Dashboard\DashboardView;
 use App\Support\WorkQueue;
 use Illuminate\Http\Request;
@@ -9,8 +10,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Landing dashboard, one page for every role: the header, the stat tiles and
- * the work queue for users who have one. The display props are closures, so a
+ * Landing dashboard, one page for every role: the header and the work queue
+ * for staff who have one, and the user's own drafts for users who submit
+ * requests. Stat tiles, the pipeline and the gate tracker live on the
+ * Analytics page (AnalyticsController). The display props are closures, so a
  * partial reload computes only what it asks for.
  *
  * DASH-1: the queue card's filter (?filter=) and search (?q=) are applied on
@@ -32,12 +35,10 @@ class DashboardController extends Controller
         return Inertia::render('dashboard', [
             'workQueue' => fn () => $loadQueue()['value'],
             'header' => fn () => DashboardView::header($user, $loadQueue()['value']),
-            'stats' => fn () => DashboardView::stats($user, $loadQueue()['value']),
             'requestTypes' => fn () => DashboardView::requestTypes($loadQueue()['value']),
             'queue' => fn () => DashboardView::queue($user, $loadQueue()['value'], $filter, $search),
-            // OVERNIGHT-2 (C1, C2): stage counts and the In Review gate; each null for users without it.
-            'pipeline' => fn () => DashboardView::pipeline($user),
-            'gateTracker' => fn () => DashboardView::gateTracker($user),
+            // ANALYTICS: the user's own organisation's drafts; null without case.submit.
+            'drafts' => fn () => DashboardDrafts::for($user),
         ]);
     }
 }
