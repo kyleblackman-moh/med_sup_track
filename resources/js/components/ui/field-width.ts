@@ -35,22 +35,20 @@ export const FIELD_WIDTH: Record<FieldWidth, string> = {
 };
 
 /**
- * An entry-row cell: the scale above plus the three cell kinds that are not
- * typed values (a checkbox or radio, the quotation's group of three, and a
- * server figure). Fixed widths are a flex basis, the rest a minimum; both
- * apply only in the one-line layout. Minimums: xs 96px, sm 144px (a date
+ * An entry-row cell: the scale above plus the two cell kinds that are not
+ * typed values (the quotation's group of checks, and a server figure).
+ * Fixed widths are a flex basis, the rest a minimum; both apply only in the
+ * one-line layout. Minimums: xs 96px, sm 144px (a date
  * input with its picker icon, a select), md 112px and lg 160px (both grow;
  * lg takes twice the share). EntryTableFitTest mirrors these numbers.
  */
-export type EntryWidth = Exclude<FieldWidth, 'full'> | 'check' | 'check-wide' | 'checks' | 'value';
+export type EntryWidth = Exclude<FieldWidth, 'full'> | 'checks' | 'value';
 
 export const ENTRY_WIDTH: Record<EntryWidth, string> = {
     'xs': 'flex-1 min-w-24', // 96px minimum
     'sm': 'flex-1 min-w-36', // 144px minimum
     'md': 'flex-1 min-w-28', // 112px minimum, grows
     'lg': 'flex-[2] min-w-40', // 160px minimum, twice the share of the rest
-    'check': 'flex-none basis-20 min-w-20', // 80px: one checkbox or radio
-    'check-wide': 'flex-none basis-24 min-w-24', // 96px: "Recommended"
-    'checks': 'flex-none basis-88 min-w-88', // 352px: Considered, Recommended and Ex Stock side by side
+    'checks': 'flex-none basis-88', // 352px in the one-line layout only (no minimum, so the wrapped grid never overflows): Considered, Recommended and Ex Stock
     'value': 'flex-none basis-24 min-w-24', // 96px: a server figure (a dash until saved)
 };

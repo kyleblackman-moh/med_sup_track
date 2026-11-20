@@ -1,5 +1,5 @@
-import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
-import { collectRowErrors, EntryCheck, EntryInput } from './entry-fields';
+import { EntryCardRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
+import { collectRowErrors, EntryCheckGroup, EntryInlineCheck, EntryInput } from './entry-fields';
 import { FieldGrid, Figure, GridRow, RadioGroupField, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -7,12 +7,51 @@ import { PriceSection } from './price-section';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
- * V2-2 section "Quotation comparison": who received the RFQ, one entry per
- * quotation (Considered and Recommended first; a reason under the row only
- * when the quotation was not considered), the quantity to purchase and the
- * server's total cost. Eleven inputs a row, so the one-line layout needs a card of
- * 88rem (FORM-ERR-1: every column at its minimum); narrower, each entry wraps. The optional price comparison
- * (fields of this section on the server) follows.
+ * FORM-COMPACT-1 (2): each quotation is a small card in two lines (the
+ * fit test reads `line1` and `line2`): Supplier, Quantity, Unit Price, Lead
+ * Time (Days) and the three checks; then Brand, Manufacturer, Country of
+ * Origin and Remarks. Each line is one row once the card is 54rem wide (every
+ * field at its minimum, EntryTableFitTest); narrower, its fields wrap.
+ */
+const line1: EntryColumn[] = [
+    { key: 'supplier_name', label: 'Supplier', width: 'md' },
+    { key: 'quantity_offered', label: 'Quantity', width: 'xs' },
+    { key: 'unit_price', label: 'Unit Price', width: 'xs' },
+    { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' },
+    { key: 'checks', label: 'Considered, Recommended and Ex Stock', width: 'checks' },
+];
+
+const line2: EntryColumn[] = [
+    { key: 'brand', label: 'Brand', width: 'md' },
+    { key: 'manufacturer', label: 'Manufacturer', width: 'md' },
+    { key: 'country_of_origin', label: 'Country of Origin', width: 'md' },
+    { key: 'remarks', label: 'Remarks', width: 'lg' },
+];
+
+/** Every message of an entry in one list under it, in the order the card shows the fields. */
+const ERROR_ORDER = [
+    'id',
+    'supplier_name',
+    'quantity_offered',
+    'unit_price',
+    'lead_time_days',
+    'considered',
+    'is_recommended',
+    'ex_stock',
+    'brand',
+    'manufacturer',
+    'country_of_origin',
+    'remarks',
+    'reason_accepted_excluded',
+];
+
+/**
+ * V2-2 section "Quotation comparison": who received the RFQ, one card per
+ * quotation (a reason under the card's fields only when the quotation was
+ * not considered), the quantity to purchase and the server's total cost.
+ * The optional price comparison (fields of this section on the server)
+ * follows. Presentation only: the server still requires the reason on a
+ * row that is not considered, and one recommended quotation.
  */
 export function QuotationSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
@@ -22,19 +61,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
     const cap = config.row_caps.quotations;
     const tableError = [api.tableError('quotations'), api.tableError('quotations.recommended')].filter(Boolean).join(' ');
 
-    const columns: EntryColumn[] = [
-        { key: 'considered', label: 'Considered', width: 'check' },
-        { key: 'is_recommended', label: 'Recommended', width: 'check-wide' },
-        { key: 'supplier_name', label: 'Supplier' },
-        { key: 'quantity_offered', label: 'Quantity', width: 'xs' },
-        { key: 'unit_price', label: 'Unit Price', width: 'xs' },
-        { key: 'ex_stock', label: 'Ex Stock', width: 'check' },
-        { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' },
-        { key: 'brand', label: 'Brand' },
-        { key: 'manufacturer', label: 'Manufacturer' },
-        { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'remarks', label: 'Remarks', width: 'lg' },
-    ];
+    const columns = [...line1, ...line2];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
     const width = (key: string) => columns.find((c) => c.key === key)?.width;
 
@@ -59,8 +86,8 @@ export function QuotationSection({ api }: { api: FormApi }) {
                     <EntryTable
                         caption="Quotations Received"
                         columns={columns}
-                        breakpoint="88rem"
-                        narrowRowLabel
+                        breakpoint="54rem"
+                        variant="cards"
                         empty={rows.length === 0 && <RowsNote>No quotations yet.</RowsNote>}
                         addAction={
                             <AddRowButton label="Add Quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
@@ -69,11 +96,9 @@ export function QuotationSection({ api }: { api: FormApi }) {
                         {rows.map((row, index) => {
                             const rowLabel = `Quotation Row ${index + 1}`;
                             const id = (name: string) => fieldId.cell('quotations', row.key, name);
-                            // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                            // FORM-ERR-1 (A): every message of the entry in one list, at the bottom of its card.
                             const errorsId = fieldId.rowErrors('quotations', row.key);
-                            const errors = collectRowErrors(['id', ...columns.map((c) => c.key), 'reason_accepted_excluded'], (name) =>
-                                api.cellError('quotations', row, index, name),
-                            );
+                            const errors = collectRowErrors(ERROR_ORDER, (name) => api.cellError('quotations', row, index, name));
                             const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => (
                                 <EntryInput
                                     id={id(name)}
@@ -92,10 +117,9 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             const considered = row.values.considered === true;
 
                             return (
-                                <EntryRow
+                                <EntryCardRow
                                     key={row.key}
                                     label={rowLabel}
-                                    short={String(index + 1)}
                                     errors={errors}
                                     errorsId={errorsId}
                                     remove={
@@ -104,11 +128,54 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             onClick={() => api.removeRow('quotations', row.key)}
                                         />
                                     }
+                                    lines={[
+                                        <>
+                                            {input('supplier_name', 'text', 200)}
+                                            {input('quantity_offered', 'decimal')}
+                                            {input('unit_price', 'decimal')}
+                                            {input('lead_time_days', 'integer')}
+                                            <EntryCheckGroup label={`Choices, ${rowLabel}`}>
+                                                <EntryInlineCheck
+                                                    id={id('considered')}
+                                                    label="Considered"
+                                                    rowLabel={rowLabel}
+                                                    type="checkbox"
+                                                    checked={considered}
+                                                    onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
+                                                />
+                                                <EntryInlineCheck
+                                                    id={id('is_recommended')}
+                                                    label="Recommended"
+                                                    rowLabel={rowLabel}
+                                                    type="radio"
+                                                    name="recommended-quotation"
+                                                    checked={row.values.is_recommended === true}
+                                                    onChange={() => api.chooseRecommended(row.key)}
+                                                />
+                                                <EntryInlineCheck
+                                                    id={id('ex_stock')}
+                                                    label="Ex Stock"
+                                                    rowLabel={rowLabel}
+                                                    type="checkbox"
+                                                    checked={row.values.ex_stock === true}
+                                                    onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
+                                                />
+                                            </EntryCheckGroup>
+                                        </>,
+                                        <>
+                                            {input('brand', 'text', 200)}
+                                            {input('manufacturer', 'text', 200)}
+                                            {input('country_of_origin', 'text', 100)}
+                                            {input('remarks', 'text', 255)}
+                                        </>,
+                                    ]}
                                     below={
+                                        // Only for a quotation that was not considered; no space otherwise.
                                         !considered && (
                                             <TextAreaField
                                                 id={id('reason_accepted_excluded')}
-                                                label={`Reason Quotation ${index + 1} Was Not Considered`}
+                                                label="Reason Quotation Wasn't Considered"
+                                                srLabelSuffix={`, ${rowLabel}`}
                                                 rows={2}
                                                 maxLength={config.max_lengths.reason_accepted_excluded}
                                                 value={text(row.values.reason_accepted_excluded)}
@@ -120,44 +187,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             />
                                         )
                                     }
-                                >
-                                    <EntryCheck
-                                        id={id('considered')}
-                                        label="Considered"
-                                        rowLabel={rowLabel}
-                                        type="checkbox"
-                                        checked={considered}
-                                        onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
-                                        width="check"
-                                    />
-                                    <EntryCheck
-                                        id={id('is_recommended')}
-                                        label="Recommended"
-                                        rowLabel={rowLabel}
-                                        type="radio"
-                                        name="recommended-quotation"
-                                        checked={row.values.is_recommended === true}
-                                        onChange={() => api.chooseRecommended(row.key)}
-                                        width="check-wide"
-                                    />
-                                    {input('supplier_name', 'text', 200)}
-                                    {input('quantity_offered', 'decimal')}
-                                    {input('unit_price', 'decimal')}
-                                    <EntryCheck
-                                        id={id('ex_stock')}
-                                        label="Ex Stock"
-                                        rowLabel={rowLabel}
-                                        type="checkbox"
-                                        checked={row.values.ex_stock === true}
-                                        onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
-                                        width="check"
-                                    />
-                                    {input('lead_time_days', 'integer')}
-                                    {input('brand', 'text', 200)}
-                                    {input('manufacturer', 'text', 200)}
-                                    {input('country_of_origin', 'text', 100)}
-                                    {input('remarks', 'text', 255)}
-                                </EntryRow>
+                                />
                             );
                         })}
                     </EntryTable>

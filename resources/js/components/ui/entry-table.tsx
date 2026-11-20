@@ -94,7 +94,11 @@ const LAYOUT: Record<
     },
 };
 
-const TableContext = createContext<{ breakpoint: EntryBreakpoint; narrowRowLabel: boolean }>({ breakpoint: '66rem', narrowRowLabel: false });
+const TableContext = createContext<{ breakpoint: EntryBreakpoint; narrowRowLabel: boolean; cards: boolean }>({
+    breakpoint: '66rem',
+    narrowRowLabel: false,
+    cards: false,
+});
 
 export interface EntryColumn {
     key: string;
@@ -123,6 +127,12 @@ interface EntryTableProps {
      * ("Supplier row 1") is shown below the breakpoint and kept for screen readers.
      */
     narrowRowLabel?: boolean;
+    /**
+     * FORM-COMPACT-1 (2): "cards" gives every entry a small card of its own
+     * (EntryCardRow): no column headers, each field labelled above its input,
+     * several lines of fields. The breakpoint must fit each LINE at its minimums.
+     */
+    variant?: 'rows' | 'cards';
     className?: string;
 }
 
@@ -133,12 +143,25 @@ interface EntryTableProps {
  * entry wraps to labelled fields; there is no horizontal scroll. The add
  * button sits in a dashed strip at the bottom. Presentational only: no data.
  */
-export function EntryTable({ caption, columns, children, addAction, empty, foot, breakpoint, narrowRowLabel = false, className }: EntryTableProps) {
+export function EntryTable({
+    caption,
+    columns,
+    children,
+    addAction,
+    empty,
+    foot,
+    breakpoint,
+    narrowRowLabel = false,
+    variant = 'rows',
+    className,
+}: EntryTableProps) {
     const layout = LAYOUT[breakpoint];
+    const cards = variant === 'cards';
 
     return (
-        <TableContext.Provider value={{ breakpoint, narrowRowLabel }}>
+        <TableContext.Provider value={{ breakpoint, narrowRowLabel, cards }}>
             <div role="group" aria-label={caption} className={cn('bg-card @container overflow-hidden rounded-xl border shadow-xs', className)}>
+                {!cards && (
                 <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
                     <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : 'Row'}</span>
                     {columns.map((column) => (
@@ -148,6 +171,7 @@ export function EntryTable({ caption, columns, children, addAction, empty, foot,
                     ))}
                     <span className="w-9 shrink-0" />
                 </div>
+                )}
 
                 <div className="divide-divider divide-y">{children}</div>
                 {empty}
@@ -234,8 +258,55 @@ export function EntryRow({ label, short, remove, below, errors = [], errorsId, c
     );
 }
 
+interface EntryCardRowProps {
+    /** For example "Quotation Row 1", shown at the top of the card; also part of each input's accessible name. */
+    label: string;
+    /** The remove icon button (with an aria-label naming the row), at the end of the label line. */
+    remove?: ReactNode;
+    /** The lines of cells. Each is one line at the table's breakpoint and wraps to labelled fields below it. */
+    lines: ReactNode[];
+    /** Content under the lines, full width (a reason asked only for this entry). */
+    below?: ReactNode;
+    /** FORM-ERR-1: the entry's errors, in the one full-width list at the bottom of the card. */
+    errors?: RowError[];
+    errorsId?: string;
+}
+
+/**
+ * FORM-COMPACT-1 (2): one entry of a "cards" table: the row label and the
+ * remove button on a line of their own, then each line of fields (labels
+ * above inputs), then `below`, then the shared row-error list. A line is
+ * one row of fields once the card is as wide as the table's breakpoint;
+ * narrower, its fields wrap into a grid of ~160px columns. Nothing overlaps
+ * and nothing scrolls sideways, whatever the viewport or the sidebar.
+ */
+export function EntryCardRow({ label, remove, lines, below, errors = [], errorsId }: EntryCardRowProps) {
+    const layout = LAYOUT[useContext(TableContext).breakpoint];
+
+    return (
+        <div role="group" aria-label={label} className="grid gap-3 px-4 py-3">
+            <div className="flex min-h-9 items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{label}</p>
+                {remove}
+            </div>
+            {lines.map((line, i) => (
+                <div key={i} className={layout.row}>
+                    {line}
+                </div>
+            ))}
+            {below}
+            {errorsId && <RowErrorList id={errorsId} errors={errors} />}
+        </div>
+    );
+}
+
+/** The `checks` offset of the current table: a check group level with the inputs of its line. */
+export function useChecksOffset(): string {
+    return LAYOUT[useContext(TableContext).breakpoint].checks;
+}
+
 interface EntryCellProps {
-    /** The column label: visible above the field below the breakpoint, hidden (screen-reader only) at it. */
+    /** The column label: visible above the field below the breakpoint, hidden (screen-reader only) at it; always visible in a "cards" table. */
     label: string;
     /** The id of the input it labels. */
     htmlFor?: string;
@@ -246,13 +317,14 @@ interface EntryCellProps {
 }
 
 export function EntryCell({ label, htmlFor, width = 'md', className, children }: EntryCellProps) {
-    const layout = LAYOUT[useContext(TableContext).breakpoint];
+    const { breakpoint, cards } = useContext(TableContext);
+    const layout = LAYOUT[breakpoint];
 
     return (
         // FORM-ERR-1 (B): one track that can shrink to the cell (minmax(0,1fr)), so nothing
         // inside (a long word, an input's intrinsic size) can widen the cell over its neighbour.
         <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-2', ENTRY_WIDTH[width], className)}>
-            <label htmlFor={htmlFor} className={cn('text-sm font-medium', layout.cellLabel)}>
+            <label htmlFor={htmlFor} className={cn('text-sm font-medium', !cards && layout.cellLabel)}>
                 {label}
             </label>
             {children}

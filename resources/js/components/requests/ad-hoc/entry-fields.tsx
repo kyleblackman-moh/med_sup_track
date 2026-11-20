@@ -1,4 +1,4 @@
-import { EntryCell, type EntryWidth, type RowError } from '@/components/ui/entry-table';
+import { ENTRY_WIDTH, EntryCell, type EntryWidth, type RowError, useChecksOffset } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -152,35 +152,47 @@ export function EntryValue({
     );
 }
 
-interface EntryCheckProps {
+/**
+ * FORM-COMPACT-1 (2): checkboxes and radios side by side in one cell of a
+ * card line (the quotation's Considered, Recommended and Ex Stock), each a
+ * native control with its visible label beside it, 16px apart. Level with
+ * the line's inputs at the one-line width; wraps below it. 44px targets
+ * below md, 40px from md (WCAG 2.2: at least 24px).
+ */
+export function EntryCheckGroup({ label, children }: { label: string; children: ReactNode }) {
+    const offset = useChecksOffset();
+
+    return (
+        <div role="group" aria-label={label} className={cn('col-span-full flex flex-wrap items-center gap-x-4 gap-y-1', ENTRY_WIDTH.checks, offset)}>
+            {children}
+        </div>
+    );
+}
+
+interface EntryInlineCheckProps {
     id: string;
     label: string;
     rowLabel: string;
     type: 'checkbox' | 'radio';
-    /** Radios of one group share a name. */
+    /** Radios of one group share a name (Recommended: one quotation across the rows). */
     name?: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
-    width?: EntryWidth;
-    className?: string;
 }
 
-/** A checkbox or radio in a narrow column, 44px tall below md. */
-export function EntryCheck({ id, label, rowLabel, type, name, checked, onChange, width = 'check', className }: EntryCheckProps) {
+export function EntryInlineCheck({ id, label, rowLabel, type, name, checked, onChange }: EntryInlineCheckProps) {
     return (
-        <EntryCell label={label} htmlFor={id} width={width} className={className}>
-            <span className="flex min-h-11 items-center md:min-h-10">
-                <input
-                    id={id}
-                    type={type}
-                    name={name}
-                    checked={checked}
-                    aria-label={`${label}, ${rowLabel}`}
-                    className="accent-primary focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2"
-                    onChange={(e) => onChange(e.target.checked)}
-                />
-            </span>
-        </EntryCell>
+        <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium md:min-h-10">
+            <input
+                id={id}
+                type={type}
+                name={name}
+                checked={checked}
+                aria-label={`${label}, ${rowLabel}`}
+                className="accent-primary focus-visible:ring-ring size-4 shrink-0 focus-visible:ring-2 focus-visible:ring-offset-2"
+                onChange={(e) => onChange(e.target.checked)}
+            />
+            {label}
+        </label>
     );
 }

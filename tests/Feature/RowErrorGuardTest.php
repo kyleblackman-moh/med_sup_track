@@ -4,13 +4,13 @@
 // full-width list under the row (RowErrorList, through EntryRow's errors),
 // never inside a narrow cell. Static checks on the source.
 
-/** Every TSX file that renders entry-table rows. */
+/** Every TSX file that renders entry-table rows (EntryRow, or FORM-COMPACT-1 EntryCardRow). */
 function entryRowFiles(): array
 {
     $files = [];
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js')));
     foreach ($iterator as $file) {
-        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && str_contains(file_get_contents($file->getPathname()), '<EntryRow')) {
+        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && preg_match('/<Entry(?:Card)?Row\b/',file_get_contents($file->getPathname())) === 1) {
             $files[] = str_replace('\\', '/', $file->getPathname());
         }
     }
