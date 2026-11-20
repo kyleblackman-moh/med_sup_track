@@ -1,12 +1,16 @@
+import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/cases/action-panel';
 import { PsOutcomeStatement } from '@/components/cases/ps-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { type HardcopyRecord, type PsOutcome, type StaffCaseAbilities } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { FormEvent, type ReactNode, useState } from 'react';
+import { PackageCheck, PackageX } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+
+/** Field label inside an action panel (daisyUI fieldset label). */
+const LABEL = 'label text-base-content text-sm font-medium capitalize';
 
 export function formatDay(day: string): string {
     // A calendar date (Y-m-d), shown as-is: no time zone shift.
@@ -23,9 +27,10 @@ export function hardcopyText(hardcopy: HardcopyRecord | null): string {
 }
 
 /**
- * NEXT-STEP-1: Date Received and Save, shown inline in the Next Step card's
- * checklist (it replaced the separate Hardcopy block). Only rendered when the
- * server sends the form bounds; the server checks every date again.
+ * NEXT-STEP-1: Date Received and Save, shown with the Next Step card when its
+ * checklist carries the hardcopy form (it replaced the separate Hardcopy
+ * block). Only rendered when the server sends the form bounds; the server
+ * checks every date again.
  */
 export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: { today: string; earliest: string | null } }) {
     const mark = useForm({ received_on: dates.today });
@@ -36,14 +41,26 @@ export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: {
     };
 
     return (
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3" noValidate>
-            <div className="grid gap-1.5">
-                <Label htmlFor="hardcopy-received-on">Date Received</Label>
+        <ActionPanel
+            title="Record the Hardcopy"
+            icon={PackageCheck}
+            description="The date the paper file reached the office."
+            onSubmit={submit}
+            actions={
+                <Button type="submit" size="sm" className="active:scale-[0.97]" disabled={mark.processing}>
+                    {mark.processing ? 'Saving…' : 'Save'}
+                </Button>
+            }
+        >
+            <fieldset className="fieldset py-0">
+                <label className={LABEL} htmlFor="hardcopy-received-on">
+                    Date Received
+                </label>
                 <Input
                     id="hardcopy-received-on"
                     aria-required="true"
                     type="date"
-                    className="w-44"
+                    className="input-sm w-44"
                     value={mark.data.received_on}
                     max={dates.today}
                     min={dates.earliest ?? undefined}
@@ -51,26 +68,9 @@ export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: {
                     aria-invalid={mark.errors.received_on ? true : undefined}
                     aria-describedby={mark.errors.received_on ? 'hardcopy-received-on-error' : undefined}
                 />
-            </div>
-            <Button type="submit" variant="outline" disabled={mark.processing}>
-                {mark.processing ? 'Saving…' : 'Save'}
-            </Button>
-            <div className="w-full">
                 <InputError id="hardcopy-received-on-error" message={mark.errors.received_on ?? (mark.errors as Record<string, string>).hardcopy} />
-            </div>
-        </form>
-    );
-}
-
-function Group({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
-    return (
-        <section aria-labelledby={id} className="space-y-2 border-t pt-4 first:border-t-0 first:pt-0">
-            <h3 id={id} className="font-medium">
-                {title}
-            </h3>
-            <p className="text-muted-foreground text-sm">{description}</p>
-            {children}
-        </section>
+            </fieldset>
+        </ActionPanel>
     );
 }
 
@@ -82,10 +82,10 @@ interface Props {
 }
 
 /**
- * The Actions tab (NEXT-STEP-1): the less common actions only. The step that
- * moves the file on is in the Next Step card at the top of the page, so it is
- * not repeated here. Buttons follow the server's can flags; the server
- * authorises every request again.
+ * The less common actions (NEXT-STEP-1), each one ActionPanel in the action
+ * column under the Next Step card. The step that moves the file on is in the
+ * Next Step card, so it is not repeated here. Buttons follow the server's can
+ * flags; the server authorises every request again.
  */
 export function CaseActions({ caseId, hardcopy, can, psOutcome }: Props) {
     const [confirmReverse, setConfirmReverse] = useState(false);
@@ -105,28 +105,28 @@ export function CaseActions({ caseId, hardcopy, can, psOutcome }: Props) {
     const canCorrectHardcopy = can.record_hardcopy && hardcopy !== null;
     const showPsOutcome = !can.record_ps_decision && psOutcome !== null;
 
+    if (!canCorrectHardcopy && !showPsOutcome) {
+        return (
+            <p className="text-base-content/70 px-1 text-sm">
+                There are no other actions on this case. The step that moves the file on is in the Next Step card.
+            </p>
+        );
+    }
+
     return (
-        <section aria-labelledby="actions-heading" className="bg-card space-y-4 rounded-lg border p-4">
-            <h2 id="actions-heading" className="text-lg font-semibold">
-                Other Actions
-            </h2>
-
-            {!canCorrectHardcopy && !showPsOutcome && (
-                <p className="text-muted-foreground text-sm">
-                    There are no other actions on this case. The step that moves the file on is in the Next Step card at the top of the page.
-                </p>
-            )}
-
+        <>
             {canCorrectHardcopy && hardcopy && (
-                <Group
-                    id="hardcopy-correct-heading"
+                <ActionPanel
                     title="Correct the Hardcopy Record"
+                    icon={PackageX}
                     description="If the hardcopy was recorded by mistake, mark it as not received. The file does not move; the reason is kept in the audit log."
+                    actions={
+                        <Button type="button" variant="outline" size="sm" className="active:scale-[0.97]" onClick={() => setConfirmReverse(true)}>
+                            Mark Not Received
+                        </Button>
+                    }
                 >
-                    <p className="text-sm">{hardcopyText(hardcopy)}</p>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReverse(true)}>
-                        Mark Not Received
-                    </Button>
+                    <ActionFacts items={[['Hardcopy', hardcopyText(hardcopy)]]} />
                     <InputError message={(reverse.errors as Record<string, string>).hardcopy} />
 
                     <Dialog open={confirmReverse} onOpenChange={(open) => !reverse.processing && setConfirmReverse(open)}>
@@ -138,24 +138,26 @@ export function CaseActions({ caseId, hardcopy, can, psOutcome }: Props) {
                                         This removes the recorded date ({formatDay(hardcopy.received_on)}). The reason is kept in the audit log.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="hardcopy-reason">Reason</Label>
+                                <fieldset className="fieldset py-0">
+                                    <label className={LABEL} htmlFor="hardcopy-reason">
+                                        Reason
+                                    </label>
                                     <textarea
                                         id="hardcopy-reason"
                                         aria-required="true"
                                         rows={3}
                                         maxLength={500}
-                                        className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                        className={actionTextareaClass}
                                         value={reverse.data.reason}
                                         onChange={(e) => reverse.setData('reason', e.target.value)}
                                         aria-invalid={reverse.errors.reason ? true : undefined}
                                         aria-describedby="hardcopy-reason-hint hardcopy-reason-error"
                                     />
-                                    <p id="hardcopy-reason-hint" className="text-muted-foreground text-xs">
+                                    <p id="hardcopy-reason-hint" className="label">
                                         10 to 500 characters.
                                     </p>
                                     <InputError id="hardcopy-reason-error" message={reverse.errors.reason} />
-                                </div>
+                                </fieldset>
                                 <DialogFooter className="gap-2">
                                     <Button type="button" variant="ghost" onClick={() => setConfirmReverse(false)} disabled={reverse.processing}>
                                         Cancel
@@ -171,11 +173,11 @@ export function CaseActions({ caseId, hardcopy, can, psOutcome }: Props) {
                             </form>
                         </DialogContent>
                     </Dialog>
-                </Group>
+                </ActionPanel>
             )}
 
             {/* A record, not an action: the decision already taken, which cannot be changed here. */}
             {showPsOutcome && psOutcome && <PsOutcomeStatement outcome={psOutcome} />}
-        </section>
+        </>
     );
 }

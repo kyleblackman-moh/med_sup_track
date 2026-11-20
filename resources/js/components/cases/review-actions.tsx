@@ -1,9 +1,10 @@
+import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/cases/action-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { type ReviewForm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
+import { CircleCheck, ClipboardCheck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 const TZ = 'America/Port_of_Spain';
@@ -53,41 +54,50 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
 
     if (!editing && def.current) {
         return (
-            <section className="space-y-3 border-t pt-4" aria-labelledby={`${id}-done`}>
-                <h3 id={`${id}-done`} className="font-medium">
-                    Your {def.label.toLowerCase()} is recorded
-                </h3>
-                <dl className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr]">
-                    <dt className="text-muted-foreground">Outcome</dt>
-                    <dd className="font-medium">{def.current.label}</dd>
-                    {def.current.reason && (
-                        <>
-                            <dt className="text-muted-foreground">Reason or Note</dt>
-                            <dd className="whitespace-pre-line">{def.current.reason}</dd>
-                        </>
-                    )}
-                    <dt className="text-muted-foreground">Recorded</dt>
-                    <dd>{formatDateTime(def.current.recorded_at)}</dd>
-                </dl>
-                <p className="text-muted-foreground text-sm">
-                    Nothing else is needed from you on this case for now. You can change the outcome until the case is marked ready for file.
-                </p>
-                <Button type="button" variant="outline" onClick={() => setEditing(true)}>
-                    Change Outcome
-                </Button>
-            </section>
+            <ActionPanel
+                title={`Your ${def.label.toLowerCase()} is recorded`}
+                icon={CircleCheck}
+                description="Nothing else is needed from you on this case for now. You can change the outcome until the case is marked ready for file."
+                actions={
+                    <Button type="button" variant="outline" size="sm" className="active:scale-[0.97]" onClick={() => setEditing(true)}>
+                        Change Outcome
+                    </Button>
+                }
+            >
+                <ActionFacts
+                    items={[
+                        ['Outcome', def.current.label],
+                        ...(def.current.reason ? ([['Reason or Note', def.current.reason]] as [string, string][]) : []),
+                        ['Recorded', formatDateTime(def.current.recorded_at)],
+                    ]}
+                />
+            </ActionPanel>
         );
     }
 
     return (
-        <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Your {def.label.toLowerCase()}</h3>
-            {!def.current && <p className="text-muted-foreground text-sm">You have not recorded an outcome yet.</p>}
-
-            <fieldset className="grid gap-2" aria-describedby={`${id}-outcome-error`}>
-                <legend className="text-sm font-medium">Outcome</legend>
+        <ActionPanel
+            title={`Your ${def.label.toLowerCase()}`}
+            icon={ClipboardCheck}
+            description={def.current ? undefined : 'You have not recorded an outcome yet.'}
+            onSubmit={review}
+            actions={
+                <>
+                    {def.current && (
+                        <Button type="button" variant="outline" size="sm" className="active:scale-[0.97]" onClick={keepCurrent}>
+                            Keep Current Outcome
+                        </Button>
+                    )}
+                    <Button type="submit" size="sm" className="active:scale-[0.97]" disabled={form.processing || form.data.outcome === ''}>
+                        Record Outcome
+                    </Button>
+                </>
+            }
+        >
+            <fieldset className="fieldset gap-2 py-0" aria-describedby={`${id}-outcome-error`}>
+                <legend className="fieldset-legend pt-0 capitalize">Outcome</legend>
                 {def.outcomes.map((o) => (
-                    <div key={o.value} className="flex items-center gap-2">
+                    <label key={o.value} htmlFor={`${id}-${o.value}`} className="label text-base-content cursor-pointer gap-2 text-sm">
                         <input
                             type="radio"
                             id={`${id}-${o.value}`}
@@ -95,45 +105,35 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                             value={o.value}
                             checked={form.data.outcome === o.value}
                             onChange={() => form.setData('outcome', o.value)}
-                            className="accent-primary focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                            className="radio radio-sm"
                         />
-                        <Label htmlFor={`${id}-${o.value}`} className="font-normal">
-                            {o.label}
-                        </Label>
-                    </div>
+                        {o.label}
+                    </label>
                 ))}
                 <InputError id={`${id}-outcome-error`} message={errors.outcome} />
             </fieldset>
 
-            <div className="grid gap-1.5">
-                <Label htmlFor={`${id}-reason`}>{negative ? 'Reason (required)' : 'Note'}</Label>
+            <fieldset className="fieldset py-0">
+                <label className="label text-base-content text-sm font-medium capitalize" htmlFor={`${id}-reason`}>
+                    {negative ? 'Reason (required)' : 'Note'}
+                </label>
                 <textarea
                     id={`${id}-reason`}
+                    aria-label={negative ? 'Reason' : 'Note'}
                     aria-required={negative ? true : undefined}
                     rows={3}
                     maxLength={500}
-                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                    className={actionTextareaClass}
                     value={form.data.reason}
                     onChange={(e) => form.setData('reason', e.target.value)}
                     aria-invalid={errors.reason ? true : undefined}
                     aria-describedby={`${id}-reason-hint ${id}-reason-error`}
                 />
-                <p id={`${id}-reason-hint`} className="text-muted-foreground text-xs">
+                <p id={`${id}-reason-hint`} className="label whitespace-normal">
                     {negative ? '10 to 500 characters. Staff can see it; the vendor cannot.' : 'Up to 500 characters.'}
                 </p>
                 <InputError id={`${id}-reason-error`} message={errors.reason ?? errors.review} />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <Button type="submit" disabled={form.processing || form.data.outcome === ''}>
-                    Record Outcome
-                </Button>
-                {def.current && (
-                    <Button type="button" variant="outline" onClick={keepCurrent}>
-                        Keep Current Outcome
-                    </Button>
-                )}
-            </div>
+            </fieldset>
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
                 <DialogContent>
@@ -141,15 +141,14 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                         <DialogTitle>Record this outcome?</DialogTitle>
                         <DialogDescription>Check the summary, then record it.</DialogDescription>
                     </DialogHeader>
-                    <dl className="grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
-                        <dt className="text-muted-foreground">Review</dt>
-                        <dd>{def.label}</dd>
-                        <dt className="text-muted-foreground">Outcome</dt>
-                        <dd className="font-medium">{chosen?.label}</dd>
-                        <dt className="text-muted-foreground">{negative ? 'Reason' : 'Note'}</dt>
-                        <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
-                    </dl>
-                    <p className="text-muted-foreground text-sm">You can change it until the case is marked ready for file.</p>
+                    <ActionFacts
+                        items={[
+                            ['Review', def.label],
+                            ['Outcome', chosen?.label ?? ''],
+                            [negative ? 'Reason' : 'Note', reason === '' ? 'None' : reason],
+                        ]}
+                    />
+                    <p className="text-base-content/70 text-sm">You can change it until the case is marked ready for file.</p>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
                             Go Back
@@ -160,6 +159,6 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </form>
+        </ActionPanel>
     );
 }

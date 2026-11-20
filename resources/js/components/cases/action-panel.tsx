@@ -44,7 +44,7 @@ export function ActionPanel({ title, description, icon: Icon, status, actions, o
                 {description && <div className="text-base-content/70 text-sm">{description}</div>}
                 {children}
                 {actions && (
-                    <div className="card-actions border-base-300 -mx-4 mt-1 -mb-1 items-center justify-end border-t px-4 pt-3 [&_.btn]:capitalize">
+                    <div className="card-actions border-base-300 -mx-4 mt-1 -mb-1 items-center justify-end border-t px-4 pt-3 [&_.btn]:capitalize [&_.btn]:transition-transform [&_.btn]:active:scale-[0.97]">
                         {actions}
                     </div>
                 )}
