@@ -2,6 +2,50 @@
 
 @plugin 'tailwindcss-animate';
 
+/* daisyUI 5 is the component kit. One theme, "moh", light only; values are
+   the Ministry palette below (design.md section 2). Not from a registry. */
+@plugin 'daisyui' {
+    themes: moh --default;
+    logs: false;
+}
+
+@plugin 'daisyui/theme' {
+    name: 'moh';
+    default: true;
+    prefersdark: false;
+    color-scheme: light;
+
+    --color-base-100: hsl(0, 0%, 100%); /* #ffffff L1 */
+    --color-base-200: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
+    --color-base-300: hsl(211.8, 33.3%, 90%); /* #dde5ee */
+    --color-base-content: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --color-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
+    --color-primary-content: hsl(0, 0%, 100%);
+    --color-secondary: hsl(85.3, 51.4%, 92.7%); /* #eef6e3 */
+    --color-secondary-content: hsl(87.3, 62.2%, 24.9%); /* #436718 */
+    --color-accent: hsl(194.4, 86.2%, 94.3%); /* #e4f7fd */
+    --color-accent-content: hsl(196.1, 100%, 27.1%); /* #00658a */
+    --color-neutral: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
+    --color-neutral-content: hsl(0, 0%, 100%);
+    --color-info: hsl(204.7, 100%, 30%); /* #005a99 */
+    --color-info-content: hsl(0, 0%, 100%);
+    --color-success: hsl(87.5, 62.1%, 22.7%); /* #3d5e16 */
+    --color-success-content: hsl(0, 0%, 100%);
+    --color-warning: hsl(22.7, 82.5%, 31.4%); /* #92400e */
+    --color-warning-content: hsl(0, 0%, 100%);
+    --color-error: hsl(0, 73.7%, 41.8%); /* #b91c1c */
+    --color-error-content: hsl(0, 0%, 100%);
+
+    --radius-selector: 9999px;
+    --radius-field: 0.5rem;
+    --radius-box: 0.75rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @custom-variant dark (&:is(.dark *));
@@ -75,7 +119,7 @@
     --color-destructive-text: var(--destructive-text);
     --color-destructive-wash: var(--destructive-wash);
 
-    --color-border: var(--border);
+    --color-border: var(--color-base-300);
     --color-input: var(--input);
     --color-ring: var(--ring);
     --color-ring-wash: var(--ring-wash);
@@ -161,7 +205,6 @@
     --destructive-foreground: hsl(0, 0%, 100%); /* #ffffff */
     --destructive-text: hsl(0, 73.7%, 41.8%); /* #b91c1c */
     --destructive-wash: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
-    --border: hsl(211.8, 33.3%, 90%); /* #dde5ee decorative */
     --input: hsl(212.3, 11.3%, 54.9%); /* #7f8b99 form-field borders */
     --ring: hsl(204.2, 100%, 36.5%); /* #006fba */
     --ring-wash: hsl(207, 66.7%, 94.1%); /* #e6f1fa */
@@ -199,41 +242,6 @@
     --status-warning-foreground: hsl(22.7, 82.5%, 31.4%); /* #92400e */
     --status-danger: hsl(0, 93.3%, 94.1%); /* #fee2e2 */
     --status-danger-foreground: hsl(0, 70%, 35.3%); /* #991b1b */
-}
-
-.dark {
-    --background: hsl(0, 0%, 3.9%);
-    --foreground: hsl(0, 0%, 98%);
-    --card: hsl(0, 0%, 3.9%);
-    --card-foreground: hsl(0, 0%, 98%);
-    --popover: hsl(0, 0%, 3.9%);
-    --popover-foreground: hsl(0, 0%, 98%);
-    --primary: hsl(0, 0%, 98%);
-    --primary-foreground: hsl(0, 0%, 9%);
-    --secondary: hsl(0, 0%, 14.9%);
-    --secondary-foreground: hsl(0, 0%, 98%);
-    --muted: hsl(0, 0%, 6.9%);
-    --muted-foreground: hsl(0, 0%, 63.9%);
-    --accent: hsl(0, 0%, 14.9%);
-    --accent-foreground: hsl(0, 0%, 98%);
-    --destructive: hsl(0, 84%, 60%);
-    --destructive-foreground: hsl(0, 0%, 98%);
-    --border: hsl(0, 0%, 14.9%);
-    --input: hsl(0, 0%, 14.9%);
-    --ring: hsl(0, 0%, 83.1%);
-    --chart-1: hsl(220, 70%, 50%);
-    --chart-2: hsl(160, 60%, 45%);
-    --chart-3: hsl(30, 80%, 55%);
-    --chart-4: hsl(280, 65%, 60%);
-    --chart-5: hsl(340, 75%, 55%);
-    --sidebar-background: hsl(0, 0%, 7%);
-    --sidebar-foreground: hsl(0, 0%, 80%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0, 0%, 100%);
-    --sidebar-accent: hsl(0, 0%, 15.9%);
-    --sidebar-accent-foreground: hsl(240, 4.8%, 95.9%);
-    --sidebar-border: hsl(0, 0%, 15.9%);
-    --sidebar-ring: hsl(217.2, 91.2%, 59.8%);
 }
 
 @layer base {
