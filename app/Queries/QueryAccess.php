@@ -10,6 +10,7 @@ use App\Models\ProcurementCase;
 use App\Models\QueryMessage;
 use App\Models\QueryRoute;
 use App\Models\User;
+use App\Notifications\NotificationRecipients;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Role as RoleModel;
@@ -28,6 +29,13 @@ use Spatie\Permission\Models\Role as RoleModel;
  * - Held (via-CMO, not yet forwarded) messages: only their author and the
  *   CMO's desk see them.
  * - Vendors: external messages only, and only once delivered.
+ * - WORKFLOW-2: the officer the CMO named when forwarding a message is a party
+ *   to that query (the side the message went to), even when not assigned to
+ *   the case. That reaches the query only: every other part of the case keeps
+ *   the assignment rules (CasePolicy::view).
+ * - WORKFLOW-2: a direct route to a staff desk is offered only when someone on
+ *   that desk can see the case; a via-CMO forward to a desk with nobody on the
+ *   case needs a named officer. A query never goes to nobody.
  */
 final class QueryAccess
 {
@@ -57,6 +65,31 @@ final class QueryAccess
         self::$vendorRoles = [];
     }
 
+    /**
+     * WORKFLOW-2: the route binding for the staff query actions ({queryCase}).
+     * The case if $user can see it, or was named on a forwarded message of one
+     * of its queries; null (404) otherwise, before any middleware runs, the
+     * same answer the scoped case binding gives.
+     */
+    public static function caseForQueryWork(string $id, ?User $user): ?ProcurementCase
+    {
+        $case = $user === null ? null : ProcurementCase::withoutGlobalScopes()->find($id);
+        if ($case === null) {
+            return null;
+        }
+
+        if (self::canSeeCase($user, $case)) {
+            return $case;
+        }
+
+        $named = ! $user->isVendor() && $case->status !== CaseStatus::DRAFT && QueryMessage::query()
+            ->where('forwarded_to_user_id', $user->getKey())->whereNotNull('forwarded_at')
+            ->whereIn('query_id', CaseQuery::withoutGlobalScopes()->select('id')->where('case_id', $case->getKey()))
+            ->exists();
+
+        return $named ? $case : null;
+    }
+
     public static function canSeeCase(User $user, ProcurementCase $case): bool
     {
         return Gate::forUser($user)->allows('view', $case);
@@ -74,13 +107,60 @@ final class QueryAccess
         return match (true) {
             in_array($query->raised_by_role, $roles, true) => self::RAISER,
             in_array($query->raised_to_role, $roles, true) => self::RECIPIENT,
-            default => null,
+            default => self::namedSide($user, $query),
         };
+    }
+
+    /**
+     * WORKFLOW-2: the side of $query a forwarded message named $user on, or
+     * null. Staff only: a vendor is never named.
+     */
+    public static function namedSide(User $user, CaseQuery $query): ?string
+    {
+        if ($user->isVendor()) {
+            return null;
+        }
+
+        $named = $query->messages->first(fn (QueryMessage $m) => $m->forwarded_at !== null
+            && $m->forwarded_to_user_id !== null
+            && (int) $m->forwarded_to_user_id === (int) $user->getKey());
+
+        if ($named === null) {
+            return null;
+        }
+
+        return $named->recipient_role === $query->raised_to_role ? self::RECIPIENT : self::RAISER;
+    }
+
+    /**
+     * WORKFLOW-2: may $user reach $query at all? Anyone who can see the case,
+     * or a named officer (staff, a submitted case) who cannot.
+     */
+    private static function reaches(User $user, ProcurementCase $case, CaseQuery $query): bool
+    {
+        if (self::canSeeCase($user, $case)) {
+            return true;
+        }
+
+        return $case->status !== CaseStatus::DRAFT
+            && (string) $query->case_id === (string) $case->getKey()
+            && self::namedSide($user, $query) !== null;
+    }
+
+    /**
+     * WORKFLOW-2: the staff on $role's desk who can see $case (assigned on that
+     * track, or case.view_all). The role name is route data, never a check.
+     *
+     * @return Collection<int, User>
+     */
+    public static function deskOnCase(string $role, ProcurementCase $case): Collection
+    {
+        return app(NotificationRecipients::class)->roleOnCase($role, $case);
     }
 
     public static function canSeeMessage(User $user, ProcurementCase $case, CaseQuery $query, QueryMessage $message): bool
     {
-        if (! self::canSeeCase($user, $case)) {
+        if (! self::reaches($user, $case, $query)) {
             return false;
         }
 
@@ -112,12 +192,16 @@ final class QueryAccess
      */
     public static function visibleQueries(User $user, ProcurementCase $case): Collection
     {
-        if (! self::canSeeCase($user, $case)) {
+        $whole = self::canSeeCase($user, $case);
+        if (! $whole && ($user->isVendor() || $case->status === CaseStatus::DRAFT)) {
             return collect();
         }
 
         return CaseQuery::withoutGlobalScopes()
             ->where('case_id', $case->getKey())
+            // WORKFLOW-2: without the case, only the queries this officer was named on.
+            ->when(! $whole, fn ($q) => $q->whereIn('id', QueryMessage::query()->select('query_id')
+                ->where('forwarded_to_user_id', $user->getKey())->whereNotNull('forwarded_at')))
             ->with(['messages.author:id,name', 'raisedBy:id,name'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -147,6 +231,8 @@ final class QueryAccess
 
         return QueryRoutes::forRaiser($user)
             ->filter(fn (QueryRoute $r) => ! self::isVendorRole($r->to_role) || $user->can(Permission::QueryRaiseToVendor->value))
+            // WORKFLOW-2: a direct route to a staff desk only when someone there can see the case.
+            ->filter(fn (QueryRoute $r) => $r->via_cmo || self::isVendorRole($r->to_role) || self::deskOnCase($r->to_role, $case)->isNotEmpty())
             ->values();
     }
 

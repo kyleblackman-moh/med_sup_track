@@ -11,40 +11,40 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * OVERNIGHT-2 (D2, D3): query actions. The case is bound through its
- * visibility scope (another organisation's case, a hidden case or a draft is
- * 404), and a query or message must belong to that case (404 otherwise). A
- * query the user cannot see is 404 as well; an action they may not take on a
- * query they can see is 403. QueryService checks everything again.
+ * OVERNIGHT-2 (D2, D3): query actions. A query or message must belong to the
+ * case (404 otherwise), and a query the user cannot see is 404 as well; an
+ * action they may not take on a query they can see is 403. QueryService
+ * checks everything again.
+ *
+ * WORKFLOW-2: reply, forward and close bind {queryCase}
+ * (QueryAccess::caseForQueryWork), because an officer the CMO named on a
+ * forward is a party to that query without being assigned to the case. A user
+ * who can neither see the case nor was named on one of its queries still gets
+ * 404 at the binding, as before. Raising a query needs the case itself
+ * ({procurementCase}, scoped). The vendor's reply keeps the scoped binding
+ * (own organisation only).
  */
 class CaseQueryController extends Controller
 {
     public function store(Request $request, ProcurementCase $procurementCase, QueryService $service): RedirectResponse
     {
+        $case = $procurementCase;
+
         $validated = $request->validate([
             'route' => ['required', 'integer'],
             'body' => ['required', 'string', 'min:'.QueryService::BODY_MIN, 'max:'.QueryService::BODY_MAX],
         ], self::messages() + ['route.required' => 'Choose who the query goes to.', 'route.integer' => 'Choose who the query goes to from the list.']);
 
-        abort_if(QueryAccess::raisableRoutes($request->user(), $procurementCase)->isEmpty(), 403);
+        abort_if(QueryAccess::raisableRoutes($request->user(), $case)->isEmpty(), 403);
 
-        $service->raise($procurementCase, $request->user(), (int) $validated['route'], $validated['body']);
+        $service->raise($case, $request->user(), (int) $validated['route'], $validated['body']);
 
         return back()->with('success', 'Query raised.');
     }
 
-    public function reply(Request $request, ProcurementCase $procurementCase, string $query, QueryService $service): RedirectResponse
+    public function reply(Request $request, ProcurementCase $queryCase, string $query, QueryService $service): RedirectResponse
     {
-        $caseQuery = $this->visibleQuery($request, $procurementCase, $query);
-        abort_unless(QueryAccess::canReply($request->user(), $procurementCase, $caseQuery), 403);
-
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'min:'.QueryService::BODY_MIN, 'max:'.QueryService::BODY_MAX],
-        ], self::messages());
-
-        $service->reply($procurementCase, $caseQuery, $request->user(), $validated['body']);
-
-        return back()->with('success', 'Message sent.');
+        return $this->replyOn($request, $queryCase, $query, $service);
     }
 
     /**
@@ -56,29 +56,51 @@ class CaseQueryController extends Controller
     {
         abort_unless($request->user()->isVendor(), 404);
 
-        return $this->reply($request, $procurementCase, $query, $service);
+        return $this->replyOn($request, $procurementCase, $query, $service);
     }
 
-    public function forward(Request $request, ProcurementCase $procurementCase, string $query, string $message, QueryService $service): RedirectResponse
+    public function forward(Request $request, ProcurementCase $queryCase, string $query, string $message, QueryService $service): RedirectResponse
     {
-        $caseQuery = $this->visibleQuery($request, $procurementCase, $query);
+        $case = $queryCase;
+        $caseQuery = $this->visibleQuery($request, $case, $query);
         $queryMessage = QueryMessage::query()->where('query_id', $caseQuery->getKey())->find($message);
-        abort_if($queryMessage === null || ! QueryAccess::canSeeMessage($request->user(), $procurementCase, $caseQuery, $queryMessage), 404);
+        abort_if($queryMessage === null || ! QueryAccess::canSeeMessage($request->user(), $case, $caseQuery, $queryMessage), 404);
         abort_unless(QueryAccess::isCmoDesk($request->user()), 403);
 
-        $service->forward($procurementCase, $caseQuery, $queryMessage, $request->user());
+        // WORKFLOW-2: the officer the CMO names (optional unless nobody on that desk is on the case).
+        $validated = $request->validate(
+            ['officer_id' => ['nullable', 'integer']],
+            ['officer_id.integer' => 'Choose the officer from the list.'],
+        );
+
+        $service->forward($case, $caseQuery, $queryMessage, $request->user(), isset($validated['officer_id']) ? (int) $validated['officer_id'] : null);
 
         return back()->with('success', 'Query forwarded.');
     }
 
-    public function close(Request $request, ProcurementCase $procurementCase, string $query, QueryService $service): RedirectResponse
+    public function close(Request $request, ProcurementCase $queryCase, string $query, QueryService $service): RedirectResponse
     {
-        $caseQuery = $this->visibleQuery($request, $procurementCase, $query);
-        abort_unless(QueryAccess::canClose($request->user(), $procurementCase, $caseQuery), 403);
+        $case = $queryCase;
+        $caseQuery = $this->visibleQuery($request, $case, $query);
+        abort_unless(QueryAccess::canClose($request->user(), $case, $caseQuery), 403);
 
-        $service->close($procurementCase, $caseQuery, $request->user());
+        $service->close($case, $caseQuery, $request->user());
 
         return back()->with('success', 'Query closed.');
+    }
+
+    private function replyOn(Request $request, ProcurementCase $case, string $query, QueryService $service): RedirectResponse
+    {
+        $caseQuery = $this->visibleQuery($request, $case, $query);
+        abort_unless(QueryAccess::canReply($request->user(), $case, $caseQuery), 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'min:'.QueryService::BODY_MIN, 'max:'.QueryService::BODY_MAX],
+        ], self::messages());
+
+        $service->reply($case, $caseQuery, $request->user(), $validated['body']);
+
+        return back()->with('success', 'Message sent.');
     }
 
     /** The query, on this case and visible to the user; 404 otherwise. */

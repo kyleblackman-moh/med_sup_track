@@ -116,7 +116,11 @@ final class NotificationSubscriber
             return;
         }
 
-        $this->send($r->roleOnCase($message->recipient_role, $case)->reject($notAuthor), $raised);
+        // WORKFLOW-2: plus the officer the CMO named on the forward, assigned or not.
+        $this->send(NotificationRecipients::merge(
+            $r->roleOnCase($message->recipient_role, $case),
+            $r->user($message->forwarded_to_user_id !== null ? (int) $message->forwarded_to_user_id : null),
+        )->reject($notAuthor), $raised);
     }
 
     public function onTransition(CaseTransitioned $event): void

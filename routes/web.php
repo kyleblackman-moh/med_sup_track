@@ -12,6 +12,7 @@ use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Queries\QueryAccess;
 use App\Support\LandingPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +79,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
             ->middleware('throttle:60,1')->name('documents.download');
     });
 
+Route::bind('queryCase', fn (string $value) => QueryAccess::caseForQueryWork($value, request()->user()) ?? abort(404));
+
 // Staff case pages (slice 9a), read-only. 403 without CasePolicy::viewStaffCases;
 // hidden and DRAFT cases are 404 through the global scope on route model binding.
 Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
@@ -109,11 +112,13 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
         });
 
         // OVERNIGHT-2 (D2): query loops. An unknown or invisible query or message is 404.
+        // WORKFLOW-2: {queryCase} also reaches an officer the CMO named on a forward
+        // (QueryAccess::caseForQueryWork); anyone else still gets 404, as with {procurementCase}.
         Route::controller(CaseQueryController::class)->middleware('throttle:20,1')->group(function () {
             Route::post('{procurementCase}/queries', 'store')->name('queries.store');
-            Route::post('{procurementCase}/queries/{query}/messages', 'reply')->name('queries.reply');
-            Route::post('{procurementCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
-            Route::post('{procurementCase}/queries/{query}/close', 'close')->name('queries.close');
+            Route::post('{queryCase}/queries/{query}/messages', 'reply')->name('queries.reply');
+            Route::post('{queryCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
+            Route::post('{queryCase}/queries/{query}/close', 'close')->name('queries.close');
         });
     });
 
