@@ -25,14 +25,14 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
     };
 
     return (
-        <section aria-labelledby="submit-heading" className="rounded-lg border p-4">
+        <section aria-labelledby="submit-heading" className="bg-card rounded-xl border p-4 shadow-xs md:p-5">
             <h2 id="submit-heading" className="text-lg font-semibold">
                 Submit Request
             </h2>
 
             <div aria-live="polite">
                 {submitErrors.length > 0 && (
-                    <div role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
+                    <div role="alert" className="text-destructive-text mt-2 text-sm">
                         <p className="font-medium">The request was not submitted:</p>
                         <ul className="mt-1 list-disc pl-5">
                             {submitErrors.map(([key, message]) => (
@@ -47,7 +47,7 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
                 <div className="mt-2 text-sm">
                     <p>This request cannot be submitted yet.</p>
                     {readiness.errors.length > 0 && (
-                        <ul className="mt-1 list-disc pl-5 text-red-700 dark:text-red-400">
+                        <ul className="text-destructive-text mt-1 list-disc pl-5">
                             {readiness.errors.map((item) => (
                                 <li key={`${item.key}-${item.message}`}>{item.message}</li>
                             ))}
@@ -68,7 +68,7 @@ export function SubmitPanel({ caseId, readiness, canSubmit }: Props) {
                         number.
                     </p>
                     <div className="flex gap-2">
-                        <Button type="button" onClick={submit} disabled={processing}>
+                        <Button type="button" onClick={submit} disabled={processing} aria-busy={processing || undefined}>
                             {processing ? 'Submitting…' : 'Confirm and Submit'}
                         </Button>
                         <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={processing}>
