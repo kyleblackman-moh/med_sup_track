@@ -15,7 +15,9 @@ interface PageHeaderProps {
 }
 
 /**
- * UI-4: the in-flow page header inside the L1 canvas (design.md section 6):
+ * UI-4: the in-flow page header on the workspace (design.md section 6). OVERNIGHT-3 (B1):
+ * the shared page header for every page that has no case hero. The breadcrumbs
+ * are the shell's (AppLayout's breadcrumbs prop, the row under the header).
  * h1 20px/600, an optional subtitle, actions on the right. Not sticky. One h1
  * per page.
  */
@@ -25,8 +27,8 @@ export function PageHeader({ title, subtitle, actions, titleClassName, size = 'd
     return (
         <header className={cn('flex flex-wrap items-start justify-between gap-3', className)}>
             <div className="min-w-0 space-y-1">
-                <h1 className={cn('font-semibold tracking-[-0.01em]', large ? 'text-[22px] leading-tight' : 'text-xl', titleClassName)}>{title}</h1>
-                {subtitle && <div className={cn('text-muted-foreground', large ? 'text-sm' : 'text-[13px]')}>{subtitle}</div>}
+                <h1 className={cn('tracking-title font-semibold', large ? 'text-hero-title leading-tight' : 'text-xl', titleClassName)}>{title}</h1>
+                {subtitle && <div className={cn('text-muted-foreground', large ? 'text-sm' : 'text-helper')}>{subtitle}</div>}
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </header>

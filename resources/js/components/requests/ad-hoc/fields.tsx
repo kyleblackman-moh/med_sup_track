@@ -1,6 +1,9 @@
+import InputError from '@/components/input-error';
 import { FIELD_GRID, FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
+import { fieldLabel } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { textareaClass } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { type OptionList } from '@/types/requests';
 import { CircleAlert } from 'lucide-react';
@@ -40,20 +43,13 @@ const span = (width?: FieldWidth) => (width ? FIELD_WIDTH[width] : undefined);
 /** The control size and fill for every input and select on the form. */
 export const controlHeight = 'h-11 md:h-10 bg-input-bg aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive-wash';
 
-/** The field label (15px/600). */
-export const fieldLabel = 'text-label leading-snug font-semibold';
+// OVERNIGHT-3 (B1): the label class, the text area style and the error are the shared ones.
+export { fieldLabel } from '@/components/ui/form-field';
+export { textareaClass } from '@/components/ui/textarea';
 
-export const textareaClass =
-    'border-input bg-input-bg aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive-wash placeholder:text-muted-foreground focus-visible:ring-ring ring-offset-background flex min-h-20 w-full rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden md:text-sm';
-
-/** Error text, linked from the control with aria-describedby. */
+/** Error text, linked from the control with aria-describedby (the shared InputError). */
 export function FieldError({ id, message }: { id: string; message?: string }) {
-    return message ? (
-        <p id={id} className="text-destructive-text flex items-start gap-1.5 text-sm">
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{message}</span>
-        </p>
-    ) : null;
+    return <InputError id={id} message={message} />;
 }
 
 /**

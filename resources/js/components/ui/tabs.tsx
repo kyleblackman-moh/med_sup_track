@@ -1,23 +1,29 @@
 import { cn } from '@/lib/utils';
 import { KeyboardEvent, useRef } from 'react';
 
-export interface CaseTab<T extends string = string> {
+export interface TabItem<T extends string = string> {
     id: T;
     label: string;
 }
 
-interface CaseTabsProps<T extends string> {
-    tabs: CaseTab<T>[];
+interface TabsProps<T extends string> {
+    tabs: TabItem<T>[];
     active: T;
     onSelect: (tab: T) => void;
+    /** Names the tab list ("Case sections"). */
+    label: string;
+    className?: string;
 }
 
 /**
- * Tab strip for the staff case view, the same pattern as the vendor request
- * form: wraps on narrow screens, arrow keys move between tabs. Neutral token
- * colours only (no complete/incomplete or lateness meaning).
+ * OVERNIGHT-3 (B1): the shared tab strip (was the staff case view's
+ * CaseTabs). ARIA tabs: role="tablist", each tab a real button with
+ * aria-selected and aria-controls="panel-{id}", arrow keys move between tabs
+ * (roving tabindex). Wraps on narrow screens. Neutral token colours only (no
+ * complete/incomplete or lateness meaning). Each panel is
+ * `role="tabpanel" id="panel-{id}" aria-labelledby="tab-{id}"`.
  */
-export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsProps<T>) {
+export function Tabs<T extends string>({ tabs, active, onSelect, label, className }: TabsProps<T>) {
     const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const onKeyDown = (e: KeyboardEvent, index: number) => {
@@ -32,7 +38,7 @@ export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsP
     };
 
     return (
-        <div role="tablist" aria-label="Case sections" className="flex flex-wrap gap-1 border-b">
+        <div role="tablist" aria-label={label} className={cn('flex flex-wrap gap-1 border-b', className)}>
             {tabs.map((tab, index) => {
                 const selected = tab.id === active;
 
@@ -51,10 +57,10 @@ export function CaseTabs<T extends string>({ tabs, active, onSelect }: CaseTabsP
                         onClick={() => onSelect(tab.id)}
                         onKeyDown={(e) => onKeyDown(e, index)}
                         className={cn(
-                            '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-[3px] px-3 py-2 text-sm whitespace-nowrap transition-colors',
+                            'focus-visible:ring-ring -mb-px flex min-h-11 shrink-0 items-center gap-2 rounded-t-lg border-b-[3px] px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:min-h-10 motion-reduce:transition-none',
                             selected
-                                ? 'border-primary bg-muted text-foreground font-semibold'
-                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground border-transparent font-medium',
+                                ? 'border-primary bg-card text-foreground font-semibold'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent font-medium',
                         )}
                     >
                         {tab.label}

@@ -1,5 +1,4 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
-import { type CaseTab, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
@@ -12,6 +11,7 @@ import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/ui/status-pill';
+import { type TabItem, Tabs } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -97,7 +97,7 @@ function Card({ title, id, children }: { title: string; id: string; children: Re
  * "Request Details" tab (the RequestSummary); the old types keep their tabs,
  * with Awards & orders only when the case has any. Actions is always last.
  */
-function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): CaseTab<TabId>[] {
+function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): TabItem<TabId>[] {
     if (hasSummary) {
         return [
             { id: 'overview', label: 'Overview' },
@@ -215,7 +215,7 @@ export default function CaseShow({
                     onOpenQueries={() => show('queries')}
                 />
 
-                <CaseTabs tabs={tabs} active={active} onSelect={show} />
+                <Tabs tabs={tabs} active={active} onSelect={show} label="Case sections" />
 
                 <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="space-y-6 pb-4">
                     {active === 'overview' && (
