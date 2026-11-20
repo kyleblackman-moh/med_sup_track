@@ -44,6 +44,8 @@ export interface SummaryItem {
     sectionLabel: string;
     message: string;
     target: string;
+    /** OVERNIGHT-3 (A1): on the Review page, a link back to the field's section on the form. */
+    href?: string;
 }
 
 /**
@@ -98,12 +100,14 @@ function notSavedTarget(key: string, state: FormState): string {
 }
 
 interface IssuesPanelProps {
-    panelRef: RefObject<HTMLElement | null>;
+    panelRef?: RefObject<HTMLElement | null>;
     /** The server's heading ("3 Things Need Fixing Before You Can Submit"). */
     heading: string | null;
     items: SummaryItem[];
-    /** Scrolls to and focuses the issue's field. */
-    onJump: (focusId: string) => void;
+    /** Scrolls to and focuses the issue's field (on the form). Items with an href link instead. */
+    onJump?: (focusId: string) => void;
+    /** OVERNIGHT-3 (A1): the Review page shows it on load, so there it is not an alert. */
+    announce?: boolean;
 }
 
 /**
@@ -112,7 +116,7 @@ interface IssuesPanelProps {
  * opens; each line links to its field; it updates as the draft is saved and
  * disappears once nothing is left to fix. Autosave errors stay inline only.
  */
-export function IssuesPanel({ panelRef, heading, items, onJump }: IssuesPanelProps) {
+export function IssuesPanel({ panelRef, heading, items, onJump, announce = true }: IssuesPanelProps) {
     if (items.length === 0 || !heading) {
         return null;
     }
@@ -121,7 +125,7 @@ export function IssuesPanel({ panelRef, heading, items, onJump }: IssuesPanelPro
         <section
             ref={panelRef}
             tabIndex={-1}
-            role="alert"
+            role={announce ? 'alert' : undefined}
             aria-labelledby="review-issues-heading"
             className="border-destructive bg-card focus-visible:ring-ring rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
         >
@@ -132,9 +136,12 @@ export function IssuesPanel({ panelRef, heading, items, onJump }: IssuesPanelPro
                 {items.map((item) => (
                     <li key={item.key} className="break-words">
                         <a
-                            href={`#${item.target}`}
-                            className="text-primary underline underline-offset-4"
+                            href={item.href ?? `#${item.target}`}
+                            className="text-primary focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-hidden"
                             onClick={(e) => {
+                                if (item.href || !onJump) {
+                                    return;
+                                }
                                 e.preventDefault();
                                 onJump(item.target);
                             }}

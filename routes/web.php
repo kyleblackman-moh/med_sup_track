@@ -39,6 +39,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::post('/', 'store')->middleware('throttle:create-request')->name('store'); // SEC-1 (RateLimits)
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
+        // OVERNIGHT-3 (A1): Review as its own page; Submit Request posts to requests.submit.
+        Route::get('{procurementCase}/review', 'review')->name('review');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
         // V2-1: change a DRAFT's request type (one of the five).
         Route::put('{procurementCase}/type', 'changeType')->middleware('throttle:30,1')->name('type');

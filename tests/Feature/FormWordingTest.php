@@ -84,7 +84,7 @@ it('shows one error summary at the top of the form, announced and in form order'
         // Above the progress strip and the sections.
         ->and(strpos($page, '<IssuesPanel'))->toBeLessThan(strpos($page, '<ProgressStrip'))
         ->and($page)->toContain('form.issue_heading')
-        ->and($review)->toContain('role="alert"')
+        ->and($review)->toContain("role={announce ? 'alert' : undefined}")
         ->and($review)->toContain('{item.sectionLabel}: {item.message}')
         // No duplicates; gone once nothing is left to fix.
         ->and($review)->toContain('seen.has(id)')

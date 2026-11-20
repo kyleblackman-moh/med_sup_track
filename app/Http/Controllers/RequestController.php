@@ -14,6 +14,7 @@ use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestFormView;
 use App\Http\Resources\Requests\RequestProgress;
 use App\Http\Resources\Requests\RequestReceipt;
+use App\Http\Resources\Requests\RequestReview;
 use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
@@ -201,6 +202,48 @@ class RequestController extends Controller
             'config' => [...FormConfig::for($procurementCase->procurementType), 'uploads' => RequestDocuments::uploadRules()],
             'documents' => RequestDocuments::for($procurementCase, $request->user()),
             'can' => $this->can($request, ['edit' => true]),
+        ]);
+    }
+
+    /**
+     * OVERNIGHT-3 (A1): GET /requests/{case}/review, the vendor's Review page for
+     * their own organisation's DRAFT. Another organisation's case, and any DRAFT
+     * for staff, is 404 (the global scope on route model binding). A case that
+     * is no longer a DRAFT goes to its request page; a draft of an old type
+     * (no request form, so no summary) goes back to its form, which keeps its
+     * own submit panel. Submit Request posts to the existing submit route.
+     */
+    public function review(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response|RedirectResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        if ($procurementCase->status !== CaseStatus::DRAFT) {
+            return to_route('requests.show', $procurementCase);
+        }
+
+        Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
+
+        if (! ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
+            return to_route('requests.edit', $procurementCase);
+        }
+
+        $report = $readiness->evaluate($procurementCase);
+        $ready = $report->isReady();
+        $procurementCase->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
+
+        return Inertia::render('requests/review', [
+            'case' => $this->detail($request, $procurementCase),
+            // The same read-only summary the form's review showed (Documents included).
+            'summary' => RequestSummary::for($procurementCase, $request->user()),
+            // What still blocks a submit, each line linking back to its section on the form.
+            'blockers' => $ready ? [] : RequestReview::blockers($procurementCase, $report),
+            'issue_heading' => RequestFormView::issueHeading($procurementCase, $report),
+            'description' => RequestReview::READY_TEXT,
+            'not_ready_reason' => $ready ? null : RequestReview::NOT_READY_REASON,
+            'hardcopy_notice' => RequestReceipt::HARDCOPY_NOTICE,
+            'can' => $this->can($request, [
+                'submit' => $ready && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
+            ]),
         ]);
     }
 
