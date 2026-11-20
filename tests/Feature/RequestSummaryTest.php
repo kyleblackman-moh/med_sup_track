@@ -385,8 +385,8 @@ it('has no fetch or axios in the summary and the pages that show it', function (
 
 it('never adds a "%" sign to a value in React', function () {
     // The server formats percentages (Display::percent). Two non-data uses stay: a
-    // skeleton's random CSS width (sidebar) and the browser's own upload progress.
-    $allowed = ['sidebar.tsx', 'upload-drop-zone.tsx'];
+    // skeleton's random CSS width (sidebar) and the browser's own upload progress (FORM-COMPACT-1: upload-progress.tsx).
+    $allowed = ['sidebar.tsx', 'upload-progress.tsx'];
     $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS));
 
     $hits = [];
