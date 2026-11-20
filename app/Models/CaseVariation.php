@@ -6,8 +6,9 @@ use App\Models\Concerns\BelongsToCase;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Tender Variation details (slice V2-1): at most one row per case. Kept only
- * for TENDER_VARIATION; SubmitCase discards it for every other type.
+ * Tender Variation details (slice V2-1): at most one row per case. Unused since
+ * V2-5 (replaced by CaseVariationRow); the table is left as it was and only
+ * CaseEraser still deletes its rows with a draft.
  */
 class CaseVariation extends Model
 {

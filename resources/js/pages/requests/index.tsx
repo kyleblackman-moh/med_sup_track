@@ -1,4 +1,4 @@
-import { PageHeader } from '@/components/page-header';
+import { PageContent, PageHeader } from '@/components/page-header';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { NewRequestButton } from '@/components/requests/new-request-button';
@@ -87,8 +87,8 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={title} />
 
-            <div className="w-full space-y-5 px-4 pt-2 pb-6 md:px-6">
-                <PageHeader title={title} actions={can.create && <NewRequestButton />} />
+            <PageContent>
+                <PageHeader title={title} size="large" actions={can.create && <NewRequestButton />} />
 
                 <FlashMessages />
 
@@ -108,7 +108,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                 <div className="bg-card overflow-hidden rounded-xl border shadow-xs">
                     <div className="flex flex-wrap items-end justify-between gap-3 border-b px-4 py-3">
                         <div className="grid w-full max-w-md gap-1.5">
-                            <Label htmlFor="requests-search">Search requests</Label>
+                            <Label htmlFor="requests-search">Search Requests</Label>
                             <div className="flex items-center gap-3">
                                 <Input
                                     id="requests-search"
@@ -128,7 +128,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                                 Reference, item, strength, DIN or type.
                             </p>
                         </div>
-                        <p aria-live="polite" className="text-muted-foreground text-[13px] tabular-nums">
+                        <p aria-live="polite" className="text-muted-foreground text-helper tabular-nums">
                             {resultText}
                         </p>
                     </div>
@@ -188,7 +188,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                                                     {request.item_description ?? <span className="text-muted-foreground">Not described yet</span>}
                                                 </td>
                                                 <td className="px-4 py-2.5">
-                                                    <StatusPill label={request.status_label} tone={request.status_tone} />
+                                                    <StatusPill label={request.status_label} tone={request.status_tone} inColumn />
                                                 </td>
                                                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
                                                     {request.can.edit ? (
@@ -250,7 +250,7 @@ export default function Index({ title, filters, groups, requests, can }: Props) 
                         )}
                     </nav>
                 )}
-            </div>
+            </PageContent>
 
             <DeleteDraftDialog caseId={deleting} onClose={() => setDeleting(null)} />
         </AppLayout>

@@ -148,7 +148,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                 </Button>
             </div>
 
-            {sectionError && !editing && <p className="text-sm text-red-600 dark:text-red-400">{sectionError}</p>}
+            {sectionError && !editing && <p className="text-destructive-text text-sm">{sectionError}</p>}
 
             {rows.length === 0 ? (
                 <p className="text-muted-foreground rounded-md border border-dashed p-4 text-sm">No {rowLabel}s yet.</p>
@@ -235,7 +235,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                         Page {page + 1} of {pages}
                     </span>
                     <Button type="button" variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= pages - 1}>
-                        Next page
+                        Next Page
                     </Button>
                 </nav>
             )}
@@ -252,6 +252,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
             )}
 
             <Dialog open={editing !== null} onOpenChange={(open) => !open && !processing && setEditing(null)}>
+                {/* max-h-[90vh]: the dialog scrolls inside the screen (a layout limit, not a design value): DECISIONS.md D7. */}
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
                     {editing && (
                         <form onSubmit={submitDialog} noValidate className="grid gap-4">
@@ -263,7 +264,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                             </DialogHeader>
 
                             {showErrors && (
-                                <ul className="space-y-1 text-sm text-red-600 empty:hidden dark:text-red-400">
+                                <ul className="text-destructive-text space-y-1 text-sm empty:hidden">
                                     {errors[section] && <li>{errors[section]}</li>}
                                     {/* Problems in other saved rows also block the save; name the row. */}
                                     {Object.entries(errors)

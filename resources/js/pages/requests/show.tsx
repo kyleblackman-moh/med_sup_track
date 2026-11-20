@@ -1,14 +1,17 @@
-import { AdHocSummary } from '@/components/requests/ad-hoc/review';
+import { PageContent } from '@/components/page-header';
+import { CaseHero } from '@/components/requests/case-hero';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { ProgressTimeline } from '@/components/requests/progress-timeline';
+import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
+import { VendorQueries } from '@/components/requests/vendor-queries';
 import { Button } from '@/components/ui/button';
-import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AdHocConfig, type AdHocDetail } from '@/types/ad-hoc';
-import { type DocumentGroup, type Readiness, type RequestDetail } from '@/types/requests';
+import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
+import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
 
 interface Props {
@@ -16,8 +19,12 @@ interface Props {
     documents: DocumentGroup[];
     readiness: Readiness | null;
     can: { submit: boolean };
-    /** AD_HOC only: the option labels its summary needs (the same summary as Review and submit). */
-    summary_config: Pick<AdHocConfig, 'options' | 'not_awarded'> | null;
+    /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
+    summary: RequestSummaryView | null;
+    /** OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft. */
+    progress: ProgressMilestone[];
+    /** OVERNIGHT-2 (D3): queries from the Ministry addressed to this organisation; empty for a draft. */
+    queries: VendorQuery[];
 }
 
 /** A calendar date (Y-m-d), shown as-is: no time zone shift. */
@@ -25,30 +32,28 @@ function formatDay(day: string): string {
     return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function Show({ case: detail, documents, readiness, can, summary_config }: Props) {
+export default function Show({ case: detail, documents, readiness, can, summary, progress, queries }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        { title: detail.reference_no ?? 'Draft', href: route('requests.show', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
+        { title: detail.reference_no ?? 'New Request', href: route('requests.show', detail.id) },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={detail.reference_no ?? 'Request'} />
 
-            <div className="mx-auto w-full max-w-6xl space-y-8 p-4">
-                <header className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-semibold">{detail.item_description ?? 'Request'}</h1>
-                        <p className="text-muted-foreground text-sm">
-                            {detail.procurement_type.name} ·{' '}
-                            {detail.reference_no ? <span className="font-mono text-xs">{detail.reference_no}</span> : 'Draft'}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <StatusPill label={detail.status_label} tone={detail.status_tone} />
+            <PageContent>
+                {/* V2-4 Stage B: the case hero (design.md section 7), from the server's hero prop. V2-4b: it
+                    holds the page's one h1 (the item description, else "New Request"). */}
+                <CaseHero hero={detail.hero} />
+
+                {/* The page's links (as they were), in a row under the hero. */}
+                {(detail.can.edit || detail.reference_no) && (
+                    <div className="flex flex-wrap justify-end gap-2">
                         {detail.can.edit && (
                             <Button asChild variant="outline" size="sm">
-                                <Link href={route('requests.edit', detail.id)}>Edit draft</Link>
+                                <Link href={route('requests.edit', detail.id)}>Edit Draft</Link>
                             </Button>
                         )}
                         {detail.reference_no && (
@@ -57,20 +62,13 @@ export default function Show({ case: detail, documents, readiness, can, summary_
                             </Button>
                         )}
                     </div>
-                </header>
+                )}
 
                 <FlashMessages />
 
                 {detail.reference_no && (
                     <p className="bg-card rounded-md border px-4 py-2 text-sm">
-                        {detail.hardcopy_received_on
-                            ? `Hardcopy received on ${new Date(`${detail.hardcopy_received_on}T12:00:00Z`).toLocaleDateString('en-TT', {
-                                  timeZone: 'UTC',
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                              })}`
-                            : 'Hardcopy not yet received'}
+                        {detail.hardcopy_received_on ? `Hardcopy received on ${formatDay(detail.hardcopy_received_on)}` : 'Hardcopy not yet received'}
                     </p>
                 )}
 
@@ -87,21 +85,25 @@ export default function Show({ case: detail, documents, readiness, can, summary_
                     </p>
                 )}
 
+                <ProgressTimeline milestones={progress} />
+
+                <VendorQueries caseId={detail.id} queries={queries} />
+
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
-                {summary_config ? (
+                {summary ? (
                     <section aria-labelledby="request-summary-heading" className="space-y-4">
                         <h2 id="request-summary-heading" className="text-lg font-semibold">
-                            Your request
+                            Your Request
                         </h2>
-                        <AdHocSummary detail={detail as AdHocDetail} config={summary_config} documents={documents} />
+                        <RequestSummary summary={summary} />
                     </section>
                 ) : (
                     <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
                 )}
 
                 <SupportingDocuments caseId={detail.id} groups={documents} readOnly />
-            </div>
+            </PageContent>
         </AppLayout>
     );
 }

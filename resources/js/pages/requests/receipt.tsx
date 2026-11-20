@@ -32,8 +32,11 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
 
             <div className="mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
                 <nav className="flex items-center justify-between gap-4 print:hidden">
-                    <Link href={route('requests.show', receipt.id)} className="text-sm underline">
-                        Back to request
+                    <Link
+                        href={route('requests.show', receipt.id)}
+                        className="text-primary focus-visible:ring-ring rounded-sm text-sm underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
+                    >
+                        Back to Request
                     </Link>
                     <Button type="button" onClick={() => window.print()}>
                         Print
@@ -42,11 +45,11 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
 
                 <header className="border-b pb-4">
                     <p className="text-muted-foreground text-sm print:text-black">Ministry of Health · Non-objection request</p>
-                    <h1 className="text-2xl font-semibold">Submission receipt</h1>
+                    <h1 className="text-2xl font-semibold">Submission Receipt</h1>
                 </header>
 
-                <section aria-label="Reference number" className="rounded-lg border-2 p-4 text-center">
-                    <p className="text-sm">Reference number</p>
+                <section aria-label="Reference Number" className="rounded-lg border-2 p-4 text-center">
+                    <p className="text-sm">Reference Number</p>
                     <p className="font-mono text-3xl font-bold tracking-wide">{receipt.reference_no}</p>
                 </section>
 
@@ -56,7 +59,7 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                         <dd>{receipt.organisation_name ?? '—'}</dd>
                     </div>
                     <div>
-                        <dt className="text-muted-foreground text-sm print:text-black">Procurement type</dt>
+                        <dt className="text-muted-foreground text-sm print:text-black">Procurement Type</dt>
                         <dd>{receipt.procurement_type ?? '—'}</dd>
                     </div>
                     <div className="sm:col-span-2 print:col-span-2">
@@ -74,7 +77,7 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                 </dl>
 
                 <section className="space-y-2">
-                    <h2 className="text-lg font-semibold">Required documents received</h2>
+                    <h2 className="text-lg font-semibold">Required Documents Received</h2>
                     {receipt.documents.length === 0 ? (
                         <p className="text-sm">None.</p>
                     ) : (

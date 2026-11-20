@@ -120,7 +120,7 @@ it('lists the AD_HOC categories with label, hint and required flag', function ()
 
     expect(collect($props['documents'])->map(fn ($g) => [$g['purpose'], $g['label'], $g['is_required'], $g['read_only']])->all())->toBe([
         ['bids', 'Bids', true, false],
-        ['regulatory', 'Regulatory documents', false, false],
+        ['regulatory', 'Regulatory Documents', false, false],
         ['evidence', 'Evidence', false, false],
     ]);
     foreach ($props['documents'] as $group) {
@@ -136,7 +136,7 @@ it('shows documents of a category the type no longer uses as read-only earlier u
     $groups = collect(editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"))['documents'])->keyBy('purpose');
 
     expect($groups->keys()->all())->toBe(['bids', 'regulatory', 'evidence', 'earlier'])
-        ->and($groups['earlier'])->toMatchArray(['label' => 'Earlier uploads', 'is_required' => false, 'read_only' => true])
+        ->and($groups['earlier'])->toMatchArray(['label' => 'Earlier Uploads', 'is_required' => false, 'read_only' => true])
         ->and(collect($groups['earlier']['documents'])->pluck('id')->all())->toBe([$earlier->id])
         ->and($groups['earlier']['documents'][0])->toMatchArray(['can_download' => true, 'can_replace' => false, 'can_withdraw' => false])
         ->and($groups['bids']['documents'][0])->toMatchArray(['id' => $bids->id, 'can_replace' => true, 'can_withdraw' => true]);

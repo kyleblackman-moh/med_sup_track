@@ -25,7 +25,7 @@ const EXPECTED_ROLE_PERMISSIONS = [
     'legal_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'legal.confirm'],
     'ps_office' => ['case.view_all', 'document.upload', 'document.download', 'nonobjection.grant', 'case.history.view'],
     'system_admin' => [
-        'audit.view', 'user.create', 'vendor_user.invite', 'user.reset_credentials',
+        'audit.view', 'user.create', 'users.manage', 'vendor_user.invite', 'user.reset_credentials',
         'config.manage', 'assignment.reassign', 'delegation.manage',
     ],
     'auditor' => ['audit.view'],

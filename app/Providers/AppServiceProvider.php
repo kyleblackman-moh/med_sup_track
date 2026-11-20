@@ -7,9 +7,13 @@ use App\Documents\Scanning\EicarDevScanner;
 use App\Documents\Scanning\Scanner;
 use App\Models\Document;
 use App\Models\ProcurementCase;
+use App\Models\User;
+use App\Notifications\NotificationSubscriber;
 use App\Policies\CasePolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\UserPolicy;
 use App\Support\AuthEventAuditor;
+use App\Support\RateLimits;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -49,8 +53,15 @@ class AppServiceProvider extends ServiceProvider
         // is not in app/Listeners.
         Event::subscribe(AuthEventAuditor::class);
 
+        // NOTIF-1: the one place emails are hooked in (queued, after commit).
+        Event::subscribe(NotificationSubscriber::class);
+
+        // SEC-1: the named rate limiters (login, password-reset, activation, create-request, uploads).
+        RateLimits::register();
+
         // Named CasePolicy, not ProcurementCasePolicy, so auto-discovery would miss it.
         Gate::policy(ProcurementCase::class, CasePolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(User::class, UserPolicy::class); // ADMIN-1: Admin > Users
     }
 }

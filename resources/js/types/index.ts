@@ -24,6 +24,8 @@ export interface NavItem {
     url: string;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** The server's nav.section under which this item is active (URL prefix). */
+    section?: string;
 }
 
 export interface SharedData {
@@ -32,8 +34,10 @@ export interface SharedData {
     auth: Auth;
     can: { requests: boolean; cases: boolean };
     /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
-    nav: { cmo_office: boolean };
+    nav: { cmo_office: boolean; users: boolean; section: string | null };
     flash: { success: string | null; error: string | null; info: string | null };
+    /** V2-4: the Ministry crest's URL once the file is supplied, else null (the sidebar shows the shield-plus tile). */
+    brand: { logo: string | null };
     [key: string]: unknown;
 }
 
@@ -43,6 +47,8 @@ export interface User {
     name: string;
     email: string;
     user_type: string;
+    /** V2-4: the sidebar user card's second line, decided by the server (organisation for vendors, role names for staff). */
+    subtitle: string | null;
     avatar?: string;
     email_verified_at?: string | null;
 }

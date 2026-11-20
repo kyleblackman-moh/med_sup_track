@@ -38,6 +38,15 @@ enum AuditAction: string
     case CaseLetterIssued = 'case.letter_issued';
     case CaseClosed = 'case.closed';
 
+    // OVERNIGHT-2 (D2): query loops. Ids, counts and fixed codes only, never the message text.
+    case QueryRaised = 'query.raised';
+    case QueryMessagePosted = 'query.message_posted';
+    case QueryForwarded = 'query.forwarded';
+    case QueryClosed = 'query.closed';
+
+    // FIX-2 (1): a vendor email had nobody eligible to receive it. Case id and event code only, never an address.
+    case NotificationNoRecipient = 'notification.no_recipient';
+
     // Documents
     case DocumentValidationRejected = 'document.validation_rejected';
     case DocumentUploadReceived = 'document.upload_received';
@@ -50,7 +59,11 @@ enum AuditAction: string
     case DocumentWithdrawn = 'document.withdrawn';
     case DocumentDownloaded = 'document.downloaded';
 
-    // Accounts and organisations (console).
+    // Accounts and organisations (console, and Admin > Users from ADMIN-1). Ids and fixed codes only.
     case UserCreated = 'user.created';
+    case UserRoleChanged = 'user.role_changed';
+    case UserDisabled = 'user.disabled';
+    case UserEnabled = 'user.enabled';
+    case UserActivationResent = 'user.activation_resent';
     case OrganisationCreated = 'organisation.created';
 }

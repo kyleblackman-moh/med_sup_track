@@ -32,8 +32,8 @@ final class RequestGroups
     /** Card order and labels. */
     public const LABELS = [
         self::DRAFTS => 'Drafts',
-        self::IN_PROGRESS => 'In progress',
-        self::HARDCOPY_DUE => 'Hardcopy due',
+        self::IN_PROGRESS => 'In Progress',
+        self::HARDCOPY_DUE => 'Hardcopy Due',
         self::GRANTED => 'Granted',
     ];
 

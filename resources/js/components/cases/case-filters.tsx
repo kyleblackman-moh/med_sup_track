@@ -67,7 +67,7 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
                     />
                     <Input
                         type="search"
-                        aria-label="Search by reference"
+                        aria-label="Search by Reference"
                         placeholder="Search reference…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -81,7 +81,7 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
                 {showOrganisation && select('org', 'Organisation', options.organisations, 'All organisations')}
                 {filters.awaiting === 'funding' && (
                     <span className="bg-secondary text-secondary-foreground inline-flex h-9 items-center gap-1 self-start rounded-md pr-1 pl-3 text-sm sm:self-auto">
-                        Awaiting CAB funding
+                        Awaiting CAB Funding
                         <button
                             type="button"
                             onClick={() => onChange({ awaiting: '' })}
@@ -99,7 +99,7 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
                         className="h-9 self-start sm:self-auto"
                         onClick={() => onChange({ status: '', type: '', org: '', ref: '', awaiting: '' })}
                     >
-                        Clear filters
+                        Clear Filters
                     </Button>
                 )}
             </div>

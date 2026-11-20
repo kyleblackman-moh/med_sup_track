@@ -41,35 +41,60 @@ function formSections(array $form): array
 
 // 1. Sections: order, numbering, visibility, state ------------------------------------
 
-it('lists every section in form order, numbering only the visible ones', function (string $code) {
+it('lists every section in form order, numbering only the visible ones', function (string $code, ?bool $answer) {
     [$case, $vendor] = newDraft($code);
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer]);
     $form = formProp($this, $case, $vendor);
 
-    $variation = $code === 'TENDER_VARIATION';
+    // V2-5: Details of Variation Requested shows only when the answer is Yes, whatever the type.
+    $variation = $answer === true;
     expect(array_column($form['sections'], 'key'))->toBe(RequestSections::ORDER)
         ->and(array_column($form['sections'], 'number', 'key'))->toBe($variation
-            ? ['item_tender' => 1, 'variation_details' => 2, 'awarded_supplier' => 3, 'existing_arrangement' => 4, 'stock' => 5, 'quotation_comparison' => 6, 'documents' => 7]
-            : ['item_tender' => 1, 'variation_details' => null, 'awarded_supplier' => 2, 'existing_arrangement' => 3, 'stock' => 4, 'quotation_comparison' => 5, 'documents' => 6])
+            ? ['request_type' => 1, 'item_tender' => 2, 'variation_details' => 3, 'awarded_supplier' => 4, 'existing_arrangement' => 5, 'stock' => 6, 'quotation_comparison' => 7, 'documents' => 8]
+            : ['request_type' => 1, 'item_tender' => 2, 'variation_details' => null, 'awarded_supplier' => 3, 'existing_arrangement' => 4, 'stock' => 5, 'quotation_comparison' => 6, 'documents' => 7])
         ->and(array_column($form['sections'], 'visible', 'key'))->toBe([
-            'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => true,
+            'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => true,
             'stock' => true, 'quotation_comparison' => true, 'documents' => true,
         ])
         ->and(array_column($form['sections'], 'label', 'key'))->toBe(RequestSections::LABELS)
-        ->and($form['sections'][0]['label'])->toBe('Item and tender details');
-})->with(ProcurementTypeProfile::REQUEST_TYPES);
+        ->and($form['sections'][0]['label'])->toBe('Request Type');
+})->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
+
+it('sends the previous-request answer as Yes, No or null in the case detail', function (?bool $answer) {
+    [$case, $vendor] = newDraft();
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer]);
+
+    $detail = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['case'];
+    expect($detail)->toHaveKey('previous_request_in_cycle')
+        ->and($detail['previous_request_in_cycle'])->toBe($answer);
+})->with(['unanswered' => null, 'no' => false, 'yes' => true]);
+
+it('puts the tender cycle and the question in section 1, not in Item and Tender Details', function () {
+    [$case, $vendor] = newDraft();
+    $sections = formSections(formProp($this, $case, $vendor));
+
+    expect($sections['request_type']['required'])->toBe([
+        'tender_cycle_start' => true, 'tender_cycle_end' => true, 'previous_request_in_cycle' => true,
+    ])
+        ->and($sections['item_tender']['required'])->not->toHaveKey('tender_cycle_start')
+        ->and($sections['item_tender']['required'])->not->toHaveKey('tender_cycle_end')
+        ->and(RequestSections::SECTION_FIELDS['request_type'])
+        ->toBe(['request_type', 'tender_cycle_start', 'tender_cycle_end', 'previous_request_in_cycle']);
+});
 
 it('gives an empty draft incomplete required sections and optional ones per type', function () {
     [$case, $vendor] = newDraft('TENDER_VARIATION');
     $sections = formSections(formProp($this, $case, $vendor));
 
     expect(collect($sections)->map(fn ($s) => $s['state'])->all())->toBe([
+        'request_type' => 'incomplete', // no cycle dates, the question not answered
         'item_tender' => 'incomplete',
-        'variation_details' => 'incomplete',
+        'variation_details' => 'optional', // hidden until the answer is Yes
         'awarded_supplier' => 'incomplete',
         'existing_arrangement' => 'optional',
         'stock' => 'optional',
         'quotation_comparison' => 'optional',
-        'documents' => 'complete', // a Tender Variation requires no file (procurement_type_documents)
+        'documents' => 'optional', // a Tender Variation requires no file, and none is attached
     ])->and(collect($sections)->pluck('note')->filter()->all())->toBe([]);
 });
 
@@ -78,9 +103,10 @@ it('marks the complete sections complete', function () {
     $sections = formSections(formProp($this, $case, $vendor));
 
     expect(collect($sections)->where('visible', true)->map(fn ($s) => $s['state'])->all())->toBe([
+        'request_type' => 'complete',
         'item_tender' => 'complete',
         'awarded_supplier' => 'complete',
-        'existing_arrangement' => 'optional',
+        'existing_arrangement' => 'complete', // optional, and it holds a valid order
         'stock' => 'complete',
         'quotation_comparison' => 'complete',
         'documents' => 'complete',
@@ -117,11 +143,12 @@ it('sends the field-level required flags of each type from the section rules', f
 
     $item = $sections['item_tender']['required'];
     expect($item)->toBe([
-        'item_description' => true, 'strength' => false, 'dosage_form' => false, 'din' => true,
+        'item_description' => true, 'strength' => false, 'dosage_form' => false, 'din' => false,
         'quantity_requested' => true, 'unit_of_measure' => true, 'tender_reference' => $r['contract'],
-        'tender_cycle_start' => true, 'tender_cycle_end' => true, 'clinical_note' => false,
+        'clinical_note' => false,
     ])
-        ->and(array_values(array_unique($sections['variation_details']['required'])))->toBe([$r['variation']])
+        // V2-5: required whenever it is shown (the answer is Yes), for every type.
+        ->and(array_values(array_unique($sections['variation_details']['required'])))->toBe([true])
         ->and($sections['stock']['required']['average_monthly_consumption'])->toBe($r['stock'])
         ->and($sections['stock']['required']['stock_location'])->toBeFalse()
         ->and($sections['stock']['required']['quantity_on_order'])->toBeFalse()
@@ -152,6 +179,9 @@ it('formats the computed values on the server', function () {
         ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
         ->and($display['awards_total'])->toBe('5,050.00')
         ->and($display['total_cost'])->toBe('4,473.00') // 1.5975 x 2800
+        // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
+        ->and($display['price_change_vs_tender'])->toBe('27.80%')
+        ->and($display['price_change_vs_previous'])->toBe('6.50%')
         ->and($display['rows']['tender_awards'])->toBe([
             ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '3,750.00'],
             ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '1,300.00'],
@@ -235,11 +265,11 @@ it('is built from the same report as request_sections', function () {
 
 /** Per type: what the V2-1 rules require (contract reference, stock, quotations, variation). */
 const V2_FORM_REQUIRES = [
-    'AD_HOC_EMERGENCY' => ['contract' => false, 'stock' => true, 'quotes' => true, 'variation' => false],
-    'AD_HOC_TENDER_UNABLE' => ['contract' => true, 'stock' => true, 'quotes' => true, 'variation' => false],
-    'AD_HOC_NOT_AWARDED' => ['contract' => false, 'stock' => true, 'quotes' => true, 'variation' => false],
-    'TENDER_EXCESS' => ['contract' => true, 'stock' => true, 'quotes' => true, 'variation' => false],
-    'TENDER_VARIATION' => ['contract' => true, 'stock' => false, 'quotes' => false, 'variation' => true],
+    'AD_HOC_EMERGENCY' => ['contract' => false, 'stock' => true, 'quotes' => true],
+    'AD_HOC_TENDER_UNABLE' => ['contract' => true, 'stock' => true, 'quotes' => true],
+    'AD_HOC_NOT_AWARDED' => ['contract' => false, 'stock' => true, 'quotes' => true],
+    'TENDER_EXCESS' => ['contract' => true, 'stock' => true, 'quotes' => true],
+    'TENDER_VARIATION' => ['contract' => true, 'stock' => false, 'quotes' => false],
 ];
 
 /** A complete draft of $code with its required files (as RequestSectionsTest's v2Draft). */
@@ -302,4 +332,45 @@ it('has no fetch or axios in the request form code', function () {
         ->map(fn (string $file) => basename($file))->values()->all();
 
     expect($hits)->toBe([]);
+});
+
+// V2-4b: the progress strip shows position, not completion ------------------------
+
+it('sends no current flag: the strip works out the position in the browser', function () {
+    [$case, $vendor] = newDraft('TENDER_EXCESS');
+
+    foreach (formProp($this, $case, $vendor)['sections'] as $section) {
+        expect($section)->not->toHaveKey('current');
+    }
+});
+
+it('keeps completion and storage out of the progress strip', function () {
+    $strip = file_get_contents(resource_path('js/components/ui/progress-strip.tsx'));
+
+    expect($strip)->not->toMatch("/\\bCheck\\b|item\\.state|'complete'|'incomplete'|localStorage|sessionStorage/")
+        ->and($strip)->toContain("aria-current={isCurrent ? 'step' : undefined}");
+});
+
+// V2-4b: no "(optional)" on labels; required fields carry aria-required ------------
+
+it('renders no "(optional)" label suffix and marks required controls for assistive technology', function () {
+    $files = collect(new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS)))
+        ->filter(fn (SplFileInfo $f) => in_array($f->getExtension(), ['ts', 'tsx'], true));
+
+    foreach ($files as $file) {
+        // Comments may mention it; rendered strings may not.
+        $code = preg_replace('#^\s*(//|\*|/\*).*$#m', '', file_get_contents($file->getPathname()));
+        expect($code)->not->toContain('(optional)', $file->getFilename());
+    }
+
+    $fields = file_get_contents(resource_path('js/components/requests/ad-hoc/fields.tsx'));
+    expect(substr_count($fields, 'aria-required={optional === false ? true : undefined}'))->toBe(2)
+        ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/entry-fields.tsx')))->toContain('aria-required={required ? true : undefined}');
+});
+
+it('marks the request type cards as a required choice', function () {
+    // A type must be chosen before the form goes on (RequestSections::REQUEST_TYPE_NEEDED).
+    $cards = file_get_contents(resource_path('js/components/requests/ad-hoc/type-cards.tsx'));
+
+    expect($cards)->toMatch('/<input\s+type="radio"[^>]*\brequired\b/s');
 });

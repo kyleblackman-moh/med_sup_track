@@ -55,7 +55,7 @@ function unselectedReport(ProcurementCase $case): array
 it('seeds NOT_SELECTED as an inactive type with no category and no required file', function () {
     $type = ProcurementType::where('code', 'NOT_SELECTED')->sole();
 
-    expect($type->name)->toBe('Not selected')
+    expect($type->name)->toBe('Not Selected')
         ->and($type->is_active)->toBeFalse()
         ->and($type->category)->toBeNull()
         ->and($type->documents->pluck('purpose')->map(fn ($p) => $p->value)->all())->toBe(['bids', 'regulatory', 'evidence'])
@@ -76,7 +76,7 @@ it('creates a draft with no type given as NOT_SELECTED, audited with codes only'
     expect($case->procurementType->code)->toBe('NOT_SELECTED')
         ->and($case->status)->toBe(CaseStatus::DRAFT)
         ->and($case->org_id)->toBe($vendor->org_id)
-        ->and($case->title)->toBe('Not selected')
+        ->and($case->title)->toBe('Not Selected')
         ->and(json_decode($audit->metadata, true))->toBe(['procurement_type' => 'NOT_SELECTED']);
 });
 
@@ -135,13 +135,13 @@ it('never changes a draft to NOT_SELECTED', function (?string $from) {
 
 // 3. Readiness ---------------------------------------------------------------------------
 
-it('blocks the submit of an unselected draft with "Choose a request type" in Item and tender', function () {
+it('blocks the submit of an unselected draft with "Choose a request type" in Request Type', function () {
     [$case, $vendor] = unselectedDraft();
     saveCompleteAdHoc($case, $vendor); // every common item filled in
 
     $errors = unselectedReport($case);
     expect($errors)->toBe([['key' => 'request_type', 'message' => 'Choose a request type']])
-        ->and(RequestSections::sectionOf('request_type'))->toBe('item_tender');
+        ->and(RequestSections::sectionOf('request_type'))->toBe('request_type'); // V2-5: section 1
 
     expect(fn () => app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor))
         ->toThrow(SubmissionNotReady::class);
@@ -151,10 +151,11 @@ it('blocks the submit of an unselected draft with "Choose a request type" in Ite
 it('lists only the common items, never per-type ones, while unselected', function () {
     [$case] = unselectedDraft();
 
+    // V2-5: section 1 (type, cycle, question) first; the DIN is optional.
     expect(array_column(unselectedReport($case), 'key'))->toBe([
         'request_type',
-        'requisition.item_description', 'requisition.din', 'requisition.quantity_requested', 'requisition.unit_of_measure',
-        'requisition.tender_cycle_start', 'requisition.tender_cycle_end',
+        'requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'previous_request_in_cycle',
+        'requisition.item_description', 'requisition.quantity_requested', 'requisition.unit_of_measure',
     ]);
 });
 
@@ -177,12 +178,12 @@ it('applies the per-type rules once a type is chosen', function (string $code, a
 
 // 4. The list, search and staff -----------------------------------------------------------
 
-it('shows "Not selected" in the Requests list and finds it by that label', function () {
+it('shows "Not Selected" in the Requests list and finds it by that label', function () {
     [$case, $vendor] = unselectedDraft();
     [$chosen] = newDraft('TENDER_EXCESS', $vendor);
 
     $rows = collect(pageProps($this->actingAs($vendor)->get(route('requests.index'))->assertOk())['requests']['data'])->keyBy('id');
-    expect($rows[$case->id]['procurement_type'])->toBe(['code' => 'NOT_SELECTED', 'name' => 'Not selected', 'category' => null, 'selected' => false])
+    expect($rows[$case->id]['procurement_type'])->toBe(['code' => 'NOT_SELECTED', 'name' => 'Not Selected', 'category' => null, 'selected' => false])
         ->and($rows[$chosen->id]['procurement_type']['selected'])->toBeTrue();
 
     $found = collect(pageProps($this->actingAs($vendor)->get(route('requests.index', ['q' => 'not sel']))->assertOk())['requests']['data'])->pluck('id')->all();
@@ -206,11 +207,11 @@ it('gives a draft its type code and the five types it may change to, in order', 
 
     expect($detail['request_type'])->toBe($code ?? 'NOT_SELECTED')
         ->and($detail['type_options'])->toBe([
-            ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc'],
-            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender unable to supply', 'group' => 'Ad Hoc'],
-            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not awarded', 'group' => 'Ad Hoc'],
-            ['code' => 'TENDER_EXCESS', 'label' => 'Tender Excess', 'group' => null],
-            ['code' => 'TENDER_VARIATION', 'label' => 'Tender Variation', 'group' => null],
+            ['code' => 'AD_HOC_EMERGENCY', 'label' => 'Ad Hoc - Emergency', 'group' => 'Ad Hoc', 'icon' => 'siren'],
+            ['code' => 'AD_HOC_TENDER_UNABLE', 'label' => 'Ad Hoc - Tender Unable to Supply', 'group' => 'Ad Hoc', 'icon' => 'package-x'],
+            ['code' => 'AD_HOC_NOT_AWARDED', 'label' => 'Ad Hoc - Not Awarded', 'group' => 'Ad Hoc', 'icon' => 'file-x'],
+            ['code' => 'TENDER_EXCESS', 'label' => 'Tender - Excess', 'group' => null, 'icon' => 'trending-up'],
+            ['code' => 'TENDER_VARIATION', 'label' => 'Tender - Variation', 'group' => null, 'icon' => 'arrow-left-right'],
         ]);
 })->with([null, 'TENDER_VARIATION']);
 
@@ -231,13 +232,15 @@ it('sends no type choice once the request is submitted', function () {
 
 it('reloads the form sections for the new type after a change', function () {
     [$case, $vendor] = unselectedDraft();
-    $keys = fn () => array_column(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id)))['request_sections'], 'key');
+    $sections = fn () => collect(pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id)))['request_sections'])->keyBy('key');
 
-    expect($keys())->not->toContain('variation_details');
+    expect($sections()['stock']['note'])->toBe('Choose a request type');
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_VARIATION'])->assertRedirect(route('requests.edit', $case->id));
-    expect($keys())->toContain('variation_details');
+    expect($sections()['stock']['optional'])->toBeTrue() // a Tender Variation does not require stock
+        // V2-5: the type alone never shows Details of Variation Requested; only the answer Yes does.
+        ->and($sections()->has('variation_details'))->toBeFalse();
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_EXCESS']);
-    expect($keys())->not->toContain('variation_details'); // the page shows the "may hide sections" note
+    expect($sections()['stock']['optional'])->toBeFalse();
 });
 
 it('never names NOT_SELECTED in the vendor-facing code', function () {
@@ -305,18 +308,24 @@ it('applies the Emergency rules once chosen: stock, quotations and documents are
 it('applies the Tender Variation rules once chosen', function () {
     [$case, $vendor] = unselectedDraft();
     app(ChangeRequestType::class)->handle($case, $vendor, 'TENDER_VARIATION');
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]); // V2-5: shows Details of Variation Requested
     [$request] = sectionStates($this, $case, $vendor);
 
     expect($request['variation_details']['complete'])->toBeFalse()
         ->and($request['variation_details']['optional'])->toBeFalse()
         ->and($request['awarded_supplier']['complete'])->toBeFalse()
         ->and($request['awarded_supplier']['optional'])->toBeFalse()
-        // The table: stock and quotations optional for a Tender Variation; nothing entered, nothing missing.
+        // The table: stock and quotations optional for a Tender Variation; nothing entered,
+        // so they report "optional", never complete.
         ->and($request['stock']['optional'])->toBeTrue()
-        ->and($request['stock']['complete'])->toBeTrue()
+        ->and($request['stock']['state'])->toBe('optional')
+        ->and($request['stock']['complete'])->toBeFalse()
         ->and($request['quotation_comparison']['optional'])->toBeTrue()
-        ->and($request['quotation_comparison']['complete'])->toBeTrue()
-        // No file is required for a Tender Variation.
-        ->and($request['documents']['complete'])->toBeTrue()
+        ->and($request['quotation_comparison']['state'])->toBe('optional')
+        ->and($request['quotation_comparison']['complete'])->toBeFalse()
+        // No file is required for a Tender Variation, and none is attached.
+        ->and($request['documents']['optional'])->toBeTrue()
+        ->and($request['documents']['state'])->toBe('optional')
+        ->and($request['documents']['complete'])->toBeFalse()
         ->and($request->pluck('note')->filter()->all())->toBe([]);
 });

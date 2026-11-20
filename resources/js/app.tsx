@@ -6,13 +6,30 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
+import { APP_BRAND } from './components/app-logo';
 import { initializeTheme } from './hooks/use-appearance';
 
 declare global {
     const route: typeof routeFn;
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+/**
+ * V2-4: the title suffix is the app name from the server's config (the shared
+ * `name` prop, config('app.name')), read once from the first page. Never a
+ * hard-coded framework name; the product name is the fallback.
+ */
+function configAppName(): string {
+    try {
+        const page = document.getElementById('app')?.dataset.page;
+        const name = page ? (JSON.parse(page) as { props?: { name?: unknown } }).props?.name : null;
+
+        return typeof name === 'string' && name.trim() !== '' ? name : APP_BRAND.name;
+    } catch {
+        return APP_BRAND.name;
+    }
+}
+
+const appName = configAppName();
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

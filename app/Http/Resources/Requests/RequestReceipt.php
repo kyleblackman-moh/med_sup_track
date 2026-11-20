@@ -18,7 +18,7 @@ use App\Models\ProcurementTypeDocument;
  */
 final class RequestReceipt
 {
-    public const HARDCOPY_NOTICE = "Hardcopy must be delivered to the CMO's Office. Quote the reference number above.";
+    public const HARDCOPY_NOTICE = "Hardcopy needs to be delivered to the CMO's Office. Quote the reference number above.";
 
     public static function for(ProcurementCase $case): array
     {
@@ -42,7 +42,7 @@ final class RequestReceipt
             ->orderBy('uploaded_at')->orderBy('id')->get()
             ->sortBy(fn (Document $d) => $order->search($d->purpose->value) === false ? $order->count() : $order->search($d->purpose->value))
             ->map(fn (Document $d) => [
-                'label' => $labels[$d->purpose->value] ?? 'Earlier uploads',
+                'label' => $labels[$d->purpose->value] ?? 'Earlier Uploads',
                 'display_name' => $d->original_name,
                 'version' => $d->version,
                 'uploaded_at' => $d->uploaded_at?->copy()->utc()->toIso8601ZuluString(),

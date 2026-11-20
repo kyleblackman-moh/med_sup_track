@@ -4,27 +4,32 @@ import { type ReactNode } from 'react';
 interface StickyActionBarProps {
     /** The destructive action ("Delete draft") or status text. */
     left?: ReactNode;
-    /** The primary action ("Review and submit"). */
+    /** The save and primary actions ("Save draft", "Review and submit"). */
     right?: ReactNode;
     className?: string;
 }
 
 /**
- * UI-4: the sticky action bar at the bottom of the L1 canvas (design.md
- * section 7): sticky to the bottom, a top border, white at 92% with a light
- * blur, padding that clears the device's safe area. The only place form
- * actions live. Hidden in print.
+ * The sticky action bar (design.md section 7), restyled in V2-4: a white card
+ * bar (16px radius, 1px border, --shadow-card, padding 16px 20px) at the end
+ * of the page content, sticky to the bottom of the screen, the full content
+ * width. It sits in the flow after the last section, so at the end of the page
+ * it never covers the last field or message. Below sm the two groups wrap and
+ * the buttons share the row. The only place form actions live. Hidden in print.
+ * FORM-COMPACT-1 (4): data-sticky-bar gives the page a matching scroll-padding
+ * at the bottom (app.css), so Tab never leaves a focused field behind the bar.
  */
 export function StickyActionBar({ left, right, className }: StickyActionBarProps) {
     return (
         <div
+            data-sticky-bar
             className={cn(
-                'bg-card/92 sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-6 print:hidden',
+                'bg-card shadow-card sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 print:hidden',
                 className,
             )}
         >
-            <div className="flex min-w-0 flex-wrap items-center gap-2">{left}</div>
-            <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 max-sm:w-full max-sm:*:flex-1">{left}</div>
+            <div className="ml-auto flex flex-wrap items-center gap-2 max-sm:w-full max-sm:*:flex-1">{right}</div>
         </div>
     );
 }

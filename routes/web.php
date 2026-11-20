@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\RequestController;
@@ -8,6 +10,7 @@ use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use App\Support\LandingPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -33,9 +36,11 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('/', 'index')->name('index');
         // V2-1b: New request posts here and lands on the new draft's form; there is
         // no create page (GET /requests/create is 404: no case has that id).
-        Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
+        Route::post('/', 'store')->middleware('throttle:create-request')->name('store'); // SEC-1 (RateLimits)
         Route::get('{procurementCase}', 'show')->name('show');
         Route::get('{procurementCase}/edit', 'edit')->name('edit');
+        // OVERNIGHT-3 (A1): Review as its own page; Submit Request posts to requests.submit.
+        Route::get('{procurementCase}/review', 'review')->name('review');
         Route::put('{procurementCase}', 'update')->middleware('throttle:30,1')->name('update');
         // V2-1: change a DRAFT's request type (one of the five).
         Route::put('{procurementCase}/type', 'changeType')->middleware('throttle:30,1')->name('type');
@@ -45,6 +50,9 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
             ->middleware('throttle:10,1')->name('submit');
+        // OVERNIGHT-2 (D3): the vendor's text reply to a query from the Ministry.
+        Route::post('{procurementCase}/queries/{query}/messages', [CaseQueryController::class, 'vendorReply'])
+            ->middleware('throttle:20,1')->name('queries.reply');
     });
 
 // Request documents. {document} is bound through the case (scopeBindings), so a
@@ -54,7 +62,7 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
     ->group(function () {
         Route::scopeBindings()->group(function () {
             Route::post('requests/{procurementCase}/documents', 'store')
-                ->middleware('throttle:60,1')->name('requests.documents.store'); // F1: one request per file
+                ->middleware('throttle:uploads')->name('requests.documents.store'); // F1: one request per file; SEC-1 (RateLimits)
             Route::post('requests/{procurementCase}/documents/{document}/withdraw', 'withdraw')
                 ->middleware('throttle:30,1')->name('requests.documents.withdraw');
         });
@@ -91,6 +99,32 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/close', 'closeCase')->name('close');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
+        });
+
+        // OVERNIGHT-2 (D2): query loops. An unknown or invisible query or message is 404.
+        Route::controller(CaseQueryController::class)->middleware('throttle:20,1')->group(function () {
+            Route::post('{procurementCase}/queries', 'store')->name('queries.store');
+            Route::post('{procurementCase}/queries/{query}/messages', 'reply')->name('queries.reply');
+            Route::post('{procurementCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
+            Route::post('{procurementCase}/queries/{query}/close', 'close')->name('queries.close');
+        });
+    });
+
+// ADMIN-1: Admin > Users. 403 without users.manage (UserPolicy); a missing user is 404.
+Route::middleware(['auth', 'can:viewAny,'.User::class])
+    ->prefix('admin/users')
+    ->name('admin.users.')
+    ->controller(UserController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('create', 'create')->name('create');
+        Route::post('/', 'store')->middleware('throttle:20,1')->name('store');
+        Route::get('{user}', 'show')->whereNumber('user')->name('show');
+        Route::middleware('throttle:20,1')->where(['user' => '[0-9]+'])->group(function () {
+            Route::put('{user}/role', 'updateRole')->name('role');
+            Route::post('{user}/disable', 'disable')->name('disable');
+            Route::post('{user}/enable', 'enable')->name('enable');
+            Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
         });
     });
 

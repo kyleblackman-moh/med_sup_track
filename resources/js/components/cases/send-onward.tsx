@@ -45,6 +45,8 @@ interface Props {
     returned: ReturnedBanner | null;
     gate: GateState | null;
     panel: RoutePanel;
+    /** NEXT-STEP-1: the destination chosen on the Next Step card; the server's suggestion otherwise. */
+    initialDestination?: RouteDestination['value'] | null;
 }
 
 type FormData = { destination: string; reviewers: number[]; note: string };
@@ -66,8 +68,9 @@ export function SendOnwardPanel({
     returned,
     gate,
     panel,
+    initialDestination = null,
 }: Props) {
-    const initial: FormData = { destination: panel.suggested ?? '', reviewers: [], note: '' };
+    const initial: FormData = { destination: initialDestination ?? panel.suggested ?? '', reviewers: [], note: '' };
     const form = useForm<FormData>(initial);
     const errors = form.errors as Record<string, string>;
     const [confirming, setConfirming] = useState(false);
@@ -122,7 +125,7 @@ export function SendOnwardPanel({
         <Sheet open={open} onOpenChange={close}>
             <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
                 <SheetHeader className="pr-8">
-                    <SheetTitle>Send onward</SheetTitle>
+                    <SheetTitle>Send Onward</SheetTitle>
                     <SheetDescription className="sr-only">Choose where this returned case goes next.</SheetDescription>
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-semibold">{reference ?? 'Case'}</span>
@@ -135,7 +138,7 @@ export function SendOnwardPanel({
 
                 <div className="mt-4 space-y-5">
                     {returned && (
-                        <Block title="Why it came back">
+                        <Block title="Why It Came Back">
                             <div className="bg-muted space-y-1 rounded-lg border p-3 text-sm">
                                 <p className="font-medium">
                                     Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
@@ -149,7 +152,7 @@ export function SendOnwardPanel({
                         </Block>
                     )}
 
-                    <Block title="Recent history">
+                    <Block title="Recent History">
                         <CaseTimeline entries={panel.timeline} />
                     </Block>
 
@@ -161,7 +164,7 @@ export function SendOnwardPanel({
 
                     {confirming && chosen ? (
                         <div className="space-y-4">
-                            <Block title="Check before sending">
+                            <Block title="Check Before Sending">
                                 <dl className="grid gap-2 text-sm">
                                     <div>
                                         <dt className="text-muted-foreground">Send to</dt>
@@ -185,7 +188,7 @@ export function SendOnwardPanel({
                                     Back
                                 </Button>
                                 <Button type="button" onClick={send} disabled={form.processing}>
-                                    {form.processing ? 'Sending…' : 'Send now'}
+                                    {form.processing ? 'Sending…' : chosen.button}
                                 </Button>
                             </div>
                         </div>

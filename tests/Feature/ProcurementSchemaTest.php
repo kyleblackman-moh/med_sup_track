@@ -82,6 +82,11 @@ const SLICE_6B_COLUMNS = [
         'existing_detail' => 'nvarchar(500)', 'proposed_detail' => 'nvarchar(500)', 'effective_date' => 'date',
         'created_at' => 'datetime', 'updated_at' => 'datetime',
     ],
+    'case_variation_rows' => [ // V2-5
+        'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'variation_type' => 'nvarchar(100)',
+        'existing_detail' => 'nvarchar(500)', 'proposed_detail' => 'nvarchar(500)', 'effective_detail' => 'nvarchar(100)',
+        'created_at' => 'datetime', 'updated_at' => 'datetime',
+    ],
 ];
 
 function procurementType(array $attributes = []): int
@@ -273,6 +278,15 @@ it('allows only one variation row per case, and blocks deleting its case (V2-1)'
     DB::table('case_variations')->insert(['case_id' => $caseId]);
     expectRejected(fn () => DB::table('case_variations')->insert(['case_id' => $caseId]));
     expectRejected(fn () => DB::table('case_variations')->insert(['case_id' => Str::lower((string) Str::ulid())]));
+    expectRejected(fn () => DB::table('cases')->where('id', $caseId)->delete());
+});
+
+it('allows many variation rows per case, and blocks deleting its case (V2-5)', function () {
+    $caseId = insertCase();
+
+    DB::table('case_variation_rows')->insert([['case_id' => $caseId, 'sort_order' => 0], ['case_id' => $caseId, 'sort_order' => 1]]);
+    expect(DB::table('case_variation_rows')->where('case_id', $caseId)->count())->toBe(2);
+    expectRejected(fn () => DB::table('case_variation_rows')->insert(['case_id' => Str::lower((string) Str::ulid())]));
     expectRejected(fn () => DB::table('cases')->where('id', $caseId)->delete());
 });
 

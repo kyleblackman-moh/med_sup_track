@@ -1,3 +1,4 @@
+import { type NotSavedItem, type SavedFlash } from '@/types/ad-hoc';
 import { type Page } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,18 @@ export const MIN_GAP_MS = 5000;
 /** Props reloaded after a save: the saved figures, the section status and the new row ids. */
 const RELOAD = ['case', 'request_sections', 'form', 'saved'];
 
-export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+/**
+ * FORM-ERR-1 (D): "invalid" = the server refused the save for validation (the
+ * fields are marked in red); "error" = a network or server failure.
+ */
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'partial' | 'invalid' | 'error';
+
+/** FORM-SAVE-1 (A2): a save the server accepted except for some fields (its own wording and list). */
+export interface PartialSave {
+    status: string;
+    heading: string | null;
+    items: NotSavedItem[];
+}
 
 interface Options {
     url: string;
@@ -30,6 +42,8 @@ interface Options {
 export function useAutosave({ url, payload, onSaved }: Options) {
     const [status, setStatus] = useState<SaveStatus>('idle');
     const [savedAt, setSavedAt] = useState<string | null>(null);
+    const [partial, setPartial] = useState<PartialSave | null>(null);
+    const partialRef = useRef(false);
 
     const latest = useRef({ url, payload, onSaved });
     latest.current = { url, payload, onSaved };
@@ -84,6 +98,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
 
             const sent = e.version;
             let ok = false;
+            let invalid = false;
             e.inFlight = true;
             e.lastStart = Date.now();
             setStatus('saving');
@@ -93,17 +108,27 @@ export function useAutosave({ url, payload, onSaved }: Options) {
                 preserveScroll: true,
                 async: true,
                 only: RELOAD,
+                // Validation refused the save (the errors arrive as page props); not a network or server failure.
+                onError: () => {
+                    invalid = true;
+                },
                 onSuccess: (page) => {
                     ok = true;
                     e.savedVersion = Math.max(e.savedVersion, sent);
                     latest.current.onSaved(page);
-                    const saved = (page.props as { saved?: { saved_at?: string } | null }).saved;
+                    const saved = (page.props as { saved?: SavedFlash | null }).saved;
+                    // FORM-SAVE-1: the server lists what it left out and words the status itself.
+                    const notSaved = saved?.not_saved ?? [];
+                    partialRef.current = notSaved.length > 0;
+                    setPartial(
+                        notSaved.length > 0 && saved?.status ? { status: saved.status, heading: saved.heading ?? null, items: notSaved } : null,
+                    );
                     setSavedAt(saved?.saved_at ?? new Date().toISOString());
                 },
                 onFinish: () => {
                     e.inFlight = false;
                     if (!ok) {
-                        setStatus('error');
+                        setStatus(invalid ? 'invalid' : 'error');
                         settle(false);
 
                         return;
@@ -118,7 +143,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
 
                         return;
                     }
-                    setStatus('saved');
+                    setStatus(partialRef.current ? 'partial' : 'saved');
                     settle(true);
                 },
             });
@@ -130,7 +155,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
     useEffect(() => {
         const warn = (event: BeforeUnloadEvent) => {
             const e = engine.current;
-            if (!e.stopped && (e.version > e.savedVersion || e.inFlight)) {
+            if (!e.stopped && (e.version > e.savedVersion || e.inFlight || partialRef.current)) {
                 event.preventDefault();
                 event.returnValue = '';
             }
@@ -193,5 +218,12 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         e.savedVersion = e.version;
     };
 
-    return { status, savedAt, changed, flush, retry, stop };
+    /** FORM-SAVE-1 (A4): edits not saved yet, or saved except for fields the server left out. */
+    const hasUnsaved = () => {
+        const e = engine.current;
+
+        return !e.stopped && (e.version > e.savedVersion || e.inFlight || partialRef.current);
+    };
+
+    return { status, savedAt, partial, hasUnsaved, changed, flush, retry, stop };
 }

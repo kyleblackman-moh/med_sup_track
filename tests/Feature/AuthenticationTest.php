@@ -203,6 +203,8 @@ it('shares only user fields and permission names with React', function () {
             'name' => $user->name,
             'email' => $user->email,
             'user_type' => 'staff',
+            // V2-4: the sidebar user card's second line: a staff member's role display name.
+            'subtitle' => Role::Cmo->label(),
         ])
         ->where('auth.can', collect(Role::Cmo->permissionNames())->sort()->values()->all())
     );

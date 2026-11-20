@@ -107,8 +107,8 @@ it('counts the four groups for the vendor\'s own organisation only, in card orde
 
     expect($props['groups'])->toBe([
         ['key' => 'drafts', 'label' => 'Drafts', 'count' => 2],
-        ['key' => 'in_progress', 'label' => 'In progress', 'count' => 2],
-        ['key' => 'hardcopy_due', 'label' => 'Hardcopy due', 'count' => 1],
+        ['key' => 'in_progress', 'label' => 'In Progress', 'count' => 2],
+        ['key' => 'hardcopy_due', 'label' => 'Hardcopy Due', 'count' => 1],
         ['key' => 'granted', 'label' => 'Granted', 'count' => 2],
     ]);
 });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Events\PasswordChanged;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,9 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
             'password_change_required' => false,
         ])->save();
+
+        // NOTIF-1: the email itself is sent by NotificationSubscriber.
+        PasswordChanged::dispatch((int) $user->getKey());
 
         return back();
     }

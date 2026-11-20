@@ -43,10 +43,29 @@
     --radius-lg: calc(var(--radius) - 4px);
     --radius-xl: var(--radius);
     --radius-2xl: calc(var(--radius) + 4px);
+    /* V2-4b (design.md sections 5 and 6): the sidebar's right corners. */
+    --radius-sidebar: 24px;
+    /* The hero icon tile (design.md section 7; design-system/medprocurement/MASTER.md). */
+    --radius-tile: 20px;
+
+    /* Vendor form type tokens (design.md section 4; MASTER.md section 2). Font size only:
+       line height is inherited, as with the bracket values they replace. */
+    --text-helper: 13px;
+    --text-label: 15px;
+    --text-hero-title: 22px;
+    --text-hero-ref: 30px;
+    --tracking-caption: 0.08em;
+    --tracking-title: -0.01em;
 
     /* design.md section 2: short shadows only. */
     --shadow-xs: 0 1px 2px rgb(13 27 42 / 0.04);
     --shadow-primary: 0 1px 2px rgb(0 111 186 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.18);
+    /* design.md 0.6 section 5: L3 white cards, type cards and the sticky action bar. */
+    --shadow-card: 0 1px 2px rgba(13, 27, 42, 0.06), 0 3px 10px rgba(13, 27, 42, 0.05);
+    /* The selected type card: the 3px --ring-wash halo plus --shadow-card. */
+    --shadow-card-selected: 0 0 0 3px var(--ring-wash), 0 1px 2px rgba(13, 27, 42, 0.06), 0 3px 10px rgba(13, 27, 42, 0.05);
+    /* V2-4b (design.md section 6): a sidebar item pops on hover and keyboard focus. Soft, on navy. */
+    --shadow-nav-hover: 0 4px 12px rgba(2, 10, 24, 0.35), 0 1px 2px rgba(2, 10, 24, 0.25);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -107,6 +126,25 @@
     --color-status-danger: var(--status-danger);
     --color-status-danger-foreground: var(--status-danger-foreground);
 
+    /* V2-4 (design.md 0.7.2 section 2): the navy application shell. */
+    --color-navy: var(--navy);
+    --color-navy-deep: var(--navy-deep);
+    --color-navy-foreground: var(--navy-foreground);
+    --color-navy-muted: var(--navy-muted);
+    --color-navy-border: var(--navy-border);
+    --color-navy-hover: var(--navy-hover);
+    --color-nav-active: var(--nav-active);
+    --color-nav-active-foreground: var(--nav-active-foreground);
+    --color-header: var(--header);
+    --color-header-foreground: var(--header-foreground);
+    /* Gradient stops: the sidebar surface and the hero icon tile only (section 2). */
+    --color-sidebar-from: var(--sidebar-from);
+    --color-sidebar-to: var(--sidebar-to);
+    --color-tile-from: var(--tile-from);
+    --color-tile-to: var(--tile-to);
+    --color-primary-deep: var(--primary-deep);
+    --color-input-bg: var(--input-bg);
+
     --color-sidebar: var(--sidebar-background);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -136,13 +174,14 @@
 }
 
 /*
-  Ministry of Health palette, "Layered Surface Theme" (design.md section 2,
-  version 0.5), light only. Values converted by hand from the design hex (in
-  the comments); each converts back to the same hex. Do not install a theme
-  from a registry. Surfaces: L0 --background, L1 --card, L2 --muted, L3 --card.
+  Ministry of Health palette with the "Navy & Healthcare Blue" shell (design.md
+  section 2, version 0.7.2), light only. Values converted by hand from the
+  design hex (in the comments); each converts back to the same hex. Do not
+  install a theme from a registry. Surfaces: workspace --background, L2
+  --muted, L3 --card; the shell is --navy (sidebar) and --header.
 */
 :root {
-    --background: hsl(210, 41.7%, 95.3%); /* #eef3f8 L0 */
+    --background: hsl(220, 66.7%, 96.5%); /* #f0f4fc workspace (0.7.2; was #eef3f8) */
     --foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
     --card: hsl(0, 0%, 100%); /* #ffffff L1, L3 */
     --card-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
@@ -178,16 +217,34 @@
     --chart-4: hsl(87.3, 62.2%, 24.9%); /* #436718 */
     --chart-5: hsl(206.7, 82.1%, 22%); /* #0a3d66 */
     --radius: 0.75rem;
-    /* The sidebar sits on L0 with no colour of its own: the same value as
-       --background (not "transparent", so the mobile sheet stays opaque). */
-    --sidebar-background: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
-    --sidebar-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
-    --sidebar-primary: hsl(204.2, 100%, 36.5%); /* #006fba */
-    --sidebar-primary-foreground: hsl(0, 0%, 100%); /* #ffffff */
-    --sidebar-accent: hsl(0, 0%, 100%); /* #ffffff (hover uses it at 60%) */
-    --sidebar-accent-foreground: hsl(211, 52.7%, 10.8%); /* #0d1b2a */
-    --sidebar-border: hsl(211.8, 33.3%, 90%); /* #dde5ee */
-    --sidebar-ring: hsl(204.2, 100%, 36.5%); /* #006fba */
+    /* V2-4 (design.md 0.7.2 section 2): the navy application shell. */
+    --navy: hsl(214.5, 78.6%, 16.5%); /* #09254b sidebar (flat fallback) */
+    --navy-deep: hsl(215.3, 71.8%, 13.9%); /* #0a1f3d sidebar user card */
+    --navy-foreground: hsl(0, 0%, 100%); /* #ffffff */
+    --navy-muted: hsl(216, 36.4%, 78.4%); /* #b4c4dc secondary sidebar text */
+    --navy-border: hsl(216, 48.8%, 32.2%); /* #2a4a7a sidebar dividers (decorative) */
+    --navy-hover: hsl(215, 50.8%, 23.1%); /* #1d3659 nav item hover */
+    --nav-active: var(--primary); /* active nav item */
+    --nav-active-foreground: hsl(0, 0%, 100%); /* #ffffff */
+    --header: var(--card); /* application header surface */
+    --header-foreground: var(--foreground);
+    --sidebar-from: hsl(215.6, 80.8%, 14.3%); /* #071f42 sidebar gradient, top */
+    --sidebar-to: hsl(213, 74.8%, 23.3%); /* #0f3768 sidebar gradient, bottom */
+    --primary-deep: hsl(214.2, 100%, 33.3%); /* #0049aa primary BUTTON fill */
+    --tile-from: hsl(207.4, 87.3%, 43.3%); /* #0e77cf hero icon tile, top */
+    --tile-to: hsl(212.4, 100%, 36.7%); /* #0056bb hero icon tile, bottom */
+    --input-bg: hsl(220, 69.2%, 97.5%); /* #f4f7fd input fill (border stays --input) */
+    /* shadcn sidebar variables mapped to the shell (section 2). This file names
+       shadcn's --sidebar "--sidebar-background" (older shadcn naming; the
+       Tailwind colour is still bg-sidebar). */
+    --sidebar-background: var(--navy);
+    --sidebar-foreground: var(--navy-foreground);
+    --sidebar-primary: var(--nav-active);
+    --sidebar-primary-foreground: var(--nav-active-foreground);
+    --sidebar-accent: var(--navy-hover);
+    --sidebar-accent-foreground: var(--navy-foreground);
+    --sidebar-border: var(--navy-border);
+    --sidebar-ring: hsl(0, 0%, 100%); /* white: the MOH-blue ring is nearly invisible on navy */
     /* Status pill tones (design.md section 3). Each pair is 5.2:1 or better. */
     --status-neutral: hsl(210, 41.7%, 95.3%); /* #eef3f8 */
     --status-neutral-foreground: hsl(213.3, 13%, 40.6%); /* #5a6675 */
@@ -201,41 +258,6 @@
     --status-danger-foreground: hsl(0, 70%, 35.3%); /* #991b1b */
 }
 
-.dark {
-    --background: hsl(0, 0%, 3.9%);
-    --foreground: hsl(0, 0%, 98%);
-    --card: hsl(0, 0%, 3.9%);
-    --card-foreground: hsl(0, 0%, 98%);
-    --popover: hsl(0, 0%, 3.9%);
-    --popover-foreground: hsl(0, 0%, 98%);
-    --primary: hsl(0, 0%, 98%);
-    --primary-foreground: hsl(0, 0%, 9%);
-    --secondary: hsl(0, 0%, 14.9%);
-    --secondary-foreground: hsl(0, 0%, 98%);
-    --muted: hsl(0, 0%, 6.9%);
-    --muted-foreground: hsl(0, 0%, 63.9%);
-    --accent: hsl(0, 0%, 14.9%);
-    --accent-foreground: hsl(0, 0%, 98%);
-    --destructive: hsl(0, 84%, 60%);
-    --destructive-foreground: hsl(0, 0%, 98%);
-    --border: hsl(0, 0%, 14.9%);
-    --input: hsl(0, 0%, 14.9%);
-    --ring: hsl(0, 0%, 83.1%);
-    --chart-1: hsl(220, 70%, 50%);
-    --chart-2: hsl(160, 60%, 45%);
-    --chart-3: hsl(30, 80%, 55%);
-    --chart-4: hsl(280, 65%, 60%);
-    --chart-5: hsl(340, 75%, 55%);
-    --sidebar-background: hsl(0, 0%, 7%);
-    --sidebar-foreground: hsl(0, 0%, 80%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0, 0%, 100%);
-    --sidebar-accent: hsl(0, 0%, 15.9%);
-    --sidebar-accent-foreground: hsl(240, 4.8%, 95.9%);
-    --sidebar-border: hsl(0, 0%, 15.9%);
-    --sidebar-ring: hsl(217.2, 91.2%, 59.8%);
-}
-
 @layer base {
     * {
         @apply border-border;
@@ -244,10 +266,36 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* FORM-COMPACT-1 (4), WCAG 2.2 2.4.11: a field focused by Tab, an anchor
+       target (the progress strip's links, the error summary's links) and
+       scrollIntoView never end up under a sticky bar. scroll-padding on the
+       page's scroll container applies to all three.
+       Top: the request form's sticky progress strip, at most about 134px
+       (12px padding twice, the 40px marker row, 8px, three lines of 14px
+       labels at 19.25px), plus 16px: 152px. The 72px application header is
+       not sticky; it scrolls away, and 152px clears it too.
+       Bottom: the sticky action bar sits 12px above the screen's bottom edge
+       and is 78px tall in one row (16px padding twice, 44px buttons, 1px
+       borders): 90px, plus 22px: 112px. Below 40rem its groups wrap to up
+       to three rows of 44px buttons (186px with the gaps): 208px. */
+    html:has([data-sticky-strip]) {
+        scroll-padding-top: 9.5rem;
+    }
+
+    html:has([data-sticky-bar]) {
+        scroll-padding-bottom: 7rem;
+    }
+
+    @media (width < 40rem) {
+        html:has([data-sticky-bar]) {
+            scroll-padding-bottom: 13rem;
+        }
+    }
 }
 
-/* Print (design.md section 10): no sidebar (nor the space it holds), the canvas
-   full width, black on white. Sticky bars and the brand stripe hide themselves
+/* Print (design.md section 10): no sidebar (nor the space it holds), the workspace
+   full width, black on white. Sticky bars and the header hide themselves
    with print:hidden. */
 @media print {
     [data-variant][data-side] {

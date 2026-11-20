@@ -1,6 +1,4 @@
-import { APP_BRAND } from '@/components/app-logo';
-import AppLogoIcon from '@/components/app-logo-icon';
-import { BrandStripe } from '@/components/brand-stripe';
+import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
 import { Link } from '@inertiajs/react';
 
 interface AuthLayoutProps {
@@ -19,16 +17,12 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
     return (
         <div className="bg-background text-foreground flex min-h-svh flex-col items-center justify-center px-3 py-10">
             <main className="bg-card w-full max-w-md overflow-hidden rounded-2xl border shadow-xs">
-                <BrandStripe />
-
                 <div className="flex flex-col gap-6 px-6 pt-8 pb-8 sm:px-8">
                     <Link
                         href={route('home')}
                         className="focus-visible:ring-ring flex items-center gap-3 self-start rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                     >
-                        <span className="bg-primary text-primary-foreground flex size-[34px] items-center justify-center rounded-[4px] rounded-bl-2xl">
-                            <AppLogoIcon className="size-5 fill-current" aria-hidden="true" />
-                        </span>
+                        <AppLogoMark />
                         <span className="grid leading-tight">
                             <span className="text-sm font-semibold">{APP_BRAND.name}</span>
                             <span className="text-muted-foreground text-xs">{APP_BRAND.descriptor}</span>

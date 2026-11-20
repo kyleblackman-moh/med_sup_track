@@ -1,5 +1,6 @@
 import { CaseFilters, hasActiveFilters } from '@/components/cases/case-filters';
 import { CaseTable } from '@/components/cases/case-table';
+import { PageContent, PageHeader } from '@/components/page-header';
 import { NewRequestButton } from '@/components/requests/new-request-button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -54,16 +55,17 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Cases" />
 
-            <div className="bg-background text-foreground w-full p-6">
-                <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-baseline gap-3">
-                        <h1 className="text-xl font-semibold">Cases</h1>
-                        <span className="text-muted-foreground text-sm tabular-nums" aria-live="polite">
+            {/* NEXT: PageHeader and PageContent, as the other pages; the filters and search are unchanged. */}
+            <PageContent>
+                <PageHeader
+                    title="Cases"
+                    subtitle={
+                        <span className="tabular-nums" aria-live="polite">
                             {cases.total} {cases.total === 1 ? 'case' : 'cases'}
                         </span>
-                    </div>
-                    {abilities.create && <NewRequestButton />}
-                </header>
+                    }
+                    actions={abilities.create && <NewRequestButton />}
+                />
 
                 <CaseFilters filters={filters} options={options} showOrganisation={abilities.see_organisation} errors={errors} onChange={visit} />
 
@@ -77,7 +79,7 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
                     filtersActive={hasActiveFilters(filters)}
                     onClearFilters={clearFilters}
                 />
-            </div>
+            </PageContent>
         </AppLayout>
     );
 }

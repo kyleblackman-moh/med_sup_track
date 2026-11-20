@@ -72,6 +72,7 @@ class User extends Authenticatable
             'failed_login_attempts' => 'integer',
             'locked_until' => 'datetime',
             'last_login_at' => 'datetime',
+            'disabled_at' => 'datetime', // ADMIN-1
             'password_change_required' => 'boolean',
         ];
     }

@@ -1,9 +1,9 @@
 // Props of the AD_HOC single-page form (slice F2). Display only: the server
 // validates every save, computes every figure and decides what is complete.
 
-import { type DocumentGroup, type FieldValue, type OptionList, type RequestDetail, type UploadRules } from './requests';
+import { type DocumentGroup, type OptionList, type RequestDetail, type Row, type UploadRules } from './requests';
 
-export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations';
+export type ChildSection = 'tender_awards' | 'purchase_orders' | 'stock_expiries' | 'quotations' | 'variation_rows';
 
 export interface SectionIssue {
     /** Readiness key, for example "tender_awards.0.unit_cost". */
@@ -29,24 +29,42 @@ export interface AdHocFigures {
 export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
     requisition: RequestDetail['requisition'];
     figures: AdHocFigures | null;
-    /** V2-1: the Tender Variation entry; null when none is saved. */
-    variation: Record<string, FieldValue> | null;
+    /** V2-5: "Was a request previously made for this drug in this current tender cycle?"; null = not answered. */
+    previous_request_in_cycle: boolean | null;
+    /** V2-5: Details of Variation Requested, in saved order. */
+    variation_rows: Row[];
 };
 
 export interface AdHocConfig {
-    options: { tender_outcome: OptionList; rfq_audience: OptionList };
-    /** The outcome value that hides the award and order tables. */
-    not_awarded: string;
+    /** V2-3: no tender outcome; awards and orders never depend on it. */
+    options: { rfq_audience: OptionList };
     row_caps: Record<ChildSection, number>;
     max_lengths: Record<string, number>;
     uploads: UploadRules;
+    /** FORM-SAVE-1: fixed notices worded by the server (FormWording). */
+    messages: { leave_unsaved: string; type_saved_others_pending: string };
 }
 
 /** The "saved" flash after an autosave: new row ids by client key, and the saved rows' ids. */
+/** FORM-SAVE-1: a field a draft save left out (RequestController, FormWording::notSaved), in form order. */
+export interface NotSavedItem {
+    /** The payload key ("requisition.quantity_requested", "quotations.0.unit_price"). */
+    key: string;
+    section: FormSectionKey;
+    section_label: string;
+    message: string;
+}
+
 export interface SavedFlash {
     id_map: Record<string, number>;
     row_ids: Partial<Record<ChildSection, number[]>>;
     saved_at: string;
+    /** FORM-SAVE-1 (A2): what this save left out; empty when everything was saved. */
+    not_saved?: NotSavedItem[];
+    /** The server's status line for a partial save ("Saved. 2 fields need attention and were not saved yet."), else null. */
+    status?: string | null;
+    /** The server's summary heading for what was left out ("2 Things Need Fixing Before You Can Submit"), else null. */
+    heading?: string | null;
 }
 
 /** V2-1 "request_sections": the sections the draft's type shows, in order (RequestSections). */
@@ -76,6 +94,7 @@ export interface AdHocPageProps {
 
 /** V2-2: the request form's sections, in form order (RequestFormView). */
 export type FormSectionKey =
+    | 'request_type'
     | 'item_tender'
     | 'variation_details'
     | 'awarded_supplier'
@@ -95,7 +114,7 @@ export interface FormSectionView {
     state: FormSectionState;
     /** Why the section is blocked ("Choose a request type"), else null. */
     note: string | null;
-    /** Field key => must be filled in to submit. A false value is shown as "(optional)". */
+    /** Field key => must be filled in to submit. True: the control carries aria-required (V2-4b: no "(optional)" label). */
     required: Record<string, boolean>;
 }
 
@@ -105,6 +124,9 @@ export interface FormDisplay {
     days_on_hand: string;
     awards_total: string;
     total_cost: string;
+    /** V2-3: "12.50%", or a dash. */
+    price_change_vs_tender: string;
+    price_change_vs_previous: string;
     rows: {
         tender_awards: { id: number; percentage: string; line_cost: string }[];
         purchase_orders: { id: number; quantity_outstanding: string }[];
@@ -123,4 +145,6 @@ export interface RequestFormView {
     sections: FormSectionView[];
     display: FormDisplay;
     expiry: FormExpiry;
+    /** FORM-SAVE-1 (A5d): "3 Things Need Fixing Before You Can Submit", or null when nothing blocks. */
+    issue_heading: string | null;
 }

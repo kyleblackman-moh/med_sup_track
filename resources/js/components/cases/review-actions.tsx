@@ -2,7 +2,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { type GateState, type ReviewForm } from '@/types/cases';
+import { type ReviewForm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
@@ -17,8 +17,8 @@ function formatDateTime(iso: string | null): string {
  * the server's review_forms; the server checks permission, assignment and
  * status again on every save.
  *
- * Flow: choose an outcome; "Record outcome" opens a summary to confirm; once
- * recorded the form becomes a summary with "Change outcome". There is no draft:
+ * Flow: choose an outcome; "Record Outcome" opens a summary to confirm; once
+ * recorded the form becomes a summary with "Change Outcome". There is no draft:
  * recording is the save, and it can be changed while the case is in review.
  */
 export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form: ReviewForm }) {
@@ -62,7 +62,7 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                     <dd className="font-medium">{def.current.label}</dd>
                     {def.current.reason && (
                         <>
-                            <dt className="text-muted-foreground">Reason or note</dt>
+                            <dt className="text-muted-foreground">Reason or Note</dt>
                             <dd className="whitespace-pre-line">{def.current.reason}</dd>
                         </>
                     )}
@@ -70,10 +70,10 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                     <dd>{formatDateTime(def.current.recorded_at)}</dd>
                 </dl>
                 <p className="text-muted-foreground text-sm">
-                    Nothing else is needed from you on this case for now. You can change the outcome until the CMO marks the case ready for file.
+                    Nothing else is needed from you on this case for now. You can change the outcome until the case is marked ready for file.
                 </p>
                 <Button type="button" variant="outline" onClick={() => setEditing(true)}>
-                    Change outcome
+                    Change Outcome
                 </Button>
             </section>
         );
@@ -106,9 +106,10 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
             </fieldset>
 
             <div className="grid gap-1.5">
-                <Label htmlFor={`${id}-reason`}>{negative ? 'Reason (required)' : 'Note (optional)'}</Label>
+                <Label htmlFor={`${id}-reason`}>{negative ? 'Reason (required)' : 'Note'}</Label>
                 <textarea
                     id={`${id}-reason`}
+                    aria-required={negative ? true : undefined}
                     rows={3}
                     maxLength={500}
                     className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
@@ -125,11 +126,11 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
 
             <div className="flex flex-wrap gap-2">
                 <Button type="submit" disabled={form.processing || form.data.outcome === ''}>
-                    Record outcome
+                    Record Outcome
                 </Button>
                 {def.current && (
                     <Button type="button" variant="outline" onClick={keepCurrent}>
-                        Keep current outcome
+                        Keep Current Outcome
                     </Button>
                 )}
             </div>
@@ -148,49 +149,17 @@ export function ReviewOutcomeForm({ caseId, form: def }: { caseId: string; form:
                         <dt className="text-muted-foreground">{negative ? 'Reason' : 'Note'}</dt>
                         <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
                     </dl>
-                    <p className="text-muted-foreground text-sm">You can change it until the CMO marks the case ready for file.</p>
+                    <p className="text-muted-foreground text-sm">You can change it until the case is marked ready for file.</p>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
-                            Go back
+                            Go Back
                         </Button>
                         <Button type="button" onClick={record} disabled={form.processing}>
-                            {form.processing ? 'Recording…' : 'Record outcome'}
+                            {form.processing ? 'Recording…' : 'Record Outcome'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </form>
-    );
-}
-
-/**
- * T4 for the CMO (slice 10b). Enabled only when the server says the gate is
- * open; otherwise the server's missing list is shown as text.
- */
-export function MarkReadyForFile({ caseId, gate }: { caseId: string; gate: GateState | null }) {
-    const form = useForm({});
-    const errors = form.errors as Record<string, string>;
-    const open = gate?.open === true;
-
-    return (
-        <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Ready for file</h3>
-            {!open && gate && gate.missing.length > 0 && (
-                <ul className="text-muted-foreground list-disc pl-5 text-sm" id="ready-missing">
-                    {gate.missing.map((m) => (
-                        <li key={m}>{m}</li>
-                    ))}
-                </ul>
-            )}
-            <Button
-                type="button"
-                onClick={() => form.post(route('cases.ready', caseId), { preserveScroll: true })}
-                disabled={!open || form.processing}
-                aria-describedby={!open ? 'ready-missing' : undefined}
-            >
-                {form.processing ? 'Saving…' : 'Mark ready for file'}
-            </Button>
-            <InputError message={errors.gate} />
-        </div>
     );
 }

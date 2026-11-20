@@ -6,7 +6,7 @@ import { type FormConfig } from '@/types/requests';
 import { type FieldDef } from './fields';
 
 const controlClass =
-    'border-input bg-transparent placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] md:text-sm';
+    'border-input bg-transparent placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-3 md:text-sm';
 
 interface FieldInputProps {
     id: string;

@@ -12,27 +12,31 @@ use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
 use App\Http\Resources\Requests\RequestFormView;
+use App\Http\Resources\Requests\RequestProgress;
 use App\Http\Resources\Requests\RequestReceipt;
+use App\Http\Resources\Requests\RequestReview;
+use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
+use App\Queries\QueryView;
 use App\Submissions\CaseEraser;
 use App\Submissions\ChangeRequestType;
 use App\Submissions\CreateDraftCase;
 use App\Submissions\Exceptions\DraftAlreadyDeleted;
 use App\Submissions\Exceptions\DraftNotEditable;
 use App\Submissions\ExpiryRisk;
+use App\Submissions\FormWording;
 use App\Submissions\ProcurementTypeProfile;
-use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
 use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
 use App\Support\RequestGroups;
+use App\Support\SqlLike;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -48,7 +52,7 @@ class RequestController extends Controller
     private const PERMISSION = Permission::CaseSubmit;
 
     /** UI-3: the Requests list title. The organisation label is short_name, else name (listTitle). */
-    public const LIST_TITLE = '{organisation} - requests';
+    public const LIST_TITLE = '{organisation} - Requests';
 
     /** UI-3: the longest search the list accepts; longer input is cut to this. */
     public const SEARCH_MAX = 100;
@@ -111,8 +115,7 @@ class RequestController extends Controller
      */
     private static function matching(Builder $query, string $search): Builder
     {
-        $pattern = '%'.str_replace(['\\', '%', '_', '['], ['\\\\', '\\%', '\\_', '\\['], $search).'%';
-        $like = fn (string $column) => ["{$column} LIKE ? ESCAPE '\\'", [$pattern]];
+        $like = fn (string $column) => SqlLike::contains($column, $search);
 
         return $query->where(function (Builder $any) use ($like) {
             $any->whereRaw(...$like('cases.reference_no'))
@@ -152,14 +155,14 @@ class RequestController extends Controller
             'documents' => RequestDocuments::for($procurementCase, $request->user()),
             // Drafts only: the reasons a submit would be refused right now.
             'readiness' => $report ? (new ReadinessResource($report))->resolve($request) : null,
-            // UI-3: an AD_HOC request shows the same summary as Review and submit, which needs the option labels.
-            // Slice V2-1: plus the sections the type shows, in order (RequestSections).
-            'summary_config' => ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()
-                ? [
-                    ...Arr::only(AdHocFormConfig::for(), ['options', 'not_awarded']),
-                    'sections' => RequestSections::visible($procurementCase->procurementType->code),
-                ]
-                : null,
+            // V2-3: a request-form case shows the one RequestSummary (as Review and the staff
+            // case page); null for the old Pharm and Non-Pharm types (RequisitionView).
+            // NEXT part 5: without Documents; this page has its own document list with actions.
+            'summary' => RequestSummary::for($procurementCase, $request->user(), withDocuments: false),
+            // OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft.
+            'progress' => RequestProgress::for($procurementCase),
+            // OVERNIGHT-2 (D3): external, delivered queries addressed to this organisation only.
+            'queries' => $isDraft ? [] : QueryView::forVendor($procurementCase, $request->user()),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
@@ -202,6 +205,48 @@ class RequestController extends Controller
         ]);
     }
 
+    /**
+     * OVERNIGHT-3 (A1): GET /requests/{case}/review, the vendor's Review page for
+     * their own organisation's DRAFT. Another organisation's case, and any DRAFT
+     * for staff, is 404 (the global scope on route model binding). A case that
+     * is no longer a DRAFT goes to its request page; a draft of an old type
+     * (no request form, so no summary) goes back to its form, which keeps its
+     * own submit panel. Submit Request posts to the existing submit route.
+     */
+    public function review(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response|RedirectResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        if ($procurementCase->status !== CaseStatus::DRAFT) {
+            return to_route('requests.show', $procurementCase);
+        }
+
+        Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
+
+        if (! ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
+            return to_route('requests.edit', $procurementCase);
+        }
+
+        $report = $readiness->evaluate($procurementCase);
+        $ready = $report->isReady();
+        $procurementCase->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
+
+        return Inertia::render('requests/review', [
+            'case' => $this->detail($request, $procurementCase),
+            // The same read-only summary the form's review showed (Documents included).
+            'summary' => RequestSummary::for($procurementCase, $request->user()),
+            // What still blocks a submit, each line linking back to its section on the form.
+            'blockers' => $ready ? [] : RequestReview::blockers($procurementCase, $report),
+            'issue_heading' => RequestFormView::issueHeading($procurementCase, $report),
+            'description' => RequestReview::READY_TEXT,
+            'not_ready_reason' => $ready ? null : RequestReview::NOT_READY_REASON,
+            'hardcopy_notice' => RequestReceipt::HARDCOPY_NOTICE,
+            'can' => $this->can($request, [
+                'submit' => $ready && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
+            ]),
+        ]);
+    }
+
     public function update(Request $request, ProcurementCase $procurementCase, SaveRequisition $save): RedirectResponse
     {
         Gate::authorize('view', $procurementCase);
@@ -212,18 +257,28 @@ class RequestController extends Controller
 
         Gate::authorize('act', [$procurementCase, self::PERMISSION->value]);
 
-        // Throws ValidationException (errors keyed by dotted path) on bad input,
-        // including any system key such as status, org_id or technical_status.
-        $data = RequisitionData::validate($request->except(['_token', '_method']), $procurementCase->procurementType);
+        $payload = $request->except(['_token', '_method']);
+        $adHocForm = ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm();
+
+        // FORM-SAVE-1: the request form's draft save (autosave and Save Draft) keeps every
+        // valid field and leaves out only what failed (RequisitionData::validateDraft). The
+        // older form stays strict: any error rejects the save (errors keyed by dotted path,
+        // including any system key such as status, org_id or technical_status).
+        [$data, $dropped] = $adHocForm
+            ? RequisitionData::validateDraft($payload, $procurementCase->procurementType)
+            : [RequisitionData::validate($payload, $procurementCase->procurementType), []];
 
         try {
-            $saved = $save->handle($procurementCase, $request->user(), $data);
+            $saved = $save->handle($procurementCase, $request->user(), $data, lenient: $adHocForm, alreadyDropped: count($dropped));
         } catch (DraftNotEditable) {
             return $this->notEditable($procurementCase);
         }
 
-        if (ProcurementTypeProfile::for($procurementCase->procurementType)->isAdHocForm()) {
-            // Autosave: no banner. The page attaches the new row ids by client_key.
+        if ($adHocForm) {
+            $notSaved = FormWording::notSaved([...$dropped, ...$saved->dropped]);
+
+            // Autosave: no banner. The page attaches the new row ids by client_key. What was
+            // left out comes back here, not as validation errors: the save itself succeeded.
             return back()->with('saved', [
                 'id_map' => (object) $saved->idMap,
                 'row_ids' => (object) $saved->rowIds,
@@ -231,6 +286,10 @@ class RequestController extends Controller
                 // Slice V2-1 (ExpiryRisk): advisory only.
                 'days_on_hand' => $saved->daysOnHand,
                 'expiry_warnings' => ExpiryRisk::asList($saved->expiryWarnings),
+                // FORM-SAVE-1 (A2): the fields this save left out, and the status line saying so.
+                'not_saved' => $notSaved,
+                'status' => $notSaved === [] ? null : FormWording::partialSave(count($notSaved)),
+                'heading' => $notSaved === [] ? null : FormWording::issueHeading(count($notSaved)),
             ]);
         }
 
@@ -323,21 +382,21 @@ class RequestController extends Controller
             'case' => fn () => $this->detail($request, $case),
             'sections' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return AdHocSections::for($case, $report);
             },
             // Slice V2-1: the sections this type shows, in order, with their issues (the V2-2 screen).
             'request_sections' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return AdHocSections::requestSections($case, $report);
             },
             // Slice V2-2: numbered sections with states and required flags, display strings, the expiry warning.
             'form' => function () use ($case, $evaluate) {
                 $report = $evaluate();
-                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+                $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
                 return RequestFormView::for($case, $report);
             },
@@ -354,7 +413,7 @@ class RequestController extends Controller
 
     private function detail(Request $request, ProcurementCase $case): array
     {
-        $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+        $case->load(['procurementType', 'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries', 'variationRows']);
 
         return (new RequestDetailResource($case))->resolve($request);
     }

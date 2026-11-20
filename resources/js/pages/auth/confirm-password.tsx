@@ -24,10 +24,10 @@ export default function ConfirmPassword() {
 
     return (
         <AuthLayout
-            title="Confirm your password"
+            title="Confirm Your Password"
             description="This is a secure area of the application. Please confirm your password before continuing."
         >
-            <Head title="Confirm password" />
+            <Head title="Confirm Password" />
 
             <form onSubmit={submit}>
                 <div className="space-y-6">
@@ -35,6 +35,7 @@ export default function ConfirmPassword() {
                         <Label htmlFor="password">Password</Label>
                         <Input
                             id="password"
+                            aria-required="true"
                             type="password"
                             name="password"
                             placeholder="Password"
@@ -50,7 +51,7 @@ export default function ConfirmPassword() {
                     <div className="flex items-center">
                         <Button className="w-full" disabled={processing}>
                             {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                            Confirm password
+                            Confirm Password
                         </Button>
                     </div>
                 </div>

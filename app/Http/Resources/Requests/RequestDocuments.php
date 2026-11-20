@@ -67,7 +67,7 @@ final class RequestDocuments
         if ($earlier->isNotEmpty()) {
             $groups[] = [
                 'purpose' => self::EARLIER,
-                'label' => 'Earlier uploads',
+                'label' => 'Earlier Uploads',
                 'hint' => null,
                 'is_required' => false,
                 'read_only' => true,

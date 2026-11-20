@@ -32,19 +32,19 @@ final class AdHocSections
 {
     public const SECTIONS = [
         'item' => 'Item',
-        'tender' => 'Tender background',
+        'tender' => 'Tender Background',
         'stock' => 'Stock',
         'quotations' => 'Quotations',
-        'price' => 'Price comparison',
+        'price' => 'Price Comparison',
         'documents' => 'Documents',
     ];
 
     /** The current screen's sections: field => section (V2-1 fields included). */
     private const SCREEN_FIELDS = [
-        'item' => ['request_type', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
+        'item' => ['request_type', 'previous_request_in_cycle', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
         'tender' => [
             'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_outcome', 'tender_issue_explanation',
-            'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation',
+            'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation_rows',
         ],
         'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
         'quotations' => ['rfq_audience', 'quotations', 'quantity_to_purchase'],
@@ -54,8 +54,8 @@ final class AdHocSections
 
     /** The current screen's sections => the request form sections (RequestSections) each holds. */
     private const SCREEN_TO_REQUEST_SECTIONS = [
-        'item' => ['item_tender'],
-        'tender' => ['item_tender', 'awarded_supplier', 'existing_arrangement', 'variation_details'],
+        'item' => ['request_type', 'item_tender'],
+        'tender' => ['request_type', 'item_tender', 'awarded_supplier', 'existing_arrangement', 'variation_details'],
         'stock' => ['stock'],
         'quotations' => ['quotation_comparison'],
         'price' => ['quotation_comparison'],
@@ -106,11 +106,18 @@ final class AdHocSections
      * Slice V2-1: the sections the case's type shows, in form order, with their
      * issues. Every error lands in a section (an unmapped key would be a bug).
      *
-     * @return list<array{key: string, label: string, optional: bool, anchor: string, complete: bool, issues: list<array<string, mixed>>}>
+     * The state is RequestSections::state (the one rule); complete means that
+     * state is complete.
+     *
+     * @return list<array{key: string, label: string, optional: bool, anchor: string, state: string, complete: bool, issues: list<array<string, mixed>>}>
      */
     public static function requestSections(ProcurementCase $case, ReadinessReport $report): array
     {
-        $visible = RequestSections::visible((string) $case->procurementType?->code);
+        $visible = RequestSections::visible(
+            (string) $case->procurementType?->code,
+            RequestSections::documentsRequired($case->procurement_type_id),
+            $case->previous_request_in_cycle,
+        );
         $issues = array_fill_keys(array_column($visible, 'key'), []);
 
         foreach ($report->errors as $error) {
@@ -120,13 +127,23 @@ final class AdHocSections
             }
         }
 
-        return array_map(fn (array $section) => [
-            ...$section,
-            'anchor' => "section-{$section['key']}",
-            // V2-1c: a section waiting for the type (it has a note) is never complete.
-            'complete' => $issues[$section['key']] === [] && $section['note'] === null,
-            'issues' => $issues[$section['key']],
-        ], $visible);
+        return array_map(function (array $section) use ($case, $issues) {
+            $state = RequestSections::state(
+                $section['note'],
+                $issues[$section['key']] !== [],
+                $section['optional'],
+                $section['optional'] && RequestSections::hasData($case, $section['key']),
+            );
+
+            return [
+                ...$section,
+                'anchor' => "section-{$section['key']}",
+                'state' => $state,
+                // V2-1c: a section waiting for the type (it has a note) is never complete.
+                'complete' => $state === RequestSections::COMPLETE,
+                'issues' => $issues[$section['key']],
+            ];
+        }, $visible);
     }
 
     /**
@@ -172,6 +189,7 @@ final class AdHocSections
                 'purchase_orders' => $case->purchaseOrders,
                 'stock_expiries' => $case->stockExpiries,
                 'quotations' => $case->quotations,
+                'variation_rows' => $case->variationRows, // V2-5
                 default => null,
             };
             $rowId = $relation?->values()->get((int) $parts[1])?->getKey();

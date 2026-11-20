@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  *
  *   ['requisition' => [...], 'quotations' => [rows], 'tender_awards' => [rows],
  *    'purchase_orders' => [rows], 'stock_expiries' => [rows],
- *    'variation' => [...]]   (request form only, slice V2-1)
+ *    'previous_request_in_cycle' => bool|null, 'variation_rows' => [rows]]   (request form only, V2-5)
  *
  * Field types, lengths and ranges follow the slice 6b columns. Every requisition
  * field is nullable (a draft saves incomplete). Child rows must carry the
@@ -40,12 +40,19 @@ final class RequisitionRules
 
     /** Plain messages for rules whose default message would be unclear. */
     public const MESSAGES = [
-        'requisition.din.regex' => 'Enter the DIN as digits only.',
+        'requisition.din.regex' => 'Enter the DIN using letters and numbers only.',
     ];
+
+    /**
+     * V2-5: row sections of the request form only (not in ProcurementTypeProfile::SECTIONS,
+     * so the old types never accept them). Saved exactly like the award rows.
+     */
+    public const FORM_SECTIONS = ['variation_rows'];
 
     public const ROW_CAPS = [
         'quotations' => 50,
         'tender_awards' => 20,
+        'variation_rows' => 20, // V2-5: the award rows' cap
         'purchase_orders' => 20,
         'stock_expiries' => 20,
     ];
@@ -88,33 +95,27 @@ final class RequisitionRules
             }
         }
 
-        // Slice V2-1: the variation entry (one object, not a list); request form only.
-        if ($profile->isAdHocForm()) {
-            $rules['variation'] = ['sometimes', 'nullable', 'array'];
-            foreach (self::variationFields() as $field => $spec) {
-                $rules["variation.{$field}"] = self::rulesFor($spec);
+        // V2-5: the previous-request answer (a case column); request form only. Null clears it.
+        $rules['previous_request_in_cycle'] = $profile->isAdHocForm() ? ['sometimes', 'nullable', 'boolean'] : ['missing'];
+
+        // V2-5: the variation rows, request form only; the same list rules as the award rows.
+        foreach (self::FORM_SECTIONS as $section) {
+            if (! $profile->isAdHocForm()) {
+                $rules[$section] = ['missing'];
+
+                continue;
             }
-        } else {
-            $rules['variation'] = ['missing'];
+
+            $rules[$section] = ['sometimes', 'array', 'list', 'max:'.self::ROW_CAPS[$section]];
+            $rules["{$section}.*"] = ['array'];
+            foreach (self::rowFields($section, $type->code) as $field => $spec) {
+                $rules["{$section}.*.{$field}"] = self::rulesFor($spec);
+            }
+            $rules["{$section}.*.id"][] = 'distinct';
+            $rules["{$section}.*.client_key"][] = 'distinct';
         }
 
         return $rules;
-    }
-
-    /**
-     * The Tender Variation entry (slice V2-1): one row per case, every field
-     * optional at save; required at submit for TENDER_VARIATION (RequestSections).
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function variationFields(): array
-    {
-        return [
-            'variation_type' => self::str(100),
-            'existing_detail' => self::str(500),
-            'proposed_detail' => self::str(500),
-            'effective_date' => ['type' => 'date'],
-        ];
     }
 
     /**
@@ -128,30 +129,51 @@ final class RequisitionRules
         $check = function (array $data, array $allowed, string $prefix) use (&$errors) {
             foreach (array_keys($data) as $key) {
                 if (! in_array($key, $allowed, true)) {
+                    // FORM-ERR-1: no key in the message (a forged or stale payload; the form never sends these).
                     $errors[$prefix.$key] = in_array($key, self::PROHIBITED_KEYS, true)
-                        ? "The {$key} field cannot be set."
+                        ? 'This field cannot be set from the form.'
                         : 'This field is not recognised.';
                 }
             }
         };
 
         $formType = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
-        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['variation'] : [])], '');
+        $check($payload, ['requisition', ...ProcurementTypeProfile::SECTIONS, ...($formType ? ['previous_request_in_cycle', ...self::FORM_SECTIONS] : [])], '');
 
         if (is_array($payload['requisition'] ?? null)) {
             $check($payload['requisition'], array_keys(self::requisitionFields($code)), 'requisition.');
         }
 
-        if ($formType && is_array($payload['variation'] ?? null)) {
-            $check($payload['variation'], array_keys(self::variationFields()), 'variation.');
-        }
-
-        foreach (ProcurementTypeProfile::SECTIONS as $section) {
+        foreach ([...ProcurementTypeProfile::SECTIONS, ...($formType ? self::FORM_SECTIONS : [])] as $section) {
             foreach (is_array($payload[$section] ?? null) ? $payload[$section] : [] as $i => $row) {
                 if (is_array($row)) {
                     $check($row, array_keys(self::rowFields($section, $code)), "{$section}.{$i}.");
                 }
             }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * FORM-SAVE-1: rules across fields, checked at every save. Each error names
+     * only the field that carries it (a draft save then drops just that field).
+     * Only fields present in the payload and already valid on their own are compared.
+     *
+     * @param  list<string>  $failed  keys that already failed their own rules
+     * @return array<string, string>
+     */
+    public static function crossFieldErrors(array $payload, array $failed = []): array
+    {
+        $r = is_array($payload['requisition'] ?? null) ? $payload['requisition'] : [];
+        $errors = [];
+
+        $start = $r['tender_cycle_start'] ?? null;
+        $end = $r['tender_cycle_end'] ?? null;
+        if (is_string($start) && is_string($end)
+            && ! in_array('requisition.tender_cycle_start', $failed, true) && ! in_array('requisition.tender_cycle_end', $failed, true)
+            && $end < $start) { // Y-m-d strings compare as dates
+            $errors['requisition.tender_cycle_end'] = RequisitionMessages::CYCLE_END_BEFORE_START;
         }
 
         return $errors;
@@ -258,7 +280,8 @@ final class RequisitionRules
             'item_description' => self::str(500),
             'strength' => self::str(100),
             'dosage_form' => self::str(100),
-            'din' => ['type' => 'digits', 'max' => 32], // digits only, no length rule (open question)
+            // V2-5: optional; letters and digits only, case and leading zeros kept; max is the column size.
+            'din' => ['type' => 'alnum', 'max' => 32],
             'quantity_requested' => ['type' => 'qty'],
             'unit_of_measure' => self::str(32),
             'clinical_note' => ['type' => 'text', 'max' => 2000],
@@ -379,6 +402,15 @@ final class RequisitionRules
                 'quantity' => ['type' => 'qty'],
                 'expiry_date' => ['type' => 'date'],
             ],
+            // V2-5: Details of Variation Requested. The effective date or application
+            // P.O. is one free-text field (assumption, see the V2-5 report).
+            'variation_rows' => [
+                'id' => $id,
+                'variation_type' => self::str(100),
+                'existing_detail' => self::str(500),
+                'proposed_detail' => self::str(500),
+                'effective_detail' => self::str(100),
+            ],
         };
     }
 
@@ -396,11 +428,14 @@ final class RequisitionRules
             default => ['nullable'],
         };
 
-        return [...$presence, ...match ($spec['type']) {
+        // FORM-ERR-1: bail, so a field fails with one message (its first broken rule), never two.
+        return ['bail', ...$presence, ...match ($spec['type']) {
             'string' => ['string', 'max:'.$spec['max']],
             'text' => isset($spec['max']) ? ['string', 'max:'.$spec['max']] : ['string'],
             // A string, so leading zeros are kept.
             'digits' => ['string', 'max:'.$spec['max'], 'regex:/^\d+$/'],
+            // V2-5 (DIN): letters and digits only; trimmed, and empty stored as null (RequisitionData).
+            'alnum' => ['string', 'max:'.$spec['max'], 'regex:/^[A-Za-z0-9]+$/'],
             'rowid' => ['integer', 'min:1'],
             'date' => ['date_format:Y-m-d'],
             'enum' => [Rule::enum($spec['enum'])],

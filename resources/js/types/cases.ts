@@ -66,7 +66,7 @@ export type StaffCaseDetail = StaffCaseSummary & RequisitionContent & { category
 
 /** Slice 10c: the Legal decision form, present only for an assigned Legal officer at With Legal. */
 export interface LegalForm {
-    decisions: { value: 'confirmed' | 'return_to_cmo'; label: string; needs_reason: boolean }[];
+    decisions: { value: 'confirmed' | 'return_to_cmo'; label: string; needs_reason: boolean; next: string }[];
 }
 
 /** Slice 10c: shown to staff while the case is Returned to CMO. */
@@ -82,7 +82,7 @@ export interface ReturnedBanner {
 
 /** Slice 10d: the PS decision form, present only for a user who may decide now (With PS). */
 export interface PsForm {
-    decisions: { value: 'grant' | 'return_to_cmo'; label: string; needs_reason: boolean }[];
+    decisions: { value: 'grant' | 'return_to_cmo'; label: string; needs_reason: boolean; next: string }[];
     kinds: { value: 'legal' | 'technical'; label: string }[];
 }
 
@@ -204,6 +204,8 @@ export interface RouteDestination {
     value: 'technocrats' | 'legal' | 'ps';
     label: string;
     consequence: string;
+    /** The confirm button, naming the destination. */
+    button: string;
     /** False when the destination cannot be used now (for example no Legal officer assigned). */
     available: boolean;
 }
@@ -230,4 +232,89 @@ export interface LetterRecord {
     hardcopy_sent_on: string | null;
     recorded_by: string | null;
     recorded_at: string | null;
+}
+
+/** NEXT-STEP-1: the server's confirmation text for one action (title, what happens, the confirm button). */
+export interface ActionConfirm {
+    title: string;
+    body: string;
+    button: string;
+}
+
+/** NEXT-STEP-1: one action this user may take now. Every string comes from the server. */
+export interface NextStepAction {
+    /** Which form the card opens; never shown. */
+    key: string;
+    label: string;
+    /** Where the file goes; null when it stays with the current desk. */
+    destination: string | null;
+    enabled: boolean;
+    disabled_reason: string | null;
+    /** For a returned case: the destination value the Send Onward panel starts with. */
+    route: RouteDestination['value'] | null;
+    primary: boolean;
+    confirm: ActionConfirm;
+}
+
+/** NEXT-STEP-1: one row of the blocker checklist. */
+export interface NextStepItem {
+    key: string;
+    label: string;
+    done: boolean;
+    state: string;
+    holder: string;
+    people: string[];
+    /** The inline Date Received form, only for a user who may record the hardcopy now. */
+    hardcopy_form: { today: string; earliest: string | null } | null;
+}
+
+/** NEXT-STEP-1: the Next Step card at the top of the staff case page. */
+export interface NextStepView {
+    stage: string;
+    holder: string | null;
+    assigned: string[];
+    since: string | null;
+    since_label: string | null;
+    instruction: string;
+    checklist: NextStepItem[];
+    actions: NextStepAction[];
+    /** OVERNIGHT-2 (D4): open queries; action is the button label (forward or answer), else waiting_on says who. */
+    queries: { id: string; title: string; status_label: string; waiting_on: string | null; action: string | null }[];
+}
+
+/** OVERNIGHT-2 (D2): one query message as staff see it (all text from the server). */
+export interface StaffQueryMessage {
+    id: string;
+    author: string | null;
+    from_label: string;
+    to_label: string;
+    body: string;
+    sent_on: string | null;
+    held: boolean;
+    state: string;
+    external: boolean;
+    /** Only for the CMO's desk while the message is held. */
+    forward: { label: string; title: string; body: string } | null;
+}
+
+export interface StaffQuery {
+    id: string;
+    title: string;
+    route_label: string;
+    status_label: string;
+    status_tone: StatusTone;
+    raised_by: string | null;
+    raised_on: string | null;
+    waiting_on: string | null;
+    read_only: boolean;
+    can_reply: boolean;
+    reply_label: string;
+    can_close: boolean;
+    messages: StaffQueryMessage[];
+}
+
+export interface StaffQueries {
+    queries: StaffQuery[];
+    /** The routes this user may raise a query on; null when none. */
+    raise: { routes: { id: number; label: string }[] } | null;
 }

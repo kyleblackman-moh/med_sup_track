@@ -16,13 +16,13 @@ Route::middleware('guest')->group(function () {
         ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
+        ->middleware('throttle:password-reset')->name('password.email'); // SEC-1 (RateLimits)
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->name('password.store');
+        ->middleware('throttle:password-reset')->name('password.store'); // SEC-1: also how a new account is activated
 });
 
 Route::middleware('auth')->group(function () {

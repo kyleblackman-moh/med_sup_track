@@ -1,23 +1,16 @@
+import { Notice } from '@/components/ui/notice';
 import { type Flash } from '@/types/requests';
 import { usePage } from '@inertiajs/react';
 
-/** Success / info / error messages flashed by the server, announced politely. */
+/** Success / info / error messages flashed by the server, announced politely. OVERNIGHT-3 (B1): the shared Notice tones. */
 export function FlashMessages() {
     const { flash } = usePage<{ flash: Flash }>().props;
 
     return (
-        <div aria-live="polite" className="empty:hidden">
-            {flash?.success && (
-                <p className="rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-                    {flash.success}
-                </p>
-            )}
-            {flash?.info && <p className="bg-muted text-foreground rounded-md border px-4 py-2 text-sm">{flash.info}</p>}
-            {flash?.error && (
-                <p className="rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
-                    {flash.error}
-                </p>
-            )}
+        <div aria-live="polite" className="space-y-2 empty:hidden">
+            {flash?.success && <Notice tone="success">{flash.success}</Notice>}
+            {flash?.info && <Notice tone="neutral">{flash.info}</Notice>}
+            {flash?.error && <Notice tone="danger">{flash.error}</Notice>}
         </div>
     );
 }

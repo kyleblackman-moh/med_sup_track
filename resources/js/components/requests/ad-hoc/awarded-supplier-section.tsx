@@ -1,5 +1,6 @@
-import { EntryRow, EntryTable } from '@/components/ui/entry-table';
-import { columnLabel, EntryInput, EntryValue } from './entry-fields';
+import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
+import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
+import { TableError } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
@@ -7,7 +8,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 /**
  * V2-2 section "Awarded supplier": one entry per supplier. % awarded and the
  * line cost are the server's (shown once the row is saved); the total is at
- * the foot. One line per entry from lg; below that each entry wraps.
+ * the foot. One line per entry once the card is 66rem wide (FORM-ERR-1); narrower, each entry wraps.
  */
 export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.tender_awards;
@@ -15,24 +16,25 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const cap = api.config.row_caps.tender_awards;
     const tableError = api.tableError('tender_awards');
 
-    const columns = [
-        { key: 'supplier_name', label: columnLabel('Supplier', optional('supplier_name')) },
-        { key: 'manufacturer', label: columnLabel('Manufacturer', optional('manufacturer')) },
-        { key: 'brand', label: columnLabel('Brand', optional('brand')) },
-        { key: 'country_of_origin', label: columnLabel('Country of origin', optional('country_of_origin')) },
-        { key: 'quantity_awarded', label: columnLabel('Quantity awarded', optional('quantity_awarded')) },
-        { key: 'unit_cost', label: columnLabel('Unit cost', optional('unit_cost')) },
-        { key: 'percentage', label: '% awarded', className: 'lg:w-20 lg:flex-none' },
-        { key: 'line_cost', label: 'Line cost', className: 'lg:w-24 lg:flex-none' },
+    const columns: EntryColumn[] = [
+        { key: 'supplier_name', label: 'Supplier' },
+        { key: 'manufacturer', label: 'Manufacturer' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'country_of_origin', label: 'Country of Origin' },
+        { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'xs' },
+        { key: 'unit_cost', label: 'Unit Cost', width: 'xs' },
+        { key: 'percentage', label: '% Awarded', width: 'value' },
+        { key: 'line_cost', label: 'Line Cost', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
     return (
         <div id={fieldId.table('tender_awards')} tabIndex={-1} className="grid gap-2 outline-none">
-            {tableError && <p className="text-destructive text-sm">{tableError}</p>}
+            <TableError message={tableError || undefined} />
             <EntryTable
-                caption="Awarded suppliers"
+                caption="Awarded Suppliers"
                 columns={columns}
+                breakpoint="66rem"
                 narrowRowLabel
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
@@ -43,21 +45,27 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                         </p>
                     )
                 }
-                addAction={<AddRowButton label="Add supplier" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('tender_awards')} />}
+                addAction={<AddRowButton label="Add Supplier" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('tender_awards')} />}
             >
                 {rows.map((row, index) => {
-                    const rowLabel = `Supplier row ${index + 1}`;
+                    const rowLabel = `Supplier Row ${index + 1}`;
                     const shown = rowDisplay(api.form.display.rows.tender_awards, row.id);
+                    // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
+                    const errorsId = fieldId.rowErrors('tender_awards', row.key);
+                    const errors = collectRowErrors(['id', ...columns.map((c) => c.key)], (name) => api.cellError('tender_awards', row, index, name));
                     const input = (name: string, kind: 'text' | 'decimal' = 'text', maxLength?: number) => (
                         <EntryInput
                             id={fieldId.cell('tender_awards', row.key, name)}
                             label={label(name)}
                             rowLabel={rowLabel}
                             kind={kind}
+                            width={kind === 'decimal' ? 'xs' : 'md'}
                             maxLength={maxLength}
                             value={text(row.values[name])}
                             onChange={(value) => api.setCell('tender_awards', row.key, name, value)}
                             error={api.cellError('tender_awards', row, index, name)}
+                            errorListId={errorsId}
+                            required={optional(name) === false}
                         />
                     );
 
@@ -66,8 +74,10 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             key={row.key}
                             label={rowLabel}
                             short={String(index + 1)}
+                            errors={errors}
+                            errorsId={errorsId}
                             remove={
-                                <RemoveRowButton label={`Remove supplier row ${index + 1}`} onClick={() => api.removeRow('tender_awards', row.key)} />
+                                <RemoveRowButton label={`Remove Supplier Row ${index + 1}`} onClick={() => api.removeRow('tender_awards', row.key)} />
                             }
                         >
                             {input('supplier_name', 'text', 200)}
@@ -76,8 +86,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('country_of_origin', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
-                            <EntryValue label="% awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} className="lg:w-20 lg:flex-none" />
-                            <EntryValue label="Line cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} className="lg:w-24 lg:flex-none" />
+                            <EntryValue label="% Awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} />
+                            <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} />
                         </EntryRow>
                     );
                 })}

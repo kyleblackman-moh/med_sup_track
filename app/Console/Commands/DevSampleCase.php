@@ -221,8 +221,11 @@ class DevSampleCase extends Command
         $save = fn (array $payload) => app(SaveRequisition::class)->handle($this->case, $vendor, RequisitionData::validate($payload, $type));
 
         // Orders point at saved award rows, so they are saved in a second step.
-        // A Tender Variation also gets its variation entry.
-        $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION ? ['variation' => self::variation()] : [];
+        // V2-5: every sample answers the previous-request question; a Tender Variation
+        // answers Yes with two variation rows, the other types answer No.
+        $variation = $this->typeCode === ProcurementTypeProfile::TENDER_VARIATION
+            ? ['previous_request_in_cycle' => true, 'variation_rows' => self::variationRows()]
+            : ['previous_request_in_cycle' => false];
         $save([...self::payload(), ...$variation]);
         $awardId = CaseTenderAward::withoutGlobalScopes()->where('case_id', $this->case->getKey())->orderBy('sort_order')->value('id');
         $save(self::orders((int) $awardId));
@@ -257,7 +260,7 @@ class DevSampleCase extends Command
 
     /**
      * A complete request (every one of the five types; a Tender Variation also
-     * needs variation()); generic supplier names only. Tender partially
+     * gets variationRows()); generic supplier names only. Tender partially
      * awarded (two award rows), a stock batch, two quotations (one not
      * considered, with a reason; one recommended) and a quantity to purchase.
      * The order is saved separately (orders()), once the award ids exist.
@@ -307,14 +310,24 @@ class DevSampleCase extends Command
         ];
     }
 
-    /** The variation entry of a Tender Variation sample (slice V2-1). */
-    public static function variation(): array
+    /** The two rows of Details of Variation Requested of a Tender Variation sample (V2-5). */
+    public static function variationRows(): array
     {
+        $from = CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->format('j M Y');
+
         return [
-            'variation_type' => 'Price',
-            'existing_detail' => 'Dev sample: unit cost 0.65 under the current contract.',
-            'proposed_detail' => 'Dev sample: unit cost 0.72 from the next delivery.',
-            'effective_date' => CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->toDateString(),
+            [
+                'variation_type' => 'Price',
+                'existing_detail' => 'Dev sample: unit cost 0.65 under the current contract.',
+                'proposed_detail' => 'Dev sample: unit cost 0.72 from the next delivery.',
+                'effective_detail' => "From {$from}",
+            ],
+            [
+                'variation_type' => 'Quantity',
+                'existing_detail' => 'Dev sample: 3,000 units awarded for the cycle.',
+                'proposed_detail' => 'Dev sample: 3,600 units for the cycle.',
+                'effective_detail' => 'Dev sample: PO-DEV-01',
+            ],
         ];
     }
 

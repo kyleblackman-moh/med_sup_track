@@ -11,12 +11,14 @@ use App\Enums\Role;
 use App\Enums\ScanStatus;
 use App\Enums\TrackStatus;
 use App\Http\Resources\Requests\RequestDetailResource;
+use App\Http\Resources\Requests\RequestSummary;
 use App\Models\CaseAssignment;
 use App\Models\CaseTransition;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
+use App\Queries\QueryView;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
@@ -24,6 +26,8 @@ use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RouteReturnedCase;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\EligibleReviewers;
+use App\Workflow\NextStep;
+use App\Workflow\StageWording;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
@@ -82,6 +86,8 @@ final class StaffCaseDetail
             ],
             // Slice 10c: the prepare-file form's starting value (config cases.file_no_prefix).
             // Slice 10e: the case's existing file number when it has one (a second round), else the config prefix.
+            // NEXT-STEP-1: the Next Step card (staff only; the vendor DTOs never carry it).
+            'next_step' => NextStep::for($case, $user),
             'file_no_default' => $canPrepare ? (filled($case->file_no) ? (string) $case->file_no : (string) config('cases.file_no_prefix', '')) : null,
             // Slice 10c: eligible Legal officers (id and name), only for a user who may send to Legal.
             'legal_officers' => $canSendToLegal ? app(EligibleReviewers::class)->legal() : null,
@@ -90,6 +96,7 @@ final class StaffCaseDetail
                     'value' => $d,
                     'label' => $d === RecordLegalDecision::CONFIRMED ? 'Contract confirmed' : 'Return to CMO with a query',
                     'needs_reason' => $d === RecordLegalDecision::RETURN_TO_CMO,
+                    'next' => $d === RecordLegalDecision::RETURN_TO_CMO ? 'The file returns to the '.StageWording::CMO_OFFICE.'.' : 'The file goes to the '.StageWording::PS_OFFICE.'.',
                 ], RecordLegalDecision::DECISIONS),
             ] : null,
             'returned' => self::returned($case),
@@ -97,8 +104,8 @@ final class StaffCaseDetail
             // the latest PS outcome (replaces the form once decided), and the grant line.
             'ps_form' => $canPsDecide ? [
                 'decisions' => [
-                    ['value' => RecordPsDecision::GRANT, 'label' => 'Grant non-objection', 'needs_reason' => false],
-                    ['value' => RecordPsDecision::RETURN_TO_CMO, 'label' => 'Return to CMO with a query', 'needs_reason' => true],
+                    ['value' => RecordPsDecision::GRANT, 'label' => 'Grant non-objection', 'needs_reason' => false, 'next' => 'The file returns to the '.StageWording::CMO_OFFICE.' to issue the letter.'],
+                    ['value' => RecordPsDecision::RETURN_TO_CMO, 'label' => 'Return to CMO with a query', 'needs_reason' => true, 'next' => 'The file returns to the '.StageWording::CMO_OFFICE.'.'],
                 ],
                 'kinds' => array_map(fn (ReturnKind $k) => ['value' => $k->value, 'label' => $k->label()], ReturnKind::cases()),
             ] : null,
@@ -116,6 +123,10 @@ final class StaffCaseDetail
                 'earliest' => $case->submitted_at?->copy()->setTimezone(RecordHardcopy::TIMEZONE)->toDateString(),
             ],
             'documents' => self::documents($case, $user),
+            // V2-3: the one RequestSummary (as the vendor sees it, with the staff document rules);
+            // null for the old Pharm and Non-Pharm types, which keep RequisitionView.
+            // NEXT part 5: without Documents; the case page has its own document list with actions.
+            'summary' => RequestSummary::for($case, $user, forStaff: true, withDocuments: false),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),
@@ -126,6 +137,8 @@ final class StaffCaseDetail
                 ReviewDesk::Technical->field() => app(EligibleReviewers::class)->for(ReviewDesk::Technical),
                 ReviewDesk::Funding->field() => app(EligibleReviewers::class)->for(ReviewDesk::Funding),
             ] : null,
+            // OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on.
+            'queries' => QueryView::forStaff($case, $user),
             // A page prop named "can" replaces the shared one, so the shared
             // navigation flags are repeated here (as in RequestController).
             'can' => [
@@ -207,13 +220,13 @@ final class StaffCaseDetail
         $options = array_map(fn (string $d) => match ($d) {
             RouteReturnedCase::TECHNOCRATS => [
                 'value' => $d,
-                'label' => 'Technocrats',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
                 'consequence' => 'The case returns to In review. The technical review restarts with the Technocrats you choose; funding and hardcopy stay as recorded.',
                 'available' => true,
             ],
             RouteReturnedCase::LEGAL => [
                 'value' => $d,
-                'label' => 'Legal',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
                 'consequence' => $legalNames === []
                     ? RouteReturnedCase::NO_LEGAL_OFFICER.'.'
                     : 'The case goes back to With Legal, to the Legal officer'.(count($legalNames) > 1 ? 's' : '').' already assigned: '.implode(', ', $legalNames).'.',
@@ -221,11 +234,13 @@ final class StaffCaseDetail
             ],
             RouteReturnedCase::PS => [
                 'value' => $d,
-                'label' => 'PS office',
-                'consequence' => 'The case goes back to the PS office for a decision.',
+                'label' => StageWording::ROUTE_DESTINATIONS[$d],
+                'consequence' => 'The case goes back to the '.StageWording::PS_OFFICE.' for a decision.',
                 'available' => true,
             ],
         }, $destinations);
+        // NEXT-STEP-1: the confirm button names the destination.
+        $options = array_map(fn (array $o) => [...$o, 'button' => 'Send to '.$o['label']], $options);
 
         $available = array_values(array_filter($options, fn (array $o) => $o['available']));
         $suggested = RouteReturnedCase::suggested($case);
@@ -344,7 +359,7 @@ final class StaffCaseDetail
         $hardcopy = self::hardcopy($case);
         $rows[] = [
             'key' => 'hardcopy',
-            'label' => 'Hardcopy received',
+            'label' => 'Hardcopy Received',
             'done' => $case->hardcopyReceived(),
             'state' => $case->hardcopyReceived() ? 'Received' : 'Not received',
             'reviewers' => [],

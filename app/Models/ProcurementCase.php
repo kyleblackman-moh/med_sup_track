@@ -83,6 +83,8 @@ class ProcurementCase extends Model
     {
         return [
             'status' => CaseStatus::class,
+            // V2-5: the request form's previous-request answer; null = not answered.
+            'previous_request_in_cycle' => 'boolean',
             'technical_track' => TrackStatus::class,
             'funding_track' => TrackStatus::class,
             'hardcopy_received_at' => 'datetime',
@@ -163,9 +165,10 @@ class ProcurementCase extends Model
     }
 
     /** Tender Variation details (slice V2-1); at most one row. */
-    public function variation(): HasOne
+    /** V2-5: Details of Variation Requested, in saved order (as the award rows). */
+    public function variationRows(): HasMany
     {
-        return $this->hasOne(CaseVariation::class, 'case_id');
+        return $this->hasMany(CaseVariationRow::class, 'case_id')->orderBy('sort_order')->orderBy('id');
     }
 
     /**

@@ -116,6 +116,8 @@ function pharmAllSectionsPayload(): array
 function adHocPayload(): array
 {
     return [
+        // V2-5: the previous-request question, required to submit (No: no variation details).
+        'previous_request_in_cycle' => false,
         'requisition' => [
             'item_description' => 'Infant feeding tube, size 6Fr',
             'strength' => '6Fr',
@@ -156,14 +158,14 @@ function adHocPayload(): array
     ];
 }
 
-/** A complete Tender Variation entry (slice V2-1); $overrides replace or add fields. */
+/** A complete variation row (V2-5, Details of Variation Requested); $overrides replace or add fields. */
 function variationEntry(array $overrides = []): array
 {
     return [
         'variation_type' => 'Price',
         'existing_detail' => 'Unit cost 1.25 under the current contract.',
         'proposed_detail' => 'Unit cost 1.40 from the next delivery.',
-        'effective_date' => '2027-01-01',
+        'effective_detail' => 'From 1 Jan 2027, PO-2207',
         ...$overrides,
     ];
 }
@@ -202,7 +204,10 @@ function adHocOrdersFor(ProcurementCase $case): array
  */
 function saveCompleteAdHoc(ProcurementCase $case, User $vendor): ProcurementCase
 {
-    $variation = $case->procurementType()->value('code') === 'TENDER_VARIATION' ? ['variation' => variationEntry()] : [];
+    // V2-5: a Tender Variation answers Yes and gives its variation details.
+    $variation = $case->procurementType()->value('code') === 'TENDER_VARIATION'
+        ? ['previous_request_in_cycle' => true, 'variation_rows' => [variationEntry()]]
+        : [];
     saveDraft($case, $vendor, [...adHocPayload(), ...$variation]);
 
     return saveDraft($case, $vendor, adHocOrdersFor($case));

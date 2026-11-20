@@ -25,11 +25,11 @@ export function FormActions({ isFirst, isLast, dirty, processing, onBack, onSave
                     <Button
                         type="button"
                         variant="outline"
-                        className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text"
                         onClick={onDelete}
                         disabled={processing}
                     >
-                        Delete draft
+                        Delete Draft
                     </Button>
                 )}
                 <Button type="button" variant="outline" onClick={onBack} disabled={isFirst || processing}>
@@ -39,10 +39,10 @@ export function FormActions({ isFirst, isLast, dirty, processing, onBack, onSave
                     {processing ? 'Saving…' : dirty ? 'Unsaved changes' : 'All changes saved'}
                 </span>
                 <Button type="button" variant="secondary" onClick={onSave} disabled={!dirty || processing}>
-                    Save draft
+                    Save Draft
                 </Button>
                 <Button type="button" onClick={onNext} disabled={processing}>
-                    {isLast ? 'Review and submit' : 'Next'}
+                    {isLast ? 'Review and Submit' : 'Next'}
                 </Button>
             </div>
         </div>

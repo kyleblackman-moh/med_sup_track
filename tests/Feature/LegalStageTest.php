@@ -335,8 +335,8 @@ it('lets the chosen Legal officer see the case and not an unchosen one', functio
     $props = pageProps($this->actingAs($chosen)->get(route('cases.show', $case))->assertOk());
     expect($props['can']['record_legal_decision'])->toBeTrue()
         ->and($props['legal_form']['decisions'])->toBe([
-            ['value' => 'confirmed', 'label' => 'Contract confirmed', 'needs_reason' => false],
-            ['value' => 'return_to_cmo', 'label' => 'Return to CMO with a query', 'needs_reason' => true],
+            ['value' => 'confirmed', 'label' => 'Contract confirmed', 'needs_reason' => false, 'next' => 'The file goes to the PS Office.'],
+            ['value' => 'return_to_cmo', 'label' => 'Return to CMO with a query', 'needs_reason' => true, 'next' => "The file returns to the CMO's Office."],
         ]);
     $this->actingAs($other)->get(route('cases.show', $case))->assertNotFound();
 });

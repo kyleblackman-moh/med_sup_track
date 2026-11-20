@@ -2,9 +2,12 @@
 
 namespace App\Submissions;
 
+use App\Enums\ScanStatus;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
-use App\Models\CaseVariation;
+use App\Models\Document;
+use App\Models\ProcurementCase;
+use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -18,7 +21,7 @@ use Illuminate\Support\Collection;
  * Interim rules until the CMO's office confirms them. Read-only.
  *
  * Errors are keyed like the payload ("requisition.din", "tender_awards",
- * "quotations.0.unit_price", "variation.effective_date"), so the form can link
+ * "quotations.0.unit_price", "variation_rows.0.effective_detail"), so the form can link
  * to the field; sectionOf() maps a key to its section. Rows are re-indexed
  * from 0 in saved order. A completely blank row never reaches here
  * (SaveRequisition drops it); every saved row must be complete.
@@ -27,6 +30,7 @@ final class RequestSections
 {
     /** Every section, in form order. */
     public const ORDER = [
+        'request_type', // V2-5: the type cards, the tender cycle and the previous-request question
         'item_tender',
         'variation_details',
         'awarded_supplier',
@@ -37,42 +41,50 @@ final class RequestSections
     ];
 
     public const LABELS = [
-        'item_tender' => 'Item and tender details',
-        'variation_details' => 'Variation details',
-        'awarded_supplier' => 'Awarded supplier',
-        'existing_arrangement' => 'Existing approved arrangement',
+        'request_type' => 'Request Type',
+        'item_tender' => 'Item and Tender Details',
+        'variation_details' => 'Details of Variation Requested',
+        'awarded_supplier' => 'Awarded Supplier',
+        'existing_arrangement' => 'Existing Approved Arrangement',
         'stock' => 'Stock',
-        'quotation_comparison' => 'Quotation comparison',
+        'quotation_comparison' => 'Quotation Comparison',
         'documents' => 'Documents',
     ];
 
-    /** Shown only for these types. Every other section is shown for every type. */
-    private const ONLY_FOR = [
-        'variation_details' => [ProcurementTypeProfile::TENDER_VARIATION],
-    ];
+    /**
+     * V2-5: shown only when the previous-request question is answered Yes, for
+     * any type (no longer tied to Tender Variation). Every other section is
+     * shown for every type.
+     */
+    private const ONLY_WHEN_PREVIOUS_REQUEST = ['variation_details'];
 
     /**
      * What each type requires beyond the rules every type shares.
      * Documents are configured per type in procurement_type_documents.
      *
-     * @var array<string, array{contract_reference: bool, awarded_supplier: bool, stock: bool, quotations: bool, variation: bool}>
+     * V2-5: the variation details are no longer per type; they are required
+     * whenever the previous-request answer is Yes.
+     *
+     * @var array<string, array{contract_reference: bool, awarded_supplier: bool, stock: bool, quotations: bool}>
      */
     private const REQUIRES = [
-        ProcurementTypeProfile::AD_HOC_EMERGENCY => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::AD_HOC_TENDER_UNABLE => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::AD_HOC_NOT_AWARDED => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::TENDER_EXCESS => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true, 'variation' => false],
-        ProcurementTypeProfile::TENDER_VARIATION => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => false, 'quotations' => false, 'variation' => true],
+        ProcurementTypeProfile::AD_HOC_EMERGENCY => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::AD_HOC_TENDER_UNABLE => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::AD_HOC_NOT_AWARDED => ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::TENDER_EXCESS => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => true, 'quotations' => true],
+        ProcurementTypeProfile::TENDER_VARIATION => ['contract_reference' => true, 'awarded_supplier' => true, 'stock' => false, 'quotations' => false],
     ];
 
     /** Section => the request fields and child sections shown in it. */
     public const SECTION_FIELDS = [
+        // V2-5: the type, the tender cycle and the previous-request question.
+        'request_type' => ['request_type', 'tender_cycle_start', 'tender_cycle_end', 'previous_request_in_cycle'],
         'item_tender' => [
-            'request_type', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
-            'clinical_note', 'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_issue_explanation',
+            'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
+            'clinical_note', 'tender_reference', 'tender_issue_explanation',
             'tender_outcome', // unused since V2-1; the old screen still shows it until V2-2
         ],
-        'variation_details' => ['variation'],
+        'variation_details' => ['variation_rows'],
         'awarded_supplier' => ['tender_awards'],
         'existing_arrangement' => ['purchase_orders', 'quantity_on_order'],
         'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
@@ -108,17 +120,31 @@ final class RequestSections
             'unit_price' => 'enter the unit price',
             'quantity_offered' => 'enter the quantity offered',
         ]],
+        // V2-5: every column of a variation row is required once the row is entered.
+        'variation_rows' => ['Variation row', [
+            'variation_type' => 'enter the variation type',
+            'existing_detail' => 'enter the existing approved detail',
+            'proposed_detail' => 'enter the proposed revised detail',
+            'effective_detail' => 'enter the effective date or application P.O', // checkRows adds the final "."
+        ]],
     ];
 
-    /** Variation fields that must be filled in (TENDER_VARIATION): field => message. */
-    public const VARIATION_FIELDS = [
-        'variation_type' => 'Enter the type of variation.',
-        'existing_detail' => 'Describe the existing arrangement.',
-        'proposed_detail' => 'Describe the proposed change.',
-        'effective_date' => 'Enter the date the variation takes effect.',
-    ];
+    /** V2-5: when the answer is Yes, at least one complete variation row. */
+    public const VARIATION_ROW_NEEDED = 'Add at least one variation.';
 
     public const REQUEST_TYPE_NEEDED = 'Choose a request type';
+
+    /** V2-5: the previous-request question (every type) must be answered to submit. */
+    public const PREVIOUS_REQUEST_NEEDED = 'Answer whether a request was previously made for this drug in this tender cycle.';
+
+    /** Section states (the form's progress strip and section headers): see state(). */
+    public const COMPLETE = 'complete';
+
+    public const INCOMPLETE = 'incomplete';
+
+    public const OPTIONAL = 'optional';
+
+    public const BLOCKED = 'blocked';
 
     /**
      * Slice V2-1c: the sections whose requirement depends on the type. Until a
@@ -128,7 +154,7 @@ final class RequestSections
      * empty unselected draft shows no section as done.
      */
     public const TYPE_DEPENDENT = [
-        'variation_details', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
+        'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
     ];
 
     public const AWARD_ROW_NEEDED = 'Add at least one awarded supplier.';
@@ -150,18 +176,24 @@ final class RequestSections
      * Slice V2-1c: while no type is chosen, a type-dependent section is never
      * optional and carries the note "Choose a request type" (else note null).
      *
+     * Documents are optional when the type requires no file ($documentsRequired,
+     * from procurement_type_documents: see documentsRequired()).
+     *
+     * V2-5: $previousRequest is the case's previous-request answer (null =
+     * not answered); Details of Variation Requested shows only when it is true.
+     *
      * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */
-    public static function visible(string $code): array
+    public static function visible(string $code, bool $documentsRequired = true, ?bool $previousRequest = null): array
     {
         $sections = [];
         foreach (self::ORDER as $key) {
-            if (self::isVisible($code, $key)) {
+            if (self::isVisible($code, $key, $previousRequest)) {
                 $waiting = self::awaitsType($code, $key);
                 $sections[] = [
                     'key' => $key,
                     'label' => self::LABELS[$key],
-                    'optional' => ! $waiting && self::isOptional($code, $key),
+                    'optional' => ! $waiting && self::isOptional($code, $key, $documentsRequired),
                     'note' => $waiting ? self::REQUEST_TYPE_NEEDED : null,
                 ];
             }
@@ -173,10 +205,10 @@ final class RequestSections
     /**
      * Slice V2-2: per section, whether each field the form shows must be filled
      * in before a draft of $code can be submitted (true) or may stay empty
-     * (false: the form says "(optional)"). Read from the same REQUIRES,
-     * ROW_FIELDS and VARIATION_FIELDS that errors() checks. Row columns are
-     * keyed "<section>.<column>" and are required whenever a row is entered;
-     * the variation's fields are keyed "variation.<field>". Until a type is
+     * (false; the form marks true fields aria-required). Read from the same REQUIRES
+     * and ROW_FIELDS that errors() checks. Row columns are keyed
+     * "<section>.<column>" and are required whenever a row is entered (V2-5:
+     * the variation rows too, "variation_rows.<column>"). Until a type is
      * chosen (V2-1c) nothing that depends on the type is optional.
      *
      * Two fields sit in a different section on the V2-2 screen than in
@@ -199,22 +231,23 @@ final class RequestSections
         };
 
         return [
+            'request_type' => [
+                'tender_cycle_start' => true,
+                'tender_cycle_end' => true,
+                'previous_request_in_cycle' => true,
+            ],
             'item_tender' => [
                 'item_description' => true,
                 'strength' => false,
                 'dosage_form' => false,
-                'din' => true,
+                'din' => false, // V2-5: optional for every type
                 'quantity_requested' => true,
                 'unit_of_measure' => true,
                 'tender_reference' => $byType('contract_reference'),
-                'tender_cycle_start' => true,
-                'tender_cycle_end' => true,
                 'clinical_note' => false,
             ],
-            'variation_details' => array_fill_keys(
-                array_map(fn (string $field) => "variation.{$field}", array_keys(self::VARIATION_FIELDS)),
-                $byType('variation'),
-            ),
+            // V2-5: shown only when the answer is Yes; every column of an entered row is required.
+            'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
             'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
             'existing_arrangement' => [
                 ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_eta', 'delivery_status']),
@@ -246,35 +279,96 @@ final class RequestSections
         return ! isset(self::REQUIRES[$code]) && in_array($section, self::TYPE_DEPENDENT, true);
     }
 
-    public static function isVisible(string $code, string $section): bool
+    /** V2-5: the variation section depends on the previous-request answer only, never on the type. */
+    public static function isVisible(string $code, string $section, ?bool $previousRequest = null): bool
     {
-        return ! isset(self::ONLY_FOR[$section]) || in_array($code, self::ONLY_FOR[$section], true);
+        return ! in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true) || $previousRequest === true;
     }
 
     /**
      * Hidden sections whose saved data SubmitCase discards at submit. Data in a
-     * hidden section stays in the draft until then (the type may change back).
+     * hidden section stays in the draft until then (the answer may change back).
      *
      * @return list<string>
      */
-    public static function discardedAtSubmit(string $code): array
+    public static function discardedAtSubmit(string $code, ?bool $previousRequest = null): array
     {
-        return array_values(array_filter(array_keys(self::ONLY_FOR), fn (string $s) => ! self::isVisible($code, $s)));
+        return array_values(array_filter(self::ONLY_WHEN_PREVIOUS_REQUEST, fn (string $s) => ! self::isVisible($code, $s, $previousRequest)));
     }
 
     /** A section with nothing in it that blocks submission for this type. */
-    private static function isOptional(string $code, string $section): bool
+    private static function isOptional(string $code, string $section, bool $documentsRequired): bool
     {
         $requires = self::REQUIRES[$code] ?? null;
 
         return match ($section) {
-            'item_tender' => false,
-            'variation_details' => ! ($requires['variation'] ?? false),
+            'request_type', 'item_tender' => false,
+            'variation_details' => false, // V2-5: shown only when the answer is Yes, and then required
             'awarded_supplier' => ! ($requires['awarded_supplier'] ?? false),
             'existing_arrangement' => true, // orders are always optional
             'stock' => ! ($requires['stock'] ?? false),
             'quotation_comparison' => ! ($requires['quotations'] ?? false),
-            'documents' => false, // per type (procurement_type_documents); shown either way
+            'documents' => ! $documentsRequired, // per type (procurement_type_documents); shown either way
+        };
+    }
+
+    /** Whether the type requires at least one file (procurement_type_documents.is_required). */
+    public static function documentsRequired(?int $procurementTypeId): bool
+    {
+        return $procurementTypeId !== null && ProcurementTypeDocument::where('procurement_type_id', $procurementTypeId)
+            ->where('is_required', true)->exists();
+    }
+
+    /**
+     * The one section-state rule. A section waiting for the type is blocked; one
+     * with issues is incomplete. An optional section (nothing in it is required
+     * for this type) reports "optional" while it holds no data, and complete
+     * only once it holds valid data. A section with required content is
+     * complete when that content is satisfied (no issues).
+     */
+    public static function state(?string $note, bool $hasIssues, bool $optional, bool $hasData): string
+    {
+        return match (true) {
+            $note !== null => self::BLOCKED,
+            $hasIssues => self::INCOMPLETE,
+            $optional && ! $hasData => self::OPTIONAL,
+            default => self::COMPLETE,
+        };
+    }
+
+    /**
+     * Whether the section holds anything the vendor entered, grouped as the
+     * form shows it (the tender issues text under Existing arrangement, the
+     * quantity on order under Stock). Documents count current, clean files of
+     * the type's purposes. Reads the case's relations (loaded or lazily).
+     */
+    public static function hasData(ProcurementCase $case, string $section): bool
+    {
+        $r = $case->requisition;
+        $filled = fn (array $fields): bool => $r !== null
+            && collect($fields)->contains(fn (string $field) => ! self::blank($r->{$field}));
+
+        return match ($section) {
+            'request_type' => isset(self::REQUIRES[(string) $case->procurementType?->code])
+                || $case->previous_request_in_cycle !== null || $filled(['tender_cycle_start', 'tender_cycle_end']),
+            'item_tender' => $filled([
+                'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
+                'clinical_note', 'tender_reference',
+            ]),
+            'variation_details' => $case->variationRows->isNotEmpty(),
+            'awarded_supplier' => $case->tenderAwards->isNotEmpty(),
+            'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
+            'stock' => $case->stockExpiries->isNotEmpty() || (bool) $r?->no_stock_on_hand
+                || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_order']),
+            'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
+                'rfq_audience', 'quantity_to_purchase', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
+            ]),
+            'documents' => Document::withoutGlobalScopes()->current()
+                ->where('case_id', $case->getKey())
+                ->where('scan_status', ScanStatus::CLEAN)
+                ->whereIn('purpose', ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)->select('purpose'))
+                ->exists(),
+            default => false,
         };
     }
 
@@ -297,10 +391,10 @@ final class RequestSections
      * Content errors for a draft of $code (documents are checked by
      * SubmissionReadiness from the type's document configuration).
      *
-     * @param  array{quotations: Collection<int, CaseQuotation>, tender_awards: Collection<int, Model>, purchase_orders: Collection<int, Model>, stock_expiries: Collection<int, Model>}  $rows
+     * @param  array{quotations: Collection<int, CaseQuotation>, tender_awards: Collection<int, Model>, purchase_orders: Collection<int, Model>, stock_expiries: Collection<int, Model>, variation_rows: Collection<int, Model>}  $rows
      * @return list<array{key: string, message: string}>
      */
-    public function errors(string $code, CaseRequisition $r, array $rows, ?CaseVariation $variation): array
+    public function errors(string $code, CaseRequisition $r, array $rows, ?bool $previousRequest = null): array
     {
         $errors = [];
         $add = function (string $key, string $message) use (&$errors) {
@@ -312,17 +406,19 @@ final class RequestSections
         $requires = self::REQUIRES[$code] ?? null;
         if ($requires === null) {
             $add('request_type', self::REQUEST_TYPE_NEEDED);
-            $requires = ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => false, 'quotations' => false, 'variation' => false];
+            $requires = ['contract_reference' => false, 'awarded_supplier' => false, 'stock' => false, 'quotations' => false];
         }
 
+        $this->requestType($r, $previousRequest, $add);
         $this->itemAndTender($r, $requires['contract_reference'], $add);
 
-        if ($requires['variation'] && self::isVisible($code, 'variation_details')) {
-            foreach (self::VARIATION_FIELDS as $field => $message) {
-                if (self::blank($variation?->{$field})) {
-                    $add("variation.{$field}", $message);
-                }
+        // V2-5: when the answer is Yes (any type), at least one row, and every saved row
+        // complete; hidden and ignored otherwise (and discarded at submit).
+        if (self::isVisible($code, 'variation_details', $previousRequest)) {
+            if ($rows['variation_rows']->isEmpty()) {
+                $add('variation_rows', self::VARIATION_ROW_NEEDED);
             }
+            self::checkRows('variation_rows', $rows['variation_rows'], $add);
         }
 
         // Awarded supplier: at least one complete row when required; every saved row complete.
@@ -340,26 +436,9 @@ final class RequestSections
         return $errors;
     }
 
-    /** Required for every type, plus the contract reference where the type needs it. */
-    private function itemAndTender(CaseRequisition $r, bool $contractReference, callable $add): void
+    /** V2-5: the tender cycle and the previous-request answer, required for every type. */
+    private function requestType(CaseRequisition $r, ?bool $previousRequest, callable $add): void
     {
-        if (self::blank($r->item_description)) {
-            $add('requisition.item_description', 'Describe the item.');
-        }
-
-        // Digits only, kept as text (leading zeros); no length rule (open question).
-        if (self::blank($r->din) || preg_match('/^\d+$/', (string) $r->din) !== 1) {
-            $add('requisition.din', 'Enter the DIN (digits only).');
-        }
-
-        if ($r->quantity_requested === null || Decimal::compare($r->quantity_requested, '0') <= 0) {
-            $add('requisition.quantity_requested', 'Enter a quantity requested greater than zero.');
-        }
-
-        if (self::blank($r->unit_of_measure)) {
-            $add('requisition.unit_of_measure', 'Enter the unit of measure.');
-        }
-
         if ($r->tender_cycle_start === null) {
             $add('requisition.tender_cycle_start', 'Enter the start of the tender cycle.');
         }
@@ -368,6 +447,28 @@ final class RequestSections
             $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
         } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
             $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
+        }
+
+        if ($previousRequest === null) {
+            $add('previous_request_in_cycle', self::PREVIOUS_REQUEST_NEEDED);
+        }
+    }
+
+    /** Required for every type, plus the contract reference where the type needs it. */
+    private function itemAndTender(CaseRequisition $r, bool $contractReference, callable $add): void
+    {
+        if (self::blank($r->item_description)) {
+            $add('requisition.item_description', 'Describe the item.');
+        }
+
+        // V2-5: the DIN is optional (its format is checked at save, RequisitionRules).
+
+        if ($r->quantity_requested === null || Decimal::compare($r->quantity_requested, '0') <= 0) {
+            $add('requisition.quantity_requested', 'Enter a quantity requested greater than zero.');
+        }
+
+        if (self::blank($r->unit_of_measure)) {
+            $add('requisition.unit_of_measure', 'Enter the unit of measure.');
         }
 
         if ($contractReference && self::blank($r->tender_reference)) {
@@ -422,20 +523,21 @@ final class RequestSections
 
         foreach ($quotations as $i => $q) {
             if (! $q->considered && self::blank($q->reason_accepted_excluded)) {
-                $add("quotations.{$i}.reason_accepted_excluded", 'Quotation '.($i + 1).': give the reason it was not considered.');
+                $add("quotations.{$i}.reason_accepted_excluded", RequisitionMessages::rowLabel('quotations', (int) $i).': Reason Not Considered is required.');
             }
         }
     }
 
-    /** One error per missing field of each saved row: "Award row 2: enter the unit cost." */
+    /** One error per missing field of each saved row: "Supplier Row 2: Unit Cost is required." */
     private static function checkRows(string $section, Collection $rows, callable $add): void
     {
-        [$label, $fields] = self::ROW_FIELDS[$section];
+        $fields = self::ROW_FIELDS[$section][1];
 
         foreach ($rows as $i => $row) {
-            foreach ($fields as $field => $what) {
+            foreach (array_keys($fields) as $field) {
                 if (self::blank($row->{$field})) {
-                    $add("{$section}.{$i}.{$field}", "{$label} ".($i + 1).": {$what}.");
+                    // FORM-SAVE-1 (A5c): the row and column as the table shows them ("Supplier Row 1: Supplier is required.").
+                    $add("{$section}.{$i}.{$field}", RequisitionMessages::rowLabel($section, (int) $i).': '.RequisitionMessages::columnLabel($section, $field).' is required.');
                 }
             }
         }

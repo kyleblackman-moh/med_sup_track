@@ -39,6 +39,33 @@ final class Display
         return self::group($whole).'.'.str_pad(substr($fraction, 0, 2), 2, '0');
     }
 
+    /**
+     * V2-3: a unit price (stored to 4 decimals): thousands separators, at least
+     * 2 decimals, trailing zeros beyond those dropped ("1.5975", "1.25", "1,200.00").
+     */
+    public static function price(?string $value): string
+    {
+        if ($value === null || ! is_numeric($value)) {
+            return self::EMPTY;
+        }
+
+        [$whole, $fraction] = self::split($value);
+
+        return self::group($whole).'.'.str_pad(rtrim($fraction, '0'), 2, '0');
+    }
+
+    /** V2-3: yes/no for a stored flag; a dash when it was never answered. */
+    public static function yesNo(?bool $value): string
+    {
+        return $value === null ? self::EMPTY : ($value ? 'Yes' : 'No');
+    }
+
+    /** V2-3: text as entered, or a dash when empty. */
+    public static function text(mixed $value): string
+    {
+        return $value === null || trim((string) $value) === '' ? self::EMPTY : (string) $value;
+    }
+
     /** A percentage the server computed to 2 decimals ("62.50%"). */
     public static function percent(?string $value): string
     {

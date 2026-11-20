@@ -56,8 +56,8 @@ enum ReviewDesk: string
     public function label(): string
     {
         return match ($this) {
-            self::Technical => 'Technical review',
-            self::Funding => 'Funding confirmation',
+            self::Technical => 'Technical Review',
+            self::Funding => 'Funding Confirmation',
         };
     }
 

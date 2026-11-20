@@ -12,7 +12,8 @@ const buttonVariants = cva(
     {
         variants: {
             variant: {
-                default: 'border-primary-strong bg-primary text-primary-foreground shadow-primary hover:bg-primary-strong',
+                // V2-4b (design.md section 5): the primary button is --primary-deep; links, nav, chips, markers and focus rings stay MOH blue.
+                default: 'border-primary-deep bg-primary-deep text-primary-foreground shadow-primary hover:border-primary-strong hover:bg-primary-strong',
                 destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive-text',
                 outline: 'border-border bg-card shadow-xs hover:bg-subtle',
                 secondary: 'bg-secondary text-secondary-foreground hover:border-secondary-foreground/20',

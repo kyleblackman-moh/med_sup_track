@@ -1,65 +1,148 @@
-import { EntryCell } from '@/components/ui/entry-table';
+import { ENTRY_WIDTH, EntryCell, type EntryWidth, type RowError, useChecksOffset } from '@/components/ui/entry-table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
-import { controlHeight } from './fields';
+import { controlHeight, textareaClass } from './fields';
 
 // V2-2: the cells of the form's entry tables (EntryTable). Each control's
 // accessible name is "<column>, <row label>", so a screen reader user always
 // knows which row they are in; the visible label is the column's (shown above
 // the field below the table's breakpoint, as a column header at it).
+//
+// FORM-ERR-1 (A): a cell never shows an error message. A failing control gets
+// the error border and aria-invalid, and aria-describedby points at the row's
+// one full-width error list (EntryRow errors, RowErrorList).
 
-/** "Brand (optional)" when the server says the column may stay empty. */
-export const columnLabel = (label: string, optional: boolean) => (optional ? `${label} (optional)` : label);
+/** The row's errors, in column order, for EntryRow's `errors`. */
+export function collectRowErrors(fields: string[], errorOf: (field: string) => string | undefined): RowError[] {
+    return fields.flatMap((field) => {
+        const message = errorOf(field);
 
-export function CellError({ id, message }: { id: string; message?: string }) {
-    return message ? (
-        <p id={id} className="text-destructive text-xs">
-            {message}
-        </p>
-    ) : null;
+        return message ? [{ field, message }] : [];
+    });
 }
 
 interface EntryInputProps {
     id: string;
-    /** The column label (with "(optional)" when optional). */
+    /** The column label. */
     label: string;
     rowLabel: string;
     value: string;
     onChange: (value: string) => void;
     kind?: 'text' | 'decimal' | 'integer' | 'date';
+    /** The field's problem: marks the control invalid (the message itself is in the row's list). */
     error?: string;
+    /** The id of the row's error list (EntryRow errorsId). */
+    errorListId?: string;
     maxLength?: number;
+    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
+    width?: EntryWidth;
     className?: string;
+    /** V2-4b: the server requires the column whenever a row is entered (aria-required). */
+    required?: boolean;
 }
 
-export function EntryInput({ id, label, rowLabel, value, onChange, kind = 'text', error, maxLength, className }: EntryInputProps) {
-    const errorId = `${id}-error`;
-
+export function EntryInput({
+    id,
+    label,
+    rowLabel,
+    value,
+    onChange,
+    kind = 'text',
+    error,
+    errorListId,
+    maxLength,
+    width,
+    className,
+    required,
+}: EntryInputProps) {
     return (
-        <EntryCell label={label} htmlFor={id} className={className}>
+        <EntryCell label={label} htmlFor={id} width={width} className={className}>
             <Input
                 id={id}
                 type={kind === 'date' ? 'date' : 'text'}
+                // FORM-ERR-1 (E): a keyboard hint only; the server validates and owns the message.
                 inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                 maxLength={maxLength}
                 value={value}
                 className={cn(controlHeight, 'w-full min-w-0')}
                 aria-label={`${label}, ${rowLabel}`}
+                aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : undefined}
+                aria-describedby={error ? errorListId : undefined}
                 onChange={(e) => onChange(e.target.value)}
             />
-            <CellError id={errorId} message={error} />
+        </EntryCell>
+    );
+}
+
+interface EntryTextAreaProps {
+    id: string;
+    label: string;
+    rowLabel: string;
+    value: string;
+    onChange: (value: string) => void;
+    error?: string;
+    errorListId?: string;
+    maxLength?: number;
+    /** Visible rows (V2-5: 2 for the variation details). */
+    rows?: number;
+    /** FORM-ERR-1 (B): the column's width (EntryColumn width). */
+    width?: EntryWidth;
+    className?: string;
+    required?: boolean;
+}
+
+/** V2-5: a short textarea cell, named "<column>, <row label>" like EntryInput. */
+export function EntryTextArea({
+    id,
+    label,
+    rowLabel,
+    value,
+    onChange,
+    error,
+    errorListId,
+    maxLength,
+    rows = 2,
+    width,
+    className,
+    required,
+}: EntryTextAreaProps) {
+    return (
+        <EntryCell label={label} htmlFor={id} width={width} className={className}>
+            <textarea
+                id={id}
+                rows={rows}
+                maxLength={maxLength}
+                value={value}
+                className={cn(textareaClass, 'min-h-0 w-full min-w-0')}
+                aria-label={`${label}, ${rowLabel}`}
+                aria-required={required ? true : undefined}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorListId : undefined}
+                onChange={(e) => onChange(e.target.value)}
+            />
         </EntryCell>
     );
 }
 
 /** A server-computed value shown read-only in a row (a dash until the row is saved). */
-export function EntryValue({ label, rowLabel, value, className }: { label: string; rowLabel: string; value: ReactNode; className?: string }) {
+export function EntryValue({
+    label,
+    rowLabel,
+    value,
+    width = 'value',
+    className,
+}: {
+    label: string;
+    rowLabel: string;
+    value: ReactNode;
+    width?: EntryWidth;
+    className?: string;
+}) {
     return (
-        <EntryCell label={label} className={className}>
-            <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-9">
+        <EntryCell label={label} width={width} className={className}>
+            <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-10">
                 <span className="sr-only">
                     {label}, {rowLabel}:{' '}
                 </span>
@@ -69,33 +152,47 @@ export function EntryValue({ label, rowLabel, value, className }: { label: strin
     );
 }
 
-interface EntryCheckProps {
+/**
+ * FORM-COMPACT-1 (2): checkboxes and radios side by side in one cell of a
+ * card line (the quotation's Considered, Recommended and Ex Stock), each a
+ * native control with its visible label beside it, 16px apart. Level with
+ * the line's inputs at the one-line width; wraps below it. 44px targets
+ * below md, 40px from md (WCAG 2.2: at least 24px).
+ */
+export function EntryCheckGroup({ label, children }: { label: string; children: ReactNode }) {
+    const offset = useChecksOffset();
+
+    return (
+        <div role="group" aria-label={label} className={cn('col-span-full flex flex-wrap items-center gap-x-4 gap-y-1', ENTRY_WIDTH.checks, offset)}>
+            {children}
+        </div>
+    );
+}
+
+interface EntryInlineCheckProps {
     id: string;
     label: string;
     rowLabel: string;
     type: 'checkbox' | 'radio';
-    /** Radios of one group share a name. */
+    /** Radios of one group share a name (Recommended: one quotation across the rows). */
     name?: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-    className?: string;
 }
 
-/** A checkbox or radio in a narrow column, 44px tall below md. */
-export function EntryCheck({ id, label, rowLabel, type, name, checked, onChange, className }: EntryCheckProps) {
+export function EntryInlineCheck({ id, label, rowLabel, type, name, checked, onChange }: EntryInlineCheckProps) {
     return (
-        <EntryCell label={label} htmlFor={id} className={className}>
-            <span className="flex min-h-11 items-center md:min-h-9">
-                <input
-                    id={id}
-                    type={type}
-                    name={name}
-                    checked={checked}
-                    aria-label={`${label}, ${rowLabel}`}
-                    className="accent-primary focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2"
-                    onChange={(e) => onChange(e.target.checked)}
-                />
-            </span>
-        </EntryCell>
+        <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium md:min-h-10">
+            <input
+                id={id}
+                type={type}
+                name={name}
+                checked={checked}
+                aria-label={`${label}, ${rowLabel}`}
+                className="accent-primary focus-visible:ring-ring size-4 shrink-0 focus-visible:ring-2 focus-visible:ring-offset-2"
+                onChange={(e) => onChange(e.target.checked)}
+            />
+            {label}
+        </label>
     );
 }

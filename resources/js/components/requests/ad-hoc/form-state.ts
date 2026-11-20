@@ -20,12 +20,13 @@ export interface LocalRow {
 
 export interface FormState {
     requisition: Values;
+    /** V2-5: the variation rows are one of the row sections (sent on every save; kept while hidden, until submit). */
     rows: Record<ChildSection, LocalRow[]>;
-    /** V2-1: the Tender Variation entry (sent on every save; kept while hidden, until submit). */
-    variation: Values;
+    /** V2-5: the previous-request answer; null until answered (nothing is preselected). */
+    previousRequest: boolean | null;
 }
 
-export const CHILD_SECTIONS: ChildSection[] = ['tender_awards', 'purchase_orders', 'stock_expiries', 'quotations'];
+export const CHILD_SECTIONS: ChildSection[] = ['tender_awards', 'purchase_orders', 'stock_expiries', 'quotations', 'variation_rows'];
 
 /** Request fields, in form order. Booleans stay booleans; the rest are text. */
 export const REQUISITION_FIELDS = [
@@ -80,10 +81,9 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         remarks: '',
         reason_accepted_excluded: '',
     },
+    // V2-5: Details of Variation Requested.
+    variation_rows: { variation_type: '', existing_detail: '', proposed_detail: '', effective_detail: '' },
 };
-
-/** V2-1: the Tender Variation fields, in form order. */
-export const VARIATION_FIELDS = ['variation_type', 'existing_detail', 'proposed_detail', 'effective_date'] as const;
 
 let counter = 0;
 
@@ -134,13 +134,7 @@ export function initialState(detail: AdHocDetail): FormState {
         rows[section] = saved.length > 0 ? saved : [newRow(section)];
     }
 
-    const variation: Values = {};
-    for (const field of VARIATION_FIELDS) {
-        const value = detail.variation?.[field];
-        variation[field] = value === null || value === undefined ? '' : String(value);
-    }
-
-    return { requisition, rows, variation };
+    return { requisition, rows, previousRequest: detail.previous_request_in_cycle ?? null };
 }
 
 const blankToNull = (value: Value) => (typeof value === 'string' && value.trim() === '' ? null : value);
@@ -151,8 +145,7 @@ export function toPayload(state: FormState): Record<string, unknown> {
     // The column is NOT NULL with a default; never send null for it.
     requisition.no_stock_on_hand = state.requisition.no_stock_on_hand === true;
 
-    const variation = Object.fromEntries(Object.entries(state.variation).map(([name, value]) => [name, blankToNull(value)]));
-    const payload: Record<string, unknown> = { requisition, variation };
+    const payload: Record<string, unknown> = { requisition, previous_request_in_cycle: state.previousRequest };
     for (const section of CHILD_SECTIONS) {
         payload[section] = state.rows[section].map((row) => {
             const values: Record<string, unknown> = Object.fromEntries(Object.entries(row.values).map(([name, value]) => [name, blankToNull(value)]));
@@ -192,7 +185,8 @@ export function mergeSaved(state: FormState, saved: SavedFlash): FormState {
 /** DOM id of a field: request fields, row cells and table-level targets. */
 export const fieldId = {
     requisition: (name: string) => `f-requisition-${name}`,
-    variation: (name: string) => `f-variation-${name}`,
     cell: (section: ChildSection, key: string, name: string) => `f-${section}-${key}-${name}`,
+    /** FORM-ERR-1: a row's one error list (RowErrorList). */
+    rowErrors: (section: ChildSection, key: string) => `f-${section}-${key}-errors`,
     table: (section: ChildSection | 'documents') => `f-${section}`,
 };

@@ -50,21 +50,21 @@ class ProcurementTypeSeeder extends Seeder
     private function types(): array
     {
         $adHocRequired = [
-            [D::original_rfq, 'Original RFQ / procurement request', true, null],
-            [D::supplier_quotations, 'All supplier quotations', true, null],
-            [D::evaluation_report, 'Evaluation and reasons for exclusions', true, null],
-            [D::technical_evidence, 'Technical / sample assessment evidence', true, null],
-            [D::signed_request, 'Signed request from the applicant', true, null],
-            [D::stock_evidence, 'Stock position and consumption evidence', true, null],
+            [D::original_rfq, 'Original RFQ / Procurement Request', true, null],
+            [D::supplier_quotations, 'All Supplier Quotations', true, null],
+            [D::evaluation_report, 'Evaluation and Reasons for Exclusions', true, null],
+            [D::technical_evidence, 'Technical / Sample Assessment Evidence', true, null],
+            [D::signed_request, 'Signed Request From the Applicant', true, null],
+            [D::stock_evidence, 'Stock Position and Consumption Evidence', true, null],
         ];
-        $otherSupporting = [D::other_supporting, 'Other supporting justification', false, null];
-        $supplierCorrespondence = [D::supplier_correspondence, 'Supplier correspondence and lead-time confirmation', false, null];
+        $otherSupporting = [D::other_supporting, 'Other Supporting Justification', false, null];
+        $supplierCorrespondence = [D::supplier_correspondence, 'Supplier Correspondence and Lead-Time Confirmation', false, null];
 
         // Slice V2-1: the three drop-zone categories of the request form. Hints are
         // guidance only and enforce nothing (open question for the CMO's office).
         $formDocuments = fn (bool $bidsRequired) => [
             [D::bids, 'Bids', $bidsRequired, 'For example the RFQ, the comparison sheet and the supplier quotations.'],
-            [D::regulatory, 'Regulatory documents', false, 'For example registration and product specifications.'],
+            [D::regulatory, 'Regulatory Documents', false, 'For example registration and product specifications.'],
             [D::evidence, 'Evidence', false, 'For example stock and usage records, correspondence and sample reports.'],
         ];
 
@@ -72,29 +72,29 @@ class ProcurementTypeSeeder extends Seeder
             // Slice V2-1: the five request types, all on the one request form.
             // Bids is required for the three Ad Hoc types; no file for Excess or Variation.
             ['AD_HOC_EMERGENCY', 'Ad Hoc - Emergency', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
-            ['AD_HOC_TENDER_UNABLE', 'Ad Hoc - Tender unable to supply', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
-            ['AD_HOC_NOT_AWARDED', 'Ad Hoc - Not awarded', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
+            ['AD_HOC_TENDER_UNABLE', 'Ad Hoc - Tender Unable to Supply', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
+            ['AD_HOC_NOT_AWARDED', 'Ad Hoc - Not Awarded', ProcurementCategory::AD_HOC, true, $formDocuments(true)],
             // Existing row, kept by code.
-            ['TENDER_EXCESS', 'Tender Excess', null, true, $formDocuments(false)],
-            ['TENDER_VARIATION', 'Tender Variation', null, true, $formDocuments(false)],
+            ['TENDER_EXCESS', 'Tender - Excess', null, true, $formDocuments(false)],
+            ['TENDER_VARIATION', 'Tender - Variation', null, true, $formDocuments(false)],
             // The single Ad Hoc form of slice F1. Replaced by the three Ad Hoc types;
             // inactive, kept (with its documents) so its cases stay readable.
-            ['AD_HOC', 'Ad hoc purchase', null, false, $formDocuments(true)],
+            ['AD_HOC', 'Ad Hoc Purchase', null, false, $formDocuments(true)],
             // Replaced by AD_HOC; inactive, kept for their existing cases.
-            ['AD_HOC_PHARM', 'Ad hoc purchase (Pharm)', ProcurementCategory::PHARM, false, [
+            ['AD_HOC_PHARM', 'Ad Hoc Purchase (Pharm)', ProcurementCategory::PHARM, false, [
                 ...$adHocRequired,
                 $otherSupporting,
             ]],
-            ['AD_HOC_NON_PHARM', 'Ad hoc purchase (Non-Pharm)', ProcurementCategory::NON_PHARM, false, [
+            ['AD_HOC_NON_PHARM', 'Ad Hoc Purchase (Non-Pharm)', ProcurementCategory::NON_PHARM, false, [
                 ...$adHocRequired,
-                [D::product_specifications, 'Product specifications / technical datasheets', false, null],
-                [D::rha_sample_confirmation, 'RHA / institution sample evaluation confirmations', false, null],
+                [D::product_specifications, 'Product Specifications / Technical Datasheets', false, null],
+                [D::rha_sample_confirmation, 'RHA / Institution Sample Evaluation Confirmations', false, null],
                 $supplierCorrespondence,
                 $otherSupporting,
             ]],
             // Slice V2-1b: a new draft's type until the vendor chooses one in the form.
             // Inactive, so it is never offered as a choice; no file is required.
-            ['NOT_SELECTED', 'Not selected', null, false, $formDocuments(false)],
+            ['NOT_SELECTED', 'Not Selected', null, false, $formDocuments(false)],
         ];
     }
 }

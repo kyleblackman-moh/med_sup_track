@@ -3,11 +3,14 @@
 use App\Enums\CaseStatus;
 use App\Enums\Role;
 use App\Enums\TechnicalStatus;
+use App\Http\Resources\Requests\CaseHero;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
+use App\Submissions\CreateDraftCase;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
+use App\Support\Display;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +84,7 @@ it('lists only the vendor\'s own organisation\'s requests', function () {
             ->where('status_group', 'DRAFT')
             ->where('status_tone', 'neutral') // UI-4: decided by the server
             // Slice V2-1: the Ad Hoc types have category AD_HOC and no vendor reference field.
-            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender unable to supply', 'category' => 'AD_HOC', 'selected' => true])
+            ->where('procurement_type', ['code' => 'AD_HOC_TENDER_UNABLE', 'name' => 'Ad Hoc - Tender Unable to Supply', 'category' => 'AD_HOC', 'selected' => true])
             ->where('item_description', 'Infant feeding tube, size 6Fr')
             ->where('vendor_reference', null)
             ->where('updated_at', fn ($v) => str_ends_with($v, 'Z'))
@@ -250,26 +253,47 @@ it('shares the success flash on the next page', function () {
         ->assertInertia(fn (Assert $page) => $page->where('flash.success', 'Draft saved.')->where('flash.error', null));
 });
 
-it('rejects an invalid payload with dotted error keys and saves nothing', function () {
+it('saves the valid fields of an invalid payload and returns each failing field (partial save)', function () {
     [$case, $vendor] = vendorDraft();
 
     $payload = adHocPayload();
     $payload['quotations'][0]['unit_price'] = '1.59751';
     $payload['requisition']['din'] = '0234-5678';
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)
-        ->assertSessionHasErrors(['quotations.0.unit_price', 'requisition.din' => 'Enter the DIN as digits only.']);
+    // FORM-SAVE-1 (6fda93f): the save succeeds; what failed comes back in the saved flash, not as errors.
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertRedirect()->assertSessionHasNoErrors();
+    $saved = session('saved');
+    $notSaved = collect($saved['not_saved'])->pluck('message', 'key');
 
-    expect(requisitionOf($case)->item_description)->toBeNull()
-        ->and(DB::table('case_quotations')->where('case_id', $case->id)->count())->toBe(0);
+    expect($notSaved->keys()->sort()->values()->all())->toBe(['quotations.0.unit_price', 'requisition.din'])
+        ->and($notSaved['requisition.din'])->toBe('Enter the DIN using letters and numbers only.')
+        ->and($notSaved['quotations.0.unit_price'])->toStartWith('Quotation Row 1: Unit Price')
+        ->and($saved['status'])->toBe('Saved. 2 fields need attention and were not saved yet.');
+
+    // The failing values are never stored; everything else is.
+    $requisition = requisitionOf($case);
+    expect($requisition->item_description)->toBe('Infant feeding tube, size 6Fr')
+        ->and($requisition->din)->toBeNull();
+    $quotation = DB::table('case_quotations')->where('case_id', $case->id)->orderBy('id')->first();
+    expect($quotation)->not->toBeNull()
+        ->and($quotation->unit_price)->toBeNull();
 });
 
-it('rejects each prohibited key', function (array $payload, string $key) {
+it('never sets a prohibited key, and says so in the save result', function (array $payload, string $key) {
     [$case, $vendor] = vendorDraft();
 
-    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertSessionHasErrors($key);
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertRedirect()->assertSessionHasNoErrors();
 
-    expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('DRAFT');
+    expect(collect(session('saved')['not_saved'])->pluck('message', 'key')->all())
+        ->toHaveKey($key, 'This field cannot be set from the form.');
+
+    $row = DB::table('cases')->where('id', $case->id)->first();
+    expect($row->status)->toBe('DRAFT')
+        ->and($row->org_id)->toBe($vendor->org_id)
+        ->and($row->reference_no)->toBeNull()
+        // A new row keeps its PENDING default; the forged SAMPLE_ACCEPTED (staff only) never lands.
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->where('technical_status', '<>', 'PENDING')->count())->toBe(0)
+        ->and(DB::table('case_quotations')->where('case_id', $case->id)->whereNotNull('technical_status_set_by')->count())->toBe(0);
 })->with([
     [['status' => 'CLOSED'], 'status'],
     [['org_id' => 'x'], 'org_id'],
@@ -277,6 +301,19 @@ it('rejects each prohibited key', function (array $payload, string $key) {
     [['reference_no' => 'NOR-1'], 'reference_no'],
     [['requisition' => ['status' => 'CLOSED']], 'requisition.status'],
     [['quotations' => [['supplier_name' => 'S', 'unit_price' => '1', 'quantity_offered' => '1', 'technical_status' => 'SAMPLE_ACCEPTED']]], 'quotations.0.technical_status'],
+]);
+
+it('still rejects each prohibited key on the older form (strict save)', function (array $payload, string $key) {
+    [$case, $vendor] = draftOf('AD_HOC_PHARM');
+
+    $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertSessionHasErrors($key);
+
+    expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('DRAFT');
+})->with([
+    [['status' => 'CLOSED'], 'status'],
+    [['org_id' => 'x'], 'org_id'],
+    [['reference_no' => 'NOR-1'], 'reference_no'],
+    [['requisition' => ['status' => 'CLOSED']], 'requisition.status'],
 ]);
 
 it('refuses to update a case that is no longer a draft', function () {
@@ -379,7 +416,7 @@ it('shows readiness errors for an empty draft and none for a complete one', func
         ->where('readiness.pending', []) // slice 8c: documents are now evaluated
         ->where('readiness.errors', fn ($errors) => collect([
             'requisition.item_description', 'requisition.quantity_requested',
-            'requisition.din', 'requisition.tender_cycle_start', 'quotations', 'quotations.recommended', 'documents.bids',
+            'previous_request_in_cycle', 'requisition.tender_cycle_start', 'quotations', 'quotations.recommended', 'documents.bids',
         ])->diff(collect($errors)->pluck('key'))->isEmpty()));
 
     [$complete, $owner] = vendorDraft();
@@ -473,18 +510,21 @@ it('shares can.requests only with users who hold the vendor permission', functio
 
 // UI-3 -------------------------------------------------------------------------
 
-it('gives an AD_HOC request page the summary labels, and no other type', function (string $code, bool $summary) {
+// V2-3: the one RequestSummary replaces the summary labels (summary_config).
+it('gives a request-form request page the request summary, and no other type', function (string $code, bool $summary) {
     [$case, $vendor] = vendorDraft($code);
 
     $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk());
 
+    expect($props)->not->toHaveKey('summary_config');
     if ($summary) {
-        expect(array_keys($props['summary_config']))->toBe(['options', 'not_awarded', 'sections'])
-            ->and(array_column($props['summary_config']['sections'], 'key'))->toBe(array_column(RequestSections::visible($code), 'key'))
-            ->and(array_keys($props['summary_config']['options']))->toBe(['tender_outcome', 'rfq_audience'])
+        expect(array_keys($props['summary']))->toBe(['type_label', 'sections'])
+            // NEXT part 5: every visible section but Documents (the page has its own document list).
+            ->and(array_column($props['summary']['sections'], 'key'))
+            ->toBe(array_values(array_diff(array_column(RequestSections::visible($code), 'key'), ['documents'])))
             ->and($props['case']['figures'])->not->toBeNull();
     } else {
-        expect($props['summary_config'])->toBeNull();
+        expect($props['summary'])->toBeNull();
     }
 })->with([
     ['AD_HOC_EMERGENCY', true],
@@ -496,13 +536,111 @@ it('gives an AD_HOC request page the summary labels, and no other type', functio
     ['AD_HOC_PHARM', false],
 ]);
 
+// OVERNIGHT-3 (A2, A3): the form page no longer carries the summary, not even when asked
+// for it; the Review page (requests/review) has it.
+it('keeps the summary off the edit page and gives it to the Review page', function () {
+    [$case, $vendor] = vendorDraft('TENDER_EXCESS');
+    $full = $this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk();
+    expect($full->viewData('page')['props'])->not->toHaveKey('summary');
+
+    $props = $this->actingAs($vendor)->get(route('requests.edit', $case->id), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $full->viewData('page')['version'],
+        'X-Inertia-Partial-Component' => 'requests/ad-hoc/edit',
+        'X-Inertia-Partial-Data' => 'summary',
+    ])->assertOk()->json('props');
+    expect($props['summary'] ?? null)->toBeNull();
+
+    $review = pageProps($this->actingAs($vendor)->get(route('requests.review', $case->id))->assertOk());
+    expect(array_column($review['summary']['sections'], 'key'))->toBe(array_column(RequestSections::visible('TENDER_EXCESS'), 'key'));
+});
+
 it('keeps form actions out of the request form headers', function () {
     // CLAUDE.md, UI: form actions go in a footer row, never in the header.
-    foreach (['js/pages/requests/ad-hoc/edit.tsx', 'js/pages/requests/edit.tsx'] as $path) {
+    // V2-4b: the vendor form (ad-hoc/edit.tsx) has no page header at all; its h1 is the case hero's.
+    expect(file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx')))->not->toMatch('/<PageHeader\b|<header\b|<h1\b/');
+
+    foreach (['js/pages/requests/edit.tsx'] as $path) {
         $source = file_get_contents(resource_path($path));
-        preg_match('/<header\b.*?<\/header>/s', $source, $header);
+        // V2-2c: the vendor form's header is a PageHeader element (its closing "/>" on its own line).
+        preg_match('/<header\b.*?<\/header>|<PageHeader\b.*?\n\s*\/>/s', $source, $header);
 
         expect($header)->not->toBeEmpty("{$path} has no header")
-            ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/', "{$path} has an action in its header");
+            ->and($header[0])->not->toMatch('/Review and submit|Delete draft|Save draft|Submit request|<Button\b/i', "{$path} has an action in its header");
     }
+});
+
+// 11. V2-4 Stage B: the case hero -------------------------------------------------
+
+it('gives a draft a hero with "Last Saved" and no reference', function () {
+    [$case, $vendor] = newDraft('TENDER_EXCESS');
+    saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Hero item']]);
+
+    $response = $this->actingAs($vendor)->get(route('requests.edit', $case))->assertOk();
+    $hero = pageProps($response)['case']['hero'];
+
+    expect($hero['reference'])->toBeNull()
+        ->and($hero['title'])->toBe('Hero item')
+        ->and($hero['heading'])->toBe('Hero item')
+        ->and($hero['type']['label'])->toBe(procurementTypeByCode('TENDER_EXCESS')->name)
+        ->and($hero['type']['icon'])->toBe('trending-up')
+        ->and($hero['status_label'])->toBe('Draft')
+        ->and($hero['status_tone'])->toBe('neutral')
+        ->and($hero['date']['label'])->toBe(CaseHero::DRAFT_DATE_LABEL)
+        ->and($hero['date']['value'])->toBe(Display::date($case->fresh()->updated_at->setTimezone('America/Port_of_Spain')))
+        ->and(json_encode($hero))->not->toContain(CaseHero::SUBMITTED_DATE_LABEL);
+
+    // The same hero on the vendor request page.
+    expect(pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk())['case']['hero'])->toBe($hero);
+});
+
+it('gives an unselected draft a null type and never names NOT_SELECTED in the hero', function () {
+    $vendor = vendorUser(vendorOrg());
+    $case = app(CreateDraftCase::class)->handle($vendor);
+    expect($case->procurementType->code)->toBe(ProcurementTypeProfile::NOT_SELECTED);
+
+    $hero = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case))->assertOk())['case']['hero'];
+
+    expect($hero['type'])->toBeNull()
+        ->and($hero['type_unset_label'])->toBe(CaseHero::TYPE_UNSET)
+        ->and($hero['title'])->toBeNull()
+        // V2-4b: the h1 falls back to "New Request"; the status pill still says Draft.
+        ->and($hero['heading'])->toBe(CaseHero::UNTITLED)
+        ->and($hero['status_label'])->toBe('Draft')
+        ->and(json_encode($hero))->not->toContain('NOT_SELECTED');
+});
+
+it('gives a submitted request a hero with its reference and "Submitted On"', function () {
+    $vendor = vendorUser(vendorOrg());
+    $submittedAt = now()->setTimezone('UTC')->setTime(2, 30); // 22:30 the day before in Port of Spain
+    $case = makeCase([
+        'org_id' => $vendor->org_id,
+        'status' => CaseStatus::WITH_LEGAL,
+        'submitted_at' => $submittedAt,
+        'reference_no' => 'NR-HERO-'.Str::upper(Str::random(6)),
+    ]);
+
+    $props = pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk());
+    $hero = $props['case']['hero'];
+
+    expect($hero['reference'])->toBe($case->reference_no)
+        ->and($hero['date']['label'])->toBe(CaseHero::SUBMITTED_DATE_LABEL)
+        ->and($hero['date']['value'])->toBe($submittedAt->copy()->subDay()->format('j M Y'))
+        // A vendor sees the vendor label and tone, never the internal stage.
+        ->and($hero['status_label'])->toBe('Under review')
+        ->and($hero['status_tone'])->toBe('info')
+        ->and(json_encode($hero))->not->toContain(CaseHero::DRAFT_DATE_LABEL);
+    expectVendorSafe($props);
+});
+
+it('keeps the vendor form actions in the action bar at the end of the content', function () {
+    $source = file_get_contents(resource_path('js/pages/requests/ad-hoc/edit.tsx'));
+    preg_match('/<StickyActionBar\b.*?\n\s{16}\/>/s', $source, $bar);
+
+    expect($bar)->not->toBeEmpty()
+        ->and($bar[0])->toContain('Delete Draft')
+        ->and($bar[0])->toContain('Save Draft')
+        ->and($bar[0])->toContain('Review and Submit')
+        // Inside the page content, so its bottom padding keeps the last field clear.
+        ->and(strpos($source, '<StickyActionBar'))->toBeLessThan(strrpos($source, '</PageContent>'));
 });

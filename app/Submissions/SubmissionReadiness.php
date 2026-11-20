@@ -10,7 +10,7 @@ use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
-use App\Models\CaseVariation;
+use App\Models\CaseVariationRow;
 use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -52,13 +52,13 @@ final class SubmissionReadiness
             'tender_awards' => $this->rows(CaseTenderAward::class, $caseId),
             'purchase_orders' => $this->rows(CasePurchaseOrder::class, $caseId),
             'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->orderBy('id')->get(),
+            'variation_rows' => $this->rows(CaseVariationRow::class, $caseId), // V2-5
         ];
 
         if ($profile->isAdHocForm()) {
             // Slice V2-1: the request form's rules per type (RequestSections). An old
             // AD_HOC draft is told to choose one of the five types first.
-            $variation = CaseVariation::withoutGlobalScopes()->where('case_id', $caseId)->first();
-            $this->errors = $this->sections->errors($type->code, $requisition, $rows, $variation);
+            $this->errors = $this->sections->errors($type->code, $requisition, $rows, self::previousRequest($case));
 
             foreach ($rows['quotations'] as $i => $q) {
                 if ($q->technical_status !== TechnicalStatus::PENDING) {
@@ -239,6 +239,14 @@ final class SubmissionReadiness
             && Decimal::compare($recommendedTotal, $requisition->quantity_requested) !== 0) {
             $this->warning('quotations.recommended_total', 'The total recommended quantity differs from the quantity requested.');
         }
+    }
+
+    /** V2-5: the case's previous-request answer as saved (null = not answered). */
+    public static function previousRequest(ProcurementCase $case): ?bool
+    {
+        $value = ProcurementCase::withoutGlobalScopes()->whereKey($case->getKey())->value('previous_request_in_cycle');
+
+        return $value === null ? null : (bool) $value;
     }
 
     /** Rows ordered as saved, re-indexed from 0 so keys match the payload positions. */

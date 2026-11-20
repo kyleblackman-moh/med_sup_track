@@ -1,13 +1,10 @@
-import { APP_BRAND } from '@/components/app-logo';
-import AppLogoIcon from '@/components/app-logo-icon';
-import { BrandStripe } from '@/components/brand-stripe';
+import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 type LoginForm = {
     email: string;
     password: string;
-    remember: boolean;
 };
 
 interface LoginProps {
@@ -35,13 +32,12 @@ function FieldError({ id, message }: { id: string; message?: string }) {
  * UI-4: the sign-in page in the Layered Surface Theme (design.md sections 2, 5
  * and 11): a centred white card on the L0 background with the brand stripe on
  * top, token classes only. The product name and logo are the shell's own
- * (APP_BRAND, AppLogoIcon); no logo or tagline is invented here.
+ * (APP_BRAND, AppLogoMark: the sidebar's shield-plus tile); no logo or tagline is invented here.
  */
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
         email: '',
         password: '',
-        remember: false,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -53,23 +49,19 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     return (
         <div className="bg-background text-foreground flex min-h-svh flex-col items-center justify-center px-3 py-10 font-sans antialiased">
-            <Head title={`Sign in - ${APP_BRAND.name}`} />
+            <Head title="Sign in" />
 
             <main className="bg-card w-full max-w-md overflow-hidden rounded-2xl border shadow-xs">
-                <BrandStripe />
-
                 <div className="px-6 pt-8 pb-8 sm:px-8">
                     <div className="flex items-center gap-3">
-                        <span className="bg-primary text-primary-foreground flex size-[34px] items-center justify-center rounded-[4px] rounded-bl-2xl">
-                            <AppLogoIcon className="size-5 fill-current" aria-hidden="true" />
-                        </span>
+                        <AppLogoMark />
                         <span className="grid leading-tight">
                             <span className="text-sm font-semibold">{APP_BRAND.name}</span>
                             <span className="text-muted-foreground text-xs">{APP_BRAND.descriptor}</span>
                         </span>
                     </div>
 
-                    <h1 className="mt-8 text-xl font-semibold tracking-[-0.01em]">Sign in to your account</h1>
+                    <h1 className="mt-8 text-xl font-semibold tracking-[-0.01em]">Sign in to Your Account</h1>
                     <p className="text-muted-foreground mt-1 text-[13px]">Enter the email address and password for your account.</p>
 
                     {status && (
@@ -132,7 +124,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             type="submit"
                             disabled={processing}
                             aria-busy={processing}
-                            className="bg-primary text-primary-foreground border-primary-strong shadow-primary hover:bg-primary-strong focus-visible:ring-ring disabled:hover:bg-primary mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:h-9"
+                            className="bg-primary-deep text-primary-foreground border-primary-deep shadow-primary hover:border-primary-strong hover:bg-primary-strong focus-visible:ring-ring disabled:hover:bg-primary-deep mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:h-9"
                         >
                             {processing && (
                                 <svg className="size-4 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none" aria-hidden="true">

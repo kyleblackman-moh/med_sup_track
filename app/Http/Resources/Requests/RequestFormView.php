@@ -7,6 +7,7 @@ use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Submissions\ExpiryRisk;
+use App\Submissions\FormWording;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequestSections;
 use App\Support\Decimal;
@@ -20,9 +21,9 @@ use App\Support\Display;
  *   label, its number among the VISIBLE sections (null when hidden), whether
  *   it is visible, its state, the note when it waits for the type, and the
  *   field-level required flags (RequestSections::requiredFields). The state
- *   comes from AdHocSections::requestSections (the readiness report):
+ *   comes from AdHocSections::requestSections (RequestSections::state):
  *   blocked (waits for the type), incomplete (has issues), optional (nothing
- *   required for this type), else complete.
+ *   required for this type and nothing entered), else complete.
  * - display: the computed values as display strings (Display), per saved row
  *   by id, so the page does no maths and no formatting.
  * - expiry: the expiry warning from ExpiryRisk as structured items.
@@ -32,13 +33,13 @@ use App\Support\Display;
  */
 final class RequestFormView
 {
-    public const COMPLETE = 'complete';
+    public const COMPLETE = RequestSections::COMPLETE;
 
-    public const INCOMPLETE = 'incomplete';
+    public const INCOMPLETE = RequestSections::INCOMPLETE;
 
-    public const OPTIONAL = 'optional';
+    public const OPTIONAL = RequestSections::OPTIONAL;
 
-    public const BLOCKED = 'blocked';
+    public const BLOCKED = RequestSections::BLOCKED;
 
     /** @return array{sections: list<array<string, mixed>>, display: array<string, mixed>, expiry: array<string, mixed>} */
     public static function for(ProcurementCase $case, ReadinessReport $report): array
@@ -49,7 +50,23 @@ final class RequestFormView
             'sections' => self::sections($case, $report),
             'display' => self::display($case, $risk['days_on_hand']),
             'expiry' => self::expiry($case, $risk),
+            'issue_heading' => self::issueHeading($case, $report),
         ];
+    }
+
+    /**
+     * FORM-SAVE-1 (A5d): the error summary's heading when Review and Submit is
+     * blocked ("3 Things Need Fixing Before You Can Submit"), counting each
+     * section's issues once per message; null when nothing blocks.
+     */
+    public static function issueHeading(ProcurementCase $case, ReadinessReport $report): ?string
+    {
+        $count = collect(AdHocSections::requestSections($case, $report))
+            ->flatMap(fn (array $section) => array_map(fn (array $issue) => $section['key'].'|'.$issue['message'], $section['issues']))
+            ->unique()
+            ->count();
+
+        return $count === 0 ? null : FormWording::issueHeading($count);
     }
 
     /** @return list<array{key: string, label: string, number: int|null, visible: bool, state: string, note: string|null, required: array<string, bool>}> */
@@ -67,13 +84,8 @@ final class RequestFormView
                 'label' => RequestSections::LABELS[$key],
                 'number' => $section === null ? null : ++$number,
                 'visible' => $section !== null,
-                'state' => match (true) {
-                    $section === null => self::OPTIONAL, // hidden: nothing in it is required
-                    $section['note'] !== null => self::BLOCKED,
-                    $section['issues'] !== [] => self::INCOMPLETE,
-                    $section['optional'] => self::OPTIONAL,
-                    default => self::COMPLETE,
-                },
+                // Hidden: nothing in it is required. Else the one rule (RequestSections::state).
+                'state' => $section === null ? self::OPTIONAL : $section['state'],
                 'note' => $section['note'] ?? null,
                 'required' => $required[$key],
             ];
@@ -95,6 +107,9 @@ final class RequestFormView
                 ? Display::EMPTY
                 : Display::money($awardTotals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
             'total_cost' => Display::money($case->totalCost()),
+            // V2-3: the price comparison's changes, with the sign added here (never in React).
+            'price_change_vs_tender' => Display::percent($case->priceChangePercent($case->requisition?->tender_price)),
+            'price_change_vs_previous' => Display::percent($case->priceChangePercent($case->requisition?->previous_price)),
             'rows' => [
                 'tender_awards' => $case->tenderAwards->map(fn (CaseTenderAward $a) => [
                     'id' => $a->getKey(),

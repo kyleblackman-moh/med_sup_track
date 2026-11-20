@@ -3,7 +3,7 @@
 namespace App\Http\Resources\Requests;
 
 use App\Enums\RfqAudience;
-use App\Enums\TenderOutcome;
+use App\Submissions\FormWording;
 use App\Submissions\RequisitionRules;
 
 /**
@@ -16,24 +16,23 @@ final class AdHocFormConfig
     public static function for(): array
     {
         return [
+            // V2-3: no tender outcome options; awards and orders never depend on the outcome.
             'options' => [
-                'tender_outcome' => [
-                    ['value' => TenderOutcome::NOT_AWARDED->value, 'label' => 'Not awarded'],
-                    ['value' => TenderOutcome::PARTIALLY_AWARDED->value, 'label' => 'Partially awarded'],
-                    ['value' => TenderOutcome::SUPPLIER_UNABLE_TO_SUPPLY->value, 'label' => 'Awarded but supplier unable to supply'],
-                ],
                 'rfq_audience' => [
                     ['value' => RfqAudience::ALL_REGISTERED->value, 'label' => 'All registered suppliers'],
                     ['value' => RfqAudience::SPECIFIED->value, 'label' => 'Specified suppliers'],
                 ],
             ],
-            // The outcome that hides the award and order tables.
-            'not_awarded' => TenderOutcome::NOT_AWARDED->value,
             'row_caps' => RequisitionRules::ROW_CAPS,
             'max_lengths' => [
                 'clinical_note' => 2000,
                 'price_note' => 1000,
                 'reason_accepted_excluded' => 500,
+            ],
+            // FORM-SAVE-1: the form's fixed notices, worded by the server (the browser only shows them).
+            'messages' => [
+                'leave_unsaved' => FormWording::LEAVE_UNSAVED,
+                'type_saved_others_pending' => FormWording::TYPE_SAVED_OTHERS_PENDING,
             ],
         ];
     }

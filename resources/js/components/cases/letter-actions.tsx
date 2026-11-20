@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { type ActionConfirm } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
@@ -14,7 +15,7 @@ type LetterData = { letter_date: string; letter_reference: string; emailed_on: s
  * letter is sent outside the system. A summary is confirmed before it is
  * recorded; the server checks every date again.
  */
-export function IssueLetterForm({ caseId, today }: { caseId: string; today: string }) {
+export function IssueLetterForm({ caseId, today, confirm }: { caseId: string; today: string; confirm: ActionConfirm }) {
     const form = useForm<LetterData>({ letter_date: '', letter_reference: '', emailed_on: '', hardcopy_sent_on: '' });
     const errors = form.errors as Record<string, string>;
     const [confirming, setConfirming] = useState(false);
@@ -35,11 +36,12 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
             onFinish: () => setConfirming(false),
         });
 
-    const dateField = (field: keyof LetterData, id: string, label: string, hint?: string) => (
+    const dateField = (field: keyof LetterData, id: string, label: string, hint?: string, required = false) => (
         <div className="grid gap-1.5">
             <Label htmlFor={id}>{label}</Label>
             <Input
                 id={id}
+                aria-required={required ? true : undefined}
                 type="date"
                 max={today}
                 value={d[field]}
@@ -57,21 +59,20 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
     );
 
     const summary: [string, string][] = [
-        ['Letter date', d.letter_date ? formatDay(d.letter_date) : '—'],
+        ['Letter Date', d.letter_date ? formatDay(d.letter_date) : '—'],
         ['Reference', d.letter_reference.trim() || 'None'],
-        ['Emailed on', d.emailed_on ? formatDay(d.emailed_on) : 'Not recorded'],
-        ['Hardcopy sent on', d.hardcopy_sent_on ? formatDay(d.hardcopy_sent_on) : 'Not recorded'],
+        ['Emailed On', d.emailed_on ? formatDay(d.emailed_on) : 'Not recorded'],
+        ['Hardcopy Sent On', d.hardcopy_sent_on ? formatDay(d.hardcopy_sent_on) : 'Not recorded'],
     ];
 
     return (
-        <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">Issue the letter</h3>
-            <p className="text-muted-foreground text-sm">Send the letter by email and hardcopy yourself, then record it here.</p>
+        <form onSubmit={review} className="space-y-3" noValidate>
+            <p className="text-muted-foreground text-sm">{confirm.body}</p>
 
             <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-                {dateField('letter_date', 'letter-date', 'Letter date', 'The date on the signed letter.')}
+                {dateField('letter_date', 'letter-date', 'Letter Date', 'The date on the signed letter.', true)}
                 <div className="grid gap-1.5">
-                    <Label htmlFor="letter-reference">Reference (optional)</Label>
+                    <Label htmlFor="letter-reference">Reference</Label>
                     <Input
                         id="letter-reference"
                         className="font-mono"
@@ -86,8 +87,8 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                     </p>
                     <InputError id="letter-reference-error" message={errors.letter_reference} />
                 </div>
-                {dateField('emailed_on', 'letter-emailed-on', 'Emailed on')}
-                {dateField('hardcopy_sent_on', 'letter-hardcopy-sent-on', 'Hardcopy sent on')}
+                {dateField('emailed_on', 'letter-emailed-on', 'Emailed On')}
+                {dateField('hardcopy_sent_on', 'letter-hardcopy-sent-on', 'Hardcopy Sent On')}
             </div>
             <p className="text-muted-foreground text-xs">Record at least one: the email date, the hardcopy date, or both.</p>
             <InputError message={errors.issue_letter} />
@@ -99,7 +100,7 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Record the letter as issued?</DialogTitle>
+                        <DialogTitle>{confirm.title}</DialogTitle>
                         <DialogDescription>The vendor will see that non-objection is granted, with the letter date and reference.</DialogDescription>
                     </DialogHeader>
                     <dl className="grid gap-2 text-sm">
@@ -115,51 +116,11 @@ export function IssueLetterForm({ caseId, today }: { caseId: string; today: stri
                             Back
                         </Button>
                         <Button type="button" onClick={record} disabled={form.processing}>
-                            {form.processing ? 'Saving…' : 'Record letter issued'}
+                            {form.processing ? 'Saving…' : confirm.button}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </form>
-    );
-}
-
-/** T14 for the CMO (slice 10f): close the case, after a confirm step. */
-export function CloseCaseButton({ caseId, reference }: { caseId: string; reference: string | null }) {
-    const form = useForm({});
-    const errors = form.errors as Record<string, string>;
-    const [confirming, setConfirming] = useState(false);
-
-    const close = () =>
-        form.post(route('cases.close', caseId), {
-            preserveScroll: true,
-            onFinish: () => setConfirming(false),
-        });
-
-    return (
-        <div className="space-y-2 border-t pt-4">
-            <h3 className="font-medium">Close the case</h3>
-            <Button type="button" onClick={() => setConfirming(true)} disabled={form.processing}>
-                Close case
-            </Button>
-            <InputError message={errors.close_case} />
-
-            <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Close {reference ?? 'this case'}?</DialogTitle>
-                        <DialogDescription>A closed case is read-only. It cannot be reopened.</DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2">
-                        <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={form.processing}>
-                            Cancel
-                        </Button>
-                        <Button type="button" onClick={close} disabled={form.processing}>
-                            {form.processing ? 'Closing…' : 'Close case'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
     );
 }

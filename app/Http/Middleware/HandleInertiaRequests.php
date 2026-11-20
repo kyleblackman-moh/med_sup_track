@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\ProcurementCase;
+use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +64,8 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'user_type' => $user->user_type,
+                    // V2-4: the line under the name in the sidebar user card. Display only.
+                    'subtitle' => self::userSubtitle($user),
                 ] : null,
                 'can' => $user
                     ? $user->getAllPermissions()->pluck('name')->sort()->values()->all()
@@ -80,9 +84,24 @@ class HandleInertiaRequests extends Middleware
              * cmo_office: file.prepare stands in for "the CMO's office". The flag
              * only shows the Office of the CMO links; the /cases routes and
              * CasePolicy still guard every page and action behind them.
+             *
+             * section: the sidebar item to show as active, by URL prefix, so
+             * /requests/{id}/edit activates Requests and /cases/{id} the cases
+             * item. Display only.
              */
             'nav' => [
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
+                // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes.
+                'users' => $user !== null && $user->can(Permission::UsersManage->value),
+                'section' => self::navSection($request),
+            ],
+            /*
+             * V2-4: the Ministry crest for the sidebar header, only once Kyle has
+             * supplied public/brand/coat-of-arms.png; null until then (the
+             * sidebar shows the shield-plus tile). A top-level prop, never under `can`.
+             */
+            'brand' => [
+                'logo' => self::brandLogo(),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
@@ -90,5 +109,45 @@ class HandleInertiaRequests extends Middleware
                 'info' => $request->session()->get('info'),
             ],
         ]);
+    }
+
+    /**
+     * V2-4 (design.md section 6): a vendor's organisation name; for staff, the
+     * display names of their roles (Role::label). Display only: React shows it
+     * as text and never decides anything from it.
+     */
+    public static function userSubtitle(User $user): ?string
+    {
+        if ($user->isVendor()) {
+            return $user->organisation?->name;
+        }
+
+        $labels = $user->getRoleNames()
+            ->map(fn (string $name) => Role::tryFrom($name)?->label())
+            ->filter()
+            ->sort()
+            ->values();
+
+        return $labels->isEmpty() ? null : $labels->implode(', ');
+    }
+
+    /** The path of the crest under public/. */
+    public const BRAND_LOGO = 'brand/coat-of-arms.png';
+
+    /** The crest's public URL when the file exists, else null. Never drawn or recreated (design.md section 11). */
+    public static function brandLogo(): ?string
+    {
+        return is_file(public_path(self::BRAND_LOGO)) ? asset(self::BRAND_LOGO) : null;
+    }
+
+    /** The sidebar sections, by the first segment of the URL path. */
+    private const NAV_SECTIONS = ['dashboard', 'requests', 'cases', 'admin'];
+
+    /** The section the current URL falls under (the path itself or anything below it), else null. */
+    public static function navSection(Request $request): ?string
+    {
+        $first = explode('/', trim($request->path(), '/'))[0];
+
+        return in_array($first, self::NAV_SECTIONS, true) ? $first : null;
     }
 }

@@ -55,3 +55,102 @@ it('loads no font from an external URL in resources/js', function () {
 
     expect($hits)->toBe([]);
 });
+
+// V2-4 (design.md 0.7.2 section 2): the navy shell tokens exist in app.css and
+// are exposed to Tailwind, and the shadcn sidebar variables map onto them.
+it('defines the navy shell tokens and exposes them in the theme', function () {
+    $css = file_get_contents(resource_path('css/app.css'));
+
+    $tokens = [
+        'navy', 'navy-deep', 'navy-foreground', 'navy-muted', 'navy-border', 'navy-hover',
+        'nav-active', 'nav-active-foreground', 'header', 'header-foreground',
+        'sidebar-from', 'sidebar-to', 'primary-deep', 'tile-from', 'tile-to', 'input-bg',
+    ];
+
+    foreach ($tokens as $token) {
+        expect($css)->toMatch('/^\s*--'.preg_quote($token, '/').':\s*[^;]+;/m')
+            ->and($css)->toContain("--color-{$token}: var(--{$token});");
+    }
+
+    expect($css)->toContain('--sidebar-background: var(--navy);')
+        ->and($css)->toContain('--sidebar-accent: var(--navy-hover);')
+        ->and($css)->toContain('--sidebar-primary: var(--nav-active);')
+        ->and($css)->toContain('--sidebar-border: var(--navy-border);')
+        ->and($css)->toMatch('/--sidebar-ring:\s*hsl\(0, 0%, 100%\);/')
+        // MOH blue stays the primary colour.
+        ->and($css)->toMatch('/--primary:\s*hsl\(204\.2, 100%, 36\.5%\);/');
+});
+
+// V2-4 shell guards (static) -------------------------------------------------
+
+/** The navy sidebar and white header components. */
+function shellFiles(): array
+{
+    return array_map(fn (string $path) => resource_path("js/{$path}"), [
+        'components/app-sidebar.tsx', 'components/app-sidebar-header.tsx', 'components/nav-main.tsx',
+        'components/nav-user.tsx', 'components/sidebar-watermark.tsx', 'components/app-logo.tsx',
+        'components/breadcrumbs.tsx', 'components/app-content.tsx', 'components/ui/sidebar.tsx',
+        'layouts/app/app-sidebar-layout.tsx',
+    ]);
+}
+
+it('has no hex colour and no inline colour style in the sidebar and header components', function () {
+    $hex = '/(?<![\w&\/-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/';
+
+    foreach (shellFiles() as $file) {
+        expect(file_exists($file))->toBeTrue($file);
+        expect(themeGuardHits($file, $hex))->toBe([])
+            ->and(file_get_contents($file))->not->toMatch('/style=\{\{[^}]*(?:color|background)/i', basename($file).' sets a colour inline');
+    }
+});
+
+it('marks the active nav link with aria-current and the active style together', function () {
+    $nav = file_get_contents(resource_path('js/components/nav-main.tsx'));
+
+    expect($nav)->toContain('isActive={item.url === activeUrl}')
+        ->and($nav)->toContain("aria-current={item.url === activeUrl ? 'page' : undefined}");
+
+    // The active style carries the white indicator bar, not colour alone (design.md section 2).
+    expect(file_get_contents(resource_path('js/components/ui/sidebar.tsx')))
+        ->toContain('data-[active=true]:before:w-[3px]')
+        ->toContain('data-[active=true]:font-semibold');
+});
+
+it('takes the header title and the tab title from the app name config, never "Laravel"', function () {
+    $header = file_get_contents(resource_path('js/components/app-sidebar-header.tsx'));
+
+    expect($header)->toContain('const { name, auth } = usePage<SharedData>().props;')
+        ->and($header)->toContain('{name}');
+
+    foreach ([...shellFiles(), resource_path('js/app.tsx'), resource_path('views/app.blade.php')] as $file) {
+        expect(file_get_contents($file))->not->toContain('Laravel', basename($file));
+    }
+});
+
+it('never names NOT_SELECTED in frontend code', function () {
+    $hits = collect(themeGuardFiles())->flatMap(fn ($f) => themeGuardHits($f, '/NOT_SELECTED/'))->all();
+
+    expect($hits)->toBe([]);
+});
+
+// V2-4b: the sidebar hover pop never ships without its reduced-motion variant.
+it('gives the sidebar item pop a reduced-motion variant and a shadow token', function () {
+    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
+    preg_match("/const sidebarMenuButtonVariants = cva\(\s*'([^']*)'/", $sidebar, $base);
+
+    expect($base)->not->toBeEmpty()
+        ->and($base[1])->toContain('motion-reduce:')
+        ->and($base[1])->toContain('motion-safe:hover:-translate-y-px')
+        ->and($base[1])->toContain('motion-safe:hover:shadow-nav-hover')
+        ->and(file_get_contents(resource_path('css/app.css')))->toMatch('/--shadow-nav-hover:\s*[^;]+;/');
+});
+
+// V2-4b: the sidebar's rounded right corners come from a token, with the surface clipped to them.
+it('rounds the sidebar through --radius-sidebar and clips its surface', function () {
+    $sidebar = file_get_contents(resource_path('js/components/ui/sidebar.tsx'));
+
+    expect(file_get_contents(resource_path('css/app.css')))->toMatch('/--radius-sidebar:\s*24px;/')
+        ->and(substr_count($sidebar, 'rounded-r-sidebar'))->toBe(2) // desktop surface and mobile sheet
+        ->and($sidebar)->toContain('overflow-hidden rounded-r-sidebar')
+        ->and($sidebar)->toContain('data-[active=true]:before:left-1');
+});

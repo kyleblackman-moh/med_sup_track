@@ -72,7 +72,7 @@ it('finds requests by partial item text, strength, DIN and type label', function
     'item, other case' => ['GLARGINE', 'insulin'],
     'strength' => ['units/ml', 'insulin'],
     'din' => ['0999888', 'insulin'],
-    'type label' => ['tender exc', 'insulin'],
+    'type label' => ['tender - exc', 'insulin'],
 ]);
 
 it('matches the type label for every request of that type', function () {
@@ -165,9 +165,9 @@ it('titles the list with the organisation short name, else its name', function (
     $props = pageProps($this->actingAs($vendor)->get(route('requests.index'))->assertOk());
 
     expect($props['title'])->toBe($title)
-        ->and(RequestController::LIST_TITLE)->toBe('{organisation} - requests');
+        ->and(RequestController::LIST_TITLE)->toBe('{organisation} - Requests');
 })->with([
-    'short name' => ['CMS', 'CMS - requests'],
-    'no short name' => [null, 'Caribbean Medical Supplies Ltd - requests'],
-    'blank short name' => ['  ', 'Caribbean Medical Supplies Ltd - requests'],
+    'short name' => ['CMS', 'CMS - Requests'],
+    'no short name' => [null, 'Caribbean Medical Supplies Ltd - Requests'],
+    'blank short name' => ['  ', 'Caribbean Medical Supplies Ltd - Requests'],
 ]);

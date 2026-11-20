@@ -1,10 +1,10 @@
-import { TextAreaField, TextField } from './fields';
+import { FieldGrid, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 
 /**
  * V2-2 section "Item and tender details". Field order (edit here if the order
- * changes) is the visual, DOM and tab order. "(optional)" only where the
+ * changes) is the visual, DOM and tab order. aria-required only where the
  * server says the field may stay empty for this type.
  */
 export function ItemTenderSection({ api }: { api: FormApi }) {
@@ -16,34 +16,39 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
         optional: api.optional('item_tender', name),
     });
 
+    // V2-2b order: DIN, Item description, Strength / Dosage form, Quantity requested,
+    // Unit of measure, Contract reference / Clinical importance. FORM-COMPACT-1: one
+    // grid on the width scale; from a 56rem card that is two rows of fields, then the text area.
     return (
-        <div className="grid grid-cols-1 gap-4">
-            <TextField {...field('item_description')} label="Item description" maxLength={500} />
-
-            <div className="grid gap-4 md:grid-cols-3">
-                <TextField {...field('strength')} label="Strength" maxLength={100} />
-                <TextField {...field('dosage_form')} label="Dosage form" maxLength={100} />
-                <TextField {...field('din')} label="DIN" inputMode="numeric" maxLength={32} hint="Digits only." />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-                <TextField {...field('quantity_requested')} label="Quantity requested" inputMode="decimal" hint="In figures, for example 2800." />
-                <TextField {...field('unit_of_measure')} label="Unit of measure" maxLength={32} hint="For example: each, box of 100, vial." />
-            </div>
-
-            <TextField {...field('tender_reference')} label="Contract reference" maxLength={120} hint="For example TENDER-2026-14." />
-
-            <div className="grid gap-4 md:grid-cols-2">
-                <TextField {...field('tender_cycle_start')} label="Tender cycle start" type="date" />
-                <TextField {...field('tender_cycle_end')} label="Tender cycle end" type="date" hint="Not before the start." />
-            </div>
+        <FieldGrid>
+            <TextField {...field('din')} width="sm" label="DIN" maxLength={32} hint="Letters and numbers only." />
+            <TextField {...field('item_description')} width="lg" label="Item Description" maxLength={500} />
+            <TextField {...field('strength')} width="sm" label="Strength" maxLength={100} />
+            <TextField {...field('dosage_form')} width="sm" label="Dosage Form" maxLength={100} />
+            <TextField
+                {...field('quantity_requested')}
+                width="xs"
+                label="Quantity Requested"
+                inputMode="decimal"
+                hint="In figures, for example 2800."
+            />
+            <TextField
+                {...field('unit_of_measure')}
+                width="sm"
+                label="Unit of Measure"
+                maxLength={32}
+                hint="The unit the quantity is counted in, for example: each, box of 100, vial."
+            />
+            {/* V2-5: the tender cycle moved to section 1, Request Type. */}
+            <TextField {...field('tender_reference')} width="sm" label="Contract Reference" maxLength={120} hint="For example TENDER-2026-14." />
 
             <TextAreaField
                 {...field('clinical_note')}
-                label="Clinical importance"
+                width="full"
+                label="Clinical Importance"
                 maxLength={api.config.max_lengths.clinical_note}
                 hint={`Why the item is needed. Up to ${api.config.max_lengths.clinical_note} characters.`}
             />
-        </div>
+        </FieldGrid>
     );
 }

@@ -147,7 +147,7 @@ it('caps the clinical note at 2000 and the price note at 1000 characters', funct
     expect(adHocValidationErrors(['requisition' => ['clinical_note' => str_repeat('x', 2000), 'price_note' => str_repeat('x', 1000)]]))->toBe([]);
 });
 
-it('accepts a DIN of digits only, keeping leading zeros, with no length rule', function (?string $din) {
+it('accepts a DIN of letters and digits, keeping case and leading zeros, with no length rule', function (?string $din) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe([]);
 
     [$case, $vendor] = newDraft();
@@ -159,21 +159,21 @@ it('accepts a DIN of digits only, keeping leading zeros, with no length rule', f
     'one digit' => ['7'],
     'twelve digits' => ['000123456789'],
     '32 digits' => [str_repeat('1', 32)],
+    'letters' => ['ABC123'],
     'cleared' => [null],
 ]);
 
-it('refuses a DIN that is not a string of digits', function (mixed $din, string $message) {
+it('refuses a DIN that is not letters and digits only', function (mixed $din, string $message) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe(['requisition.din' => $message]);
 })->with([
-    'letter' => ['0234567A', 'Enter the DIN as digits only.'],
-    'space' => ['0234 5678', 'Enter the DIN as digits only.'],
-    'dash' => ['0234-5678', 'Enter the DIN as digits only.'],
-    'decimal' => ['123.4', 'Enter the DIN as digits only.'],
-    'negative' => ['-123', 'Enter the DIN as digits only.'],
+    'space' => ['0234 5678', 'Enter the DIN using letters and numbers only.'],
+    'dash' => ['0234-5678', 'Enter the DIN using letters and numbers only.'],
+    'decimal' => ['123.4', 'Enter the DIN using letters and numbers only.'],
+    'negative' => ['-123', 'Enter the DIN using letters and numbers only.'],
     // A number would lose leading zeros, so only text is accepted.
-    'number, not text' => [2345678, 'The requisition.din field must be a string.'],
+    'number, not text' => [2345678, 'DIN needs to be text.'],
     // max 32 is the column size, not a DIN length rule.
-    '33 digits' => [str_repeat('1', 33), 'The requisition.din field must not be greater than 32 characters.'],
+    '33 digits' => [str_repeat('1', 33), 'DIN needs to be 32 characters or fewer.'],
 ]);
 
 // 3. Upsert by row id ------------------------------------------------------------------
@@ -285,7 +285,7 @@ it('refuses an order that points at another case\'s award', function () {
         saveDraft($case, $vendor, ['purchase_orders' => [['award_id' => $foreignAward, 'po_number' => 'PO-1']]]);
         $this->fail('saved');
     } catch (ValidationException $e) {
-        expect($e->errors())->toBe(['purchase_orders.0.award_id' => ['Choose a supplier from the award rows.']]);
+        expect($e->errors())->toBe(['purchase_orders.0.award_id' => ['Order Row 1: Supplier needs to be one of the awarded suppliers.']]);
     }
     expect(CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->id)->count())->toBe(0);
 });
@@ -464,7 +464,7 @@ it('still shows a submitted old-type case to the vendor and to staff', function 
         ->and($vendorView['quotations'])->toHaveCount(6)
         ->and($staff['category'])->toBe('NON_PHARM')
         ->and($staff['totals']['quotations']['recommended_total'])->toBe('4473.00')
-        ->and($receipt['procurement_type'])->toBe('Ad hoc purchase (Non-Pharm)')
+        ->and($receipt['procurement_type'])->toBe('Ad Hoc Purchase (Non-Pharm)')
         ->and($receipt['documents'])->toHaveCount(6);
 });
 
@@ -574,7 +574,10 @@ it('renders a draft of each request type on the new page, never the old one', fu
         ->assertInertia(fn (Assert $page) => $page->component('requests/ad-hoc/edit')
             ->missing('readiness')
             ->has('sections', 6)
-            ->where('config.options.tender_outcome.2.label', 'Awarded but supplier unable to supply')
+            // V2-3: the config no longer carries the tender outcome (awards never depend on it).
+            ->where('config.options.rfq_audience.0.label', 'All registered suppliers')
+            ->missing('config.options.tender_outcome')
+            ->missing('config.not_awarded')
             ->where('hardcopy_notice', RequestReceipt::HARDCOPY_NOTICE)
             ->where('can.submit', true)
             ->where('can.requests', true));
@@ -602,15 +605,15 @@ it('groups readiness by section, in form order, with plain-English issues and fi
         ->and($sections['item']['summary'])->toBe('Feeding tube')
         ->and($sections['tender']['summary'])->toBe('1 supplier awarded, 0 orders')
         ->and($sections['stock']['summary'])->toBe('Not started')
-        // Slice V2-1: the DIN is required for every type; V2-1 issues are mapped onto the current screen.
-        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['requisition.din', 'requisition.quantity_requested', 'requisition.unit_of_measure'])
+        // V2-1 and V2-5 issues are mapped onto the current screen (the DIN is optional since V2-5).
+        ->and(collect($sections['item']['issues'])->pluck('field')->all())->toBe(['previous_request_in_cycle', 'requisition.quantity_requested', 'requisition.unit_of_measure'])
         ->and(collect($sections['tender']['issues'])->pluck('field')->all())->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'requisition.tender_reference')
         ->and(collect($sections['documents']['issues'])->pluck('message')->all())->toBe(['Required document missing: Bids'])
         ->and(collect($sections['tender']['issues'])->firstWhere('key', 'tender_awards.0.quantity_awarded'))->toBe([
             'key' => 'tender_awards.0.quantity_awarded',
             'field' => 'tender_awards.quantity_awarded',
             'row_id' => $awardId,
-            'message' => 'Award row 1: enter the quantity awarded.',
+            'message' => 'Supplier Row 1: Quantity Awarded is required.',
         ]);
 });
 

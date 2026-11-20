@@ -80,7 +80,8 @@ export default function Edit({ case: detail, readiness, config, documents, can }
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Requests', href: route('requests.index') },
-        { title: 'Edit draft', href: route('requests.edit', detail.id) },
+        // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
+        { title: detail.reference_no ?? 'New Request', href: route('requests.edit', detail.id) },
     ];
 
     const show = (next: TabId) => {
@@ -136,13 +137,13 @@ export default function Edit({ case: detail, readiness, config, documents, can }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Edit draft request" />
+            <Head title="Edit Draft Request" />
 
             <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pt-4">
                 {/* Status only: the form's actions are in the footer row at the bottom (CLAUDE.md, UI). */}
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New request'}</h1>
+                        <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New Request'}</h1>
                         <p className="text-muted-foreground text-sm">
                             {config.procurement_type.name}
                             {detail.reference_no && (
@@ -164,7 +165,7 @@ export default function Edit({ case: detail, readiness, config, documents, can }
                     {errorEntries.length > 0 && (
                         <div
                             role="alert"
-                            className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+                            className="bg-status-danger text-status-danger-foreground border-destructive/30 rounded-md border p-3 text-sm"
                         >
                             <p className="font-medium">This tab was not saved. Please fix the following:</p>
                             <ul className="mt-1 list-disc space-y-0.5 pl-5">

@@ -46,7 +46,7 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
 
     return (
         <form onSubmit={review} className="space-y-3 border-t pt-4" noValidate>
-            <h3 className="font-medium">PS decision</h3>
+            <h3 className="font-medium">PS Decision</h3>
 
             <fieldset className="grid gap-2" aria-describedby="ps-decision-error">
                 <legend className="text-sm font-medium">Decision</legend>
@@ -71,10 +71,11 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
 
             {isReturn && (
                 <div className="grid max-w-sm gap-1.5">
-                    <Label htmlFor="ps-return-kind">Query type (required)</Label>
+                    <Label htmlFor="ps-return-kind">Query Type (required)</Label>
                     <Select value={form.data.return_kind} onValueChange={(v) => form.setData('return_kind', v)}>
                         <SelectTrigger
                             id="ps-return-kind"
+                            aria-required="true"
                             aria-invalid={errors.return_kind ? true : undefined}
                             aria-describedby="ps-return-kind-error"
                         >
@@ -93,9 +94,10 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
             )}
 
             <div className="grid gap-1.5">
-                <Label htmlFor="ps-reason">{isReturn ? 'Reason for the query (required)' : 'Note (optional)'}</Label>
+                <Label htmlFor="ps-reason">{isReturn ? 'Reason for the Query (required)' : 'Note'}</Label>
                 <textarea
                     id="ps-reason"
+                    aria-required={isReturn ? true : undefined}
                     rows={3}
                     maxLength={500}
                     className={TEXTAREA}
@@ -111,7 +113,7 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
             </div>
 
             <Button type="submit" disabled={form.processing || form.data.decision === '' || (isReturn && form.data.return_kind === '')}>
-                Record decision
+                Record Decision
             </Button>
 
             <Dialog open={confirming} onOpenChange={(open) => !form.processing && setConfirming(open)}>
@@ -125,21 +127,21 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
                         <dd className="font-medium">{chosen?.label}</dd>
                         {isReturn && (
                             <>
-                                <dt className="text-muted-foreground">Query type</dt>
+                                <dt className="text-muted-foreground">Query Type</dt>
                                 <dd>{kind?.label ?? 'Not chosen'}</dd>
                             </>
                         )}
                         <dt className="text-muted-foreground">{isReturn ? 'Reason' : 'Note'}</dt>
                         <dd className="whitespace-pre-line">{reason === '' ? 'None' : reason}</dd>
                         <dt className="text-muted-foreground">Next</dt>
-                        <dd>{isReturn ? 'The case returns to the CMO.' : 'The case returns to the CMO to issue the letter.'}</dd>
+                        <dd>{chosen?.next}</dd>
                     </dl>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={form.processing}>
-                            Go back
+                            Go Back
                         </Button>
                         <Button type="button" onClick={record} disabled={form.processing}>
-                            {form.processing ? 'Recording…' : 'Record decision'}
+                            {form.processing ? 'Recording…' : 'Record Decision'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -152,7 +154,7 @@ export function PsDecisionForm({ caseId, form: def }: { caseId: string; form: Ps
 export function PsOutcomeStatement({ outcome }: { outcome: PsOutcome }) {
     return (
         <div className="space-y-1 border-t pt-4 text-sm">
-            <h3 className="font-medium">PS decision</h3>
+            <h3 className="font-medium">PS Decision</h3>
             <p>
                 {outcome.outcome}
                 {outcome.by && ` by ${outcome.by}`}

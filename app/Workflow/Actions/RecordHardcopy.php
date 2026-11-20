@@ -5,6 +5,7 @@ namespace App\Workflow\Actions;
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
+use App\Events\HardcopyRecorded;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\Audit;
@@ -59,6 +60,10 @@ final class RecordHardcopy
                 ['received_on' => $date, 'method' => 'manual'],
                 $actor,
             );
+
+            // NOTIF-1: after commit only (a rolled-back record sends nothing).
+            $caseId = (string) $locked->getKey();
+            DB::afterCommit(fn () => HardcopyRecorded::dispatch($caseId));
 
             return $locked;
         });

@@ -1,14 +1,17 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
-import { type CaseTab, CaseTabNav, CaseTabs } from '@/components/cases/case-tabs';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { GateTracker } from '@/components/cases/gate-tracker';
+import { NextStepCard } from '@/components/cases/next-step-card';
+import { QueriesPanel } from '@/components/cases/queries-panel';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
+import { PageHeader } from '@/components/page-header';
 import { type TabId as RequisitionTab } from '@/components/requests/fields';
 import { FlashMessages } from '@/components/requests/flash-messages';
+import { RequestSummary } from '@/components/requests/request-summary';
 import { RequisitionView } from '@/components/requests/requisition-view';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/status-pill';
+import { type TabItem, Tabs } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -19,22 +22,28 @@ import {
     type HardcopyRecord,
     type LegalForm,
     type LetterRecord,
+    type NextStepView,
     type PsForm,
     type PsOutcome,
     type ReturnedBanner,
     type ReviewerOption,
     type ReviewForm,
+    type RouteDestination,
     type RoutePanel,
     type StaffCaseAbilities,
     type StaffCaseDetail,
     type StaffDocument,
+    type StaffQueries,
     type TimelineEntry,
 } from '@/types/cases';
+import { type RequestSummaryView } from '@/types/summary';
 import { Head } from '@inertiajs/react';
 import { type ReactNode, useState } from 'react';
 
 interface Props {
     case: StaffCaseDetail;
+    /** NEXT-STEP-1: the Next Step card (staff only). */
+    next_step: NextStepView;
     hardcopy: HardcopyRecord | null;
     hardcopy_dates: { today: string; earliest: string | null };
     documents: StaffDocument[];
@@ -53,10 +62,14 @@ interface Props {
     route_panel: RoutePanel | null;
     letter: LetterRecord | null;
     letter_dates: { today: string } | null;
+    /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
+    summary: RequestSummaryView | null;
+    /** OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on. */
+    queries: StaffQueries;
     can: StaffCaseAbilities;
 }
 
-type TabId = 'overview' | RequisitionTab | 'history' | 'actions';
+type TabId = 'overview' | RequisitionTab | 'queries' | 'history' | 'actions';
 
 const TZ = 'America/Port_of_Spain';
 
@@ -79,18 +92,34 @@ function Card({ title, id, children }: { title: string; id: string; children: Re
     );
 }
 
-/** Tabs for this case. Awards & orders only when the case has any; Actions is always last. */
-function buildTabs(detail: StaffCaseDetail): CaseTab<TabId>[] {
+/**
+ * Tabs for this case. V2-3: a request-form case shows its request in one
+ * "Request Details" tab (the RequestSummary); the old types keep their tabs,
+ * with Awards & orders only when the case has any. Actions is always last.
+ */
+function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): TabItem<TabId>[] {
+    if (hasSummary) {
+        return [
+            { id: 'overview', label: 'Overview' },
+            { id: 'details', label: 'Request Details' },
+            { id: 'documents', label: 'Documents' },
+            { id: 'queries', label: 'Queries' },
+            { id: 'history', label: 'History' },
+            { id: 'actions', label: 'Actions' },
+        ];
+    }
+
     const hasOrders = detail.tender_awards.length > 0 || detail.purchase_orders.length > 0;
 
     return [
         { id: 'overview', label: 'Overview' },
-        { id: 'details', label: 'Request details' },
+        { id: 'details', label: 'Request Details' },
         { id: 'stock', label: 'Stock' },
         { id: 'tender', label: 'Tender & RFQ' },
-        ...(hasOrders ? [{ id: 'orders' as const, label: 'Awards & orders' }] : []),
+        ...(hasOrders ? [{ id: 'orders' as const, label: 'Awards & Orders' }] : []),
         { id: 'quotations', label: 'Quotations' },
         { id: 'documents', label: 'Documents' },
+        { id: 'queries', label: 'Queries' },
         { id: 'history', label: 'History' },
         { id: 'actions', label: 'Actions' },
     ];
@@ -105,12 +134,14 @@ function tabFromUrl(ids: TabId[]): TabId {
 /**
  * Staff view of one case (slice 9a), split into tabs so nobody scrolls far.
  * The open tab is kept in ?tab=, so an action's redirect back lands on the
- * same tab. Actions (intake, hardcopy, send for review) are the last tab.
+ * same tab. NEXT-STEP-1: the Next Step card sits above the tabs on every tab;
+ * the Actions tab keeps the less common actions. No numbered tabs and no
+ * Back / Next footer (design.md does not define them).
  */
 export default function CaseShow({
     case: detail,
+    next_step,
     hardcopy,
-    hardcopy_dates,
     documents,
     timeline,
     assignments,
@@ -127,6 +158,8 @@ export default function CaseShow({
     route_panel,
     letter,
     letter_dates,
+    summary,
+    queries,
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -134,10 +167,16 @@ export default function CaseShow({
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
     ];
 
-    const tabs = buildTabs(detail);
+    const tabs = buildTabs(detail, summary !== null);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
     const [routeOpen, setRouteOpen] = useState(false);
+    const [routeTo, setRouteTo] = useState<RouteDestination['value'] | null>(null);
+
+    const openRoute = (destination: RouteDestination['value']) => {
+        setRouteTo(destination);
+        setRouteOpen(true);
+    };
 
     const show = (next: TabId) => {
         setActive(next);
@@ -152,18 +191,31 @@ export default function CaseShow({
             <Head title={detail.reference_no ?? 'Case'} />
 
             <div className="mx-auto w-full max-w-6xl space-y-4 p-4">
-                <header className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* The reference is the page title here: mono, but kept at heading size. */}
-                        <h1 className="font-mono text-2xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
-                        <StatusPill label={detail.status_label} tone={detail.status_tone} />
-                    </div>
-                    <p className="text-muted-foreground">{detail.item_description ?? 'No item description'}</p>
-                </header>
+                {/* V2-3: PageHeader. The reference is the page title here, in mono. */}
+                <PageHeader
+                    title={detail.reference_no ?? 'Case'}
+                    titleClassName="font-mono"
+                    subtitle={detail.item_description ?? 'No item description'}
+                    actions={<StatusPill label={detail.status_label} tone={detail.status_tone} />}
+                />
 
                 <FlashMessages />
 
-                <CaseTabs tabs={tabs} active={active} onSelect={show} />
+                <NextStepCard
+                    caseId={detail.id}
+                    next={next_step}
+                    reviewers={reviewers}
+                    fileNoDefault={file_no_default}
+                    legalOfficers={legal_officers}
+                    legalForm={legal_form}
+                    psForm={ps_form}
+                    reviewForms={review_forms}
+                    letterToday={letter_dates?.today ?? null}
+                    onRoute={can.route_onward && route_panel ? openRoute : null}
+                    onOpenQueries={() => show('queries')}
+                />
+
+                <Tabs tabs={tabs} active={active} onSelect={show} label="Case sections" />
 
                 <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="space-y-6 pb-4">
                     {active === 'overview' && (
@@ -179,13 +231,6 @@ export default function CaseShow({
                                     {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
                                         .filter((part) => part)
                                         .join(', ')}
-                                    {can.route_onward && route_panel && (
-                                        <div className="mt-3">
-                                            <Button type="button" size="sm" onClick={() => setRouteOpen(true)}>
-                                                Send onward
-                                            </Button>
-                                        </div>
-                                    )}
                                 </section>
                             )}
 
@@ -218,20 +263,20 @@ export default function CaseShow({
                                 </section>
                             )}
 
-                            <Card title="Case summary" id="summary-heading">
+                            <Card title="Case Summary" id="summary-heading">
                                 <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                                     {[
                                         ['Organisation', detail.organisation ?? '—'],
-                                        ['Procurement type', detail.procurement_type ?? '—'],
+                                        ['Procurement Type', detail.procurement_type ?? '—'],
                                         ['Status', detail.status_label],
-                                        ['Current holder', detail.holder_label ?? '—'],
+                                        ['Current Holder', detail.holder_label ?? '—'],
                                         ['Submitted', formatDate(detail.submitted_at)],
                                         ['Hardcopy', hardcopyText(hardcopy)],
-                                        ...(detail.file_no ? [['File number', detail.file_no]] : []),
+                                        ...(detail.file_no ? [['File Number', detail.file_no]] : []),
                                     ].map(([label, value]) => (
                                         <div key={label}>
                                             <dt className="text-muted-foreground">{label}</dt>
-                                            <dd className={label === 'File number' ? 'font-mono font-medium' : 'font-medium'}>{value}</dd>
+                                            <dd className={label === 'File Number' ? 'font-mono font-medium' : 'font-medium'}>{value}</dd>
                                         </div>
                                     ))}
                                 </dl>
@@ -243,13 +288,17 @@ export default function CaseShow({
                         </>
                     )}
 
-                    {(active === 'details' || active === 'stock' || active === 'tender' || active === 'orders' || active === 'quotations') && (
-                        <RequisitionView content={detail} isPharm={isPharm} tab={active} />
-                    )}
+                    {summary
+                        ? active === 'details' && <RequestSummary summary={summary} idPrefix="case" />
+                        : (active === 'details' || active === 'stock' || active === 'tender' || active === 'orders' || active === 'quotations') && (
+                              <RequisitionView content={detail} isPharm={isPharm} tab={active} />
+                          )}
+
+                    {active === 'queries' && <QueriesPanel caseId={detail.id} data={queries} />}
 
                     {active === 'documents' && (
                         <>
-                            <RequisitionView content={detail} isPharm={isPharm} tab="documents" />
+                            {!summary && <RequisitionView content={detail} isPharm={isPharm} tab="documents" />}
 
                             <Card title="Documents" id="documents-heading">
                                 {documents.length === 0 ? (
@@ -331,25 +380,7 @@ export default function CaseShow({
                         </div>
                     )}
 
-                    {active === 'actions' && (
-                        <CaseActions
-                            caseId={detail.id}
-                            reference={detail.reference_no}
-                            hardcopy={hardcopy}
-                            dates={hardcopy_dates}
-                            can={can}
-                            reviewers={reviewers}
-                            gate={gate}
-                            reviewForms={review_forms}
-                            fileNoDefault={file_no_default}
-                            legalOfficers={legal_officers}
-                            legalForm={legal_form}
-                            psForm={ps_form}
-                            psOutcome={ps_outcome}
-                            onSendOnward={route_panel ? () => setRouteOpen(true) : null}
-                            letterToday={letter_dates?.today ?? null}
-                        />
-                    )}
+                    {active === 'actions' && <CaseActions caseId={detail.id} hardcopy={hardcopy} can={can} psOutcome={ps_outcome} />}
                 </div>
 
                 {can.route_onward && route_panel && (
@@ -364,10 +395,10 @@ export default function CaseShow({
                         returned={returned}
                         gate={gate}
                         panel={route_panel}
+                        initialDestination={routeTo}
+                        key={routeTo ?? 'suggested'}
                     />
                 )}
-
-                <CaseTabNav tabs={tabs} active={active} onSelect={show} finishHref={route('cases.index')} />
             </div>
         </AppLayout>
     );
