@@ -42,6 +42,11 @@ workflow, permissions or screens.
 - Page props may be named `can` for page-level action flags (existing convention). Never add keys to the shared `can`; nav-only flags live under `nav`.
 - Form actions (Submit, Review and submit, Save, Delete draft) go in a footer row at the bottom of the form, never in the header. The header may show status only.
 
+## Design
+- All UI work must follow design-system/medprocurement/MASTER.md. Read it before any UI change. It is the vendor section's digest of design.md, and design.md wins on any conflict.
+- Reuse existing components before creating new ones. No duplicate components just to restyle.
+- Never introduce new colors, fonts, spacing or radius values. Update design.md and MASTER.md first, then add the token to resources/css/app.css (additive only).
+
 ## Working rules
 - Ask Kyle before installing any package, including `npx shadcn add`.
 - Before finishing: `php artisan test` (or the relevant `--filter`), `npx tsc --noEmit`,
