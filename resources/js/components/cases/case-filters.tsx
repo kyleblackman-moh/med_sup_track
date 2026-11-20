@@ -1,9 +1,7 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { type CaseListOptions, type CaseFilters as Filters } from '@/types/cases';
 import { type OptionList } from '@/types/requests';
-import { Search, X } from 'lucide-react';
+import { FilterX, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -25,7 +23,7 @@ export function hasActiveFilters(filters: Filters): boolean {
     return filters.status !== '' || filters.type !== '' || filters.org !== '' || filters.ref !== '' || filters.awaiting !== '';
 }
 
-/** Filters apply as soon as they change; the URL holds their state. */
+/** Filters apply as soon as they change; the URL holds their state. One compact toolbar, Clear Filters last. */
 export function CaseFilters({ filters, options, showOrganisation, errors, onChange }: Props) {
     const [search, setSearch] = useState(filters.ref);
 
@@ -44,7 +42,9 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
             aria-label={label}
             value={filters[key] || ALL}
             onChange={(e) => onChange({ [key]: e.target.value === ALL ? '' : e.target.value })}
-            className="bg-base-100 h-9 w-full sm:w-44"
+            aria-invalid={errors[key] ? true : undefined}
+            aria-describedby={errors[key] ? 'case-filters-error' : undefined}
+            className={errors[key] ? 'select-sm select-error w-full capitalize sm:w-44' : 'select-sm w-full capitalize sm:w-44'}
         >
             <option value={ALL}>{all}</option>
             {list.map((o) => (
@@ -58,34 +58,31 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
     const error = errors.ref ?? errors.status ?? errors.type ?? errors.org ?? errors.sort ?? errors.dir ?? errors.page;
 
     return (
-        <div className="mb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <div className="relative w-full sm:w-64">
-                    <Search
-                        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-                        aria-hidden="true"
-                    />
-                    <Input
+        <div className="card card-border bg-base-100 min-w-0">
+            <div className="card-body flex-row flex-wrap items-center gap-2 p-2">
+                <label className={errors.ref ? 'input input-sm input-error w-full sm:w-64' : 'input input-sm w-full sm:w-64'}>
+                    <Search className="size-4 opacity-60" aria-hidden="true" />
+                    <input
                         type="search"
+                        className="grow"
                         aria-label="Search by Reference"
                         placeholder="Search reference…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         aria-invalid={errors.ref ? true : undefined}
                         aria-describedby={error ? 'case-filters-error' : undefined}
-                        className="border-input bg-card h-9 pl-9"
                     />
-                </div>
+                </label>
                 {select('status', 'Status', options.statuses, 'All statuses')}
                 {select('type', 'Type', options.types, 'All types')}
                 {showOrganisation && select('org', 'Organisation', options.organisations, 'All organisations')}
                 {filters.awaiting === 'funding' && (
-                    <span className="bg-secondary text-secondary-foreground inline-flex h-9 items-center gap-1 self-start rounded-md pr-1 pl-3 text-sm sm:self-auto">
+                    <span className="badge badge-soft badge-lg gap-1 pr-1 capitalize">
                         Awaiting CAB Funding
                         <button
                             type="button"
                             onClick={() => onChange({ awaiting: '' })}
-                            className="hover:bg-background/60 focus-visible:ring-ring rounded-sm p-1 outline-none focus-visible:ring-2"
+                            className="btn btn-ghost btn-xs btn-circle"
                             aria-label="Remove filter: awaiting CAB funding"
                         >
                             <X className="size-3.5" aria-hidden="true" />
@@ -93,21 +90,21 @@ export function CaseFilters({ filters, options, showOrganisation, errors, onChan
                     </span>
                 )}
                 {hasActiveFilters(filters) && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 self-start sm:self-auto"
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm capitalize sm:ml-auto"
                         onClick={() => onChange({ status: '', type: '', org: '', ref: '', awaiting: '' })}
                     >
+                        <FilterX className="size-4" aria-hidden="true" />
                         Clear Filters
-                    </Button>
+                    </button>
+                )}
+                {error && (
+                    <p id="case-filters-error" role="alert" className="text-error basis-full px-1 text-sm">
+                        {error}
+                    </p>
                 )}
             </div>
-            {error && (
-                <p id="case-filters-error" role="alert" className="text-destructive mt-2 text-sm">
-                    {error}
-                </p>
-            )}
         </div>
     );
 }
