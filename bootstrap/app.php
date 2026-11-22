@@ -10,10 +10,13 @@ use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionTimeout;
+use App\Support\AccessDenials;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -46,5 +49,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // IT-ADMIN: every 403 sent to a signed-in user (a policy or permission
+        // refusal, an abort(403)) is audited as access.denied (route name only,
+        // capped; AccessDenials). Returning nothing keeps the normal response.
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
+            if ($e->getStatusCode() === 403) {
+                AccessDenials::record($request, 403, 'forbidden');
+            }
+        });
     })->create();

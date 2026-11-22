@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\MfaResetController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
@@ -180,6 +181,22 @@ Route::middleware(['auth', 'admin.console'])
                 Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
             });
         });
+
+        // IT-ADMIN Part 2: the audit log (read-only; GET only, nothing else exists).
+        Route::controller(AuditLogController::class)->prefix('audit')->name('audit.')->middleware('throttle:60,1')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('{auditLog}', 'show')->whereNumber('auditLog')->name('show');
+        });
+    });
+
+// IT-ADMIN Part 2: the same audit log for the CMO and Legal (audit.view; 404 otherwise).
+Route::middleware(['auth', 'throttle:60,1'])
+    ->prefix('audit')
+    ->name('audit.')
+    ->controller(AuditLogController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{auditLog}', 'show')->whereNumber('auditLog')->name('show');
     });
 
 // MFA-1: enrolment, recovery codes and Security settings. EnsureMfaEnrolled lets
