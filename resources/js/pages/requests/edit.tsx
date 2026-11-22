@@ -19,6 +19,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type FormConfig, type Readiness, type RequestDetail, type UploadRules } from '@/types/requests';
 import { Head, router, useForm } from '@inertiajs/react';
+import { CircleAlert } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Props {
@@ -139,12 +140,12 @@ export default function Edit({ case: detail, readiness, config, documents, can }
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Edit Draft Request" />
 
-            <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pt-4">
+            <div className="w-full min-w-0 space-y-4 px-4 pt-4 lg:px-6">
                 {/* Status only: the form's actions are in the footer row at the bottom (CLAUDE.md, UI). */}
                 <header className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
+                    <div className="min-w-0 space-y-1">
                         <h1 className="text-2xl font-semibold">{detail.requisition.item_description || 'New Request'}</h1>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-base-content/70 text-sm">
                             {config.procurement_type.name}
                             {detail.reference_no && (
                                 <>
@@ -163,20 +164,20 @@ export default function Edit({ case: detail, readiness, config, documents, can }
 
                 <div aria-live="assertive" className="empty:hidden">
                     {errorEntries.length > 0 && (
-                        <div
-                            role="alert"
-                            className="bg-status-danger text-status-danger-foreground border-destructive/30 rounded-md border p-3 text-sm"
-                        >
-                            <p className="font-medium">This tab was not saved. Please fix the following:</p>
-                            <ul className="mt-1 list-disc space-y-0.5 pl-5">
-                                {errorEntries.map(([key, message]) => (
-                                    <li key={key}>
-                                        <a href={`#${fieldId(key)}`} className="underline">
-                                            {message}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
+                        <div role="alert" className="alert alert-error alert-soft items-start text-sm">
+                            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                            <div className="min-w-0">
+                                <p className="font-medium">This tab was not saved. Please fix the following:</p>
+                                <ul className="mt-1 [list-style-type:disc] space-y-0.5 pl-5">
+                                    {errorEntries.map(([key, message]) => (
+                                        <li key={key}>
+                                            <a href={`#${fieldId(key)}`} className="link">
+                                                {message}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -185,18 +186,24 @@ export default function Edit({ case: detail, readiness, config, documents, can }
                     {fields.length > 0 && (
                         <form onSubmit={submit} noValidate className="space-y-6">
                             {REQUISITION_GROUPS.filter((g) => g.tab === active).map((group) => (
-                                <fieldset key={group.title} className="space-y-3">
-                                    <legend className="text-lg font-semibold">{group.title}</legend>
-                                    <div className="grid gap-4 sm:grid-cols-2">{group.fields.filter(visible(config)).map(requisitionInput)}</div>
+                                <fieldset key={group.title} className="fieldset border-base-300 bg-base-100 rounded-box min-w-0 gap-3 border p-4">
+                                    <legend className="fieldset-legend px-1 text-base font-semibold capitalize">{group.title}</legend>
+                                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                                        {group.fields.filter(visible(config)).map(requisitionInput)}
+                                    </div>
                                 </fieldset>
                             ))}
 
                             {active === 'stock' && (
-                                <p className="text-muted-foreground text-sm">
+                                <p className="text-base-content/70 text-sm">
                                     Stock on hand:{' '}
-                                    <span className="text-foreground font-medium">{detail.requisition.derived.stock_on_hand ?? '—'}</span>
+                                    <span className="text-base-content font-medium tabular-nums">
+                                        {detail.requisition.derived.stock_on_hand ?? '—'}
+                                    </span>
                                     {' · '}Coverage (months):{' '}
-                                    <span className="text-foreground font-medium">{detail.requisition.derived.coverage_months ?? '—'}</span>
+                                    <span className="text-base-content font-medium tabular-nums">
+                                        {detail.requisition.derived.coverage_months ?? '—'}
+                                    </span>
                                     <span className="block text-xs">Updated when you save.</span>
                                 </p>
                             )}

@@ -1,15 +1,14 @@
 import InputError from '@/components/input-error';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
+import { Check } from 'lucide-react';
 import { FormEventHandler, useRef } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -18,6 +17,14 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+/** Shared field classes: the daisyUI input, red when the server rejects it. */
+const fieldClass = (invalid: boolean) => cn('input input-sm w-full', invalid && 'input-error');
+
+/**
+ * Password settings (Blueprint pages/security-settings): change the password
+ * in one bordered card that ends in its footer row. Also the page a user with
+ * a forced password change lands on. daisyUI classes and theme tokens only.
+ */
 export default function Password() {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
@@ -53,78 +60,91 @@ export default function Password() {
             <Head title="Profile Settings" />
 
             <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title="Update Password" description="Ensure your account is using a long, random password to stay secure" />
+                <form onSubmit={updatePassword} className="card bg-base-100 border-base-300 border">
+                    <div className="card-body gap-4 p-4">
+                        <HeadingSmall title="Update Password" description="Ensure your account is using a long, random password to stay secure" />
 
-                    <form onSubmit={updatePassword} className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="current_password">Current Password</Label>
+                        <fieldset className="fieldset gap-4 py-0">
+                            <div className="grid gap-1.5">
+                                <label htmlFor="current_password" className="label text-base-content text-sm font-medium capitalize">
+                                    Current Password
+                                </label>
+                                <input
+                                    id="current_password"
+                                    aria-required="true"
+                                    ref={currentPasswordInput}
+                                    value={data.current_password}
+                                    onChange={(e) => setData('current_password', e.target.value)}
+                                    type="password"
+                                    className={fieldClass(!!errors.current_password)}
+                                    autoComplete="current-password"
+                                    placeholder="Current Password"
+                                    aria-invalid={errors.current_password ? true : undefined}
+                                    aria-describedby={errors.current_password ? 'current_password-error' : undefined}
+                                />
+                                <InputError id="current_password-error" message={errors.current_password} />
+                            </div>
 
-                            <Input
-                                id="current_password"
-                                aria-required="true"
-                                ref={currentPasswordInput}
-                                value={data.current_password}
-                                onChange={(e) => setData('current_password', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="current-password"
-                                placeholder="Current Password"
-                            />
+                            <div className="grid gap-1.5">
+                                <label htmlFor="password" className="label text-base-content text-sm font-medium capitalize">
+                                    New Password
+                                </label>
+                                <input
+                                    id="password"
+                                    aria-required="true"
+                                    ref={passwordInput}
+                                    value={data.password}
+                                    onChange={(e) => setData('password', e.target.value)}
+                                    type="password"
+                                    className={fieldClass(!!errors.password)}
+                                    autoComplete="new-password"
+                                    placeholder="New Password"
+                                    aria-invalid={errors.password ? true : undefined}
+                                    aria-describedby={errors.password ? 'password-error' : undefined}
+                                />
+                                <InputError id="password-error" message={errors.password} />
+                            </div>
 
-                            <InputError message={errors.current_password} />
-                        </div>
+                            <div className="grid gap-1.5">
+                                <label htmlFor="password_confirmation" className="label text-base-content text-sm font-medium capitalize">
+                                    Confirm Password
+                                </label>
+                                <input
+                                    id="password_confirmation"
+                                    aria-required="true"
+                                    value={data.password_confirmation}
+                                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                                    type="password"
+                                    className={fieldClass(!!errors.password_confirmation)}
+                                    autoComplete="new-password"
+                                    placeholder="Confirm Password"
+                                    aria-invalid={errors.password_confirmation ? true : undefined}
+                                    aria-describedby={errors.password_confirmation ? 'password_confirmation-error' : undefined}
+                                />
+                                <InputError id="password_confirmation-error" message={errors.password_confirmation} />
+                            </div>
+                        </fieldset>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">New Password</Label>
-
-                            <Input
-                                id="password"
-                                aria-required="true"
-                                ref={passwordInput}
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="new-password"
-                                placeholder="New Password"
-                            />
-
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm Password</Label>
-
-                            <Input
-                                id="password_confirmation"
-                                aria-required="true"
-                                value={data.password_confirmation}
-                                onChange={(e) => setData('password_confirmation', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="new-password"
-                                placeholder="Confirm Password"
-                            />
-
-                            <InputError message={errors.password_confirmation} />
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <Button disabled={processing}>Save Password</Button>
-
+                        <div className="card-actions border-base-300 -mx-4 mt-1 -mb-1 items-center justify-end border-t px-4 pt-3">
                             <Transition
                                 show={recentlySuccessful}
-                                enter="transition ease-in-out"
+                                enter="motion-safe:transition-opacity"
                                 enterFrom="opacity-0"
-                                leave="transition ease-in-out"
+                                leave="motion-safe:transition-opacity"
                                 leaveTo="opacity-0"
                             >
-                                <p className="text-sm text-neutral-600">Saved</p>
+                                <p role="status" className="text-success flex items-center gap-1 text-sm">
+                                    <Check className="size-4" aria-hidden="true" />
+                                    Saved
+                                </p>
                             </Transition>
+                            <button type="submit" className="btn btn-primary btn-sm capitalize" disabled={processing}>
+                                {processing && <span className="loading loading-spinner loading-xs" aria-hidden="true" />}
+                                Save Password
+                            </button>
                         </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </SettingsLayout>
         </AppLayout>
     );

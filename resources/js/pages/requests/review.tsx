@@ -3,7 +3,6 @@ import { IssuesPanel, SubmitDialog, type SummaryItem } from '@/components/reques
 import { CaseHero } from '@/components/requests/case-hero';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { RequestSummary } from '@/components/requests/request-summary';
-import { Button } from '@/components/ui/button';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -75,16 +74,17 @@ export default function Review({ case: detail, summary, blockers, issue_heading,
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Review Your Request" />
 
-            <PageContent>
+            {/* Full width beside the drawer: px-4 py-4, lg:px-6 (PageContent's md:p-6 reset to p-4 first). */}
+            <PageContent className="space-y-4 px-4 py-4 md:p-4 lg:px-6">
                 <CaseHero hero={detail.hero} />
 
                 <FlashMessages />
 
                 <section aria-labelledby="review-heading" className="space-y-1">
-                    <h2 id="review-heading" className="text-xl font-bold">
+                    <h2 id="review-heading" className="text-xl font-bold capitalize">
                         Review Your Request
                     </h2>
-                    {can.submit && <p className="text-muted-foreground text-helper">{description}</p>}
+                    {can.submit && <p className="text-base-content/70 text-sm">{description}</p>}
                 </section>
 
                 <IssuesPanel heading={issue_heading} items={items} announce={false} />
@@ -93,31 +93,33 @@ export default function Review({ case: detail, summary, blockers, issue_heading,
 
                 <StickyActionBar
                     left={
-                        <Button asChild variant="outline" size="lg" className="text-label px-4 font-semibold">
-                            <Link href={route('requests.edit', detail.id)}>
-                                <ArrowLeft aria-hidden="true" />
-                                Back to Edit
-                            </Link>
-                        </Button>
+                        <Link href={route('requests.edit', detail.id)} className="btn btn-outline capitalize max-md:h-11">
+                            <ArrowLeft className="size-4" aria-hidden="true" />
+                            Back to Edit
+                        </Link>
                     }
                     right={
                         <>
                             {!can.submit && not_ready_reason && (
-                                <p id="submit-disabled-reason" className="text-muted-foreground text-helper">
+                                <p id="submit-disabled-reason" className="text-base-content/70 text-sm">
                                     {not_ready_reason}
                                 </p>
                             )}
-                            <Button
+                            <button
                                 type="button"
-                                size="lg"
-                                className="text-label px-5 font-semibold"
+                                className="btn btn-primary capitalize max-md:h-11"
                                 disabled={!can.submit || submitting}
+                                aria-busy={submitting || undefined}
                                 aria-describedby={!can.submit && not_ready_reason ? 'submit-disabled-reason' : undefined}
                                 onClick={() => setConfirming(true)}
                             >
-                                <Send aria-hidden="true" />
+                                {submitting ? (
+                                    <span className="loading loading-spinner loading-xs" aria-hidden="true" />
+                                ) : (
+                                    <Send className="size-4" aria-hidden="true" />
+                                )}
                                 Submit Request
-                            </Button>
+                            </button>
                         </>
                     }
                 />

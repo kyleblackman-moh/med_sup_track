@@ -1,9 +1,7 @@
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { type FormConfig, type Row, type Section } from '@/types/requests';
 import { router, usePage } from '@inertiajs/react';
-import { FormEvent, useEffect, useState } from 'react';
+import { CircleAlert, Plus } from 'lucide-react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { FieldInput } from './field-input';
 import { displayValue, type SectionDef } from './fields';
 
@@ -44,8 +42,8 @@ function emptyRow(def: SectionDef): EditableRow {
 }
 
 /**
- * A compact, paged list of one child section. Add and Edit open a dialog with
- * every field; saving or removing a row saves the section straight away (the
+ * A compact, paged daisyUI table of one child section. Add and Edit open a
+ * native <dialog> (daisyUI modal) with every field; saving or removing a row saves the section straight away (the
  * server replaces the section in full), so nothing here is ever unsaved.
  */
 export function RowList({ caseId, section, def, rows, totals, required, cap, config }: RowListProps) {
@@ -60,6 +58,22 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
     const atCap = cap !== undefined && rows.length >= cap;
     const rowLabel = def.rowLabel.toLowerCase();
     const headingId = `${section}-heading`;
+    const dialogTitleId = `${section}-dialog-title`;
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const open = editing !== null;
+
+    // The modal follows `editing`: shown while a row is being added or edited, closed otherwise.
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!dialog) {
+            return;
+        }
+        if (open && !dialog.open) {
+            dialog.showModal();
+        } else if (!open && dialog.open) {
+            dialog.close();
+        }
+    }, [open]);
 
     // Keep the page in range when rows are removed.
     useEffect(() => {
@@ -127,7 +141,11 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
             return '—';
         }
         if (field.kind === 'boolean') {
-            return row[key] === true ? <Badge variant="default">Yes</Badge> : <span className="text-muted-foreground">No</span>;
+            return row[key] === true ? (
+                <span className="badge badge-sm badge-soft badge-primary">Yes</span>
+            ) : (
+                <span className="text-base-content/60">No</span>
+            );
         }
 
         return displayValue(field, row[key], config);
@@ -136,36 +154,40 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
     return (
         <section aria-labelledby={headingId} className="space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h2 id={headingId} className="text-lg font-semibold">
-                    {def.title} {required && <span className="text-muted-foreground text-sm font-normal">(required)</span>}
-                    <span className="text-muted-foreground ml-2 text-sm font-normal">
+                <h2 id={headingId} className="text-lg font-semibold capitalize">
+                    {def.title} {required && <span className="text-base-content/60 text-sm font-normal">(required)</span>}
+                    <span className="text-base-content/60 ml-2 text-sm font-normal tabular-nums">
                         {rows.length}
                         {cap !== undefined && ` of ${cap}`}
                     </span>
                 </h2>
-                <Button type="button" variant="outline" size="sm" onClick={openNew} disabled={atCap || processing}>
+                <button type="button" className="btn btn-sm capitalize" onClick={openNew} disabled={atCap || processing}>
+                    <Plus className="size-4" aria-hidden="true" />
                     Add {rowLabel}
-                </Button>
+                </button>
             </div>
 
-            {sectionError && !editing && <p className="text-destructive-text text-sm">{sectionError}</p>}
+            {sectionError && !editing && (
+                <p className="text-error flex items-start gap-1.5 text-sm">
+                    <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 break-words">{sectionError}</span>
+                </p>
+            )}
 
             {rows.length === 0 ? (
-                <p className="text-muted-foreground rounded-md border border-dashed p-4 text-sm">No {rowLabel}s yet.</p>
+                <p className="border-base-300 text-base-content/70 rounded-box border border-dashed p-4 text-sm">No {rowLabel}s yet.</p>
             ) : (
-                <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
+                <div className="border-base-300 bg-base-100 rounded-box max-w-full min-w-0 overflow-x-auto border">
+                    <table className="table-sm table">
+                        <thead>
                             <tr>
-                                <th scope="col" className="px-3 py-2 font-medium">
-                                    #
-                                </th>
+                                <th scope="col">#</th>
                                 {def.summary.map((col) => (
-                                    <th key={col.key} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
+                                    <th key={col.key} scope="col" className="whitespace-nowrap capitalize">
                                         {col.label}
                                     </th>
                                 ))}
-                                <th scope="col" className="px-3 py-2">
+                                <th scope="col">
                                     <span className="sr-only">Actions</span>
                                 </th>
                             </tr>
@@ -176,45 +198,43 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                                 const name = `${def.rowLabel} ${index + 1}`;
 
                                 return (
-                                    <tr key={row.id ?? index} className="border-t">
-                                        <td className="text-muted-foreground px-3 py-2 tabular-nums">{index + 1}</td>
+                                    <tr key={row.id ?? index} className="hover:bg-base-200 motion-safe:transition-colors">
+                                        <td className="text-base-content/60 tabular-nums">{index + 1}</td>
                                         {def.summary.map((col) => (
-                                            <td key={col.key} className="px-3 py-2 break-words">
+                                            <td key={col.key} className="break-words">
                                                 {cell(row, col.key, col.derived)}
                                             </td>
                                         ))}
-                                        <td className="px-3 py-2">
+                                        <td>
                                             {removing === index ? (
-                                                <div className="flex justify-end gap-1 whitespace-nowrap">
-                                                    <Button
+                                                <div className="flex justify-end gap-1 whitespace-nowrap [&_.btn]:capitalize">
+                                                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRemoving(null)}>
+                                                        Keep
+                                                    </button>
+                                                    <button
                                                         type="button"
-                                                        variant="destructive"
-                                                        size="sm"
+                                                        className="btn btn-sm btn-error"
                                                         onClick={() => remove(index)}
                                                         disabled={processing}
                                                     >
                                                         Remove<span className="sr-only"> {name}</span>
-                                                    </Button>
-                                                    <Button type="button" variant="ghost" size="sm" onClick={() => setRemoving(null)}>
-                                                        Keep
-                                                    </Button>
+                                                    </button>
                                                 </div>
                                             ) : (
-                                                <div className="flex justify-end gap-1 whitespace-nowrap">
-                                                    <Button
+                                                <div className="flex justify-end gap-1 whitespace-nowrap [&_.btn]:capitalize">
+                                                    <button
                                                         type="button"
-                                                        variant="outline"
-                                                        size="sm"
+                                                        className="btn btn-sm"
                                                         onClick={() => {
                                                             setShowErrors(false);
                                                             setEditing({ index, values: toEditable(def, row) });
                                                         }}
                                                     >
                                                         Edit<span className="sr-only"> {name}</span>
-                                                    </Button>
-                                                    <Button type="button" variant="ghost" size="sm" onClick={() => setRemoving(index)}>
+                                                    </button>
+                                                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRemoving(index)}>
                                                         Remove<span className="sr-only"> {name}</span>
-                                                    </Button>
+                                                    </button>
                                                 </div>
                                             )}
                                         </td>
@@ -227,16 +247,16 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
             )}
 
             {pages > 1 && (
-                <nav aria-label={`${def.title} pages`} className="flex items-center gap-2 text-sm">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 0}>
+                <nav aria-label={`${def.title} pages`} className="join">
+                    <button type="button" className="join-item btn btn-sm capitalize" onClick={() => setPage(page - 1)} disabled={page === 0}>
                         Previous
-                    </Button>
-                    <span>
+                    </button>
+                    <span className="join-item border-base-300 flex items-center border-y px-3 text-sm tabular-nums">
                         Page {page + 1} of {pages}
                     </span>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= pages - 1}>
+                    <button type="button" className="join-item btn btn-sm capitalize" onClick={() => setPage(page + 1)} disabled={page >= pages - 1}>
                         Next Page
-                    </Button>
+                    </button>
                 </nav>
             )}
 
@@ -244,27 +264,38 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                     {def.totals.map(([key, label]) => (
                         <div key={key} className="flex gap-1">
-                            <dt className="text-muted-foreground">{label}:</dt>
-                            <dd className="font-medium">{totals[key] ?? '—'}</dd>
+                            <dt className="text-base-content/70">{label}:</dt>
+                            <dd className="font-medium tabular-nums">{totals[key] ?? '—'}</dd>
                         </div>
                     ))}
                 </dl>
             )}
 
-            <Dialog open={editing !== null} onOpenChange={(open) => !open && !processing && setEditing(null)}>
-                {/* max-h-[90vh]: the dialog scrolls inside the screen (a layout limit, not a design value): DECISIONS.md D7. */}
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+            <dialog
+                ref={dialogRef}
+                aria-labelledby={dialogTitleId}
+                className="modal"
+                onCancel={(e) => {
+                    // Esc: keep the dialog open while a save is in flight.
+                    e.preventDefault();
+                    if (!processing) {
+                        setEditing(null);
+                    }
+                }}
+                onClose={() => setEditing(null)}
+            >
+                <div className="modal-box w-11/12 max-w-3xl">
                     {editing && (
                         <form onSubmit={submitDialog} noValidate className="grid gap-4">
-                            <DialogHeader>
-                                <DialogTitle>
+                            <div className="grid gap-1">
+                                <h2 id={dialogTitleId} className="text-lg font-semibold capitalize">
                                     {editing.index >= rows.length ? `Add ${rowLabel}` : `Edit ${rowLabel} ${editing.index + 1}`}
-                                </DialogTitle>
-                                <DialogDescription>Saved to your draft as soon as you press Save.</DialogDescription>
-                            </DialogHeader>
+                                </h2>
+                                <p className="text-base-content/70 text-sm">Saved to your draft as soon as you press Save.</p>
+                            </div>
 
                             {showErrors && (
-                                <ul className="text-destructive-text space-y-1 text-sm empty:hidden">
+                                <ul className="text-error space-y-1 text-sm empty:hidden">
                                     {errors[section] && <li>{errors[section]}</li>}
                                     {/* Problems in other saved rows also block the save; name the row. */}
                                     {Object.entries(errors)
@@ -277,7 +308,7 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                                 </ul>
                             )}
 
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
                                 {def.columns.map((field) => (
                                     <FieldInput
                                         key={field.name}
@@ -291,18 +322,24 @@ export function RowList({ caseId, section, def, rows, totals, required, cap, con
                                 ))}
                             </div>
 
-                            <DialogFooter className="gap-2">
-                                <Button type="button" variant="ghost" onClick={() => setEditing(null)} disabled={processing}>
+                            <div className="modal-action border-base-300 mt-2 border-t pt-3 [&_.btn]:capitalize">
+                                <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(null)} disabled={processing}>
                                     Cancel
-                                </Button>
-                                <Button type="submit" disabled={processing}>
+                                </button>
+                                <button type="submit" className="btn btn-sm btn-primary" disabled={processing}>
+                                    {processing && <span className="loading loading-spinner loading-xs" aria-hidden="true" />}
                                     {processing ? 'Saving…' : `Save ${rowLabel}`}
-                                </Button>
-                            </DialogFooter>
+                                </button>
+                            </div>
                         </form>
                     )}
-                </DialogContent>
-            </Dialog>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button type="submit" disabled={processing}>
+                        close
+                    </button>
+                </form>
+            </dialog>
         </section>
     );
 }

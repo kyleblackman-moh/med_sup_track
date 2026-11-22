@@ -68,7 +68,11 @@ interface FormTabsProps {
     onSelect: (tab: TabId) => void;
 }
 
-/** Tab strip. Wraps onto a second line on narrow screens; arrow keys move between tabs. */
+/**
+ * The numbered parts of the request as a daisyUI tab strip (tabs-border).
+ * Each part shows a check when complete, or how many items it still needs.
+ * Wraps onto a second line on narrow screens; arrow keys move between tabs.
+ */
 export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
     const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -85,7 +89,7 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
 
     return (
         <div className="space-y-2">
-            <div role="tablist" aria-label="Request form sections" className="flex flex-wrap gap-1 border-b">
+            <div role="tablist" aria-label="Request form sections" className="tabs tabs-border border-base-300 border-b">
                 {tabs.map((tab, index) => {
                     const { errors } = issuesFor(readiness, tab.id);
                     const complete = errors.length === 0;
@@ -106,22 +110,19 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
                             onClick={() => onSelect(tab.id)}
                             onKeyDown={(e) => onKeyDown(e, index)}
                             className={cn(
-                                '-mb-px flex shrink-0 items-center gap-2 rounded-t-md border-b-3 px-3 py-2 text-sm whitespace-nowrap transition-colors',
-                                complete
-                                    ? 'bg-status-info text-status-info-foreground hover:bg-selected'
-                                    : 'bg-status-warning text-status-warning-foreground hover:bg-status-warning/80',
-                                selected ? 'border-current font-semibold' : 'border-transparent font-medium',
+                                'tab shrink-0 gap-2 whitespace-nowrap capitalize motion-safe:transition-colors',
+                                selected ? 'tab-active font-semibold' : 'font-medium',
                             )}
                         >
                             <span className="tabular-nums opacity-70">{index + 1}.</span>
                             {tab.label}
                             {complete ? (
                                 <>
-                                    <Check className="size-4" aria-hidden />
+                                    <Check className="text-success size-4" aria-hidden />
                                     <span className="sr-only"> (complete)</span>
                                 </>
                             ) : (
-                                <span className="bg-card text-status-warning-foreground border-status-warning-foreground/30 rounded-full border px-1.5 text-xs font-semibold">
+                                <span className="badge badge-sm badge-warning badge-soft tabular-nums">
                                     {errors.length}
                                     <span className="sr-only"> {errors.length === 1 ? 'item' : 'items'} still needed</span>
                                 </span>
@@ -130,12 +131,12 @@ export function FormTabs({ tabs, active, readiness, onSelect }: FormTabsProps) {
                     );
                 })}
             </div>
-            <p className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-hidden>
+            <p className="text-base-content/70 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-hidden>
                 <span className="flex items-center gap-1.5">
-                    <span className="bg-status-info-foreground size-2.5 rounded-sm" /> Complete
+                    <Check className="text-success size-3.5" /> Complete
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="bg-status-warning-foreground size-2.5 rounded-sm" /> Still needs information (number = items left)
+                    <span className="badge badge-xs badge-warning badge-soft border-warning/40" /> Still needs information (number = items left)
                 </span>
                 <span>Updates each time you save.</span>
             </p>

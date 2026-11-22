@@ -1,6 +1,7 @@
 import { TYPE_ICONS as ICONS } from '@/components/requests/type-icons';
 import { RadioOption, RadioStack } from '@/components/ui/radio-group';
 import { type RequestTypeOption } from '@/types/requests';
+import { CircleAlert } from 'lucide-react';
 
 // V2-2: the request type as the first block of the form. RADIO-1: the shared
 // radio rows (RadioOption) stacked one per line, never side by side, with the
@@ -56,7 +57,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
                 icon={
                     Icon && (
                         <span
-                            className="bg-accent text-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-lg"
+                            className="bg-accent text-accent-content rounded-selector flex size-6 shrink-0 items-center justify-center"
                             aria-hidden="true"
                         >
                             <Icon className="size-3.5" />
@@ -73,7 +74,7 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
             <legend className="sr-only">Request Type</legend>
 
             {unselected && (
-                <p id={`${ID}-choose`} className="text-muted-foreground text-sm">
+                <p id={`${ID}-choose`} className="text-base-content/70 text-sm">
                     Choose a request type to continue.
                 </p>
             )}
@@ -90,12 +91,13 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
             )}
 
             {error && (
-                <p id={`${ID}-error`} role="alert" className="text-destructive-text text-sm">
-                    {error}
+                <p id={`${ID}-error`} role="alert" className="text-error flex items-start gap-1.5 text-sm">
+                    <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    <span className="min-w-0 break-words">{error}</span>
                 </p>
             )}
             {showHiddenNote && (
-                <p id={`${ID}-note`} role="status" className="text-muted-foreground text-sm">
+                <p id={`${ID}-note`} role="status" className="text-base-content/70 text-sm">
                     Changing the type may hide sections. What you entered there is kept until you submit.
                 </p>
             )}

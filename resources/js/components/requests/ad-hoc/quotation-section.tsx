@@ -1,6 +1,6 @@
 import { EntryCardRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryCheckGroup, EntryInlineCheck, EntryInput } from './entry-fields';
-import { FieldGrid, Figure, GridRow, RadioGroupField, TableError, TextAreaField, TextField } from './fields';
+import { FieldGrid, FieldHint, Figure, GridRow, RadioGroupField, TableError, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -79,9 +79,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <p className="text-muted-foreground text-helper">
-                        Choose one recommended quotation. Give a reason for any quotation not considered.
-                    </p>
+                    <FieldHint>Choose one recommended quotation. Give a reason for any quotation not considered.</FieldHint>
                     <TableError message={tableError || undefined} />
                     <EntryTable
                         caption="Quotations Received"
@@ -210,7 +208,9 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 <dl>
                     <Figure width="full" label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
                 </dl>
-                <p className="text-muted-foreground text-helper mt-1">The total is worked out by the system and updates after each save.</p>
+                <div className="mt-1">
+                    <FieldHint>The total is worked out by the system and updates after each save.</FieldHint>
+                </div>
             </GridRow>
 
             <GridRow>

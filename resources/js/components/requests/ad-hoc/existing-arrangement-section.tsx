@@ -1,14 +1,9 @@
 import { EntryCell, EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
-import { controlHeight, FieldGrid, GridRow, TableError, TextAreaField } from './fields';
+import { FieldGrid, FieldHint, GridRow, inputClass, selectClass, TableError, TextAreaField } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
-
-const selectClass =
-    'border-input focus-visible:ring-ring ring-offset-background w-full min-w-0 rounded-md border px-3 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
 
 /**
  * V2-2 section "Existing approved arrangement": the orders placed against the
@@ -40,7 +35,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
         <FieldGrid>
             <GridRow>
                 <div id={fieldId.table('purchase_orders')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <p className="text-muted-foreground text-helper">One supplier can have several orders.</p>
+                    <FieldHint>One supplier can have several orders.</FieldHint>
                     <TableError message={tableError || undefined} />
                     <EntryTable
                         caption="Orders"
@@ -111,7 +106,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     <EntryCell label={label('award_id')} htmlFor={supplierId} width="sm">
                                         <select
                                             id={supplierId}
-                                            className={cn(selectClass, controlHeight)}
+                                            className={selectClass(Boolean(supplierError))}
                                             value={valid ? current : ''}
                                             disabled={choosable.length === 0}
                                             aria-label={`${label('award_id')}, ${rowLabel}`}
@@ -132,9 +127,9 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             ))}
                                         </select>
                                         {choosable.length === 0 && (
-                                            <p id={`${supplierId}-hint`} className="text-muted-foreground text-helper">
+                                            <FieldHint hintId={`${supplierId}-hint`}>
                                                 {awaitingSave ? 'Saving...' : 'Add an awarded supplier first.'}
-                                            </p>
+                                            </FieldHint>
                                         )}
                                     </EntryCell>
                                     {input('po_number', 'text', 64)}
@@ -143,24 +138,24 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     {input('quantity_delivered', 'decimal')}
                                     <EntryCell label={label('delivery')} htmlFor={`${deliveryId}-date`} width="sm">
                                         <div className="grid gap-1">
-                                            <Input
+                                            <input
                                                 id={`${deliveryId}-date`}
                                                 type="date"
                                                 value={text(row.values.delivery_eta)}
-                                                className={cn(controlHeight, 'w-full min-w-0')}
+                                                className={inputClass(Boolean(etaError))}
                                                 aria-label={`Delivery Date, ${rowLabel}`}
                                                 aria-required={optional('purchase_orders.delivery_eta') === false ? true : undefined}
                                                 aria-invalid={etaError ? true : undefined}
                                                 aria-describedby={etaError ? errorsId : undefined}
                                                 onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
                                             />
-                                            <Input
+                                            <input
                                                 id={deliveryId}
                                                 type="text"
                                                 maxLength={120}
                                                 value={text(row.values.delivery_status)}
                                                 placeholder="Status"
-                                                className={cn(controlHeight, 'w-full min-w-0')}
+                                                className={inputClass(Boolean(statusError))}
                                                 aria-label={`Delivery Status, ${rowLabel}`}
                                                 aria-required={optional('purchase_orders.delivery_status') === false ? true : undefined}
                                                 aria-invalid={statusError ? true : undefined}

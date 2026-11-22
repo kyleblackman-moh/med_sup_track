@@ -32,15 +32,11 @@ export function SaveChip({
 
     return (
         <div role="status" aria-live="polite" className="text-sm">
-            {status === 'saving' && <span className="text-muted-foreground">Saving...</span>}
-            {status === 'saved' && savedAt && <span className="text-muted-foreground">Saved {clock(savedAt)}</span>}
-            {status === 'partial' && partialText && <span className="text-destructive-text">{partialText}</span>}
+            {status === 'saving' && <span className="text-base-content/70">Saving...</span>}
+            {status === 'saved' && savedAt && <span className="text-base-content/70">Saved {clock(savedAt)}</span>}
+            {status === 'partial' && partialText && <span className="text-error">{partialText}</span>}
             {failed && (
-                <button
-                    type="button"
-                    onClick={onRetry}
-                    className="text-destructive-text focus-visible:ring-ring min-h-11 rounded-md text-left underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-hidden md:min-h-9"
-                >
+                <button type="button" onClick={onRetry} className="link link-error min-h-11 text-left md:min-h-9">
                     {failed}
                 </button>
             )}

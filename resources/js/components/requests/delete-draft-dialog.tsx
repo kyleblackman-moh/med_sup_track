@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { router } from '@inertiajs/react';
+import { Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 interface DeleteDraftDialogProps {
@@ -43,18 +43,29 @@ export function DeleteDraftDialog({ caseId, onClose, onBeforeDelete }: DeleteDra
                 }}
             >
                 <DialogHeader>
-                    <DialogTitle>Delete this draft?</DialogTitle>
+                    <DialogTitle className="capitalize">Delete this draft?</DialogTitle>
                     <DialogDescription>
                         It will be permanently removed together with any files you uploaded. This can&apos;t be undone.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button ref={cancelRef} type="button" variant="outline" className="h-11 md:h-9" onClick={onClose} disabled={deleting}>
+                    <button ref={cancelRef} type="button" className="btn btn-sm capitalize max-md:h-11" onClick={onClose} disabled={deleting}>
                         Cancel
-                    </Button>
-                    <Button type="button" variant="destructive" className="h-11 md:h-9" onClick={() => void confirm()} disabled={deleting}>
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-error btn-sm capitalize max-md:h-11"
+                        onClick={() => void confirm()}
+                        disabled={deleting}
+                        aria-busy={deleting || undefined}
+                    >
+                        {deleting ? (
+                            <span className="loading loading-spinner loading-xs" aria-hidden="true" />
+                        ) : (
+                            <Trash2 className="size-4" aria-hidden="true" />
+                        )}
                         {deleting ? 'Deleting…' : 'Delete Draft'}
-                    </Button>
+                    </button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

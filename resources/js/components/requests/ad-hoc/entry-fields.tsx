@@ -1,8 +1,7 @@
 import { ENTRY_WIDTH, EntryCell, type EntryWidth, type RowError, useChecksOffset } from '@/components/ui/entry-table';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
-import { controlHeight, textareaClass } from './fields';
+import { inputClass, textareaClass } from './fields';
 
 // V2-2: the cells of the form's entry tables (EntryTable). Each control's
 // accessible name is "<column>, <row label>", so a screen reader user always
@@ -58,14 +57,14 @@ export function EntryInput({
 }: EntryInputProps) {
     return (
         <EntryCell label={label} htmlFor={id} width={width} className={className}>
-            <Input
+            <input
                 id={id}
                 type={kind === 'date' ? 'date' : 'text'}
                 // FORM-ERR-1 (E): a keyboard hint only; the server validates and owns the message.
                 inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                 maxLength={maxLength}
                 value={value}
-                className={cn(controlHeight, 'w-full min-w-0')}
+                className={inputClass(Boolean(error))}
                 aria-label={`${label}, ${rowLabel}`}
                 aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
@@ -115,7 +114,7 @@ export function EntryTextArea({
                 rows={rows}
                 maxLength={maxLength}
                 value={value}
-                className={cn(textareaClass, 'min-h-0 w-full min-w-0')}
+                className={textareaClass(Boolean(error), true)}
                 aria-label={`${label}, ${rowLabel}`}
                 aria-required={required ? true : undefined}
                 aria-invalid={error ? true : undefined}
@@ -142,7 +141,7 @@ export function EntryValue({
 }) {
     return (
         <EntryCell label={label} width={width} className={className}>
-            <span className="flex min-h-11 items-center text-sm tabular-nums md:min-h-10">
+            <span className="text-base-content flex min-h-11 items-center text-sm font-semibold tabular-nums md:min-h-10">
                 <span className="sr-only">
                     {label}, {rowLabel}:{' '}
                 </span>
@@ -182,22 +181,19 @@ interface EntryInlineCheckProps {
 
 export function EntryInlineCheck({ id, label, rowLabel, type, name, checked, onChange }: EntryInlineCheckProps) {
     return (
-        <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium md:min-h-10">
+        <label htmlFor={id} className="label text-base-content min-h-11 cursor-pointer gap-2 text-sm font-medium md:min-h-10">
             <input
                 id={id}
                 type={type}
                 name={name}
                 checked={checked}
                 aria-label={`${label}, ${rowLabel}`}
-                // RADIO-1: a radio is the shared daisyUI radio-sm (one Recommended per quotation row, chosen across the rows).
-                className={
-                    type === 'radio'
-                        ? 'radio radio-sm shrink-0'
-                        : 'accent-primary focus-visible:ring-ring size-4 shrink-0 focus-visible:ring-2 focus-visible:ring-offset-2'
-                }
+                // RADIO-1: a radio is the shared daisyUI radio-sm (one Recommended per quotation row, chosen across the rows);
+                // a checkbox is the daisyUI checkbox at the same size.
+                className={type === 'radio' ? 'radio radio-sm shrink-0' : 'checkbox checkbox-sm shrink-0'}
                 onChange={(e) => onChange(e.target.checked)}
             />
-            {label}
+            <span className="capitalize">{label}</span>
         </label>
     );
 }

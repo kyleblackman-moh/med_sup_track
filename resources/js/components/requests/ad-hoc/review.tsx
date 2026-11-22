@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { type ChildSection, type NotSavedItem, type RequestSectionStatus, type SectionIssue } from '@/types/ad-hoc';
+import { CircleAlert, Mailbox, Send } from 'lucide-react';
 import { type RefObject } from 'react';
 import { CHILD_SECTIONS, fieldId, type FormState } from './form-state';
 import { PREVIOUS_REQUEST_ID } from './request-type-section';
@@ -125,17 +125,18 @@ export function IssuesPanel({ panelRef, heading, items, onJump, announce = true 
             tabIndex={-1}
             role={announce ? 'alert' : undefined}
             aria-labelledby="review-issues-heading"
-            className="border-destructive bg-card focus-visible:ring-ring rounded-lg border p-6 focus-visible:ring-2 focus-visible:outline-hidden"
+            className="card bg-base-100 border-error border p-4 focus-visible:outline-2 focus-visible:outline-offset-2 md:p-5"
         >
-            <h2 id="review-issues-heading" className="text-base font-semibold">
+            <h2 id="review-issues-heading" className="flex items-center gap-2 text-base font-semibold capitalize">
+                <CircleAlert className="text-error size-5 shrink-0" aria-hidden="true" />
                 {heading}
             </h2>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
+            <ul className="mt-3 [list-style-type:disc] space-y-1 pl-5 text-sm">
                 {items.map((item) => (
                     <li key={item.key} className="break-words">
                         <a
                             href={item.href ?? `#${item.target}`}
-                            className="text-primary focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-hidden"
+                            className="link link-primary rounded-sm underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
                             onClick={(e) => {
                                 if (item.href || !onJump) {
                                     return;
@@ -167,17 +168,31 @@ export function SubmitDialog({ open, onOpenChange, hardcopyNotice, submitting, o
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Submit this request?</DialogTitle>
+                    <DialogTitle className="capitalize">Submit this request?</DialogTitle>
                     <DialogDescription>Once submitted, the request can no longer be changed. You will get a reference number.</DialogDescription>
                 </DialogHeader>
-                <p className="rounded-md border p-3 text-sm font-medium">{hardcopyNotice}</p>
+                <div className="alert bg-base-100 border-base-300 text-sm font-medium">
+                    <Mailbox className="text-base-content/70 size-5 shrink-0" aria-hidden="true" />
+                    <p>{hardcopyNotice}</p>
+                </div>
                 <DialogFooter>
-                    <Button type="button" variant="outline" className="h-11 md:h-9" onClick={() => onOpenChange(false)} disabled={submitting}>
+                    <button type="button" className="btn btn-sm capitalize max-md:h-11" onClick={() => onOpenChange(false)} disabled={submitting}>
                         Cancel
-                    </Button>
-                    <Button type="button" className="h-11 md:h-9" onClick={onConfirm} disabled={submitting}>
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-primary btn-sm capitalize max-md:h-11"
+                        onClick={onConfirm}
+                        disabled={submitting}
+                        aria-busy={submitting || undefined}
+                    >
+                        {submitting ? (
+                            <span className="loading loading-spinner loading-xs" aria-hidden="true" />
+                        ) : (
+                            <Send className="size-4" aria-hidden="true" />
+                        )}
                         {submitting ? 'Submitting...' : 'Submit Request'}
-                    </Button>
+                    </button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

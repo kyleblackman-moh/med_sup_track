@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { CheckboxField, controlHeight, FieldGrid, Figure, GridRow, TextAreaField, TextField } from './fields';
+import { CheckboxField, FieldGrid, Figure, GridRow, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 
@@ -23,19 +23,19 @@ export function PriceSection({ api }: { api: FormApi }) {
     if (!entered && !adding) {
         return (
             <div className="grid gap-2">
-                <p className="text-muted-foreground text-sm">Compare the quoted price with the tender price or the price paid last time.</p>
+                <p className="text-base-content/70 text-sm">Compare the quoted price with the tender price or the price paid last time.</p>
                 <div>
-                    <Button
+                    <button
                         type="button"
-                        variant="outline"
-                        className={controlHeight}
+                        className="btn btn-outline btn-sm capitalize"
                         onClick={() => {
                             setAdding(true);
                             window.setTimeout(() => document.getElementById(fieldId.requisition('tender_price'))?.focus(), 0);
                         }}
                     >
+                        <Plus aria-hidden="true" className="size-4" />
                         Add Price Comparison
-                    </Button>
+                    </button>
                 </div>
             </div>
         );

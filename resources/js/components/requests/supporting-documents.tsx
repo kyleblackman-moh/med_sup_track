@@ -1,9 +1,6 @@
 import InputError from '@/components/input-error';
 import { UploadProgress } from '@/components/requests/upload-progress';
 import { useDocumentUploads, type UploadItem } from '@/components/requests/use-document-uploads';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { type DocumentGroup, type RequestDocument, type UploadRules } from '@/types/requests';
 import { router, usePage } from '@inertiajs/react';
 import { CircleAlert, CircleCheck, FileText, LoaderCircle, RotateCw, Upload, X } from 'lucide-react';
@@ -68,11 +65,11 @@ export function SupportingDocuments({ caseId, groups, rules, readOnly = false, r
     return (
         <section aria-labelledby="documents-heading" className="grid gap-3">
             <div>
-                <h2 id="documents-heading" className={embedded ? 'sr-only' : 'text-lg font-semibold'}>
+                <h2 id="documents-heading" className={embedded ? 'sr-only' : 'text-lg font-semibold capitalize'}>
                     Supporting Documents
                 </h2>
                 {!readOnly && rules && (
-                    <p className="text-muted-foreground text-helper">PDF only, up to {Math.round(rules.max_size_kb / 1024)} MB each.</p>
+                    <p className="text-base-content/70 text-helper">PDF only, up to {Math.round(rules.max_size_kb / 1024)} MB each.</p>
                 )}
             </div>
 
@@ -171,12 +168,16 @@ function DocumentCell({ caseId, group, rules, readOnly, reloadProps, onBusyChang
     const nothing = uploads.items.length === 0 && group.documents.length === 0;
 
     return (
-        <article aria-labelledby={titleId} className="bg-subtle grid min-w-0 content-start gap-2 rounded-xl border p-3">
+        <article aria-labelledby={titleId} className="border-base-300 bg-base-200 rounded-box grid min-w-0 content-start gap-2 border p-3">
             <header className="flex flex-wrap items-center justify-between gap-2">
-                <h3 id={titleId} className="text-label leading-snug font-semibold">
+                <h3 id={titleId} className="text-sm leading-snug font-semibold capitalize">
                     {group.label}
                 </h3>
-                {group.is_required ? <Badge variant="outline">Required</Badge> : <span className="text-muted-foreground text-helper">Optional</span>}
+                {group.is_required ? (
+                    <span className="badge badge-sm badge-outline capitalize">Required</span>
+                ) : (
+                    <span className="text-base-content/60 text-helper capitalize">Optional</span>
+                )}
             </header>
             {/* The category's example list stays available to screen readers; the cell shows only the label and the control. */}
             {group.hint && (
@@ -194,6 +195,7 @@ function DocumentCell({ caseId, group, rules, readOnly, reloadProps, onBusyChang
                         type="file"
                         multiple
                         accept="application/pdf,.pdf"
+                        aria-label={`Choose files for ${group.label}`}
                         className="sr-only"
                         tabIndex={-1}
                         aria-hidden
@@ -202,17 +204,22 @@ function DocumentCell({ caseId, group, rules, readOnly, reloadProps, onBusyChang
                             e.target.value = ''; // so choosing the same file again fires onChange
                         }}
                     />
-                    <Button type="button" variant="outline" size="sm" aria-describedby={group.hint ? hintId : undefined} onClick={() => open(null)}>
-                        <Upload aria-hidden />
+                    <button
+                        type="button"
+                        className="btn btn-sm capitalize"
+                        aria-describedby={group.hint ? hintId : undefined}
+                        onClick={() => open(null)}
+                    >
+                        <Upload className="size-4" aria-hidden />
                         Choose File<span className="sr-only"> for {group.label}</span>
-                    </Button>
+                    </button>
                 </div>
             )}
 
-            {note && <p className="text-muted-foreground text-helper">{note}</p>}
+            {note && <p className="text-base-content/70 text-helper">{note}</p>}
 
             {nothing ? (
-                <p className="text-muted-foreground text-helper">No file yet.</p>
+                <p className="text-base-content/60 text-helper">No file yet.</p>
             ) : (
                 <ul className="grid gap-2" aria-label={`Files: ${group.label}`}>
                     {uploads.items.map((item) => (
@@ -236,12 +243,12 @@ function FileName({ name, meta }: { name: string; meta?: string }) {
     return (
         <div className="grid min-w-0 gap-0.5">
             <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <FileText aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+                <FileText aria-hidden="true" className="text-base-content/60 size-4 shrink-0" />
                 <span className="min-w-0 truncate" title={name}>
                     {name}
                 </span>
             </p>
-            {meta && <p className="text-muted-foreground text-helper truncate pl-6">{meta}</p>}
+            {meta && <p className="text-base-content/70 text-helper truncate pl-6 tabular-nums">{meta}</p>}
         </div>
     );
 }
@@ -249,7 +256,7 @@ function FileName({ name, meta }: { name: string; meta?: string }) {
 /** A friendly failure line (icon and text; never only colour). */
 function Failure({ children }: { children: string }) {
     return (
-        <p className="text-destructive-text text-helper flex items-start gap-1.5">
+        <p className="text-error text-helper flex items-start gap-1.5">
             <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 break-words">{children}</span>
         </p>
@@ -260,22 +267,22 @@ function UploadRow({ item, onRetry, onDismiss }: { item: UploadItem; onRetry: ()
     const { state } = item;
 
     return (
-        <li className="bg-card grid gap-1.5 rounded-lg border px-3 py-2">
+        <li className="border-base-300 bg-base-100 rounded-field grid gap-1.5 border px-3 py-2">
             <FileName name={item.file.name} meta={item.replaces ? `Replaces ${item.replaces.display_name}` : undefined} />
-            {state.kind === 'waiting' && <p className="text-muted-foreground text-helper">Waiting to upload</p>}
+            {state.kind === 'waiting' && <p className="text-base-content/70 text-helper">Waiting to upload</p>}
             {state.kind === 'uploading' && <UploadProgress name={item.file.name} percent={state.percent} />}
             {state.kind === 'failed' && (
                 <>
                     <Failure>{state.message}</Failure>
-                    <div className="flex flex-wrap items-center gap-1">
-                        <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-                            <RotateCw aria-hidden />
-                            Retry<span className="sr-only"> {item.file.name}</span>
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={onDismiss}>
-                            <X aria-hidden />
+                    <div className="flex flex-wrap items-center gap-1 [&_.btn]:capitalize">
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={onDismiss}>
+                            <X className="size-4" aria-hidden />
                             Dismiss<span className="sr-only"> {item.file.name}</span>
-                        </Button>
+                        </button>
+                        <button type="button" className="btn btn-sm" onClick={onRetry}>
+                            <RotateCw className="size-4" aria-hidden />
+                            Retry<span className="sr-only"> {item.file.name}</span>
+                        </button>
                     </div>
                 </>
             )}
@@ -288,7 +295,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
 
     if (status === 'Ready') {
         return (
-            <span className="text-status-success-foreground text-helper inline-flex items-center gap-1.5 font-medium">
+            <span className="text-success text-helper inline-flex items-center gap-1.5 font-medium">
                 <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
                 {text}
             </span>
@@ -296,7 +303,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
     }
     if (status === 'Rejected') {
         return (
-            <span className="text-destructive-text text-helper inline-flex items-center gap-1.5 font-medium">
+            <span className="text-error text-helper inline-flex items-center gap-1.5 font-medium">
                 <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
                 {text}
             </span>
@@ -304,7 +311,7 @@ function ScanState({ status }: { status: RequestDocument['status_label'] }) {
     }
 
     return (
-        <span className="text-muted-foreground text-helper inline-flex items-center gap-1.5 font-medium">
+        <span className="text-base-content/70 text-helper inline-flex items-center gap-1.5 font-medium">
             <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />
             {text}
         </span>
@@ -329,28 +336,28 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
     };
 
     return (
-        <li className="bg-card grid gap-1.5 rounded-lg border px-3 py-2">
+        <li className="border-base-300 bg-base-100 rounded-field grid gap-1.5 border px-3 py-2">
             <FileName name={doc.display_name} meta={`Version ${doc.version} · ${formatSize(doc.size_bytes)}`} />
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <ScanState status={doc.status_label} />
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1 [&_.btn]:capitalize">
                     {doc.can_download && (
                         <a
                             href={route('documents.download', doc.id)}
-                            className="text-primary focus-visible:ring-ring inline-flex min-h-8 items-center rounded-md px-2 text-sm font-medium underline focus-visible:ring-2 focus-visible:outline-hidden"
+                            className="link link-primary rounded-field focus-visible:outline-primary inline-flex min-h-8 items-center px-2 text-sm font-medium capitalize focus-visible:outline-2 focus-visible:outline-offset-2"
                         >
                             Download<span className="sr-only"> {doc.display_name}</span>
                         </a>
                     )}
                     {!readOnly && doc.can_replace && !rejected && (
-                        <Button type="button" variant="ghost" size="sm" onClick={onReplace}>
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={onReplace}>
                             Replace<span className="sr-only"> {doc.display_name}</span>
-                        </Button>
+                        </button>
                     )}
                     {!readOnly && doc.can_withdraw && !confirming && (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirming(true)}>
                             Remove<span className="sr-only"> {doc.display_name}</span>
-                        </Button>
+                        </button>
                     )}
                 </div>
             </div>
@@ -360,34 +367,37 @@ function DocumentRow({ caseId, doc, readOnly, onReplace }: { caseId: string; doc
                     <Failure>{REJECTED_TEXT}</Failure>
                     {!readOnly && doc.can_replace && (
                         <div>
-                            <Button type="button" variant="outline" size="sm" onClick={onReplace}>
-                                <RotateCw aria-hidden />
+                            <button type="button" className="btn btn-sm capitalize" onClick={onReplace}>
+                                <RotateCw className="size-4" aria-hidden />
                                 Retry<span className="sr-only">: choose a file to replace {doc.display_name}</span>
-                            </Button>
+                            </button>
                         </div>
                     )}
                 </>
             )}
 
             {confirming && (
-                <form onSubmit={withdraw} className="mt-1 grid gap-2">
-                    <Label htmlFor={reasonId}>Why are you removing this file?</Label>
+                <form onSubmit={withdraw} className="border-base-300 mt-1 grid gap-2 border-t pt-2">
+                    <label id={`${reasonId}-label`} htmlFor={reasonId} className="label text-base-content text-sm font-medium whitespace-normal">
+                        Why are you removing this file?
+                    </label>
                     <textarea
                         id={reasonId}
+                        aria-labelledby={`${reasonId}-label`}
                         maxLength={500}
                         rows={2}
-                        className="border-input bg-input-bg focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-hidden"
+                        className="textarea textarea-sm w-full"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                     />
                     <InputError message={errors.reason ?? errors.document} />
-                    <div className="flex flex-wrap gap-2">
-                        <Button type="submit" variant="destructive" size="sm">
-                            Remove File
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+                    <div className="flex flex-wrap justify-end gap-2 [&_.btn]:capitalize">
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirming(false)}>
                             Cancel
-                        </Button>
+                        </button>
+                        <button type="submit" className="btn btn-sm btn-error">
+                            Remove File
+                        </button>
                     </div>
                 </form>
             )}

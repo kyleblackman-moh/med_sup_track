@@ -145,11 +145,8 @@ function ExpiryBanner({ expiry }: { expiry: FormExpiry }) {
 
     return (
         <GridRow>
-            <div
-                role="status"
-                className="bg-status-warning text-status-warning-foreground border-status-warning-foreground/30 flex gap-3 rounded-lg border p-4 text-sm"
-            >
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div role="status" className="alert alert-warning alert-soft items-start text-sm">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <div className="space-y-1">
                     <p className="font-semibold">Some stock may expire before it is used</p>
                     <ul className="space-y-0.5">

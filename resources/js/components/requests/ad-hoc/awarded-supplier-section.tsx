@@ -39,9 +39,9 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
                     rows.length > 0 && (
-                        <p className="flex justify-end gap-2 border-t px-4 py-2 text-sm">
-                            <span className="text-muted-foreground">Total</span>
-                            <span className="font-medium tabular-nums">{api.form.display.awards_total}</span>
+                        <p className="border-base-300 flex justify-end gap-2 border-t px-4 py-2 text-sm">
+                            <span className="text-base-content/70 capitalize">Total</span>
+                            <span className="font-semibold tabular-nums">{api.form.display.awards_total}</span>
                         </p>
                     )
                 }

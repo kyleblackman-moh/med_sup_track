@@ -1,10 +1,6 @@
 import InputError from '@/components/input-error';
 import { FIELD_GRID, FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
-import { fieldLabel } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
-import { textareaClass } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { type OptionList } from '@/types/requests';
 import { CircleAlert } from 'lucide-react';
@@ -32,35 +28,56 @@ export function GridRow({ width = 'full', children, className }: { width?: Field
 /** The grid span of a field (empty when the field is not in a FieldGrid). */
 const span = (width?: FieldWidth) => (width ? FIELD_WIDTH[width] : undefined);
 
-// Labelled native controls for the AD_HOC form (slice F2). 40px high (V2-2b), 44px
-// below md. V2-4b: no "(optional)" suffix on labels; a field the server marks
-// required carries aria-required for assistive technology. Nothing is marked
-// with an asterisk or red text until there is an actual problem.
+// Labelled native controls for the AD_HOC form (slice F2), daisyUI markup
+// (Blueprint: fieldset, label, input, select, textarea, checkbox). 40px high
+// (the daisyUI field size), 44px below md. V2-4b: no "(optional)" suffix on
+// labels; a field the server marks required carries aria-required for
+// assistive technology. Nothing is marked with an asterisk or red text until
+// there is an actual problem; then the control takes the daisyUI error colour.
 
-// V2-4 (design.md sections 4 and 5): labels 15px/600, helper text 13px, inputs on
-// --input-bg with the --input border kept (3:1), and an invalid field gets the
-// --destructive border with a 3px --destructive-wash halo.
+/** 44px touch target below md; the daisyUI field height (40px) from md. */
+const touchHeight = 'max-md:h-11';
 
-/** The control size and fill for every input and select on the form. */
-export const controlHeight = 'h-11 md:h-10 bg-input-bg aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive-wash';
+/** The daisyUI text input of the form (also the entry rows): full width of its cell, the error colour when invalid. */
+export function inputClass(invalid?: boolean): string {
+    return cn('input w-full min-w-0', touchHeight, invalid && 'input-error');
+}
 
-// OVERNIGHT-3 (B1): the label class, the text area style and the error are the shared ones.
-export { fieldLabel } from '@/components/ui/form-field';
-export { textareaClass } from '@/components/ui/textarea';
+/** The daisyUI select of the form. */
+export function selectClass(invalid?: boolean): string {
+    return cn('select w-full min-w-0', touchHeight, invalid && 'select-error');
+}
+
+/** The daisyUI textarea of the form. `short` drops the minimum height (2-row cells). */
+export function textareaClass(invalid?: boolean, short?: boolean): string {
+    return cn('textarea w-full min-w-0', short && 'min-h-0', invalid && 'textarea-error');
+}
+
+/** The field label (daisyUI fieldset-legend on a real <label>): capitalised, as every label on the form. */
+export const fieldLabelClass = 'fieldset-legend py-0 capitalize';
 
 /** Error text, linked from the control with aria-describedby (the shared InputError). */
 export function FieldError({ id, message }: { id: string; message?: string }) {
     return <InputError id={id} message={message} />;
 }
 
+/** Helper text under a control (13px, muted, sentence case). Give it the id the control names in aria-describedby. */
+export function FieldHint({ hintId, children }: { hintId?: string; children: ReactNode }) {
+    return (
+        <p id={hintId} className="text-muted-foreground text-helper">
+            {children}
+        </p>
+    );
+}
+
 /**
  * A message about a whole table or list ("Add at least one quotation."), shown
- * above it: the same icon and --destructive-text as a field's message
+ * above it: the same icon and error colour as a field's message
  * (MASTER.md section 7). Row and cell problems stay in the row's error list.
  */
 export function TableError({ message }: { message?: string }) {
     return message ? (
-        <p className="text-destructive-text flex items-start gap-1.5 text-sm">
+        <p className="text-error flex items-start gap-1.5 text-sm">
             <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 break-words">{message}</span>
         </p>
@@ -107,31 +124,36 @@ export function TextField({
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
 
+    const control = (
+        <input
+            id={id}
+            type={type}
+            inputMode={inputMode}
+            maxLength={maxLength}
+            value={value}
+            // With a suffix the daisyUI input is the wrapping label; the native input only grows inside it.
+            className={suffix ? 'min-w-0 grow' : inputClass(Boolean(error))}
+            aria-required={optional === false ? true : undefined}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy(hint && hintId, error && errorId)}
+            onChange={(e) => onChange(e.target.value)}
+        />
+    );
+
     return (
-        <div className={cn('grid min-w-0 content-start gap-2', span(width), className)}>
-            <Label htmlFor={id} className={fieldLabel}>
+        <div className={cn('fieldset min-w-0 content-start gap-2 py-0', span(width), className)}>
+            <label htmlFor={id} className={fieldLabelClass}>
                 {label}
-            </Label>
-            <div className="flex items-center gap-2">
-                <Input
-                    id={id}
-                    type={type}
-                    inputMode={inputMode}
-                    maxLength={maxLength}
-                    value={value}
-                    className={controlHeight}
-                    aria-required={optional === false ? true : undefined}
-                    aria-invalid={error ? true : undefined}
-                    aria-describedby={describedBy(hint && hintId, error && errorId)}
-                    onChange={(e) => onChange(e.target.value)}
-                />
-                {suffix && <span className="text-muted-foreground shrink-0 text-sm">{suffix}</span>}
-            </div>
-            {hint && (
-                <p id={hintId} className="text-muted-foreground text-helper">
-                    {hint}
-                </p>
+            </label>
+            {suffix ? (
+                <label className={inputClass(Boolean(error))}>
+                    {control}
+                    <span className="label">{suffix}</span>
+                </label>
+            ) : (
+                control
             )}
+            {hint && <FieldHint hintId={hintId}>{hint}</FieldHint>}
             <FieldError id={errorId} message={error} />
         </div>
     );
@@ -175,29 +197,27 @@ export function TextAreaField({
 }: TextAreaFieldProps) {
     const hintId = `${id}-hint`;
     const errorId = errorListId ?? `${id}-error`;
+    const labelId = `${id}-label`;
 
     return (
-        <div className={cn('grid min-w-0 gap-2', span(width))}>
-            <Label htmlFor={id} className={fieldLabel}>
+        <div className={cn('fieldset min-w-0 gap-2 py-0', span(width))}>
+            <label id={labelId} htmlFor={id} className={fieldLabelClass}>
                 {label}
                 {srLabelSuffix && <span className="sr-only">{srLabelSuffix}</span>}
-            </Label>
+            </label>
             <textarea
                 id={id}
                 rows={rows}
                 maxLength={maxLength}
                 value={value}
-                className={cn(textareaClass, rows < 3 && 'min-h-0')}
+                aria-labelledby={labelId}
+                className={textareaClass(Boolean(error), rows < 3)}
                 aria-required={optional === false ? true : undefined}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={describedBy(hint && hintId, error && errorId)}
                 onChange={(e) => onChange(e.target.value)}
             />
-            {hint && (
-                <p id={hintId} className="text-muted-foreground text-helper">
-                    {hint}
-                </p>
-            )}
+            {hint && <FieldHint hintId={hintId}>{hint}</FieldHint>}
             {!errorListId && <FieldError id={errorId} message={error} />}
         </div>
     );
@@ -249,43 +269,38 @@ interface CheckboxFieldProps {
     width?: FieldWidth;
 }
 
+/** A daisyUI checkbox inside its clickable label (44px row below md, 40px from md). */
 export function CheckboxField({ id, label, checked, onChange, hint, width }: CheckboxFieldProps) {
     const hintId = `${id}-hint`;
 
     return (
-        <div className={cn('grid min-w-0 gap-1', span(width))}>
-            <div className="flex min-h-11 items-center gap-2 md:min-h-10">
+        <div className={cn('fieldset min-w-0 gap-1 py-0', span(width))}>
+            <label htmlFor={id} className="label text-base-content min-h-11 cursor-pointer gap-2 text-sm md:min-h-10">
                 <input
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    className="focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2"
+                    className="checkbox checkbox-sm"
                     aria-describedby={hint ? hintId : undefined}
                     onChange={(e) => onChange(e.target.checked)}
                 />
-                <Label htmlFor={id} className="font-normal">
-                    {label}
-                </Label>
-            </div>
-            {hint && (
-                <p id={hintId} className="text-muted-foreground text-helper">
-                    {hint}
-                </p>
-            )}
+                <span className="capitalize">{label}</span>
+            </label>
+            {hint && <FieldHint hintId={hintId}>{hint}</FieldHint>}
         </div>
     );
 }
 
 /** A server-computed value shown read-only: a label and the value (or a dash). */
 export function Figure({ label, value, suffix, width }: { label: string; value: ReactNode; suffix?: ReactNode; width?: FieldWidth }) {
+    const empty = value === null || value === undefined || value === '';
+
     return (
         <div className={cn('grid min-w-0 gap-0.5', span(width))}>
-            <dt className="text-muted-foreground text-helper">{label}</dt>
-            <dd className="text-sm font-medium tabular-nums">
-                {value === null || value === undefined || value === '' ? '—' : value}
-                {suffix && value !== null && value !== undefined && value !== '' && (
-                    <span className="text-muted-foreground font-normal"> {suffix}</span>
-                )}
+            <dt className="text-base-content/70 text-sm capitalize">{label}</dt>
+            <dd className="text-base-content text-sm font-semibold tabular-nums">
+                {empty ? '—' : value}
+                {suffix && !empty && <span className="text-base-content/70 font-normal"> {suffix}</span>}
             </dd>
         </div>
     );

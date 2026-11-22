@@ -16,21 +16,32 @@ import { CaseHero } from '@/components/requests/case-hero';
 import { DeleteDraftDialog } from '@/components/requests/delete-draft-dialog';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
-import { Button } from '@/components/ui/button';
 import { ProgressStrip, type ProgressItem } from '@/components/ui/progress-strip';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { type AdHocPageProps, type ChildSection, type FormSectionKey, type RequestFormView, type SavedFlash } from '@/types/ad-hoc';
 import { Head, router } from '@inertiajs/react';
-import { ArrowRight, LoaderCircle, Save, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowRight, CircleAlert, Info, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 /** OVERNIGHT-3 (A2): a ready draft goes to the Review page; only the blocked state stays here. */
 type Review = 'none' | 'issues';
 
 /** The props a save, a type change or a review reloads (never the whole page). */
 const FORM_PROPS = ['case', 'request_sections', 'form', 'documents'];
+
+/** The action bar's two button styles (daisyUI btn): the one primary action, and the outline secondary actions. */
+const BAR_BUTTON = {
+    default: 'btn-primary',
+    outline: 'btn-outline',
+} as const;
+
+/** A daisyUI button of the action bar: 44px below md, the daisyUI field height from md, label capitalised. */
+function BarButton({ variant, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant: keyof typeof BAR_BUTTON }) {
+    return <button type="button" className={cn('btn capitalize max-md:h-11', BAR_BUTTON[variant], className)} {...props} />;
+}
 
 /** Focus a field by id, or the first control inside a table, list or fieldset with that id. */
 function focusTarget(id: string) {
@@ -297,7 +308,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
             <div
                 id={fieldId.table('documents')}
                 tabIndex={-1}
-                className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-hidden"
+                className="rounded-box focus-visible:outline-primary outline-offset-2 focus-visible:outline-2"
             >
                 <SupportingDocuments
                     caseId={detail.id}
@@ -333,9 +344,10 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
 
                 <FlashMessages />
                 {reviewFailed && (
-                    <p role="alert" className="text-destructive-text text-sm">
-                        Your latest changes could not be saved, so the request was not reviewed. Try again.
-                    </p>
+                    <div role="alert" className="alert alert-error alert-soft text-sm">
+                        <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
+                        <span>Your latest changes could not be saved, so the request was not reviewed. Try again.</span>
+                    </div>
                 )}
                 {/* FORM-SAVE-1 (A5d): the one error summary, at the top, when Review and Submit is blocked. */}
                 {review === 'issues' && (
@@ -347,12 +359,13 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                     />
                 )}
                 {typeNotice && (
-                    <p role="status" className="bg-muted text-foreground rounded-md border px-4 py-2 text-sm">
-                        {typeNotice}
-                    </p>
+                    <div role="status" className="alert alert-info alert-soft text-sm">
+                        <Info aria-hidden="true" className="size-4 shrink-0" />
+                        <span>{typeNotice}</span>
+                    </div>
                 )}
 
-                <div data-sticky-strip className="bg-background/95 sticky top-16 z-10 -mx-4 px-4 py-3 backdrop-blur-sm md:-mx-6 md:px-6 print:hidden">
+                <div data-sticky-strip className="bg-base-200/95 sticky top-16 z-10 -mx-4 px-4 py-3 md:-mx-6 md:px-6 print:hidden">
                     <ProgressStrip items={progress} label="Form sections" />
                 </div>
 
@@ -369,16 +382,10 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                 <StickyActionBar
                     left={
                         can.edit && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="lg"
-                                className="text-destructive-text border-destructive hover:bg-destructive-wash hover:text-destructive-text text-label px-4 font-semibold"
-                                onClick={() => setDeleting(true)}
-                            >
-                                <Trash2 aria-hidden="true" />
+                            <BarButton variant="outline" className="btn-error" onClick={() => setDeleting(true)}>
+                                <Trash2 aria-hidden="true" className="size-4" />
                                 Delete Draft
-                            </Button>
+                            </BarButton>
                         )
                     }
                     right={
@@ -390,35 +397,20 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                                 onRetry={autosave.retry}
                             />
                             {can.edit && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="lg"
-                                    className="text-primary hover:text-primary-strong text-label px-4 font-semibold"
-                                    disabled={savingDraft}
-                                    onClick={() => void saveDraft()}
-                                >
-                                    <Save aria-hidden="true" />
+                                <BarButton variant="outline" disabled={savingDraft} onClick={() => void saveDraft()}>
+                                    <Save aria-hidden="true" className="size-4" />
                                     {savingDraft ? 'Saving…' : 'Save Draft'}
-                                </Button>
+                                </BarButton>
                             )}
                             {/* One primary action per view. OVERNIGHT-3 (A2): Submit Request is on the Review page. */}
-                            <Button
-                                type="button"
-                                variant="default"
-                                size="lg"
-                                className="text-label px-5 font-semibold"
-                                disabled={reviewing}
-                                aria-busy={reviewing || undefined}
-                                onClick={() => void startReview()}
-                            >
+                            <BarButton variant="default" disabled={reviewing} aria-busy={reviewing || undefined} onClick={() => void startReview()}>
                                 Review and Submit
                                 {reviewing ? (
-                                    <LoaderCircle aria-hidden="true" className="motion-safe:animate-spin" />
+                                    <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
                                 ) : (
-                                    <ArrowRight aria-hidden="true" />
+                                    <ArrowRight aria-hidden="true" className="size-4" />
                                 )}
-                            </Button>
+                            </BarButton>
                         </>
                     }
                 />

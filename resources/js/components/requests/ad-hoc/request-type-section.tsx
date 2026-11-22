@@ -1,7 +1,7 @@
 import { FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { type RequestTypeOption } from '@/types/requests';
-import { FieldError, FieldGrid, TextField } from './fields';
+import { FieldError, FieldGrid, FieldHint, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { TypeCards } from './type-cards';
@@ -107,9 +107,11 @@ function PreviousRequestQuestion({ value, onChange, error, required, showHiddenN
         >
             <FieldError id={errorId} message={error} />
             {showHiddenNote && (
-                <p id={noteId} role="status" className="text-muted-foreground text-helper">
-                    Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.
-                </p>
+                <div role="status">
+                    <FieldHint hintId={noteId}>
+                        Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.
+                    </FieldHint>
+                </div>
             )}
         </RadioGroup>
     );
