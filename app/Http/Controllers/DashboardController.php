@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Http\Resources\Dashboard\DashboardDrafts;
 use App\Http\Resources\Dashboard\DashboardView;
 use App\Support\WorkQueue;
@@ -39,6 +40,8 @@ class DashboardController extends Controller
             'queue' => fn () => DashboardView::queue($user, $loadQueue()['value'], $filter, $search),
             // ANALYTICS: the user's own organisation's drafts; null without case.submit.
             'drafts' => fn () => DashboardDrafts::for($user),
+            // FR-04: the reference lookup box (registry and CMO); show/hide only, the lookup authorises itself.
+            'hardcopyLookup' => ! $user->isVendor() && $user->can(Permission::HardcopyConfirm->value),
         ]);
     }
 }

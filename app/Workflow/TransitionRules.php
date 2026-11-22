@@ -101,9 +101,10 @@ final class TransitionRules
             new TransitionRule('T15', [S::DRAFT, S::SUBMITTED, S::IN_REVIEW], S::WITHDRAWN, P::CaseWithdraw->value,
                 requiresReason: true, holderRole: null, guard: self::withdrawGuard(...)),
 
-            // Rule TBC (open question Q3). Disabled: the service treats it as nonexistent.
+            // Q3 (Kyle, 2026-11-22): the CMO rejects on the Permanent Secretary's instruction,
+            // confirmed on the form (EndCase::reject requires ps_instructed).
             new TransitionRule('T16', [S::WITH_PS, S::RETURNED_TO_CMO], S::REJECTED_FINAL, P::CaseRejectFinal->value,
-                requiresReason: true, holderRole: null, enabled: false),
+                requiresReason: true, holderRole: null),
 
             // Assumption A1: after a PS query is answered the case returns to the PS.
             // Slice 10e: only a case the PS returned can go back to the PS.

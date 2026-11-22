@@ -12,7 +12,6 @@ use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\CaseTransitionService;
-use App\Workflow\Exceptions\InvalidTransition;
 use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -383,17 +382,14 @@ it('gives WITH_PS, NON_OBJECTION_GRANTED and RETURNED_TO_CMO the same vendor lab
 
 // 7. T16 -------------------------------------------------------------------------
 
-it('keeps T16 disabled so nothing reaches REJECTED_FINAL', function () {
+it('enables T16 for the CMO from WITH_PS and RETURNED_TO_CMO, with a reason (Q3 decided: on PS instruction)', function () {
     $t16 = collect(TransitionRules::all())->firstWhere('code', 'T16');
-    $case = case10d(CaseStatus::WITH_PS);
 
-    expect($t16->enabled)->toBeFalse()
-        ->and(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL))->toBeNull()
-        ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull()
-        ->and(fn () => app(CaseTransitionService::class)->transition($case, CaseStatus::REJECTED_FINAL, caseUser(Role::Cmo), 'Final rejection test'))
-        ->toThrow(InvalidTransition::class);
-
-    expect(row10d($case)->status)->toBe('WITH_PS');
+    expect($t16->enabled)->toBeTrue()
+        ->and($t16->requiresReason)->toBeTrue()
+        ->and(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL)?->code)->toBe('T16')
+        ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL)?->code)->toBe('T16')
+        ->and(TransitionRules::find(CaseStatus::IN_REVIEW, CaseStatus::REJECTED_FINAL))->toBeNull();
 });
 
 // 8. Second round ----------------------------------------------------------------

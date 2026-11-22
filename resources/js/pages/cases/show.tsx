@@ -1,5 +1,7 @@
+import { ActionPanel } from '@/components/cases/action-panel';
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
 import { CaseTimeline } from '@/components/cases/case-timeline';
+import { CaseOutcomeAlert, EndCasePanel } from '@/components/cases/end-case';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
 import { QueriesPanel } from '@/components/cases/queries-panel';
@@ -14,6 +16,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AssignmentEntry,
+    type CaseOutcome,
     type EligibleReviewers,
     type GateState,
     type GrantedLine,
@@ -35,8 +38,8 @@ import {
     type TimelineEntry,
 } from '@/types/cases';
 import { type RequestSummaryView } from '@/types/summary';
-import { Head } from '@inertiajs/react';
-import { CircleCheck, FileText, History, Info, Mail, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { CircleCheck, Download, FileText, History, Info, Mail, QrCode, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface Props {
@@ -68,6 +71,8 @@ interface Props {
     route_panel: RoutePanel | null;
     letter: LetterRecord | null;
     letter_dates: { today: string } | null;
+    /** FR-09: how a withdrawn or rejected case ended; null otherwise. */
+    outcome: CaseOutcome | null;
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
     /** OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on. */
@@ -187,6 +192,7 @@ export default function CaseShow({
     route_panel,
     letter,
     letter_dates,
+    outcome,
     summary,
     queries,
     can,
@@ -422,9 +428,33 @@ export default function CaseShow({
                                             </div>
                                         )}
 
+                                        {outcome && <CaseOutcomeAlert outcome={outcome} />}
+
                                         <Card title="Gate" id="gate-heading" icon={ShieldCheck}>
                                             <GateTracker gate={gate} />
                                         </Card>
+
+                                        {can.cover_sheet && (
+                                            <ActionPanel
+                                                title="Hardcopy Cover Sheet"
+                                                icon={QrCode}
+                                                description="The sheet that goes on the front of the paper file: the reference number and its QR code, for the reference lookup on the dashboard."
+                                                actions={
+                                                    <Link href={route('cases.cover-sheet', detail.id)} className="btn btn-sm">
+                                                        <Download className="size-4" aria-hidden="true" />
+                                                        Download Cover Sheet
+                                                    </Link>
+                                                }
+                                            />
+                                        )}
+
+                                        <EndCasePanel
+                                            caseId={detail.id}
+                                            reference={detail.reference_no}
+                                            organisation={detail.organisation}
+                                            canWithdraw={can.withdraw}
+                                            canReject={can.reject_final}
+                                        />
                                     </>
                                 )}
 
@@ -572,6 +602,8 @@ export default function CaseShow({
                             <div id="case-actions" className="flex min-w-0 flex-col gap-4 p-4">
                                 <NextStepCard
                                     caseId={detail.id}
+                                    reference={detail.reference_no}
+                                    organisation={detail.organisation}
                                     next={next_step}
                                     reviewers={reviewers}
                                     fileNoDefault={file_no_default}

@@ -1,5 +1,6 @@
 import { DraftsCard, type DashboardDrafts } from '@/components/dashboard/drafts-card';
 import { RISE } from '@/components/dashboard/motion';
+import { ReferenceLookup } from '@/components/dashboard/reference-lookup';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageHeader } from '@/components/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -26,6 +27,8 @@ interface Props {
     queue: DashboardQueue | null;
     /** The user's own drafts (vendors); null for staff. Charts and tracking live on Analytics. */
     drafts: DashboardDrafts | null;
+    /** FR-04: show the reference lookup (registry and CMO); the lookup authorises itself. */
+    hardcopyLookup?: boolean;
 }
 
 const PRIMARY_ACTION = 'btn btn-primary btn-sm capitalize transition-transform active:scale-[0.97]';
@@ -37,7 +40,7 @@ const PRIMARY_ACTION = 'btn btn-primary btn-sm capitalize transition-transform a
  * go, driven by the shared `can` flags. Charts and tracking live on Analytics.
  * Never shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, header, queue, drafts }: Props) {
+export default function Dashboard({ workQueue, header, queue, drafts, hardcopyLookup = false }: Props) {
     const { can } = usePage<SharedData>().props;
     // DASH-1: the one crumb is the page itself, from the named route.
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: route('dashboard') }];
@@ -78,6 +81,12 @@ export default function Dashboard({ workQueue, header, queue, drafts }: Props) {
                         )
                     }
                 />
+
+                {hardcopyLookup && (
+                    <div className={RISE[1]}>
+                        <ReferenceLookup />
+                    </div>
+                )}
 
                 <div className={RISE[2]}>
                     {queue && drafts === null && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}

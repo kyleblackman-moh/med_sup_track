@@ -324,7 +324,7 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 | T13 | `NON_OBJECTION_GRANTED` | `LETTER_ISSUED` | CMO | Letter generated | No |
 | T14 | `LETTER_ISSUED` | `CLOSED` | CMO | Hardcopy dispatch confirmed | No |
 | T15 | `DRAFT`, `SUBMITTED`, `IN_REVIEW` | `WITHDRAWN` | Vendor Applicant (until intake), CMO | None **[Assumption]** | **Yes** |
-| T16 | `WITH_PS`, `RETURNED_TO_CMO` | `REJECTED_FINAL` | CMO (on PS instruction) | **Rule TBC (Q3)** | **Yes** |
+| T16 | `WITH_PS`, `RETURNED_TO_CMO` | `REJECTED_FINAL` | CMO (on PS instruction) | The CMO confirms the PS instructed it (Q3, [Decided] 2026-11-22) | **Yes** |
 
 > **Assumption A1.** After a PS query is answered, the case returns to `WITH_PS`. This path needs a transition (T17: `RETURNED_TO_CMO → WITH_PS`, CMO) that the current diagram implies but does not show. Confirm in Q2/Q3.
 
@@ -858,7 +858,7 @@ No SLAs exist. After 4-6 weeks of live timestamps, review per-stage durations an
 |---|---|---|---|
 | Q1 | Is the staff directory AD/Entra (SAML2/OIDC possible) or LDAP only? | MOH ICT | Choice of auth driver only |
 | Q2 | When Technocrats answer a Legal or PS query, does the answer return via CMO? (Assumed yes.) | CMO's Office | Routes and transitions T11/T12/T17 |
-| Q3 | Can a PS rejection end the case (`REJECTED_FINAL`), or does it always loop to the CMO team? Is the vendor notified of a final rejection, and can it resubmit? | CMO's Office, PS | T16, resubmission path |
+| Q3 | Can a PS rejection end the case (`REJECTED_FINAL`), or does it always loop to the CMO team? Is the vendor notified of a final rejection, and can it resubmit? **[Decided 2026-11-22, Kyle]** Yes: the CMO ends the case on the PS's instruction (confirmed on the form). The vendor is notified and sees "Not approved" with the Ministry's optional message; a new request is a new case. | CMO's Office, PS | T16, resubmission path |
 | Q4 | Who can mark hardcopy received: Registry only, or any CMO staff? | CMO's Office | Permission `hardcopy.confirm` |
 | Q5 | Is the HE:8/2/50 file number a fixed series with running number, or entered manually? | CMO's Office | Number generator |
 | Q6 | How many NIPDEC users, and does NIPDEC have an IT team or identity provider? | NIPDEC | Account model, future federation |

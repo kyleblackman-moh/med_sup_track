@@ -3,9 +3,12 @@
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\CaseEndController;
 use App\Http\Controllers\CaseQueryController;
+use App\Http\Controllers\CoverSheetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\HardcopyLookupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
@@ -79,6 +82,11 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::delete('{procurementCase}', 'destroy')->middleware('throttle:20,1')->name('destroy')
             ->missing(fn (Request $request) => RequestController::missingDraft($request));
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
+        // FR-03: the printable hardcopy cover sheet (QR of the reference).
+        Route::get('{procurementCase}/cover-sheet', [CoverSheetController::class, 'vendor'])->name('cover-sheet');
+        // FR-09: the vendor withdraws a submitted request (T15; before intake only).
+        Route::post('{procurementCase}/withdraw', [CaseEndController::class, 'vendorWithdraw'])
+            ->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
             ->middleware('throttle:10,1')->name('submit');
         // OVERNIGHT-2 (D3): the vendor's text reply to a query from the Ministry.
@@ -112,10 +120,13 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
     ->controller(StaffCaseController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
+        // FR-04: the dashboard's reference lookup. Before {queryCase}, which would take "lookup" as an id.
+        Route::get('lookup', HardcopyLookupController::class)->middleware('throttle:60,1')->name('lookup');
         // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.
         Route::get('{queryCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
+        Route::get('{procurementCase}/cover-sheet', [CoverSheetController::class, 'staff'])->name('cover-sheet');
 
         // Slice 9b actions. 20 a minute per user.
         Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {
@@ -133,6 +144,12 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/close', 'closeCase')->name('close');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
+        });
+
+        // FR-09: withdraw (T15) and final rejection on the PS's instruction (T16). Irreversible.
+        Route::controller(CaseEndController::class)->middleware('throttle:10,1')->group(function () {
+            Route::post('{procurementCase}/withdraw', 'withdraw')->name('withdraw');
+            Route::post('{procurementCase}/reject', 'reject')->name('reject');
         });
 
         // OVERNIGHT-2 (D2): query loops. An unknown or invisible query or message is 404.

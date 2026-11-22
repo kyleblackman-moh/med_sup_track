@@ -30,14 +30,33 @@ export function hardcopyText(hardcopy: HardcopyRecord | null): string {
  * NEXT-STEP-1: Date Received and Save, shown with the Next Step card when its
  * checklist carries the hardcopy form (it replaced the separate Hardcopy
  * block). Only rendered when the server sends the form bounds; the server
- * checks every date again.
+ * checks every date again. FR-04: Save opens a confirmation naming the
+ * reference, the vendor and the date, so the right paper file is recorded.
  */
-export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: { today: string; earliest: string | null } }) {
+export function HardcopyRecordForm({
+    caseId,
+    reference,
+    organisation,
+    dates,
+}: {
+    caseId: string;
+    reference: string | null;
+    organisation: string | null;
+    dates: { today: string; earliest: string | null };
+}) {
     const mark = useForm({ received_on: dates.today });
+    const [confirming, setConfirming] = useState(false);
 
-    const submit = (e: FormEvent) => {
+    const review = (e: FormEvent) => {
         e.preventDefault();
-        mark.post(route('cases.hardcopy.store', caseId), { preserveScroll: true });
+        if (mark.data.received_on) setConfirming(true);
+    };
+
+    const save = () => {
+        mark.post(route('cases.hardcopy.store', caseId), {
+            preserveScroll: true,
+            onFinish: () => setConfirming(false),
+        });
     };
 
     return (
@@ -45,10 +64,10 @@ export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: {
             title="Record the Hardcopy"
             icon={PackageCheck}
             description="The date the paper file reached the office."
-            onSubmit={submit}
+            onSubmit={review}
             actions={
-                <Button type="submit" size="sm" className="active:scale-[0.97]" disabled={mark.processing}>
-                    {mark.processing ? 'Saving…' : 'Save'}
+                <Button type="submit" size="sm" className="active:scale-[0.97]" disabled={mark.processing || !mark.data.received_on}>
+                    Save
                 </Button>
             }
         >
@@ -70,6 +89,30 @@ export function HardcopyRecordForm({ caseId, dates }: { caseId: string; dates: {
                 />
                 <InputError id="hardcopy-received-on-error" message={mark.errors.received_on ?? (mark.errors as Record<string, string>).hardcopy} />
             </fieldset>
+
+            <Dialog open={confirming} onOpenChange={(open) => !mark.processing && setConfirming(open)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="capitalize">Record the hardcopy as received?</DialogTitle>
+                        <DialogDescription>Check that the paper file in front of you matches this case.</DialogDescription>
+                    </DialogHeader>
+                    <ActionFacts
+                        items={[
+                            ['Reference', <span className="font-mono">{reference ?? '—'}</span>],
+                            ['Vendor', organisation ?? '—'],
+                            ['Date Received', mark.data.received_on ? formatDay(mark.data.received_on) : '—'],
+                        ]}
+                    />
+                    <DialogFooter className="gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={mark.processing}>
+                            Cancel
+                        </Button>
+                        <Button type="button" size="sm" onClick={save} disabled={mark.processing}>
+                            {mark.processing ? 'Saving…' : 'Record as Received'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </ActionPanel>
     );
 }

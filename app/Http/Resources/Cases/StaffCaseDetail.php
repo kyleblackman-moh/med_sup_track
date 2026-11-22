@@ -13,6 +13,7 @@ use App\Enums\TrackStatus;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestSummary;
 use App\Models\CaseAssignment;
+use App\Models\CaseOutcome;
 use App\Models\CaseTransition;
 use App\Models\Document;
 use App\Models\ProcurementCase;
@@ -117,6 +118,8 @@ final class StaffCaseDetail
             // Slice 10f: the recorded letter (staff only), and the latest date the issue form accepts.
             'letter' => self::letter($case),
             'letter_dates' => $canIssueLetter ? ['today' => CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString()] : null,
+            // FR-09: how a withdrawn or rejected case ended (staff view: the reason and the vendor message).
+            'outcome' => self::outcome($case),
             'hardcopy' => self::hardcopy($case),
             // Bounds for the date input; the server re-checks both.
             'hardcopy_dates' => [
@@ -164,6 +167,13 @@ final class StaffCaseDetail
                 'route_onward' => $canRoute,
                 'issue_letter' => $canIssueLetter,
                 'close_case' => $canClose,
+                // FR-09: the same checks EndCase runs (through CaseTransitionService).
+                'withdraw' => in_array($case->status, [CaseStatus::SUBMITTED, CaseStatus::IN_REVIEW], true)
+                    && Gate::forUser($user)->allows('act', [$case, Permission::CaseWithdraw->value]),
+                'reject_final' => in_array($case->status, [CaseStatus::WITH_PS, CaseStatus::RETURNED_TO_CMO], true)
+                    && Gate::forUser($user)->allows('act', [$case, Permission::CaseRejectFinal->value]),
+                // FR-03: every case with a reference has a cover sheet.
+                'cover_sheet' => $case->reference_no !== null,
             ],
         ];
     }
@@ -197,6 +207,7 @@ final class StaffCaseDetail
             'letter_dates' => null,
             'hardcopy' => null,
             'hardcopy_dates' => null,
+            'outcome' => null,
             'documents' => [],
             'summary' => null,
             'timeline' => [],
@@ -212,8 +223,41 @@ final class StaffCaseDetail
                     'download_documents', 'intake', 'record_hardcopy', 'forward_for_review', 'record_review',
                     'mark_ready_for_file', 'prepare_file', 'send_to_legal', 'record_legal_decision',
                     'record_ps_decision', 'route_onward', 'issue_letter', 'close_case',
+                    'withdraw', 'reject_final', 'cover_sheet',
                 ], false),
             ],
+        ];
+    }
+
+    /**
+     * FR-09: the outcome of a WITHDRAWN or REJECTED_FINAL case for staff: who
+     * ended it and when, the internal reason (case_transitions.reason), the
+     * message the vendor sees, and the PS instruction flag. Null otherwise.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function outcome(ProcurementCase $case): ?array
+    {
+        if (! in_array($case->status, [CaseStatus::WITHDRAWN, CaseStatus::REJECTED_FINAL], true)) {
+            return null;
+        }
+
+        $row = CaseTransition::query()->with('actor:id,name,user_type')
+            ->where('case_id', $case->getKey())
+            ->where('to_status', $case->status->value)
+            ->orderByDesc('id')
+            ->first();
+        $outcome = CaseOutcome::query()->where('case_id', $case->getKey())->first();
+
+        return [
+            'kind' => $case->status === CaseStatus::WITHDRAWN ? CaseOutcome::WITHDRAWN : CaseOutcome::REJECTED,
+            'label' => $case->status === CaseStatus::WITHDRAWN ? 'Withdrawn' : 'Rejected',
+            'by' => $row?->actor?->name,
+            'by_vendor' => (bool) $row?->actor?->isVendor(),
+            'at' => $row?->created_at?->copy()->utc()->toIso8601ZuluString(),
+            'reason' => $row?->reason,
+            'vendor_message' => $outcome?->vendor_message,
+            'ps_instructed' => (bool) $outcome?->ps_instructed,
         ];
     }
 

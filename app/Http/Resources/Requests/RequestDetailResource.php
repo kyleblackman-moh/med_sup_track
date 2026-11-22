@@ -4,10 +4,12 @@ namespace App\Http\Resources\Requests;
 
 use App\Enums\CaseStatus;
 use App\Enums\ProcurementCategory;
+use App\Models\CaseOutcome;
 use App\Models\CasePurchaseOrder;
 use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
+use App\Models\CaseTransition;
 use App\Models\CaseVariationRow;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
@@ -16,6 +18,7 @@ use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequisitionRules;
 use App\Support\Decimal;
 use BackedEnum;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -44,6 +47,9 @@ class RequestDetailResource extends JsonResource
             // Slice 10f: once issued, the letter date and reference only. Never the
             // channel dates, who recorded it, or anything earlier in the process.
             'letter' => self::letter($this->resource),
+            // FR-09: "Withdrawn" or "Not approved", the date, and the Ministry's message to the
+            // vendor (external) only. Never the internal reason, who decided, or the PS flag.
+            'outcome' => self::outcome($this->resource),
             ...self::typeChoice($this->resource),
             // V2-4 Stage B: the case hero (vendor form and vendor request page). Display only.
             'hero' => CaseHero::for($this->resource, $request->user()),
@@ -101,6 +107,25 @@ class RequestDetailResource extends JsonResource
     }
 
     /** @return array{date: string, reference: string|null}|null */
+    /** @return array{kind: string, label: string, date: string|null, message: string|null}|null */
+    private static function outcome(ProcurementCase $case): ?array
+    {
+        if (! in_array($case->status, [CaseStatus::WITHDRAWN, CaseStatus::REJECTED_FINAL], true)) {
+            return null;
+        }
+
+        $at = CaseTransition::query()->where('case_id', $case->getKey())
+            ->where('to_status', $case->status->value)->orderByDesc('id')->value('created_at');
+        $withdrawn = $case->status === CaseStatus::WITHDRAWN;
+
+        return [
+            'kind' => $withdrawn ? CaseOutcome::WITHDRAWN : CaseOutcome::REJECTED,
+            'label' => $withdrawn ? 'Withdrawn' : 'Not approved',
+            'date' => $at === null ? null : CarbonImmutable::parse($at, 'UTC')->setTimezone('America/Port_of_Spain')->toDateString(),
+            'message' => CaseOutcome::query()->where('case_id', $case->getKey())->value('vendor_message'),
+        ];
+    }
+
     private static function letter(ProcurementCase $case): ?array
     {
         if (! in_array($case->status, [CaseStatus::LETTER_ISSUED, CaseStatus::CLOSED], true) || $case->letter_date === null) {

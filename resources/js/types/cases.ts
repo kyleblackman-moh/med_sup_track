@@ -138,6 +138,23 @@ export interface StaffCaseAbilities {
     route_onward: boolean;
     issue_letter: boolean;
     close_case: boolean;
+    /** FR-09: withdraw (T15) and final rejection on the PS's instruction (T16). */
+    withdraw: boolean;
+    reject_final: boolean;
+    /** FR-03: the printable hardcopy cover sheet. */
+    cover_sheet: boolean;
+}
+
+/** FR-09 (staff): how a withdrawn or rejected case ended. */
+export interface CaseOutcome {
+    kind: 'withdrawn' | 'rejected';
+    label: string;
+    by: string | null;
+    by_vendor: boolean;
+    at: string | null;
+    reason: string | null;
+    vendor_message: string | null;
+    ps_instructed: boolean;
 }
 
 export interface ReviewerOption {

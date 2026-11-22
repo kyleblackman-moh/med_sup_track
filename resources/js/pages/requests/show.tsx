@@ -7,18 +7,19 @@ import { RequisitionView } from '@/components/requests/requisition-view';
 import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { VendorQueries } from '@/components/requests/vendor-queries';
+import { WithdrawRequest } from '@/components/requests/withdraw-request';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
-import { BadgeCheck, FilePen, Mailbox, PackageCheck, ReceiptText } from 'lucide-react';
+import { BadgeCheck, Ban, Download, FilePen, Mailbox, OctagonX, PackageCheck, ReceiptText } from 'lucide-react';
 
 interface Props {
     case: RequestDetail;
     documents: DocumentGroup[];
     readiness: Readiness | null;
-    can: { submit: boolean };
+    can: { submit: boolean; withdraw: boolean };
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
     /** OVERNIGHT-2 (B1): dated vendor-facing milestones; empty for a draft. */
@@ -52,6 +53,7 @@ export default function Show({ case: detail, documents, readiness, can, summary,
                 {/* The page's links (as they were), in a row under the hero. */}
                 {(detail.can.edit || detail.reference_no) && (
                     <div className="flex flex-wrap justify-end gap-2">
+                        {can.withdraw && <WithdrawRequest caseId={detail.id} reference={detail.reference_no} />}
                         {detail.can.edit && (
                             <Link href={route('requests.edit', detail.id)} className="btn btn-sm capitalize">
                                 <FilePen className="size-4" aria-hidden="true" />
@@ -62,6 +64,13 @@ export default function Show({ case: detail, documents, readiness, can, summary,
                             <Link href={route('requests.receipt', detail.id)} className="btn btn-sm capitalize">
                                 <ReceiptText className="size-4" aria-hidden="true" />
                                 Receipt
+                            </Link>
+                        )}
+                        {detail.reference_no && !detail.outcome && (
+                            // FR-03: the sheet for the front of the hardcopy (QR of the reference).
+                            <Link href={route('requests.cover-sheet', detail.id)} className="btn btn-sm capitalize">
+                                <Download className="size-4" aria-hidden="true" />
+                                Download Cover Sheet
                             </Link>
                         )}
                     </div>
@@ -98,6 +107,36 @@ export default function Show({ case: detail, documents, readiness, can, summary,
                             )}
                             .
                         </p>
+                    </div>
+                )}
+
+                {detail.outcome && (
+                    // FR-09: the outcome and the Ministry's message only.
+                    <div
+                        role="status"
+                        className={
+                            detail.outcome.kind === 'rejected'
+                                ? 'alert alert-soft alert-error items-start text-sm'
+                                : 'alert alert-soft items-start text-sm'
+                        }
+                    >
+                        {detail.outcome.kind === 'rejected' ? (
+                            <OctagonX className="size-5" aria-hidden="true" />
+                        ) : (
+                            <Ban className="size-5" aria-hidden="true" />
+                        )}
+                        <div className="grid gap-1">
+                            <p>
+                                <span className="font-medium">{detail.outcome.label}.</span>
+                                {detail.outcome.date &&
+                                    ` ${detail.outcome.kind === 'rejected' ? 'Decided' : 'Withdrawn'} on ${formatDay(detail.outcome.date)}.`}
+                            </p>
+                            {detail.outcome.message && (
+                                <p className="whitespace-pre-line">
+                                    <span className="font-medium">Message from the Ministry of Health:</span> {detail.outcome.message}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 )}
 

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mailbox, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Mailbox, Printer } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface ReceiptDocument {
@@ -52,10 +52,17 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         Back to Request
                     </Link>
-                    <button type="button" className="btn btn-primary btn-sm capitalize" onClick={() => window.print()}>
-                        <Printer className="size-4" aria-hidden="true" />
-                        Print
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* FR-03: the sheet for the front of the hardcopy (QR of the reference). */}
+                        <Link href={route('requests.cover-sheet', receipt.id)} className="btn btn-sm capitalize">
+                            <Download className="size-4" aria-hidden="true" />
+                            Download Cover Sheet
+                        </Link>
+                        <button type="button" className="btn btn-primary btn-sm capitalize" onClick={() => window.print()}>
+                            <Printer className="size-4" aria-hidden="true" />
+                            Print
+                        </button>
+                    </div>
                 </nav>
 
                 <article className="card bg-base-100 border-base-300 border print:border-0">

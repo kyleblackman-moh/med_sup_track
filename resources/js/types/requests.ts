@@ -74,6 +74,8 @@ export interface RequestDetail extends RequestSummary {
     hardcopy_received_on: string | null;
     /** Slice 10f: once the letter is issued, its date (Y-m-d) and reference; null before. */
     letter: { date: string; reference: string | null } | null;
+    /** FR-09: "Withdrawn" or "Not approved", the date (Y-m-d) and the Ministry's message; null otherwise. */
+    outcome: { kind: 'withdrawn' | 'rejected'; label: string; date: string | null; message: string | null } | null;
     /** V2-1b: request-form drafts only. The current type code and the types it may change to. */
     request_type?: string;
     type_options?: RequestTypeOption[];

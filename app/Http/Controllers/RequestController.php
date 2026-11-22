@@ -170,6 +170,9 @@ class RequestController extends Controller
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
+                // FR-09: a submitted request can be withdrawn until intake (the T15 guard); a draft is deleted instead.
+                'withdraw' => $procurementCase->status === CaseStatus::SUBMITTED
+                    && Gate::allows('act', [$procurementCase, Permission::CaseWithdraw->value]),
             ]),
         ]);
     }
