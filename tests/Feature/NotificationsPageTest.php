@@ -98,9 +98,14 @@ it('pages the list 20 at a time and keeps the filter in the page links', functio
         ->and($second['next_page_url'])->toBeNull()
         ->and(array_intersect(array_column($first['data'], 'id'), array_column($second['data'], 'id')))->toBe([]);
 
+    // 13 action rows fit on one page; all 25 are unread, so Unread has a second page whose link keeps the filter.
     $action = pageProps($this->actingAs($this->tech)->get(route('notifications.index', ['filter' => 'action']))->assertOk())['notifications'];
     expect($action['total'])->toBe(13)
-        ->and($action['next_page_url'])->toContain('filter=action');
+        ->and($action['last_page'])->toBe(1);
+
+    $unread = pageProps($this->actingAs($this->tech)->get(route('notifications.index', ['filter' => 'unread']))->assertOk())['notifications'];
+    expect($unread['total'])->toBe(25)
+        ->and($unread['next_page_url'])->toContain('filter=unread');
 });
 
 it('filters to action rows and to unread rows', function () {
