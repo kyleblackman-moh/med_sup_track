@@ -76,6 +76,7 @@ final class StaffCaseDetail
             && Gate::forUser($user)->allows('act', [$case, Permission::LetterIssue->value]);
 
         return [
+            'query_only' => false,
             'case' => [
                 ...StaffCaseSummary::fields($case),
                 'item_description' => $case->requisition?->item_description,
@@ -163,6 +164,55 @@ final class StaffCaseDetail
                 'route_onward' => $canRoute,
                 'issue_letter' => $canIssueLetter,
                 'close_case' => $canClose,
+            ],
+        ];
+    }
+
+    /**
+     * WORKFLOW-2 (R3): the page for an officer the CMO named on a forward who
+     * is not assigned to the case: the header (no item description) and the
+     * queries they are a party to. Every other key is present but empty, so
+     * the page shape is the same; nothing else of the case is sent. React
+     * shows only the header and Queries when query_only is true.
+     *
+     * @return array<string, mixed>
+     */
+    public static function queryOnly(ProcurementCase $case, User $user): array
+    {
+        $case->loadMissing(['organisation:id,name', 'procurementType']);
+
+        return [
+            'query_only' => true,
+            'case' => [...StaffCaseSummary::fields($case), 'item_description' => null, 'category' => null, 'file_no' => null],
+            'next_step' => null,
+            'file_no_default' => null,
+            'legal_officers' => null,
+            'legal_form' => null,
+            'returned' => null,
+            'ps_form' => null,
+            'ps_outcome' => null,
+            'granted' => null,
+            'route_panel' => null,
+            'letter' => null,
+            'letter_dates' => null,
+            'hardcopy' => null,
+            'hardcopy_dates' => ['today' => CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString(), 'earliest' => null],
+            'documents' => [],
+            'summary' => null,
+            'timeline' => [],
+            'assignments' => [],
+            'gate' => null,
+            'review_forms' => [],
+            'reviewers' => null,
+            'queries' => QueryView::forStaff($case, $user),
+            'can' => [
+                'requests' => $user->can(Permission::CaseSubmit->value),
+                'cases' => Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class),
+                ...array_fill_keys([
+                    'download_documents', 'intake', 'record_hardcopy', 'forward_for_review', 'record_review',
+                    'mark_ready_for_file', 'prepare_file', 'send_to_legal', 'record_legal_decision',
+                    'record_ps_decision', 'route_onward', 'issue_letter', 'close_case',
+                ], false),
             ],
         ];
     }

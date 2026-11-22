@@ -28,6 +28,7 @@ it('matches the section by URL prefix', function (string $path, ?string $section
     expect(HandleInertiaRequests::navSection(Request::create($path)))->toBe($section);
 })->with([
     ['/dashboard', 'dashboard'],
+    ['/analytics', 'analytics'],
     ['/requests', 'requests'],
     ['/requests/01jabcdefghjkmnpqrstvwxyz0/edit', 'requests'],
     ['/requests/01jabcdefghjkmnpqrstvwxyz0/receipt', 'requests'],

@@ -1,7 +1,7 @@
 import { FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
-import { cn } from '@/lib/utils';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { type RequestTypeOption } from '@/types/requests';
-import { FieldError, FieldGrid, fieldLabel, TextField } from './fields';
+import { FieldError, FieldGrid, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { TypeCards } from './type-cards';
@@ -11,6 +11,11 @@ export const PREVIOUS_REQUEST_QUESTION = 'Was a request previously made for this
 
 /** Id of the question's fieldset (the jump-link target of its readiness issue). */
 export const PREVIOUS_REQUEST_ID = 'f-previous_request_in_cycle';
+
+const ANSWERS = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' },
+];
 
 interface RequestTypeSectionProps {
     api: FormApi;
@@ -73,52 +78,39 @@ interface PreviousRequestQuestionProps {
 }
 
 /**
- * A fieldset with the question as its legend (15px/600) and two native radios
- * shown as 40px pills. Nothing is preselected (null = not answered); the
- * chosen pill is solid --primary with white text; the focus ring shows on the
- * pill of the focused radio. Arrow keys move between the two (native radios).
+ * The shared RadioGroup (RADIO-1): the question as its legend (sentence
+ * case) and the two answers as stacked rows. Nothing is preselected (null =
+ * not answered). The fieldset takes focus from the readiness jump link.
  */
 function PreviousRequestQuestion({ value, onChange, error, required, showHiddenNote, width }: PreviousRequestQuestionProps) {
     const errorId = `${PREVIOUS_REQUEST_ID}-error`;
     const noteId = `${PREVIOUS_REQUEST_ID}-note`;
     const legendId = `${PREVIOUS_REQUEST_ID}-legend`;
     const describedBy = [error ? errorId : null, showHiddenNote ? noteId : null].filter(Boolean).join(' ') || undefined;
-
-    const pill = (answer: boolean, label: string) => (
-        <label
-            className={cn(
-                'border-input bg-card text-foreground has-[:focus-visible]:ring-ring inline-flex h-10 min-w-20 cursor-pointer items-center justify-center rounded-full border px-5 text-sm font-semibold transition-colors duration-150 motion-reduce:transition-none',
-                'hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground',
-                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2',
-            )}
-        >
-            <input
-                type="radio"
-                name="previous_request_in_cycle"
-                value={answer ? 'yes' : 'no'}
-                checked={value === answer}
-                className="sr-only"
-                onChange={() => onChange(answer)}
-            />
-            {label}
-        </label>
-    );
+    // null matches neither answer, so nothing is checked until the vendor answers.
+    const answer = value === null ? null : value ? 'yes' : 'no';
 
     return (
-        <fieldset id={PREVIOUS_REQUEST_ID} className={cn('grid min-w-0 gap-2', FIELD_WIDTH[width])} aria-describedby={describedBy} tabIndex={-1}>
-            <legend id={legendId} className={cn('mb-2', fieldLabel)}>
-                {PREVIOUS_REQUEST_QUESTION}
-            </legend>
-            <div role="radiogroup" aria-labelledby={legendId} aria-required={required ? true : undefined} className="flex flex-wrap gap-3">
-                {pill(true, 'Yes')}
-                {pill(false, 'No')}
-            </div>
+        <RadioGroup
+            id={PREVIOUS_REQUEST_ID}
+            name="previous_request_in_cycle"
+            legend={PREVIOUS_REQUEST_QUESTION}
+            legendId={legendId}
+            legendCase="sentence"
+            options={ANSWERS}
+            value={answer}
+            onChange={(next) => onChange(next === 'yes')}
+            describedBy={describedBy}
+            required={required}
+            tabIndex={-1}
+            className={FIELD_WIDTH[width]}
+        >
             <FieldError id={errorId} message={error} />
             {showHiddenNote && (
                 <p id={noteId} role="status" className="text-muted-foreground text-helper">
                     Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.
                 </p>
             )}
-        </fieldset>
+        </RadioGroup>
     );
 }

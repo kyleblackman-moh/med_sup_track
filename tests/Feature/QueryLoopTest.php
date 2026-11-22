@@ -9,9 +9,11 @@ use App\Models\ProcurementCase;
 use App\Models\QueryMessage;
 use App\Models\QueryRoute;
 use App\Models\User;
+use App\Notifications\Queries\DirectQueryActivity;
 use App\Notifications\Queries\ForwardRequired;
 use App\Notifications\Queries\QueryAnswered;
 use App\Notifications\Queries\QueryRaised;
+use App\Notifications\Vendor\VendorQueryReceived;
 use App\Queries\QueryAccess;
 use App\Queries\QueryService;
 use App\Queries\QueryView;
@@ -377,22 +379,25 @@ it('emails the CMO to forward a held message, the recipients once delivered, and
 it('tells the vendor and the CMO about a direct Technocrat query, with no message text', function () {
     qlRaise($this->a['technocrat'], $this->case, qlRoute('technocrat', 'vendor_applicant'), 'Secret-ish request wording');
 
-    $raised = qlNotified(QueryRaised::class);
-    expect($raised)->toContain($this->a['vendor']->id)->toContain($this->a['cmo']->id)
-        ->and($raised)->not->toContain($this->a['technocrat']->id);
+    expect(qlNotified(VendorQueryReceived::class))->toBe(qlIds($this->a['vendor']))
+        ->and(qlNotified(DirectQueryActivity::class))->toContain($this->a['cmo']->id)
+        ->and(qlNotified(DirectQueryActivity::class))->not->toContain($this->a['technocrat']->id)
+        ->and(qlNotified(QueryRaised::class))->toBe([]);
 
-    $note = new QueryRaised($this->case->id, $this->case->reference_no);
-    foreach ([$this->a['vendor'], $this->a['cmo']] as $user) {
+    $vendorNote = VendorQueryReceived::for($this->case);
+    $cmoNote = new DirectQueryActivity($this->case->id, $this->case->reference_no);
+    foreach ([[$vendorNote, $this->a['vendor']], [$cmoNote, $this->a['cmo']]] as [$note, $user]) {
         $mail = $note->toMail($user);
         $text = implode("\n", [$mail->subject, ...$mail->introLines, ...$mail->outroLines, (string) $mail->actionText]);
-        expect($text)->toContain($this->case->reference_no)->not->toContain('wording')->not->toContain('Technocrat');
+        expect($text)->toContain($this->case->reference_no)->not->toContain('wording');
     }
-    expect($note->toMail($this->a['vendor'])->introLines)->toHaveCount(1)
-        ->and($note->toMail($this->a['vendor'])->actionUrl)->toBe(route('requests.show', $this->case->id))
-        ->and($note->toMail($this->a['cmo'])->actionUrl)->toContain('tab=queries');
+    expect($vendorNote->toMail($this->a['vendor'])->introLines)->toBe(['You have a new query on '.$this->case->reference_no.'. Log in to respond.'])
+        ->and($vendorNote->toMail($this->a['vendor'])->actionUrl)->toBe(route('requests.show', $this->case->id))
+        ->and($cmoNote->kind())->toBe('info')
+        ->and($cmoNote->url())->toContain('tab=queries');
 });
 
-it("FIX-2: sends a vendor's Query Raised to every active vendor user of the organisation, once each, and nobody else's", function () {
+it("NOTIF-2: sends a vendor's Query Received to the submitter only, once per message, and nobody else's", function () {
     $colleague = vendorUser($this->a['vendor']->organisation);
     $inactive = vendorUser($this->a['vendor']->organisation, ['status' => User::STATUS_DISABLED]);
 
@@ -402,12 +407,12 @@ it("FIX-2: sends a vendor's Query Raised to every active vendor user of the orga
     $raised = [];
     foreach (Notification::getFacadeRoot()->sentNotifications() as $byId) {
         foreach ($byId as $id => $byClass) {
-            $raised[(int) $id] = count($byClass[QueryRaised::class] ?? []);
+            $raised[(int) $id] = count($byClass[VendorQueryReceived::class] ?? []);
         }
     }
     $raised = array_filter($raised);
     expect($raised[$this->a['vendor']->id] ?? 0)->toBe(2)
-        ->and($raised[$colleague->id] ?? 0)->toBe(2)
+        ->and($raised)->not->toHaveKey($colleague->id)
         ->and($raised)->not->toHaveKey($inactive->id)
         ->and($raised)->not->toHaveKey($this->a['other_vendor']->id);
 });

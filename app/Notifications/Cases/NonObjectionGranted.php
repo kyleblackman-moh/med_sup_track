@@ -2,12 +2,19 @@
 
 namespace App\Notifications\Cases;
 
-/** NOTIF-1: the PS granted non-objection (to the CMO). */
-final class NonObjectionGranted extends CaseNotification
+/** NOTIF-1, NOTIF-2: non-objection granted; the CMO issues the letter. Action. */
+final class NonObjectionGranted extends StaffCaseNotification
 {
+    protected string $kind = self::ACTION;
+
+    public function event(): string
+    {
+        return 'nonobjection_granted';
+    }
+
     protected function staffSubject(): string
     {
-        return 'Non-Objection Granted for '.$this->reference();
+        return 'Issue Letter for '.$this->reference();
     }
 
     protected function staffLine(): string

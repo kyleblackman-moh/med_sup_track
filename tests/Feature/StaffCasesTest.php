@@ -202,7 +202,7 @@ it('lists the expected columns, without drafts', function () {
             'id', 'reference_no', 'organisation', 'procurement_type', 'item_description', 'status',
             'status_label', 'status_tone', 'holder_label', 'submitted_at', 'days_since_submitted',
         ])
-        ->and($row['status_tone'])->toBe('info') // UI-4: SUBMITTED is info (design.md section 3)
+        ->and($row['status_tone'])->toBe('info') // SUBMITTED is info (CaseStatus::tone; palette in app.css)
         ->and($row['reference_no'])->toBe($case->reference_no)
         ->and($row['organisation'])->toBe($org->name)
         ->and($row['status_label'])->toBe('Submitted')
@@ -544,23 +544,24 @@ it('keeps the staff case pages free of ad hoc network and storage calls', functi
     }
 });
 
-// UI-4: the pill tones follow design.md section 3; the vendor tone never reveals an internal stage.
-it('gives every status the design.md tone, for staff and for the vendor', function (CaseStatus $status, string $staff, string $vendor) {
+// The pill tones (CaseStatus::tone / vendorTone; colours: the status palette in
+// resources/css/app.css). The vendor tone never reveals an internal stage.
+it('gives every status its tone, for staff and for the vendor', function (CaseStatus $status, string $staff, string $vendor) {
     expect($status->tone())->toBe($staff)
         ->and($status->vendorTone())->toBe($vendor);
 })->with([
     [CaseStatus::DRAFT, 'neutral', 'neutral'],
     [CaseStatus::SUBMITTED, 'info', 'info'],
-    [CaseStatus::CMO_INTAKE, 'info', 'info'],
-    [CaseStatus::IN_REVIEW, 'info', 'info'],
-    [CaseStatus::READY_FOR_FILE, 'info', 'info'],
-    [CaseStatus::FILE_PREPARED, 'info', 'info'],
-    [CaseStatus::WITH_LEGAL, 'info', 'info'],
-    [CaseStatus::WITH_PS, 'info', 'info'],
-    [CaseStatus::RETURNED_TO_CMO, 'warning', 'info'],
-    [CaseStatus::NON_OBJECTION_GRANTED, 'success', 'info'],
-    [CaseStatus::LETTER_ISSUED, 'success', 'success'],
-    [CaseStatus::CLOSED, 'neutral', 'success'],
+    [CaseStatus::CMO_INTAKE, 'indigo', 'violet'],
+    [CaseStatus::IN_REVIEW, 'violet', 'violet'],
+    [CaseStatus::READY_FOR_FILE, 'teal', 'violet'],
+    [CaseStatus::FILE_PREPARED, 'cyan', 'violet'],
+    [CaseStatus::WITH_LEGAL, 'purple', 'violet'],
+    [CaseStatus::WITH_PS, 'fuchsia', 'violet'],
+    [CaseStatus::RETURNED_TO_CMO, 'warning', 'violet'],
+    [CaseStatus::NON_OBJECTION_GRANTED, 'success', 'violet'],
+    [CaseStatus::LETTER_ISSUED, 'lime', 'success'],
+    [CaseStatus::CLOSED, 'slate', 'slate'],
     [CaseStatus::WITHDRAWN, 'neutral', 'neutral'],
     [CaseStatus::REJECTED_FINAL, 'danger', 'danger'],
 ]);

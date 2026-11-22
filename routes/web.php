@@ -2,15 +2,18 @@
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Queries\QueryAccess;
 use App\Support\LandingPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +28,24 @@ Route::get('/', function (Request $request) {
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 });
+
+// NOTIF-2: the bell. The signed-in user's own notifications only; another user's id is 404.
+Route::middleware(['auth'])
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->controller(NotificationController::class)
+    ->group(function () {
+        Route::get('/', 'index')->middleware('throttle:60,1')->name('index');
+        Route::get('unread-count', 'unreadCount')->middleware('throttle:120,1')->name('unread-count');
+        Route::post('read-all', 'readAll')->middleware('throttle:30,1')->name('read-all');
+        Route::post('{notification}/read', 'read')->whereUuid('notification')->middleware('throttle:60,1')->name('read');
+    });
+
+// ANALYTICS: charts and tracking for the CMO's office and the PS office only
+// (case.view_all). Everyone else, vendors included, gets 403.
+Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
+    ->get('analytics', AnalyticsController::class)
+    ->name('analytics');
 
 // Vendor requests. Hidden or missing cases are 404 (ProcurementCase's global
 // scope applies to route model binding).
@@ -71,6 +92,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
             ->middleware('throttle:60,1')->name('documents.download');
     });
 
+Route::bind('queryCase', fn (string $value) => QueryAccess::caseForQueryWork($value, request()->user()) ?? abort(404));
+
 // Staff case pages (slice 9a), read-only. 403 without CasePolicy::viewStaffCases;
 // hidden and DRAFT cases are 404 through the global scope on route model binding.
 Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
@@ -79,7 +102,8 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
     ->controller(StaffCaseController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('{procurementCase}', 'show')->name('show');
+        // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.
+        Route::get('{queryCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
 
@@ -102,11 +126,13 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
         });
 
         // OVERNIGHT-2 (D2): query loops. An unknown or invisible query or message is 404.
+        // WORKFLOW-2: {queryCase} also reaches an officer the CMO named on a forward
+        // (QueryAccess::caseForQueryWork); anyone else still gets 404, as with {procurementCase}.
         Route::controller(CaseQueryController::class)->middleware('throttle:20,1')->group(function () {
             Route::post('{procurementCase}/queries', 'store')->name('queries.store');
-            Route::post('{procurementCase}/queries/{query}/messages', 'reply')->name('queries.reply');
-            Route::post('{procurementCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
-            Route::post('{procurementCase}/queries/{query}/close', 'close')->name('queries.close');
+            Route::post('{queryCase}/queries/{query}/messages', 'reply')->name('queries.reply');
+            Route::post('{queryCase}/queries/{query}/messages/{message}/forward', 'forward')->name('queries.forward');
+            Route::post('{queryCase}/queries/{query}/close', 'close')->name('queries.close');
         });
     });
 

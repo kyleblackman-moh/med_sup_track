@@ -5,6 +5,7 @@ namespace App\Workflow\Actions;
 use App\Enums\CaseStatus;
 use App\Enums\ReviewDesk;
 use App\Enums\ReviewOutcome;
+use App\Events\ReviewOutcomeRecorded;
 use App\Models\CaseAssignment;
 use App\Models\CaseTrackEvent;
 use App\Models\ProcurementCase;
@@ -87,6 +88,10 @@ final class RecordReviewOutcome
                 ],
                 $actor,
             );
+
+            // NOTIF-2: after commit only (a rolled-back outcome sends nothing).
+            $caseId = (string) $locked->getKey();
+            DB::afterCommit(fn () => ReviewOutcomeRecorded::dispatch($caseId, $desk, $chosen, $previous));
 
             return $locked->refresh();
         });

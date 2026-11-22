@@ -4,6 +4,7 @@ namespace App\Queries;
 
 use App\Enums\AuditAction;
 use App\Enums\QueryStatus;
+use App\Enums\UserType;
 use App\Events\QueryMessageDelivered;
 use App\Events\QueryMessageHeld;
 use App\Models\CaseQuery;
@@ -103,9 +104,14 @@ final class QueryService
         });
     }
 
-    public function forward(ProcurementCase $case, CaseQuery $query, QueryMessage $message, User $user): void
+    /**
+     * WORKFLOW-2: $officerId names the officer the message goes to. It may be
+     * left out when someone on the receiving desk can already see the case;
+     * otherwise it is required, so a forward never reaches nobody.
+     */
+    public function forward(ProcurementCase $case, CaseQuery $query, QueryMessage $message, User $user, ?int $officerId = null): void
     {
-        DB::transaction(function () use ($case, $query, $message, $user) {
+        DB::transaction(function () use ($case, $query, $message, $user, $officerId) {
             $case = $this->lockCase($case);
             $query = $this->lockQuery($query);
             $message = QueryMessage::query()->whereKey($message->getKey())->where('query_id', $query->getKey())->lockForUpdate()->firstOrFail();
@@ -114,14 +120,22 @@ final class QueryService
                 throw ValidationException::withMessages(['forward' => 'This message cannot be forwarded now. It may already have been forwarded.']);
             }
 
-            $message->forceFill(['forwarded_by_cmo_id' => $user->getKey(), 'forwarded_at' => CarbonImmutable::now('UTC')])->save();
+            $officer = $this->namedOfficer($case, $query, $message, $officerId);
+
+            $message->forceFill([
+                'forwarded_by_cmo_id' => $user->getKey(),
+                'forwarded_to_user_id' => $officer?->getKey(),
+                'forwarded_at' => CarbonImmutable::now('UTC'),
+            ])->save();
             $this->settle($query, $user);
 
             Audit::record(AuditAction::QueryForwarded, ['type' => 'query', 'id' => $query->getKey()], $case->getKey(), [
                 'message_id' => $message->getKey(),
+                'named_officer_id' => $officer?->getKey(),
             ], $user);
 
-            QueryMessageDelivered::dispatch($case->getKey(), $query->getKey(), $message->getKey());
+            [$caseId, $queryId, $messageId] = [$case->getKey(), $query->getKey(), $message->getKey()];
+            DB::afterCommit(fn () => QueryMessageDelivered::dispatch($caseId, $queryId, $messageId));
         });
     }
 
@@ -179,6 +193,42 @@ final class QueryService
         ])->save();
     }
 
+    /**
+     * WORKFLOW-2: the officer named on a forward, checked: an active staff
+     * account holding the role the message is addressed to (route data). A
+     * message to the raiser's side or to a vendor needs no name (the raiser
+     * always sees their thread; vendors are never named). With no name, the
+     * receiving desk must already have someone who can see the case.
+     */
+    private function namedOfficer(ProcurementCase $case, CaseQuery $query, QueryMessage $message, ?int $officerId): ?User
+    {
+        $toRecipient = $message->recipient_role === $query->raised_to_role && $message->recipient_role !== $query->raised_by_role;
+        $office = QueryWording::office($message->recipient_role, $case);
+
+        if ($officerId === null) {
+            if ($toRecipient && ! QueryAccess::isVendorRole($message->recipient_role) && QueryAccess::deskOnCase($message->recipient_role, $case)->isEmpty()) {
+                throw ValidationException::withMessages(['officer_id' => "Nobody in {$office} is assigned to this case. Choose the officer to forward it to."]);
+            }
+
+            return null;
+        }
+
+        if (! $toRecipient || QueryAccess::isVendorRole($message->recipient_role)) {
+            throw ValidationException::withMessages(['officer_id' => 'This message goes back to the person who raised the query. Forward it without naming an officer.']);
+        }
+
+        $officer = User::query()->whereKey($officerId)
+            ->where('status', User::STATUS_ACTIVE)
+            ->where('user_type', UserType::Staff->value)
+            ->first();
+
+        if ($officer === null || ! $officer->hasRole($message->recipient_role)) {
+            throw ValidationException::withMessages(['officer_id' => "Choose an officer in {$office}."]);
+        }
+
+        return $officer;
+    }
+
     private function append(CaseQuery $query, User $user, string $from, string $to, string $body): QueryMessage
     {
         $body = trim($body);
@@ -202,12 +252,16 @@ final class QueryService
         return $message;
     }
 
-    /** Held: the CMO's desk is asked to forward. Delivered: the other side hears now. */
+    /**
+     * Held: the CMO's desk is asked to forward. Delivered: the other side hears.
+     * NOTIF-2: only once the transaction commits (a rolled-back message announces nothing).
+     */
     private function announce(ProcurementCase $case, CaseQuery $query, QueryMessage $message): void
     {
-        $message->isHeld()
-            ? QueryMessageHeld::dispatch($case->getKey(), $query->getKey(), $message->getKey())
-            : QueryMessageDelivered::dispatch($case->getKey(), $query->getKey(), $message->getKey());
+        $event = $message->isHeld() ? QueryMessageHeld::class : QueryMessageDelivered::class;
+        [$caseId, $queryId, $messageId] = [$case->getKey(), $query->getKey(), $message->getKey()];
+
+        DB::afterCommit(fn () => $event::dispatch($caseId, $queryId, $messageId));
     }
 
     private function lockCase(ProcurementCase $case): ProcurementCase

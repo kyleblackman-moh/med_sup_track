@@ -10,8 +10,8 @@ use LogicException;
 /**
  * OVERNIGHT-2 (D1): one message in a query. Append-only: the body, author and
  * addressing never change and a message is never deleted. The one update
- * allowed is the CMO's forward of a held message (forwarded_by_cmo_id and
- * forwarded_at, once, from empty).
+ * allowed is the CMO's forward of a held message (forwarded_by_cmo_id,
+ * forwarded_at and, WORKFLOW-2, the officer named on forward, once, from empty).
  */
 class QueryMessage extends Model
 {
@@ -21,7 +21,7 @@ class QueryMessage extends Model
 
     public const VISIBILITY_EXTERNAL = 'external';
 
-    private const FORWARD_COLUMNS = ['forwarded_by_cmo_id', 'forwarded_at', 'updated_at'];
+    private const FORWARD_COLUMNS = ['forwarded_by_cmo_id', 'forwarded_to_user_id', 'forwarded_at', 'updated_at'];
 
     protected $guarded = ['*'];
 

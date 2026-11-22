@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Notifications\Bell;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -93,6 +94,10 @@ class HandleInertiaRequests extends Middleware
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
                 // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes.
                 'users' => $user !== null && $user->can(Permission::UsersManage->value),
+                // ANALYTICS: the Analytics page. Same checks as the /analytics route.
+                'analytics' => $user !== null && ! $user->isVendor()
+                    && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
+                    && $user->can(Permission::CaseViewAll->value),
                 'section' => self::navSection($request),
             ],
             /*
@@ -103,6 +108,9 @@ class HandleInertiaRequests extends Middleware
             'brand' => [
                 'logo' => self::brandLogo(),
             ],
+            // NOTIF-2: the bell's badge. A closure, so it is counted at render time
+            // (after a case page has marked its own notifications read).
+            'unreadNotificationsCount' => fn () => $user === null ? 0 : Bell::unreadCount($user),
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
@@ -141,7 +149,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The sidebar sections, by the first segment of the URL path. */
-    private const NAV_SECTIONS = ['dashboard', 'requests', 'cases', 'admin'];
+    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'admin'];
 
     /** The section the current URL falls under (the path itself or anything below it), else null. */
     public static function navSection(Request $request): ?string

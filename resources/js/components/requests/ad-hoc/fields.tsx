@@ -3,6 +3,7 @@ import { FIELD_GRID, FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-
 import { fieldLabel } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { textareaClass } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { type OptionList } from '@/types/requests';
@@ -214,35 +215,27 @@ interface RadioGroupFieldProps {
     width?: FieldWidth;
 }
 
-/** A native radio group in a fieldset with a legend. The first radio carries the id suffix "-0". */
+/**
+ * A native radio group in a fieldset with a legend: the shared RadioGroup
+ * (RADIO-1, options stacked). The first radio carries the id suffix "-0".
+ */
 export function RadioGroupField({ id, legend, options, value, onChange, error, width }: RadioGroupFieldProps) {
     const errorId = `${id}-error`;
 
     return (
-        <fieldset id={id} className={cn('grid min-w-0 gap-2', span(width))} aria-describedby={error ? errorId : undefined}>
-            <legend className={cn('mb-1', fieldLabel)}>{legend}</legend>
-            {options.map((option, i) => {
-                const optionId = `${id}-${i}`;
-
-                return (
-                    <div key={option.value} className="flex min-h-11 items-center gap-2 md:min-h-10">
-                        <input
-                            id={optionId}
-                            type="radio"
-                            name={id}
-                            value={option.value}
-                            checked={value === option.value}
-                            className="focus-visible:ring-ring size-4 focus-visible:ring-2 focus-visible:ring-offset-2"
-                            onChange={() => onChange(option.value)}
-                        />
-                        <Label htmlFor={optionId} className="font-normal">
-                            {option.label}
-                        </Label>
-                    </div>
-                );
-            })}
+        <RadioGroup
+            id={id}
+            name={id}
+            legend={legend}
+            options={options}
+            value={value}
+            onChange={onChange}
+            optionId={(_option, i) => `${id}-${i}`}
+            describedBy={error ? errorId : undefined}
+            className={span(width)}
+        >
             <FieldError id={errorId} message={error} />
-        </fieldset>
+        </RadioGroup>
     );
 }
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { type ActionConfirm, type LegalForm, type ReviewerOption } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { FolderPen, Gavel } from 'lucide-react';
@@ -214,24 +215,17 @@ export function LegalDecisionForm({ caseId, form: def }: { caseId: string; form:
                 </Button>
             }
         >
-            <fieldset className="fieldset gap-2 py-0" aria-describedby="legal-decision-error">
-                <legend className="fieldset-legend pt-0 capitalize">Decision</legend>
-                {def.decisions.map((d) => (
-                    <label key={d.value} htmlFor={`legal-${d.value}`} className="label text-base-content cursor-pointer gap-2 text-sm">
-                        <input
-                            type="radio"
-                            id={`legal-${d.value}`}
-                            name="legal-decision"
-                            value={d.value}
-                            checked={form.data.decision === d.value}
-                            onChange={() => form.setData('decision', d.value)}
-                            className="radio radio-sm"
-                        />
-                        {d.label}
-                    </label>
-                ))}
+            <RadioGroup
+                name="legal-decision"
+                legend="Decision"
+                options={def.decisions}
+                value={form.data.decision}
+                onChange={(value) => form.setData('decision', value)}
+                optionId={(d) => `legal-${d.value}`}
+                describedBy="legal-decision-error"
+            >
                 <InputError id="legal-decision-error" message={errors.decision ?? errors.legal_decision} />
-            </fieldset>
+            </RadioGroup>
 
             <fieldset className="fieldset py-0">
                 <label className={LABEL} htmlFor="legal-reason">

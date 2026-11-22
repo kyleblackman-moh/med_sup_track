@@ -2,6 +2,7 @@ import { ActionPanel, actionTextareaClass } from '@/components/cases/action-pane
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { StatusPill } from '@/components/ui/status-pill';
 import { type StaffQueries, type StaffQuery, type StaffQueryMessage } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
@@ -63,24 +64,17 @@ function RaiseQuery({ caseId, routes }: { caseId: string; routes: { id: number; 
                 </Button>
             }
         >
-            <fieldset className="fieldset gap-2 py-0" aria-describedby="query-route-error">
-                <legend className="fieldset-legend pt-0 capitalize">Send To</legend>
-                {routes.map((r) => (
-                    <label key={r.id} htmlFor={`query-route-${r.id}`} className="label text-base-content cursor-pointer gap-2 text-sm">
-                        <input
-                            type="radio"
-                            id={`query-route-${r.id}`}
-                            name="query-route"
-                            value={r.id}
-                            checked={form.data.route === String(r.id)}
-                            onChange={() => form.setData('route', String(r.id))}
-                            className="radio radio-sm"
-                        />
-                        {r.label}
-                    </label>
-                ))}
+            <RadioGroup
+                name="query-route"
+                legend="Send To"
+                options={routes.map((r) => ({ value: String(r.id), label: r.label }))}
+                value={form.data.route}
+                onChange={(value) => form.setData('route', value)}
+                optionId={(r) => `query-route-${r.value}`}
+                describedBy="query-route-error"
+            >
                 <InputError id="query-route-error" message={errors.route} />
-            </fieldset>
+            </RadioGroup>
             <MessageField id="query-body" value={form.data.body} onChange={(v) => form.setData('body', v)} error={errors.body} />
         </ActionPanel>
     );

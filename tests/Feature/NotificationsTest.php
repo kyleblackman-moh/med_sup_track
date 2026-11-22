@@ -12,13 +12,21 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Notifications\Cases\CaseAssigned;
 use App\Notifications\Cases\CaseSubmitted;
+use App\Notifications\Cases\CaseWithdrawn;
+use App\Notifications\Cases\FileSentToLegal;
 use App\Notifications\Cases\FileSentToPs;
+use App\Notifications\Cases\FundingReviewRecorded;
 use App\Notifications\Cases\HardcopyReceived;
-use App\Notifications\Cases\LetterIssued;
+use App\Notifications\Cases\LegalConfirmed;
 use App\Notifications\Cases\NonObjectionGranted;
+use App\Notifications\Cases\ReadyToPrepareFile;
 use App\Notifications\Cases\ReturnedToCmo;
+use App\Notifications\Cases\TechnicalReviewRecorded;
+use App\Notifications\Channels\CaseDatabaseChannel;
 use App\Notifications\InfectedUpload;
 use App\Notifications\PasswordChanged;
+use App\Notifications\Vendor\VendorApplicationApproved;
+use App\Notifications\Vendor\VendorApplicationRejected;
 use App\Submissions\SubmitCase;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -107,35 +115,31 @@ it('sends each transition email to its own people only', function (CaseStatus $t
     'non-objection granted' => [CaseStatus::NON_OBJECTION_GRANTED, NonObjectionGranted::class, 'cmo'],
 ]);
 
-// FIX-2 (1): the vendor side is every active user of the case's organisation
-// who holds case.submit, once each, not only the user who created the case.
+// NOTIF-2: the vendor side is the user who submitted the case (replaces FIX-2's
+// every case.submit user of the organisation), and only for the four vendor events.
 
-it('sends Letter Issued to every active vendor user of the organisation, once each', function () {
-    transition($this->case, CaseStatus::LETTER_ISSUED);
+it('sends Approved to the submitter only, not to colleagues in the same organisation', function () {
+    transition($this->case, CaseStatus::NON_OBJECTION_GRANTED);
 
-    expect(receivedBy(LetterIssued::class))->toBe(onceEach($this->vendor, $this->colleague));
+    expect(receivedBy(VendorApplicationApproved::class))->toBe(onceEach($this->vendor));
 });
 
-it('skips an inactive vendor user, and still reaches the others when the creator is inactive', function () {
-    $inactive = vendorUser($this->vendor->organisation, ['status' => User::STATUS_DISABLED]);
+it('sends a vendor nothing when the submitter is inactive, and never falls back to a colleague', function () {
     $this->vendor->forceFill(['status' => User::STATUS_DISABLED])->save();
 
-    transition($this->case, CaseStatus::LETTER_ISSUED);
-    HardcopyRecorded::dispatch($this->case->id);
+    transition($this->case, CaseStatus::NON_OBJECTION_GRANTED);
 
-    expect(receivedBy(LetterIssued::class))->toBe(onceEach($this->colleague))
-        ->and(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo, $this->colleague))
-        ->and(receivedBy(LetterIssued::class))->not->toHaveKey($inactive->id);
+    expect(receivedBy(VendorApplicationApproved::class))->toBe([]);
 });
 
-it("never sends a case's vendor email to another organisation's users, or to a vendor user without case.submit", function () {
+it("never sends a case's vendor notification to another organisation's users, or to a vendor user without case.submit", function () {
     $outsider = vendorUser(vendorOrg());
     $noSubmit = caseUser(null, ['user_type' => 'vendor', 'org_id' => $this->vendor->org_id]);
 
-    transition($this->case, CaseStatus::LETTER_ISSUED);
-    HardcopyRecorded::dispatch($this->case->id);
+    transition($this->case, CaseStatus::NON_OBJECTION_GRANTED);
+    transition($this->case, CaseStatus::REJECTED_FINAL);
 
-    foreach ([LetterIssued::class, HardcopyReceived::class] as $class) {
+    foreach ([VendorApplicationApproved::class, VendorApplicationRejected::class] as $class) {
         expect(receivedBy($class))->not->toHaveKey($outsider->id)->not->toHaveKey($noSubmit->id);
     }
 });
@@ -143,36 +147,37 @@ it("never sends a case's vendor email to another organisation's users, or to a v
 it('records notification.no_recipient with the case and event code only, and logs a warning, when no vendor user is eligible', function () {
     Log::spy();
     $this->vendor->forceFill(['status' => User::STATUS_DISABLED])->save();
-    $this->colleague->forceFill(['status' => User::STATUS_DISABLED])->save();
 
-    transition($this->case, CaseStatus::LETTER_ISSUED);
+    transition($this->case, CaseStatus::NON_OBJECTION_GRANTED);
 
     $rows = DB::table('audit_logs')->where('action', 'notification.no_recipient')->where('case_id', $this->case->id)->get();
-    expect(receivedBy(LetterIssued::class))->toBe([])
+    expect(receivedBy(VendorApplicationApproved::class))->toBe([])
         ->and($rows)->toHaveCount(1)
-        ->and(json_decode($rows[0]->metadata, true))->toBe(['event' => 'letter_issued'])
+        ->and(json_decode($rows[0]->metadata, true))->toBe(['event' => 'vendor_approved'])
         ->and($rows[0]->actor_type)->toBe('system')
         ->and((string) $rows[0]->metadata)->not->toContain('@');
-    Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c) => $c === ['case_id' => $this->case->id, 'event' => 'letter_issued'])->once();
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c) => $c === ['case_id' => $this->case->id, 'event' => 'vendor_approved'])->once();
 });
 
-it('sends nothing for transitions without an email', function (CaseStatus $to) {
+it('sends nothing for transitions without a notification', function (CaseStatus $to) {
     transition($this->case, $to);
 
     expect(Notification::getFacadeRoot()->sentNotifications())->toBe([]);
-})->with([CaseStatus::CMO_INTAKE, CaseStatus::IN_REVIEW, CaseStatus::READY_FOR_FILE, CaseStatus::CLOSED]);
+})->with([CaseStatus::CMO_INTAKE, CaseStatus::IN_REVIEW, CaseStatus::READY_FOR_FILE, CaseStatus::FILE_PREPARED, CaseStatus::LETTER_ISSUED, CaseStatus::CLOSED]);
 
-it('tells a named assignee, and nobody for a pool assignment', function () {
-    (new CaseAssignment)->forceFill(['case_id' => $this->case->id, 'role' => 'technocrat', 'user_id' => $this->technocrat->id, 'assigned_at' => now()])->save();
-    (new CaseAssignment)->forceFill(['case_id' => $this->case->id, 'role' => 'cmo_registry', 'user_id' => null, 'assigned_at' => now()])->save();
+it('tells a named review assignee, and nobody for a pool row or another purpose', function () {
+    (new CaseAssignment)->forceFill(['case_id' => $this->case->id, 'role' => 'technocrat', 'purpose' => 'technical', 'user_id' => $this->technocrat->id, 'assigned_at' => now()])->save();
+    (new CaseAssignment)->forceFill(['case_id' => $this->case->id, 'role' => 'cab_officer', 'purpose' => 'funding', 'user_id' => null, 'assigned_at' => now()])->save();
+    (new CaseAssignment)->forceFill(['case_id' => $this->case->id, 'role' => 'cmo_registry', 'purpose' => 'intake', 'user_id' => $this->registry->id, 'assigned_at' => now()])->save();
 
     expect(receivedBy(CaseAssigned::class))->toBe(onceEach($this->technocrat));
 });
 
-it("sends Hardcopy Received to the CMO and the organisation's vendor users only", function () {
+it('sends Hardcopy Received to the CMO only (info), never to the vendor', function () {
     HardcopyRecorded::dispatch($this->case->id);
 
-    expect(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo, $this->vendor, $this->colleague));
+    expect(receivedBy(HardcopyReceived::class))->toBe(onceEach($this->cmo))
+        ->and(HardcopyReceived::for($this->case)->via($this->cmo))->toBe([CaseDatabaseChannel::class]);
 });
 
 it('tells the admins about an infected upload', function () {
@@ -199,17 +204,17 @@ it('sends nothing to disabled users', function () {
     $this->colleague->forceFill(['status' => User::STATUS_DISABLED])->save();
 
     transition($this->case, CaseStatus::SUBMITTED);
-    transition($this->case, CaseStatus::LETTER_ISSUED);
+    transition($this->case, CaseStatus::NON_OBJECTION_GRANTED);
 
     expect(receivedBy(CaseSubmitted::class))->toBe(onceEach($this->registry))
-        ->and(receivedBy(LetterIssued::class))->toBe([]);
+        ->and(receivedBy(VendorApplicationApproved::class))->toBe([]);
 });
 
 it('gives a vendor nothing internal: reference, one sentence and a link', function () {
     CaseRequisition::withoutGlobalScopes()->where('case_id', $this->case->id)->update(['item_description' => 'Secretamol 500mg']);
     $this->case->forceFill(['funding_track' => 'CONFIRMED'])->saveQuietly();
 
-    $mail = LetterIssued::for($this->case)->toMail($this->vendor);
+    $mail = VendorApplicationApproved::for($this->case)->toMail($this->vendor);
     $text = implode("\n", [$mail->subject, ...$mail->introLines, ...$mail->outroLines, $mail->actionText, $mail->actionUrl]);
 
     expect($text)->toContain($this->case->reference_no)
@@ -260,16 +265,21 @@ it('keeps every staff case email to the reference, request type, status and link
     foreach ($mail->introLines as $line) {
         expect(str_starts_with($line, 'Reference: ') || str_starts_with($line, 'Request type: ') || str_starts_with($line, 'Status: ') || ! str_contains($line, ': '))->toBeTrue();
     }
-})->with([CaseSubmitted::class, CaseAssigned::class, ReturnedToCmo::class, FileSentToPs::class, NonObjectionGranted::class, HardcopyReceived::class, LetterIssued::class]);
+})->with([
+    CaseSubmitted::class, CaseAssigned::class, ReturnedToCmo::class, FileSentToLegal::class, FileSentToPs::class,
+    NonObjectionGranted::class, HardcopyReceived::class, ReadyToPrepareFile::class, LegalConfirmed::class,
+    CaseWithdrawn::class, TechnicalReviewRecorded::class, FundingReviewRecorded::class,
+]);
 
-it('queues after commit with three tries and backoff', function () {
+it('queues after commit with three tries and backoff, to the bell and email for an action', function () {
     $n = CaseSubmitted::for($this->case);
 
     expect($n)->toBeInstanceOf(ShouldQueue::class)
         ->and($n->afterCommit)->toBeTrue()
         ->and($n->tries)->toBe(3)
         ->and($n->backoff)->toBe([60, 300])
-        ->and($n->via($this->cmo))->toBe(['mail']);
+        ->and($n->kind())->toBe('action')
+        ->and($n->via($this->cmo))->toBe([CaseDatabaseChannel::class, 'mail']);
 });
 
 it('hooks in through the real submit, once', function () {

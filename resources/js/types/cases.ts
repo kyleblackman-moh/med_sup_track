@@ -18,8 +18,24 @@ export interface StaffCaseSummary {
     days_since_submitted: number | null;
 }
 
-/** Badge tone decided by the server (design.md section 3). */
-export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+/**
+ * Badge tone decided by the server (CaseStatus::tone / vendorTone). The colours
+ * live in the status palette in resources/css/app.css; TONE_CLASSES maps each one.
+ */
+export type StatusTone =
+    | 'neutral'
+    | 'info'
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'indigo'
+    | 'violet'
+    | 'teal'
+    | 'cyan'
+    | 'purple'
+    | 'fuchsia'
+    | 'lime'
+    | 'slate';
 
 /** A row of the staff case list. */
 export interface StaffCaseListRow extends StaffCaseSummary {
@@ -293,6 +309,10 @@ export interface StaffQueryMessage {
     held: boolean;
     state: string;
     external: boolean;
+    /** WORKFLOW-2 (Step 4): the author's office, Internal or External, and a plain time. */
+    author_office: string;
+    visibility_label: 'Internal' | 'External';
+    sent_at: string | null;
     /** Only for the CMO's desk while the message is held. */
     forward: { label: string; title: string; body: string } | null;
 }
@@ -310,7 +330,19 @@ export interface StaffQuery {
     can_reply: boolean;
     reply_label: string;
     can_close: boolean;
+    /** WORKFLOW-2 (Step 4): the thread stated plainly, worded on the server. */
+    thread: StaffQueryThread;
     messages: StaffQueryMessage[];
+}
+
+export interface StaffQueryThread {
+    from: string;
+    to: string;
+    route: string;
+    via_cmo: boolean;
+    /** Who holds the query now; null once closed. */
+    holder: string | null;
+    next_action: string;
 }
 
 export interface StaffQueries {

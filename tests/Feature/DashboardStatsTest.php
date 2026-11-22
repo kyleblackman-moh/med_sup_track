@@ -11,8 +11,8 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
-// The dashboard (NEXT part 3): the server-built header and stat tiles. The
-// tiles come from one grouped COUNT under the viewer's visibility scope. The
+// The dashboard (NEXT part 3): the server-built header; the stat tiles now on
+// the Analytics page (ANALYTICS). The tiles come from one grouped COUNT under the viewer's visibility scope. The
 // dev database holds other rows, so counts are compared before and after this
 // test's cases are made (DatabaseTransactions only).
 
@@ -29,6 +29,12 @@ afterEach(function () {
 function dashboardProps($test, User $user): array
 {
     return pageProps($test->actingAs($user)->get(route('dashboard'))->assertOk());
+}
+
+/** The Analytics page's props for $user. */
+function analyticsProps($test, User $user): array
+{
+    return pageProps($test->actingAs($user)->get(route('analytics'))->assertOk());
 }
 
 /** Tile key => integer value (the server formats "1,234"). @return array<string, int> */
@@ -56,9 +62,9 @@ function statsHardcopy(): array
     return ['hardcopy_received_on' => now()->toDateString(), 'hardcopy_received_at' => now(), 'hardcopy_received_by' => caseUser()->id];
 }
 
-it('gives a case.view_all holder the four tiles, counted from the cases it can see', function () {
+it('gives a case.view_all holder the three tiles on the Analytics page, counted from the cases it can see', function () {
     $cmo = caseUser(Role::Cmo);
-    $before = tileValues(dashboardProps($this, $cmo)['stats']);
+    $before = tileValues(analyticsProps($this, $cmo)['stats']);
 
     statsCase(CaseStatus::SUBMITTED);                     // open, awaiting hardcopy
     statsCase(CaseStatus::IN_REVIEW, statsHardcopy());    // open, hardcopy in
@@ -67,28 +73,26 @@ it('gives a case.view_all holder the four tiles, counted from the cases it can s
     statsCase(CaseStatus::WITHDRAWN);                     // terminal: not open
     makeCase(['status' => CaseStatus::DRAFT]);            // staff never see drafts
 
-    $props = dashboardProps($this, $cmo);
-    $after = tileValues($props['stats']);
+    $after = tileValues(analyticsProps($this, $cmo)['stats']);
 
-    expect(array_keys($after))->toBe(['needs_action', 'open', 'awaiting_hardcopy', 'ready_for_file'])
+    expect(array_keys($after))->toBe(['open', 'awaiting_hardcopy', 'ready_for_file'])
         ->and($after['open'] - $before['open'])->toBe(3)
         ->and($after['awaiting_hardcopy'] - $before['awaiting_hardcopy'])->toBe(1)
         ->and($after['ready_for_file'] - $before['ready_for_file'])->toBe(1);
 });
 
-it('counts "Needs My Action" from the queue itself', function (string $role) {
-    $user = caseUser($role);
-    statsCase(CaseStatus::SUBMITTED);
-    statsCase(CaseStatus::READY_FOR_FILE, statsHardcopy());
+it('no longer sends tiles, the pipeline or the gate tracker with the dashboard', function (string $role) {
+    $props = dashboardProps($this, caseUser($role));
 
-    $props = dashboardProps($this, $user);
-
-    expect(tileValues($props['stats'])['needs_action'])->toBe(count($props['workQueue']['items']));
-})->with([Role::Cmo->value, Role::CmoRegistry->value, Role::PsOffice->value]);
+    expect($props)->not->toHaveKey('stats')
+        ->and($props)->not->toHaveKey('pipeline')
+        ->and($props)->not->toHaveKey('gateTracker')
+        ->and($props)->toHaveKeys(['workQueue', 'header', 'requestTypes', 'queue', 'drafts']);
+})->with([Role::Cmo->value, Role::PsOffice->value, Role::Technocrat->value]);
 
 it('never counts cases a role without case.view_all cannot see', function () {
     $technocrat = caseUser(Role::Technocrat);
-    $before = tileValues(dashboardProps($this, $technocrat)['stats']);
+    $before = tileValues(DashboardView::stats($technocrat));
 
     $mine = statsCase(CaseStatus::IN_REVIEW);
     assign($mine, Role::Technocrat, $technocrat);
@@ -97,9 +101,9 @@ it('never counts cases a role without case.view_all cannot see', function () {
     statsCase(CaseStatus::SUBMITTED);                               // awaiting hardcopy, not theirs
     statsCase(CaseStatus::READY_FOR_FILE, statsHardcopy());         // ready for file, not theirs
 
-    $after = tileValues(dashboardProps($this, $technocrat)['stats']);
+    $after = tileValues(DashboardView::stats($technocrat));
 
-    expect(array_keys($after))->toBe(['needs_action', 'open'])
+    expect(array_keys($after))->toBe(['open'])
         ->and($after['open'] - $before['open'])->toBe(1);
 });
 
@@ -118,22 +122,19 @@ it('gives vendors no tiles, so another organisation is never counted for them', 
     $vendor = vendorUser(vendorOrg());
     statsCase(CaseStatus::SUBMITTED); // another organisation's case
 
-    $props = dashboardProps($this, $vendor);
-
-    expect($props['stats'])->toBeNull()
-        ->and($props['workQueue'])->toBeNull();
+    expect(DashboardView::stats($vendor))->toBeNull()
+        ->and(dashboardProps($this, $vendor)['workQueue'])->toBeNull();
 });
 
-it('gives staff with neither a queue nor the case list no tiles', function () {
-    expect(dashboardProps($this, caseUser(Role::Auditor))['stats'])->toBeNull()
-        ->and(dashboardProps($this, caseUser(Role::SystemAdmin))['stats'])->toBeNull();
+it('gives staff without the case list no tiles', function () {
+    expect(DashboardView::stats(caseUser(Role::Auditor)))->toBeNull()
+        ->and(DashboardView::stats(caseUser(Role::SystemAdmin)))->toBeNull();
 });
 
 it('links a tile only where the case list has a matching filter', function () {
-    $stats = collect(dashboardProps($this, caseUser(Role::Cmo))['stats'])->keyBy('key');
+    $stats = collect(analyticsProps($this, caseUser(Role::Cmo))['stats'])->keyBy('key');
 
     expect($stats['ready_for_file']['href'])->toBe('/cases?status=READY_FOR_FILE')
-        ->and($stats['needs_action']['href'])->toBeNull()
         ->and($stats['open']['href'])->toBeNull()
         ->and($stats['awaiting_hardcopy']['href'])->toBeNull();
 
@@ -141,7 +142,7 @@ it('links a tile only where the case list has a matching filter', function () {
 });
 
 it('sends no SLA values with the tiles', function () {
-    $stats = dashboardProps($this, caseUser(Role::Cmo))['stats'];
+    $stats = analyticsProps($this, caseUser(Role::Cmo))['stats'];
 
     foreach ($stats as $tile) {
         expect(array_keys($tile))->toBe(['key', 'label', 'value', 'description', 'href'])
@@ -150,18 +151,17 @@ it('sends no SLA values with the tiles', function () {
 });
 
 it('sends each tile its Title Case label and short description from the server (DASH-1)', function () {
-    $stats = collect(dashboardProps($this, caseUser(Role::Cmo))['stats'])->keyBy('key');
+    $stats = collect(analyticsProps($this, caseUser(Role::Cmo))['stats'])->keyBy('key');
 
     expect($stats->map(fn ($t) => [$t['label'], $t['description']])->all())->toBe([
-        'needs_action' => ['Needs My Action', 'Cases waiting for you to act'],
         'open' => ['Open Cases', 'Cases that are not yet closed'],
         'awaiting_hardcopy' => ['Awaiting Hardcopy', 'Submitted, signed copy not yet received'],
         'ready_for_file' => ['Ready for File', 'All three conditions are met'],
     ]);
 
-    // A role without case.view_all gets only its two tiles, with the same descriptions.
-    $technocrat = collect(dashboardProps($this, caseUser(Role::Technocrat))['stats'])->pluck('description', 'key')->all();
-    expect($technocrat)->toBe(['needs_action' => 'Cases waiting for you to act', 'open' => 'Cases that are not yet closed']);
+    // A role without case.view_all gets only the open tile, with the same description.
+    $technocrat = collect(DashboardView::stats(caseUser(Role::Technocrat)))->pluck('description', 'key')->all();
+    expect($technocrat)->toBe(['open' => 'Cases that are not yet closed']);
 });
 
 it('builds the header on the server in local time', function () {

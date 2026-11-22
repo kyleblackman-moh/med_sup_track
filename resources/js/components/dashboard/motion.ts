@@ -10,9 +10,22 @@ export const RISE = [
     'min-w-0 motion-safe:transition motion-safe:delay-150 motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:translate-y-2 motion-safe:starting:opacity-0',
     // 3: side column
     'flex min-w-0 flex-col gap-4 motion-safe:transition motion-safe:delay-200 motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:translate-y-2 motion-safe:starting:opacity-0',
+    // 4: Analytics charts row (wide trend beside outcomes)
+    'grid min-w-0 items-start gap-4 xl:grid-cols-3 motion-safe:transition motion-safe:delay-150 motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:translate-y-2 motion-safe:starting:opacity-0',
+    // 5: Analytics stages row (Cases By Stage beside the Gate Tracker)
+    'grid min-w-0 items-start gap-4 xl:grid-cols-2 motion-safe:transition motion-safe:delay-200 motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:translate-y-2 motion-safe:starting:opacity-0',
 ] as const;
 
-function prefersReducedMotion(): boolean {
+/** True after the first client render: gates client-only widgets (charts) so SSR renders their skeleton. */
+export function useMounted(): boolean {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => setMounted(true), []);
+
+    return mounted;
+}
+
+export function prefersReducedMotion(): boolean {
     try {
         return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch {

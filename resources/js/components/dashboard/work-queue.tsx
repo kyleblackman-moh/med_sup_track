@@ -79,7 +79,7 @@ const TAG_ICONS: Record<string, LucideIcon> = {
 const HEADERS = ['Reference', 'Request', 'Status', 'Waiting', 'Action'] as const;
 
 /** The row's action: a real link to the case page (the same place the row opens). */
-const ACTION_BTN = 'btn btn-primary btn-sm whitespace-nowrap capitalize transition-transform active:scale-[0.97]';
+const ACTION_BTN = 'btn btn-sm whitespace-nowrap capitalize transition-transform active:scale-[0.97]';
 
 function Tag({ tag }: { tag: QueueTag }) {
     const Icon = TAG_ICONS[tag.icon];
@@ -135,18 +135,21 @@ export function WorkQueue({ queue, casesHref = null }: WorkQueueProps) {
     return (
         <section
             aria-labelledby="work-queue-heading"
-            className="card bg-base-100 border-base-300 min-w-0 overflow-hidden border transition-shadow duration-200 hover:shadow-md"
+            className="card bg-base-100 border-base-300 min-w-0 overflow-hidden border shadow-xs transition-shadow duration-200 hover:shadow-md"
         >
-            <div className="border-base-300 grid gap-3 border-b p-4">
+            <div className="border-base-300 grid gap-3 border-b p-4 sm:px-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="work-queue-heading" className="card-title text-base capitalize">
-                        <Inbox className="text-primary size-4" aria-hidden="true" />
-                        Needs My Action
-                        <span className="badge badge-primary badge-sm tabular-nums">
-                            {queue.total}
-                            <span className="sr-only"> {queue.total === 1 ? 'item' : 'items'}</span>
-                        </span>
-                    </h2>
+                    <div className="min-w-0">
+                        <h2 id="work-queue-heading" className="flex items-center gap-2 text-lg font-semibold capitalize">
+                            <Inbox className="text-base-content/50 size-5" aria-hidden="true" />
+                            Needs My Action
+                            <span className="badge badge-ghost badge-sm tabular-nums">
+                                {queue.total}
+                                <span className="sr-only"> {queue.total === 1 ? 'item' : 'items'}</span>
+                            </span>
+                        </h2>
+                        <p className="text-base-content/60 text-sm">Cases waiting on you, oldest first</p>
+                    </div>
                     <label className={search.searching ? 'input input-sm w-full opacity-70 sm:w-72' : 'input input-sm w-full sm:w-72'}>
                         <Search className="text-base-content/60 size-4 shrink-0" aria-hidden="true" />
                         <input
