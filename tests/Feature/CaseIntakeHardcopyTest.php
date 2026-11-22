@@ -287,7 +287,8 @@ it('validates the received date', function (string $date, bool $ok) {
     ['day before submission', false],
     ['2026-02-30', false],
     ['13/11/2026', false],
-    ['', false],
+    // HARDCOPY-1: no date means today (Port of Spain).
+    ['', true],
 ]);
 
 it('leaves the first record alone when the hardcopy is marked twice', function () {
@@ -298,8 +299,10 @@ it('leaves the first record alone when the hardcopy is marked twice', function (
     $this->actingAs($first)->post(route('cases.hardcopy.store', $case), ['received_on' => $yesterday])->assertSessionHasNoErrors();
     $before = caseRow9b($case);
 
+    // HARDCOPY-1: a repeat is reported (date and who recorded it) and changes nothing.
     $this->actingAs(caseUser(Role::Cmo))->post(route('cases.hardcopy.store', $case), ['received_on' => poSToday()])
-        ->assertSessionHasErrors('received_on');
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('info', 'Already received on '.CarbonImmutable::parse($yesterday)->format('j M Y').' by '.$first->name.'.');
 
     $after = caseRow9b($case);
     expect($after->hardcopy_received_on)->toBe($before->hardcopy_received_on)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CaseStatus;
 use App\Enums\ReturnKind;
 use App\Models\ProcurementCase;
 use App\Support\StaffFormMessages;
@@ -403,16 +404,22 @@ class StaffCaseActionController extends Controller
 
     public function markHardcopy(Request $request, ProcurementCase $procurementCase, RecordHardcopy $hardcopy): RedirectResponse
     {
+        // HARDCOPY-1: the date is optional (today, Port of Spain); a repeat changes nothing.
         $validated = $this->validateForm($request, [
-            'received_on' => ['required', 'date_format:Y-m-d'],
+            'received_on' => ['nullable', 'date_format:Y-m-d'],
         ], [
-            'received_on.required' => 'Enter the date the hardcopy was received.',
             'received_on.date_format' => 'Enter the date the hardcopy was received.',
         ]);
 
-        $hardcopy->mark($procurementCase, $request->user(), $validated['received_on']);
+        $result = $hardcopy->mark($procurementCase, $request->user(), $validated['received_on'] ?? null);
 
-        return back()->with('success', 'Hardcopy recorded as received.');
+        if ($result->already) {
+            return back()->with('info', 'Already received on '.$result->detail.' by '.($result->by ?? 'another user').'.');
+        }
+
+        return back()->with('success', $result->case->status === CaseStatus::READY_FOR_FILE
+            ? 'Hardcopy recorded as received. All three conditions are met: the case is ready for file.'
+            : 'Hardcopy recorded as received.');
     }
 
     public function reverseHardcopy(Request $request, ProcurementCase $procurementCase, RecordHardcopy $hardcopy): RedirectResponse

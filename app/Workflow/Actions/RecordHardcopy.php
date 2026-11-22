@@ -9,6 +9,8 @@ use App\Events\HardcopyRecorded;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\Audit;
+use App\Workflow\CaseTransitionService;
+use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -21,9 +23,17 @@ use Illuminate\Validation\ValidationException;
  * Columns: hardcopy_received_on (calendar date, Port of Spain), plus who
  * recorded it (hardcopy_received_by) and when (hardcopy_received_at). All three
  * are set and cleared together, with the audit row, in one transaction.
+ *
+ * HARDCOPY-1: marking is idempotent (an already-received hardcopy is reported,
+ * with the date and who recorded it, and nothing changes), the date defaults
+ * to today (Port of Spain), and an IN_REVIEW case whose other two gate
+ * conditions are met moves to READY_FOR_FILE in the same transaction (T4A,
+ * through CaseTransitionService).
  */
 final class RecordHardcopy
 {
+    public function __construct(private readonly CaseTransitionService $transitions) {}
+
     public const TIMEZONE = 'America/Port_of_Spain';
 
     /** Statuses in which hardcopy can be recorded or corrected. */
@@ -33,15 +43,29 @@ final class RecordHardcopy
 
     public const REASON_MAX = 500;
 
-    /** @throws ValidationException */
-    public function mark(ProcurementCase $case, User $actor, string $receivedOn): ProcurementCase
+    /**
+     * HARDCOPY-1: StepResult::already (date in detail, recorder in by) when the
+     * hardcopy was already received; nothing is written then.
+     *
+     * @throws ValidationException
+     */
+    public function mark(ProcurementCase $case, User $actor, ?string $receivedOn = null): StepResult
     {
-        return $this->locked($case, $actor, function (ProcurementCase $locked) use ($actor, $receivedOn) {
+        $receivedOn ??= CarbonImmutable::now(self::TIMEZONE)->toDateString();
+
+        return $this->markLocked($case, $actor, $receivedOn);
+    }
+
+    private function markLocked(ProcurementCase $case, User $actor, string $receivedOn): StepResult
+    {
+        $result = null;
+
+        $this->locked($case, $actor, function (ProcurementCase $locked) use ($actor, $receivedOn, &$result) {
             if ($locked->hardcopy_received_on !== null) {
-                throw ValidationException::withMessages([
-                    'received_on' => 'The hardcopy is already recorded as received on '.$locked->hardcopy_received_on->toDateString()
-                        .'. Use "Mark not received" to correct it.',
-                ]);
+                $by = $locked->hardcopy_received_by !== null ? User::whereKey($locked->hardcopy_received_by)->value('name') : null;
+                $result = StepResult::already($locked, $by, $locked->hardcopy_received_at, $locked->hardcopy_received_on->format('j M Y'));
+
+                return $locked;
             }
 
             $date = $this->validDate($locked, $receivedOn);
@@ -61,12 +85,21 @@ final class RecordHardcopy
                 $actor,
             );
 
+            // HARDCOPY-1: the hardcopy may complete the gate (T4A: the automatic move).
+            if ($locked->status === CaseStatus::IN_REVIEW && TransitionRules::gateMissing($locked->refresh()) === []) {
+                $this->transitions->transition($locked, CaseStatus::READY_FOR_FILE, $actor);
+            }
+
             // NOTIF-1: after commit only (a rolled-back record sends nothing).
             $caseId = (string) $locked->getKey();
             DB::afterCommit(fn () => HardcopyRecorded::dispatch($caseId));
 
+            $result = StepResult::done($locked);
+
             return $locked;
         });
+
+        return $result;
     }
 
     /** @throws ValidationException */

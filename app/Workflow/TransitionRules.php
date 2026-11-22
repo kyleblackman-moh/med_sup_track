@@ -85,6 +85,12 @@ final class TransitionRules
             new TransitionRule('T4', [S::IN_REVIEW], S::READY_FOR_FILE, P::FilePrepare->value,
                 holderRole: 'cmo', guard: self::gateGuard(...)),
 
+            // HARDCOPY-1: the automatic path. Run only by RecordHardcopy, when marking the
+            // hardcopy received completes the gate; same guard as T4. The manual "Mark
+            // ready for file" still needs file.prepare (MarkReadyForFile checks it first).
+            new TransitionRule('T4A', [S::IN_REVIEW], S::READY_FOR_FILE, P::HardcopyConfirm->value,
+                holderRole: 'cmo', guard: self::gateGuard(...)),
+
             // Slice 10c: PrepareFile writes file_no in the same transaction, before this runs.
             new TransitionRule('T5', [S::READY_FOR_FILE], S::FILE_PREPARED, P::FilePrepare->value,
                 holderRole: 'cmo', guard: self::fileNoGuard(...)),

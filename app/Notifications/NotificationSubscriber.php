@@ -147,7 +147,10 @@ final class NotificationSubscriber
 
         $this->send($this->recipients->cmo(), HardcopyReceived::for($case));
         // The hardcopy was missing until now, so a complete gate is newly complete.
-        $this->gateIfMet($case);
+        // HARDCOPY-1: RecordHardcopy then moved the case to READY_FOR_FILE itself (T4A).
+        $case->status === CaseStatus::READY_FOR_FILE
+            ? $this->send($this->recipients->cmo(), ReadyToPrepareFile::for($case))
+            : $this->gateIfMet($case);
     }
 
     public function onReviewOutcome(ReviewOutcomeRecorded $event): void

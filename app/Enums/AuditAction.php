@@ -43,6 +43,7 @@ enum AuditAction: string
     case CaseRoutedOnward = 'case.routed_onward';
     case CaseLetterIssued = 'case.letter_issued';
     case CaseClosed = 'case.closed';
+    case CoverSheetDownloaded = 'case.cover_sheet_downloaded'; // HARDCOPY-1
     case CaseAssignmentCancelled = 'case.assignment_cancelled'; // TERMINAL-1: the case was withdrawn or rejected
 
     // OVERNIGHT-2 (D2): query loops. Ids, counts and fixed codes only, never the message text.

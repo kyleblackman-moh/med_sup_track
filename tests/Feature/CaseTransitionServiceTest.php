@@ -50,6 +50,8 @@ const EXPECTED_RULES = [
     'T2' => [['SUBMITTED'], 'CMO_INTAKE'],
     'T3' => [['CMO_INTAKE'], 'IN_REVIEW'],
     'T4' => [['IN_REVIEW'], 'READY_FOR_FILE'],
+    // HARDCOPY-1: the automatic move when the hardcopy completes the gate.
+    'T4A' => [['IN_REVIEW'], 'READY_FOR_FILE'],
     'T5' => [['READY_FOR_FILE'], 'FILE_PREPARED'],
     'T6' => [['FILE_PREPARED'], 'WITH_LEGAL'],
     'T7' => [['WITH_LEGAL'], 'WITH_PS'],
@@ -69,7 +71,7 @@ const EXPECTED_RULES = [
 
 /** Expected new current_holder_role per rule (spec 6.2). */
 const EXPECTED_HOLDERS = [
-    'T1' => 'cmo_registry', 'T2' => 'cmo', 'T3' => null, 'T4' => 'cmo', 'T5' => 'cmo',
+    'T1' => 'cmo_registry', 'T2' => 'cmo', 'T3' => null, 'T4' => 'cmo', 'T4A' => 'cmo', 'T5' => 'cmo',
     'T6' => 'legal_officer', 'T7' => 'ps_office', 'T8' => 'cmo', 'T9' => 'cmo', 'T10' => 'cmo',
     'T11' => null, 'T12' => 'legal_officer', 'T13' => 'cmo', 'T14' => null, 'T15V' => null, 'T15' => null,
     'T16' => null, 'T17' => 'ps_office',
@@ -80,6 +82,7 @@ const EXPECTED_PENDING_GUARDS = [
     'T2' => [],
     'T3' => ['assignments_created'],
     'T4' => [],
+    'T4A' => [],
     'T5' => [], // slice 10c: replaced by the real file_no guard (T6 has it too)
     'T6' => [],
     'T7' => ['no_open_legal_queries'],
@@ -149,7 +152,7 @@ function caseFor(TransitionRule $rule, array $attributes = []): ProcurementCase
 
     $case = makeCase([
         'status' => $rule->from[0],
-        ...($rule->code === 'T4' ? gatePassed() : []),
+        ...(in_array($rule->code, ['T4', 'T4A'], true) ? gatePassed() : []),
         // Slice 10c: T5 and T6 require a file number (PrepareFile writes it before T5).
         ...(in_array($rule->code, ['T5', 'T6'], true) ? ['file_no' => 'HE:8/2/50/TEST'] : []),
         // Slice 10f: T13 and T14 require the letter recorded (IssueLetter writes it before T13).
@@ -180,6 +183,14 @@ function actorFor(TransitionRule $rule, ProcurementCase $case): User
 {
     $roles = SpatieRole::with('permissions')->orderBy('name')->get()
         ->filter(fn ($r) => $r->permissions->contains('name', $rule->permission));
+
+    // HARDCOPY-1: the CMO holds file.prepare too and would take T4, so T4A is the Registry's.
+    if ($rule->code === 'T4A') {
+        $user = caseUser(Role::CmoRegistry);
+        assign($case, Role::CmoRegistry, $user);
+
+        return $user;
+    }
 
     // Slice 9a: staff never see a DRAFT, so only the owning vendor can act on one.
     if ($case->status === CaseStatus::DRAFT && $roles->contains('name', Role::VendorApplicant->value)) {
@@ -262,11 +273,12 @@ it('puts T16 behind workflow.final_reject_enabled, so find() treats it as nonexi
         ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull();
 });
 
-it('has no two enabled rules for the same (from, to) pair, except T15V and T15 (distinct permissions)', function () {
+it('has no two enabled rules for the same (from, to) pair, except T4/T4A and T15V/T15 (distinct permissions)', function () {
     $pairs = collect(TransitionRules::all())->filter->enabled
         ->flatMap(fn (TransitionRule $r) => array_map(fn ($f) => $f->value.'>'.$r->to->value, $r->from));
 
-    expect($pairs->duplicates()->values()->all())->toBe(['SUBMITTED>WITHDRAWN'])
+    expect($pairs->duplicates()->values()->all())->toBe(['IN_REVIEW>READY_FOR_FILE', 'SUBMITTED>WITHDRAWN'])
+        ->and(rule('T4A')->permission)->not->toBe(rule('T4')->permission)
         ->and(rule('T15V')->permission)->not->toBe(rule('T15')->permission);
 });
 

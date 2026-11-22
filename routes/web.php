@@ -5,8 +5,10 @@ use App\Http\Controllers\Admin\MfaResetController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
+use App\Http\Controllers\CoverSheetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\HardcopyLookupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
@@ -81,6 +83,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::delete('{procurementCase}', 'destroy')->middleware('throttle:20,1')->name('destroy')
             ->missing(fn (Request $request) => RequestController::missingDraft($request));
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
+        // HARDCOPY-1: the hardcopy cover sheet PDF (own organisation, submitted onward).
+        Route::get('{procurementCase}/cover-sheet', CoverSheetController::class)->middleware('throttle:30,1')->name('cover-sheet');
         // TERMINAL-1 (T15V): the vendor withdraws its own request (DRAFT or SUBMITTED).
         Route::post('{procurementCase}/withdraw', 'withdraw')->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
@@ -116,8 +120,11 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
     ->controller(StaffCaseController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
+        // HARDCOPY-1: the dashboard's "Hardcopy received" box (exact reference, cases the user can see).
+        Route::get('hardcopy-lookup', HardcopyLookupController::class)->middleware('throttle:60,1')->name('hardcopy-lookup');
         // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.
         Route::get('{queryCase}', 'show')->name('show');
+        Route::get('{procurementCase}/cover-sheet', CoverSheetController::class)->middleware('throttle:30,1')->name('cover-sheet');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
 
