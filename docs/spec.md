@@ -434,6 +434,8 @@ The staff authentication driver hides the protocol (SAML2 or LDAP) behind one in
 4. Lockout after repeated failures; rate limiting on login routes.
 5. Admin can disable an account immediately; sessions are revoked.
 
+> **MFA-1 (built).** TOTP is mandatory for every account, staff and vendor, while local accounts are in use (`mfa.enforce`, default on; it may be off only when `APP_ENV=local`, and the app refuses to boot otherwise). `EnsureMfaEnrolled` sends a signed-in user without a confirmed authenticator to `/security/mfa/setup` (QR, secret key, 6-digit confirm). Recovery codes are shown once after confirmation, with a `.txt` download, and the user cannot continue until they tick "I have saved these codes". At login, the password step runs once (`AuthenticateOrChallenge`), then Fortify's challenge takes a code or a recovery code (each recovery code works once). The challenge is limited to 5 attempts a minute per login id and per session, and the session is regenerated after enrolment and after the challenge. Users cannot disable MFA: Fortify's management endpoints are refused, and Security settings only regenerate recovery codes (behind password confirm). `users.mfa.reset` (System Admin; also the CMO, for vendor users only) clears the authenticator, ends the user's sessions and forces re-enrolment. Audit events: `mfa.enrolled`, `mfa.recovery_regenerated`, `mfa.challenge_failed`, `mfa.recovery_code_used`, `mfa.reset_by_admin`. Security emails go out on enrolment, recovery-code use and admin reset.
+
 ### 8.3 Five-layer access model **[Decided]**
 
 | Layer | Question answered | Implemented by |

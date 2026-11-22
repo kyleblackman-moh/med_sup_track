@@ -13,6 +13,12 @@ enum AuditAction: string
     case RateLimited = 'auth.rate_limited';
     case Logout = 'auth.logout';
     case PasswordReset = 'auth.password.reset';
+    // MFA-1
+    case MfaEnrolled = 'mfa.enrolled';
+    case MfaRecoveryRegenerated = 'mfa.recovery_regenerated';
+    case MfaChallengeFailed = 'mfa.challenge_failed';
+    case MfaRecoveryUsed = 'mfa.recovery_code_used';
+    case MfaResetByAdmin = 'mfa.reset_by_admin';
 
     // Case workflow
     case CaseTransitioned = 'case.transitioned';

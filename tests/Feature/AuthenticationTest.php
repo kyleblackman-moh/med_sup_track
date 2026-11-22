@@ -21,7 +21,8 @@ const GOOD_PASSWORD = 'Correct-Horse-Battery-12';
 
 function authUser(array $attributes = []): User
 {
-    return User::factory()->create([
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
+    return User::factory()->withoutMfa()->create([
         'email' => Str::lower(Str::ulid()).'@example.test',
         'password' => GOOD_PASSWORD,
         ...$attributes,
@@ -193,7 +194,8 @@ it('fires Failed on each bad login; Lockout only when the rate limiter trips', f
 
 it('shares only user fields and permission names with React', function () {
     $this->seed(RolesAndPermissionsSeeder::class);
-    $user = authUser();
+    // MFA-1: signed in directly, so an MFA-confirmed user (the factory default).
+    $user = User::factory()->create(['email' => Str::lower(Str::ulid()).'@example.test']);
     $user->assignRole(Role::Cmo->value);
 
     $this->actingAs($user)->get('/dashboard')->assertInertia(fn (Assert $page) => $page

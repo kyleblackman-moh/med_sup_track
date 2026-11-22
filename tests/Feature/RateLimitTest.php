@@ -130,7 +130,8 @@ it('limits document uploads per user', function () {
 
 it('never throttles ten successful sign-ins from one IP', function () {
     config(['security.rate_limits.login.per_email' => 3, 'security.rate_limits.login.failed_per_ip' => 3]);
-    $users = collect(range(1, 5))->map(fn () => caseUser(Role::Cmo));
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
+    $users = collect(range(1, 5))->map(fn () => withoutMfa(caseUser(Role::Cmo)));
 
     foreach (range(1, 10) as $i) {
         // Five people, each signing in twice, all from 127.0.0.1.
@@ -162,7 +163,7 @@ it('throttles an IP at the configured number of failed sign-ins', function () {
 
 it('does not count a successful sign-in toward the per-IP cap', function () {
     config(['security.rate_limits.login.failed_per_ip' => 2]);
-    $user = caseUser(Role::Cmo);
+    $user = withoutMfa(caseUser(Role::Cmo)); // MFA-1: password step only
 
     $this->post('/login', ['email' => 'a-'.Str::lower(Str::random(6)).'@example.test', 'password' => 'x'])->assertStatus(302);
     $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertStatus(302);

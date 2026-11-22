@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Actions\Fortify\AuthenticateOrChallenge;
 use App\Actions\Fortify\AuthenticateUser;
 use App\Actions\Fortify\IgnoreRememberMe;
 use App\Actions\Fortify\ResetUserPassword;
@@ -14,7 +15,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
-use Laravel\Fortify\Actions\AttemptToAuthenticate;
 use Laravel\Fortify\Actions\CanonicalizeUsername;
 use Laravel\Fortify\Actions\PrepareAuthenticatedSession;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -50,22 +50,31 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::authenticateUsing(new AuthenticateUser);
 
-        // Explicit login pipeline. The two-factor step is left out on purpose: MFA
-        // is a later slice, and with it present Fortify would run the
-        // authenticateUsing callback twice per login. Throttling is applied by
-        // the "login" rate limiter below (route middleware), not in the pipeline.
-        Fortify::authenticateThrough(fn (Request $request) => [
+        // Explicit login pipeline. MFA-1: AuthenticateOrChallenge replaces Fortify's
+        // RedirectIfTwoFactorAuthenticatable + AttemptToAuthenticate, so the
+        // authenticateUsing callback runs once per login; an enrolled user goes to
+        // the two-factor challenge. Throttling is applied by the "login" rate
+        // limiter (route middleware), not in the pipeline.
+        Fortify::authenticateThrough(fn (Request $request) => array_values(array_filter([
             IgnoreRememberMe::class, // FIX-1: no remember-me cookie
             config('fortify.lowercase_usernames') ? CanonicalizeUsername::class : null,
-            AttemptToAuthenticate::class,
+            AuthenticateOrChallenge::class,
             PrepareAuthenticatedSession::class,
-        ]);
+        ])));
+
+        // MFA-1: the code (or recovery code) step after the password.
+        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
 
         // SEC-1: the "login" limiter (and the other named limiters) live in App\Support\RateLimits,
         // registered by AppServiceProvider. It still fires Lockout (audited as auth.rate_limited).
 
+        // MFA-1: 5 a minute per login id and 5 a minute per session, counted
+        // separately, so a new session does not reset the count for an account.
         RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(5)->by($request->session()->get('login.id'));
+            return [
+                Limit::perMinute(5)->by('2fa-login:'.$request->session()->get('login.id')),
+                Limit::perMinute(5)->by('2fa-session:'.$request->session()->getId()),
+            ];
         });
 
         RateLimiter::for('passkeys', function (Request $request) {

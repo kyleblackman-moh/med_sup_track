@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountActive;
+use App\Http\Middleware\EnsureMfaEnrolled;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SessionTimeout::class, // SEC-1: idle and absolute session timeouts
             EnsureAccountActive::class, // ADMIN-1: a disabled account is signed out
             EnsurePasswordChanged::class,
+            EnsureMfaEnrolled::class, // MFA-1: after the password change, before anything else
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

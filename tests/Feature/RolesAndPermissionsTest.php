@@ -18,7 +18,7 @@ const EXPECTED_ROLE_PERMISSIONS = [
         'case.view_all', 'case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm',
         'case.intake', 'case.route_to_review', 'query.forward', 'file.prepare', 'letter.issue',
         'case.history.view', 'vendor_user.invite', 'assignment.reassign', 'delegation.manage',
-        'case.withdraw', 'case.reject_final',
+        'case.withdraw', 'case.reject_final', 'users.mfa.reset',
     ],
     'technocrat' => ['case.view_assigned', 'document.upload', 'document.download', 'technical.consider', 'query.raise_to_vendor'],
     'cab_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'funding.confirm'],
@@ -26,7 +26,7 @@ const EXPECTED_ROLE_PERMISSIONS = [
     'ps_office' => ['case.view_all', 'document.upload', 'document.download', 'nonobjection.grant', 'case.history.view'],
     'system_admin' => [
         'audit.view', 'user.create', 'users.manage', 'vendor_user.invite', 'user.reset_credentials',
-        'config.manage', 'assignment.reassign', 'delegation.manage',
+        'config.manage', 'assignment.reassign', 'delegation.manage', 'users.mfa.reset',
     ],
     'auditor' => ['audit.view'],
 ];

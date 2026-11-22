@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 use Spatie\Permission\PermissionRegistrar;
 
 // OVERNIGHT-2 (F1): end to end through the REAL routes and actions. The vendor's
@@ -55,8 +57,14 @@ function e2eUsers(): array
 {
     $find = Closure::bind(fn (string $key) => $this->findUser($key), app(DevSampleCase::class), DevSampleCase::class);
 
+    // MFA-1: the dev users get an authenticator inside the test's transaction (rolled back),
+    // so EnsureMfaEnrolled lets their actions through.
     return collect(['vendor', 'registry', 'cmo', 'technocrat', 'cab', 'legal', 'ps'])
-        ->mapWithKeys(fn (string $key) => [$key => $find($key)])->all();
+        ->mapWithKeys(fn (string $key) => [$key => tap($find($key), fn (User $user) => $user->forceFill([
+            'two_factor_secret' => Fortify::currentEncrypter()->encrypt(app(TwoFactorAuthenticationProvider::class)->generateSecretKey()),
+            'two_factor_recovery_codes' => Fortify::currentEncrypter()->encrypt('[]'),
+            'two_factor_confirmed_at' => now(),
+        ])->save())])->all();
 }
 
 /** A fresh sample case at $stage, made by the real services. */

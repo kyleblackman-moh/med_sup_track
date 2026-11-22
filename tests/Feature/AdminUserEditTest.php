@@ -119,7 +119,8 @@ it('signs a disabled user out on their next request', function () {
 });
 
 it('enables a disabled user, who can sign in again', function () {
-    $user = caseUser(Role::Cmo);
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
+    $user = withoutMfa(caseUser(Role::Cmo));
     $user->forceFill(['status' => User::STATUS_DISABLED, 'disabled_at' => now(), 'disabled_by' => caseUser(Role::SystemAdmin)->id])->save();
 
     $this->actingAs(caseUser(Role::SystemAdmin))->post(route('admin.users.enable', $user))

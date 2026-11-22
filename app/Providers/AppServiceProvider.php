@@ -13,6 +13,8 @@ use App\Policies\CasePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\UserPolicy;
 use App\Support\AuthEventAuditor;
+use App\Support\MfaEnforcement;
+use App\Support\MfaEventAuditor;
 use App\Support\RateLimits;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -52,6 +54,10 @@ class AppServiceProvider extends ServiceProvider
         // Audit auth events. Registered here once; see AuthEventAuditor for why it
         // is not in app/Listeners.
         Event::subscribe(AuthEventAuditor::class);
+
+        // MFA-1: audit the two-factor challenge; refuse to boot with MFA off outside local.
+        Event::subscribe(MfaEventAuditor::class);
+        MfaEnforcement::assertAllowed((string) $this->app->environment(), MfaEnforcement::enforced());
 
         // NOTIF-1: the one place emails are hooked in (queued, after commit).
         Event::subscribe(NotificationSubscriber::class);

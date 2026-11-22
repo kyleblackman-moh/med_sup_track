@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\MfaResetController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\Security\MfaController;
 use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
@@ -168,6 +170,39 @@ Route::middleware(['auth', 'can:viewAny,'.User::class])
             Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
         });
     });
+
+// MFA-1: enrolment, recovery codes and Security settings. EnsureMfaEnrolled lets
+// security.mfa.* through for a user who has not enrolled yet.
+Route::middleware(['auth'])->controller(MfaController::class)->group(function () {
+    Route::get('security/mfa/setup', 'setup')->name('security.mfa.setup');
+    Route::post('security/mfa/confirm', 'confirm')->middleware('throttle:10,1')->name('security.mfa.confirm');
+    Route::get('security/mfa/recovery-codes', 'recoveryCodes')->name('security.mfa.recovery-codes');
+    Route::get('security/mfa/recovery-codes/download', 'downloadRecoveryCodes')->name('security.mfa.recovery-codes.download');
+    Route::post('security/mfa/recovery-codes/acknowledge', 'acknowledge')->name('security.mfa.recovery-codes.acknowledge');
+    Route::post('security/mfa/recovery-codes/regenerate', 'regenerate')
+        ->middleware(['password.confirm', 'throttle:10,1'])->name('security.mfa.regenerate');
+    Route::get('settings/security', 'edit')->name('security.edit');
+});
+
+// MFA-1: Fortify's own two-factor management endpoints (enable, confirm,
+// disable, QR, secret, recovery codes) are refused: users never disable or
+// replace their MFA themselves; enrolment is /security/mfa. Registered after
+// Fortify's routes, so these replace them. The login challenge stays Fortify's.
+Route::middleware(['auth'])->group(function () {
+    $refuse = fn () => abort(403, 'Multi-factor authentication is managed under Security.');
+    Route::post('user/two-factor-authentication', $refuse);
+    Route::delete('user/two-factor-authentication', $refuse);
+    Route::post('user/confirmed-two-factor-authentication', $refuse);
+    Route::get('user/two-factor-qr-code', $refuse);
+    Route::get('user/two-factor-secret-key', $refuse);
+    Route::get('user/two-factor-recovery-codes', $refuse);
+    Route::post('user/two-factor-recovery-codes', $refuse);
+});
+
+// MFA-1: an administrator (or the CMO, for vendor users) resets a user's MFA. MfaReset authorises.
+Route::middleware(['auth', 'throttle:20,1'])
+    ->post('admin/users/{user}/mfa-reset', MfaResetController::class)
+    ->whereNumber('user')->name('admin.users.mfa-reset');
 
 // The short-lived signed link issued by documents.download and cases.documents.download.
 Route::get('documents/{document}/file', [DocumentController::class, 'file'])

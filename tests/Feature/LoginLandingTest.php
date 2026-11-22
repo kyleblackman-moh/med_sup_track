@@ -21,11 +21,12 @@ const LANDING_PASSWORD = 'Landing-Horse-Battery-12';
 
 function landingUser(?string $role): User
 {
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
     if ($role === 'vendor') {
-        return vendorUser(vendorOrg(), ['password' => LANDING_PASSWORD]);
+        return withoutMfa(vendorUser(vendorOrg(), ['password' => LANDING_PASSWORD]));
     }
 
-    return caseUser($role, ['password' => LANDING_PASSWORD]);
+    return withoutMfa(caseUser($role, ['password' => LANDING_PASSWORD]));
 }
 
 it('lands each user on the page their permissions lead to', function (?string $role, string $landing) {
@@ -61,7 +62,7 @@ it('still sends the user to the intended URL first', function (?string $role, st
 
 it('follows the permission, not the role name', function () {
     // A user with no role but the case.submit permission lands like a vendor would.
-    $user = caseUser(null, ['password' => LANDING_PASSWORD]);
+    $user = withoutMfa(caseUser(null, ['password' => LANDING_PASSWORD]));
     $user->givePermissionTo('case.submit');
 
     $this->post('/login', ['email' => $user->email, 'password' => LANDING_PASSWORD])->assertRedirect('/requests');

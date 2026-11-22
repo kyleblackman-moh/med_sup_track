@@ -18,7 +18,8 @@ afterEach(function () {
 // FIX-1 (A2): no Remember me.
 
 it('ignores a posted remember field: no remember-me cookie', function () {
-    $user = caseUser(Role::Cmo);
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
+    $user = withoutMfa(caseUser(Role::Cmo));
 
     $response = $this->post('/login', ['email' => $user->email, 'password' => 'password', 'remember' => 'on']);
 

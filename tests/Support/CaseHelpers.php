@@ -71,6 +71,17 @@ function vendorUser(?Organisation $org, array $attributes = []): User
 /**
  * Inserts a case with forceFill, so it works despite the non-fillable columns.
  */
+/**
+ * MFA-1: a user without an authenticator (the factory makes MFA-confirmed users).
+ * For tests that sign in with only a password, where the two-factor challenge is not the subject.
+ */
+function withoutMfa(User $user): User
+{
+    $user->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null])->save();
+
+    return $user->refresh();
+}
+
 function makeCase(array $attributes = []): ProcurementCase
 {
     $case = new ProcurementCase;

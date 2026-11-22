@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     public const STATUS_ACTIVE = 'active';
 
@@ -74,6 +75,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'disabled_at' => 'datetime', // ADMIN-1
             'password_change_required' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime', // MFA-1
         ];
     }
 

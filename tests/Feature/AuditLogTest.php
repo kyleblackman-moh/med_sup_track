@@ -36,7 +36,8 @@ function auditUser(array $attributes = []): User
 {
     $moh = Organisation::where('type', OrganisationType::Moh)->firstOrFail();
 
-    return User::factory()->create([
+    // MFA-1: this test exercises the password step; MfaTest covers the two-factor challenge.
+    return User::factory()->withoutMfa()->create([
         'email' => 'audit-'.Str::lower(Str::ulid()).'@example.test',
         'password' => AUDIT_PASSWORD,
         'org_id' => $moh->id,

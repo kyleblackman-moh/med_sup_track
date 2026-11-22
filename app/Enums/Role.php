@@ -59,6 +59,7 @@ enum Role: string
                 P::HardcopyConfirm, P::CaseIntake, P::CaseRouteToReview, P::QueryForward,
                 P::FilePrepare, P::LetterIssue, P::CaseHistoryView, P::VendorUserInvite,
                 P::AssignmentReassign, P::DelegationManage, P::CaseWithdraw, P::CaseRejectFinal,
+                P::UsersMfaReset, // MFA-1: vendor users only (MfaReset)
             ],
             self::Technocrat => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
@@ -77,7 +78,7 @@ enum Role: string
             // No case-content permissions: administers users and configuration only.
             self::SystemAdmin => [
                 P::AuditView, P::UserCreate, P::UsersManage, P::VendorUserInvite, P::UserResetCredentials,
-                P::ConfigManage, P::AssignmentReassign, P::DelegationManage,
+                P::ConfigManage, P::AssignmentReassign, P::DelegationManage, P::UsersMfaReset,
             ],
             self::Auditor => [
                 P::AuditView,
