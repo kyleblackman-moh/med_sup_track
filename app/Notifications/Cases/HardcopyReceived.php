@@ -2,9 +2,16 @@
 
 namespace App\Notifications\Cases;
 
-/** NOTIF-1: the hardcopy was recorded as received (to the CMO and the vendor applicant). */
-final class HardcopyReceived extends CaseNotification
+/** NOTIF-2: the hardcopy was recorded as received (to the CMO). Info. */
+final class HardcopyReceived extends StaffCaseNotification
 {
+    protected string $kind = self::INFO;
+
+    public function event(): string
+    {
+        return 'hardcopy_received';
+    }
+
     protected function staffSubject(): string
     {
         return 'Hardcopy Received for '.$this->reference();

@@ -6,6 +6,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
@@ -27,6 +28,18 @@ Route::get('/', function (Request $request) {
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 });
+
+// NOTIF-2: the bell. The signed-in user's own notifications only; another user's id is 404.
+Route::middleware(['auth'])
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->controller(NotificationController::class)
+    ->group(function () {
+        Route::get('/', 'index')->middleware('throttle:60,1')->name('index');
+        Route::get('unread-count', 'unreadCount')->middleware('throttle:120,1')->name('unread-count');
+        Route::post('read-all', 'readAll')->middleware('throttle:30,1')->name('read-all');
+        Route::post('{notification}/read', 'read')->whereUuid('notification')->middleware('throttle:60,1')->name('read');
+    });
 
 // ANALYTICS: charts and tracking for the CMO's office and the PS office only
 // (case.view_all). Everyone else, vendors included, gets 403.
@@ -89,7 +102,8 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
     ->controller(StaffCaseController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('{procurementCase}', 'show')->name('show');
+        // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.
+        Route::get('{queryCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
 

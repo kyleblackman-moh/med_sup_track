@@ -62,6 +62,8 @@ final class QueryView
             'needs_my_forward' => QueryAccess::forwardable($user, $case, $query) !== null,
             'reply_label' => $side === QueryAccess::RECIPIENT ? 'Answer Query' : 'Add a Message',
             'can_close' => QueryAccess::canClose($user, $case, $query),
+            // WORKFLOW-2 (Step 4): the thread stated plainly. React only renders these.
+            'thread' => self::thread($case, $query, $user),
             'messages' => $messages->map(fn (QueryMessage $m) => self::staffMessage($case, $query, $m, $user))->all(),
         ];
     }
@@ -86,6 +88,10 @@ final class QueryView
                 default => 'Sent to '.$to,
             },
             'external' => $message->isExternal(),
+            // WORKFLOW-2 (Step 4): author's office, Internal or External, and a plain time.
+            'author_office' => QueryWording::office($message->author_role, $case),
+            'visibility_label' => $message->isExternal() ? 'External' : 'Internal',
+            'sent_at' => self::time($message->created_at),
             'forward' => $canForward ? [
                 'label' => QueryWording::forwardLabel($message->recipient_role, $case),
                 'title' => 'Forward this message to '.$to.'?',
@@ -164,12 +170,82 @@ final class QueryView
             })->values()->all();
     }
 
+    /**
+     * WORKFLOW-2 (Step 4): From, To, the route in words, who holds the query
+     * now and the next action, in one sentence, for this user.
+     *
+     * @return array{from: string, to: string, route: string, via_cmo: bool, holder: string|null, next_action: string}
+     */
+    public static function thread(ProcurementCase $case, CaseQuery $query, User $user): array
+    {
+        $fromOffice = QueryWording::office($query->raised_by_role, $case);
+        $toOffice = QueryWording::office($query->raised_to_role, $case);
+        $raiser = $query->raisedBy?->name;
+        $named = self::namedRecipient($query);
+
+        return [
+            'from' => $raiser !== null ? "{$raiser} ({$fromOffice})" : $fromOffice,
+            'to' => $named !== null ? "{$named} ({$toOffice})" : $toOffice,
+            'route' => $fromOffice.' to '.$toOffice.($query->via_cmo ? ' via the '.StageWording::CMO_OFFICE : ', direct'),
+            'via_cmo' => (bool) $query->via_cmo,
+            'holder' => match ($query->status) {
+                QueryStatus::AWAITING_FORWARD => StageWording::CMO_OFFICE,
+                QueryStatus::OPEN => $named ?? $toOffice,
+                QueryStatus::ANSWERED => $raiser ?? $fromOffice,
+                QueryStatus::CLOSED => null,
+            },
+            'next_action' => self::nextAction($case, $query, $user),
+        ];
+    }
+
+    /** WORKFLOW-2 (Step 4): the next action on $query, as $user should read it. */
+    public static function nextAction(ProcurementCase $case, CaseQuery $query, User $user): string
+    {
+        $side = QueryAccess::side($user, $query);
+        $cmo = QueryAccess::isCmoDesk($user);
+
+        if ($query->status === QueryStatus::AWAITING_FORWARD) {
+            $held = $query->messages->first(fn (QueryMessage $m) => $m->isHeld());
+            $to = self::the($held?->recipient_role ?? $query->raised_to_role, $case);
+
+            return $cmo ? "Waiting for you to forward this to {$to}." : 'Waiting for the '.StageWording::CMO_OFFICE." to forward this to {$to}.";
+        }
+
+        return match ($query->status) {
+            QueryStatus::OPEN => $side === QueryAccess::RECIPIENT
+                ? 'Waiting for your reply.'
+                : 'Waiting for a reply from '.(self::namedRecipient($query) ?? self::the($query->raised_to_role, $case)).'.',
+            QueryStatus::ANSWERED => match (true) {
+                $side === QueryAccess::RAISER => 'Answered. You can reply or close it.',
+                $cmo => 'Answered. You can close it.',
+                default => 'Answered. Waiting for '.self::the($query->raised_by_role, $case).' to reply or close it.',
+            },
+            default => 'Closed. Nobody can add to it.',
+        };
+    }
+
+    /** The officer the CMO named on the latest forward to the recipient side, if any. */
+    private static function namedRecipient(CaseQuery $query): ?string
+    {
+        $named = $query->messages
+            ->filter(fn (QueryMessage $m) => $m->forwarded_to_user_id !== null && $m->recipient_role === $query->raised_to_role)
+            ->last();
+
+        return $named === null ? null : User::query()->whereKey($named->forwarded_to_user_id)->value('name');
+    }
+
     /** "the Technocrats", "the Legal Unit"; a vendor is its organisation's name. */
     private static function the(string $role, ProcurementCase $case): string
     {
         $office = QueryWording::office($role, $case);
 
         return QueryAccess::isVendorRole($role) ? $office : 'the '.$office;
+    }
+
+    /** A plain timestamp in Port of Spain time ("20 Nov 2026, 9:05 AM"). */
+    private static function time(?CarbonInterface $at): ?string
+    {
+        return $at?->copy()->setTimezone(self::TIMEZONE)->format('j M Y, g:i A');
     }
 
     private static function day(?CarbonInterface $at): ?string

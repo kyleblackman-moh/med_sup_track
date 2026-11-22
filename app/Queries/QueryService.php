@@ -134,7 +134,8 @@ final class QueryService
                 'named_officer_id' => $officer?->getKey(),
             ], $user);
 
-            QueryMessageDelivered::dispatch($case->getKey(), $query->getKey(), $message->getKey());
+            [$caseId, $queryId, $messageId] = [$case->getKey(), $query->getKey(), $message->getKey()];
+            DB::afterCommit(fn () => QueryMessageDelivered::dispatch($caseId, $queryId, $messageId));
         });
     }
 
@@ -251,12 +252,16 @@ final class QueryService
         return $message;
     }
 
-    /** Held: the CMO's desk is asked to forward. Delivered: the other side hears now. */
+    /**
+     * Held: the CMO's desk is asked to forward. Delivered: the other side hears.
+     * NOTIF-2: only once the transaction commits (a rolled-back message announces nothing).
+     */
     private function announce(ProcurementCase $case, CaseQuery $query, QueryMessage $message): void
     {
-        $message->isHeld()
-            ? QueryMessageHeld::dispatch($case->getKey(), $query->getKey(), $message->getKey())
-            : QueryMessageDelivered::dispatch($case->getKey(), $query->getKey(), $message->getKey());
+        $event = $message->isHeld() ? QueryMessageHeld::class : QueryMessageDelivered::class;
+        [$caseId, $queryId, $messageId] = [$case->getKey(), $query->getKey(), $message->getKey()];
+
+        DB::afterCommit(fn () => $event::dispatch($caseId, $queryId, $messageId));
     }
 
     private function lockCase(ProcurementCase $case): ProcurementCase

@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Notifications\Bell;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -107,6 +108,9 @@ class HandleInertiaRequests extends Middleware
             'brand' => [
                 'logo' => self::brandLogo(),
             ],
+            // NOTIF-2: the bell's badge. A closure, so it is counted at render time
+            // (after a case page has marked its own notifications read).
+            'unreadNotificationsCount' => fn () => $user === null ? 0 : Bell::unreadCount($user),
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

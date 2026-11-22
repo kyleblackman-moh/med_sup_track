@@ -19,6 +19,7 @@ use App\Http\Resources\Requests\RequestSummary;
 use App\Http\Resources\Requests\RequestSummaryResource;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
+use App\Notifications\Bell;
 use App\Queries\QueryView;
 use App\Submissions\CaseEraser;
 use App\Submissions\ChangeRequestType;
@@ -146,6 +147,9 @@ class RequestController extends Controller
     public function show(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response
     {
         Gate::authorize('view', $procurementCase);
+
+        // NOTIF-2: opening the request marks the user's unread notifications for it read.
+        Bell::markCaseRead($request->user(), (string) $procurementCase->getKey());
 
         $isDraft = $procurementCase->status === CaseStatus::DRAFT;
         $report = $isDraft ? $readiness->evaluate($procurementCase) : null;

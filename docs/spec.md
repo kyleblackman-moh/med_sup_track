@@ -585,25 +585,46 @@ On submission the system generates a **cover sheet PDF** containing the case ref
 - **In-app:** notification bell and inbox. Polling is acceptable for the MVP; websockets (Laravel Reverb) can follow.
 - **Email:** queued, template-based.
 
-### 11.2 Events
+### 11.2 Events **[Decided 2026-11-21]**
 
-| Event | Recipient | Channels |
+Two kinds. **Action**: in-app and email. **Info**: in-app only. A notification is a pointer: the "Needs my action" queue is still derived from case state and assignments, never from notifications. Recipients are resolved by assignment or permission (the active assignee holding the stage permission, else every active holder), never by role name; query recipients come from the query's route (`query_routes`).
+
+| Event | Recipient | Kind |
 |---|---|---|
-| Case submitted | CMO Registry, CMO | In-app, email |
-| Case assigned to you | Assignee | In-app, email |
-| Hardcopy received | CMO, vendor applicant | In-app, email |
-| Query raised | Recipient (or CMO if via CMO) | In-app, email |
-| **Forward required** | CMO | In-app, email |
-| Query answered | Raiser, CMO | In-app, email |
-| Gate passed | CMO | In-app |
-| Returned to CMO | CMO | In-app, email |
-| Non-objection granted | CMO | In-app, email |
-| Letter issued | Vendor applicant | Email, in-app |
-| Case aging past threshold (Phase 3) | Holder, CMO | In-app, email |
+| Case submitted | Intake (`case.intake`), CMO. Never the PS Office | Action |
+| Hardcopy received | CMO | Info |
+| Technical review outcome recorded | CMO | Info |
+| Funding confirmed / not confirmed | CMO | Info |
+| All three gates met (technical favourable, funding confirmed, hardcopy received) | CMO | Action ("Ready to prepare file") |
+| Query held on a via-CMO route (**forward required**) | CMO's desk (`query.forward`) | Action |
+| Answer to a via-CMO query held (forward response) | CMO's desk | Action |
+| Direct Technocrat–vendor query opened or answered | CMO's desk (watchlist) | Info |
+| Returned to CMO (names Legal or the PS Office) | CMO | Action |
+| Legal confirmed (file now with the PS) | CMO | Info |
+| Non-objection granted | CMO | Action ("Issue letter") |
+| Vendor withdrew a submitted case | CMO | Info |
+| Assigned for technical review / funding confirmation requested | The named assignee | Action |
+| Query reached your desk (direct, or forwarded by the CMO) | That desk's officers on the case, plus the officer the CMO named | Action |
+| Your query was answered (direct, or forwarded back by the CMO) | The raiser | Action |
+| File received (`WITH_LEGAL`, `WITH_PS`) | The assigned officer, else every holder of `legal.confirm` / `nonobjection.grant` | Action |
+| Case aging past threshold (Phase 3) | Holder, CMO | Not built |
+
+**Vendors receive exactly four notifications**, in-app and email, each one fixed sentence, sent to the user who submitted the case only:
+
+| Event | Wording |
+|---|---|
+| An external query is made visible to the vendor (direct, or after the CMO forwards) | "You have a new query on {ref}. Log in to respond." |
+| The vendor's own response was submitted | "Your response on {ref} was sent to the Ministry." |
+| Case enters `NON_OBJECTION_GRANTED` | "Non-objection has been granted for {ref}." |
+| Case enters `REJECTED_FINAL` | "Your application {ref} was not approved. Log in for details." |
+
+Vendors get nothing for any other event (no hardcopy-received or letter-issued notice). Security emails (password reset or change, account activation) are separate.
 
 ### 11.3 Rules
 
 - Notifications to vendor users contain **no internal content**. They state that something needs attention and link to the portal; they never quote internal messages.
+- The in-app row holds only the case id, reference, event code, kind, title and link: never message bodies, query text, reasons or document names. Opening the link re-runs the normal access checks. Opening a case marks the user's notifications for that case read.
+- Notifications are dispatched only after the action's transaction commits; a rolled-back action sends nothing.
 - Email sends are queued and retried; failures are logged and visible to Admin.
 - Per-user preferences are a later enhancement.
 

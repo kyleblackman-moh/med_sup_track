@@ -14,6 +14,7 @@ use App\Models\Document;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
+use App\Notifications\Bell;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -122,11 +123,25 @@ class StaffCaseController extends Controller
         ]);
     }
 
-    public function show(Request $request, ProcurementCase $procurementCase): Response
+    /**
+     * WORKFLOW-2 (R3): an officer the CMO named on a forward, but not assigned
+     * to the case, opens the same page in query-only mode: the header and the
+     * queries they are a party to, nothing else. Anyone else who cannot see
+     * the case gets 404 from the {queryCase} binding (QueryAccess::caseForQueryWork),
+     * before any middleware, as before.
+     *
+     * NOTIF-2: opening a case marks the user's unread notifications for it read.
+     */
+    public function show(Request $request, ProcurementCase $queryCase): Response
     {
-        Gate::authorize('view', $procurementCase);
+        $user = $request->user();
+        $case = $queryCase;
 
-        return Inertia::render('cases/show', StaffCaseDetail::for($procurementCase, $request->user()));
+        Bell::markCaseRead($user, (string) $case->getKey());
+
+        return Inertia::render('cases/show', Gate::forUser($user)->allows('view', $case)
+            ? StaffCaseDetail::for($case, $user)
+            : StaffCaseDetail::queryOnly($case, $user));
     }
 
     /**
