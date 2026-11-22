@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "daisyui-blueprint": {
+            "command": "npx",
+            "args": ["-y", "daisyui-blueprint@1.8.2"],
+            "env": {
+                "LICENSE": "${DAISYUI_LICENSE}",
+                "EMAIL": "${DAISYUI_EMAIL}",
+                "NODE_USE_ENV_PROXY": "1"
+            }
+        }
+    }
+}

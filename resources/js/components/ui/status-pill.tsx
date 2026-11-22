@@ -2,16 +2,16 @@ import { cn } from '@/lib/utils';
 import { type StatusTone } from '@/types/cases';
 
 /**
- * Tone → classes (design.md section 3). The SERVER decides each tone (staff:
+ * Tone → daisyUI badge classes (design.md section 3). The SERVER decides each tone (staff:
  * CaseStatus::tone, vendor: CaseStatus::vendorTone) and sends it with the
  * label; React never reads status codes.
  */
 export const TONE_CLASSES: Record<StatusTone, string> = {
-    neutral: 'bg-status-neutral text-status-neutral-foreground',
-    info: 'bg-status-info text-status-info-foreground',
-    success: 'bg-status-success text-status-success-foreground',
-    warning: 'bg-status-warning text-status-warning-foreground',
-    danger: 'bg-status-danger text-status-danger-foreground',
+    neutral: 'badge-soft badge-neutral',
+    info: 'badge-soft badge-info',
+    success: 'badge-soft badge-success',
+    warning: 'badge-soft badge-warning',
+    danger: 'badge-soft badge-error',
 };
 
 interface StatusPillProps {
@@ -26,14 +26,14 @@ interface StatusPillProps {
 
 /**
  * UI-4: the one status pill (design.md sections 3 and 7): 24px high, full
- * radius, 12px/500, a 6px dot in the text colour, always a text label. In a
- * table column (inColumn) a shared min-width (96px) keeps the pills lined up.
+ * radius, 12px/500, a 6px dot in the text colour, always a text label. A
+ * shared min-width (96px) keeps pills in a column lined up.
  */
 export function StatusPill({ label, tone, openQuery = false, inColumn = false, className }: StatusPillProps) {
     return (
         <span
             className={cn(
-                'inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap',
+                'badge h-6 justify-start gap-1.5 px-2.5 text-xs font-medium whitespace-nowrap',
                 inColumn && 'min-w-24',
                 TONE_CLASSES[tone] ?? TONE_CLASSES.neutral,
                 className,

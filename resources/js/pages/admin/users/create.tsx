@@ -3,7 +3,7 @@ import { PageContent, PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type RoleOption } from '@/types/admin';
@@ -85,23 +85,22 @@ export default function AdminUserCreate({ options }: Props) {
 
                         <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
-                            <Select value={data.role} onValueChange={chooseRole}>
-                                <SelectTrigger
-                                    id="role"
-                                    aria-required
-                                    aria-invalid={errors.role ? true : undefined}
-                                    aria-describedby={describedBy('role')}
-                                    className="border-input bg-card w-full"
-                                >
-                                    <SelectValue placeholder="Choose a role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.roles.map((r) => (
-                                        <SelectItem key={r.value} value={r.value}>
-                                            {r.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
+                            <Select
+                                value={data.role}
+                                onChange={(e) => chooseRole(e.target.value)}
+                                id="role"
+                                aria-required
+                                aria-invalid={errors.role ? true : undefined}
+                                aria-describedby={describedBy('role')}
+                            >
+                                <option value="" disabled>
+                                    Choose a role
+                                </option>
+                                {options.roles.map((r) => (
+                                    <option key={r.value} value={r.value}>
+                                        {r.label}
+                                    </option>
+                                ))}
                             </Select>
                             <InputError id="role-error" message={errors.role} />
                         </div>
@@ -109,23 +108,22 @@ export default function AdminUserCreate({ options }: Props) {
                         {needsOrganisation ? (
                             <div className="grid gap-2">
                                 <Label htmlFor="organisation">Organisation</Label>
-                                <Select value={data.organisation} onValueChange={(v) => setData('organisation', v)}>
-                                    <SelectTrigger
-                                        id="organisation"
-                                        aria-required
-                                        aria-invalid={errors.organisation ? true : undefined}
-                                        aria-describedby={describedBy('organisation')}
-                                        className="border-input bg-card w-full"
-                                    >
-                                        <SelectValue placeholder="Choose the vendor organisation" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {options.organisations.map((o) => (
-                                            <SelectItem key={o.value} value={o.value}>
-                                                {o.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
+                                <Select
+                                    value={data.organisation}
+                                    onChange={(e) => setData('organisation', e.target.value)}
+                                    id="organisation"
+                                    aria-required
+                                    aria-invalid={errors.organisation ? true : undefined}
+                                    aria-describedby={describedBy('organisation')}
+                                >
+                                    <option value="" disabled>
+                                        Choose the vendor organisation
+                                    </option>
+                                    {options.organisations.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
                                 </Select>
                                 <InputError id="organisation-error" message={errors.organisation} />
                             </div>

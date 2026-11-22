@@ -37,36 +37,38 @@ export function Tabs<T extends string>({ tabs, active, onSelect, label, classNam
         onSelect(next.id);
     };
 
+    // daisyUI tabs-border in one row that scrolls sideways on narrow screens.
     return (
-        <div role="tablist" aria-label={label} className={cn('flex flex-wrap gap-1 border-b', className)}>
-            {tabs.map((tab, index) => {
-                const selected = tab.id === active;
+        <div className={cn('border-base-300 -mx-1 overflow-x-auto border-b', className)}>
+            <div role="tablist" aria-label={label} className="tabs tabs-border flex-nowrap px-1">
+                {tabs.map((tab, index) => {
+                    const selected = tab.id === active;
 
-                return (
-                    <button
-                        key={tab.id}
-                        ref={(el) => {
-                            refs.current[tab.id] = el;
-                        }}
-                        type="button"
-                        role="tab"
-                        id={`tab-${tab.id}`}
-                        aria-selected={selected}
-                        aria-controls={`panel-${tab.id}`}
-                        tabIndex={selected ? 0 : -1}
-                        onClick={() => onSelect(tab.id)}
-                        onKeyDown={(e) => onKeyDown(e, index)}
-                        className={cn(
-                            'focus-visible:ring-ring -mb-px flex min-h-11 shrink-0 items-center gap-2 rounded-t-lg border-b-[3px] px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:min-h-10 motion-reduce:transition-none',
-                            selected
-                                ? 'border-primary bg-card text-foreground font-semibold'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent font-medium',
-                        )}
-                    >
-                        {tab.label}
-                    </button>
-                );
-            })}
+                    return (
+                        <button
+                            key={tab.id}
+                            ref={(el) => {
+                                refs.current[tab.id] = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            id={`tab-${tab.id}`}
+                            aria-selected={selected}
+                            aria-controls={`panel-${tab.id}`}
+                            tabIndex={selected ? 0 : -1}
+                            onClick={() => onSelect(tab.id)}
+                            onKeyDown={(e) => onKeyDown(e, index)}
+                            className={
+                                selected
+                                    ? 'tab tab-active min-h-11 shrink-0 font-semibold whitespace-nowrap capitalize transition-colors md:min-h-10'
+                                    : 'tab min-h-11 shrink-0 whitespace-nowrap capitalize transition-colors md:min-h-10'
+                            }
+                        >
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

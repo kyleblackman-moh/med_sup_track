@@ -15,28 +15,28 @@ function formatDateTime(iso: string | null): string {
  */
 export function GateTracker({ gate }: { gate: GateState | null }) {
     if (!gate) {
-        return <p className="text-muted-foreground text-sm">Not yet sent for review.</p>;
+        return <p className="text-base-content/70 text-sm">Not yet sent for review.</p>;
     }
 
     return (
         <div className="space-y-3">
-            <ul className="divide-y text-sm">
+            <ul className="divide-base-300 divide-y text-sm">
                 {gate.rows.map((row) => (
-                    <li key={row.key} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
+                    <li key={row.key} className="grid gap-2 py-3 first:pt-0 sm:grid-cols-[minmax(0,14rem)_1fr]">
                         <div className="flex items-start gap-2">
                             <span
                                 className={
                                     row.done
-                                        ? 'bg-primary text-primary-foreground mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full'
-                                        : 'mt-0.5 size-5 shrink-0 rounded-full border'
+                                        ? 'bg-primary text-primary-content mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full'
+                                        : 'border-base-300 mt-0.5 size-5 shrink-0 rounded-full border'
                                 }
                                 aria-hidden
                             >
                                 {row.done && <Check className="size-3.5" />}
                             </span>
                             <div>
-                                <p className="font-medium">{row.label}</p>
-                                <p className="text-muted-foreground">
+                                <p className="font-medium capitalize">{row.label}</p>
+                                <p className="text-base-content/70">
                                     {row.done ? 'Done: ' : 'Not done: '}
                                     {row.state}
                                 </p>
@@ -48,25 +48,25 @@ export function GateTracker({ gate }: { gate: GateState | null }) {
                                 row.received_on ? (
                                     <p>
                                         Received on {formatDay(row.received_on)}
-                                        {row.recorded_by && <span className="text-muted-foreground"> · recorded by {row.recorded_by}</span>}
-                                        {row.recorded_at && <span className="text-muted-foreground"> on {formatDateTime(row.recorded_at)}</span>}
+                                        {row.recorded_by && <span className="text-base-content/70"> · recorded by {row.recorded_by}</span>}
+                                        {row.recorded_at && <span className="text-base-content/70"> on {formatDateTime(row.recorded_at)}</span>}
                                     </p>
                                 ) : (
-                                    <p className="text-muted-foreground">Not received</p>
+                                    <p className="text-base-content/70">Not received</p>
                                 )
                             ) : row.reviewers.length === 0 ? (
-                                <p className="text-muted-foreground">No reviewer assigned</p>
+                                <p className="text-base-content/70">No reviewer assigned</p>
                             ) : (
                                 <ul className="space-y-1">
                                     {row.reviewers.map((r, i) => (
                                         <li key={`${row.key}-${i}`}>
                                             <span className="font-medium">{r.name ?? 'Unknown user'}</span>
-                                            <span className="text-muted-foreground">
+                                            <span className="text-base-content/70">
                                                 {' · '}
                                                 {r.outcome ?? 'No outcome yet'}
                                                 {r.recorded_at && ` on ${formatDateTime(r.recorded_at)}`}
                                             </span>
-                                            {r.reason && <p className="text-muted-foreground mt-0.5 whitespace-pre-line">Reason: {r.reason}</p>}
+                                            {r.reason && <p className="text-base-content/70 mt-0.5 whitespace-pre-line">Reason: {r.reason}</p>}
                                         </li>
                                     ))}
                                 </ul>
@@ -77,9 +77,9 @@ export function GateTracker({ gate }: { gate: GateState | null }) {
             </ul>
 
             {gate.missing.length > 0 && (
-                <div className="text-sm">
+                <div className="bg-base-200 rounded-box p-3 text-sm">
                     <p className="font-medium">Before the case can be marked ready for file:</p>
-                    <ul className="text-muted-foreground list-disc pl-5">
+                    <ul className="text-base-content/70 [list-style-type:disc] pl-5">
                         {gate.missing.map((m) => (
                             <li key={m}>{m}</li>
                         ))}

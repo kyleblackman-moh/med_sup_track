@@ -2,7 +2,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { type AdminUserDetail, type RoleOption } from '@/types/admin';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { Ban, Mail, RotateCcw } from 'lucide-react';
@@ -33,23 +33,22 @@ export function RoleForm({ user, options }: { user: AdminUserDetail; options: Ro
                 </h2>
                 <div className="grid max-w-md gap-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select value={data.role} onValueChange={(v) => setData('role', v)}>
-                        <SelectTrigger
-                            id="role"
-                            aria-required
-                            aria-invalid={errors.role ? true : undefined}
-                            aria-describedby={errors.role ? 'role-error' : undefined}
-                            className="border-input bg-card w-full"
-                        >
-                            <SelectValue placeholder="Choose a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {options.map((r) => (
-                                <SelectItem key={r.value} value={r.value}>
-                                    {r.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
+                    <Select
+                        value={data.role}
+                        onChange={(e) => setData('role', e.target.value)}
+                        id="role"
+                        aria-required
+                        aria-invalid={errors.role ? true : undefined}
+                        aria-describedby={errors.role ? 'role-error' : undefined}
+                    >
+                        <option value="" disabled>
+                            Choose a role
+                        </option>
+                        {options.map((r) => (
+                            <option key={r.value} value={r.value}>
+                                {r.label}
+                            </option>
+                        ))}
                     </Select>
                     <InputError id="role-error" message={errors.role} />
                 </div>

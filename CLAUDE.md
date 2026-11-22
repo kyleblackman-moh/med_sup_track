@@ -2,11 +2,11 @@
 
 MOH (Trinidad and Tobago) web app that digitises the non-objection process for
 medical procurement: vendor → CMO → Technocrats + CAB → Legal → PS → letter.
-Laravel 12, Inertia, React (TypeScript), Tailwind 4, shadcn/ui, SQL Server, Pest.
+Laravel 12, Inertia, React (TypeScript), Tailwind 4, daisyUI 5, SQL Server, Pest.
 
 Full specification: docs/spec.md (state machine, permission matrix, data model,
-open questions). UI rules: design.md. Read the relevant section before changing
-workflow, permissions or screens.
+open questions). UI rules: the daisyui-blueprint MCP first, then design.md. Read
+the relevant section before changing workflow, permissions or screens.
 
 ## Hard rules (never break these)
 - Tests: Pest with DatabaseTransactions only. There is no test database; do not suggest one. Never run or suggest migrate:fresh, migrate:reset, db:wipe or RefreshDatabase.
@@ -15,7 +15,7 @@ workflow, permissions or screens.
 - Never edit .env, never push with force, never install a package without asking Kyle.
 - Out-of-scope case access returns 404, never 403. (A missing permission or a terminal status returns 403.)
 - User-typed text (reasons, notes, instructions) never goes into an audit payload. Store flags and lengths; the text lives in its own table.
-- No SLA UI (target days, "Over target", lateness colours) until sla_policies holds values.
+- SLA UI (targets, timers, "at risk") is built as Blueprint specifies. Targets come from `sla_policies` via the server, never hard-coded; a step with no policy shows age only.
 - Stage commits by explicit path. Never git add -A or git add . Leave package-lock.json and design.md unstaged unless Kyle says otherwise.
 - PowerShell commands given to Kyle: plain single-line, no angle-bracket placeholders, no "PS C:\>" prefix.
 - Shared Inertia props: never add keys under `can`; page props named `can` override shared ones.
@@ -37,18 +37,23 @@ workflow, permissions or screens.
 - Statuses marked [Assumption] or open questions (spec §18) need the CMO's Office: don't decide them in code.
 
 ## UI
-- Read design.md first. Theme tokens only: no hex, font or radius values in components.
+- All UI work goes through the daisyui-blueprint MCP (.mcp.json): setup expert → rules enforcer → creative director + page architect (new pages) → component syntax expert → quality inspector. If its tools are unavailable, stop and tell Kyle.
+- Blueprint dictates the UI: layout, components, styling, copy patterns, states and page architecture. Where design.md or any UI rule here disagrees, Blueprint wins; update design.md to match. The data rules above still decide what each user may see (vendor isolation, permissions) and where values come from (server-sent tones, sla_policies).
+- Theme tokens only (daisyUI semantic colours from the "moh" theme): no hex, font or radius values in components.
 - Badge tone comes from the server (`status_tone`); React maps tone → classes.
 - Page props may be named `can` for page-level action flags (existing convention). Never add keys to the shared `can`; nav-only flags live under `nav`.
-- Form actions (Submit, Review and submit, Save, Delete draft) go in a footer row at the bottom of the form, never in the header. The header may show status only.
+- Buttons go at the end: every form and case action panel ends with a footer row holding its buttons (secondary first, primary last). Case actions use `components/cases/action-panel.tsx`. Headers may show status only.
+- Labels, headings, buttons, tabs and status pills use the `capitalize` utility (CSS only; server strings stay as they are). Sentences stay sentence case.
+- Pages are full width beside the drawer: no centred `max-w-*` page wrappers; page padding `px-4 py-4 lg:px-6`.
+- Motion is subtle and `motion-safe:` only, built from Tailwind `transition` and `starting:` utilities (no authored `@keyframes`).
 
 ## Design
-- All UI work must follow design-system/medprocurement/MASTER.md. Read it before any UI change. It is the vendor section's digest of design.md, and design.md wins on any conflict.
+- Order of authority for UI: the daisyui-blueprint MCP, then design.md, then design-system/medprocurement/MASTER.md (the vendor section's digest of design.md). Where they disagree, Blueprint wins; update design.md and MASTER.md to match.
 - Reuse existing components before creating new ones. No duplicate components just to restyle.
-- Never introduce new colors, fonts, spacing or radius values. Update design.md and MASTER.md first, then add the token to resources/css/app.css (additive only).
+- Colours, radii and sizes come from the daisyUI "moh" theme in resources/css/app.css. Never introduce new colours, fonts, spacing or radius values in components; change the theme (and design.md) first.
 
 ## Working rules
-- Ask Kyle before installing any package, including `npx shadcn add`.
+- Ask Kyle before installing any package.
 - Before finishing: `php artisan test` (or the relevant `--filter`), `npx tsc --noEmit`,
   `npx eslint resources/js`, `npx prettier --check resources/`, and run Pint only on
   files you changed: `vendor/bin/pint path/to/file.php`.
