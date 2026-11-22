@@ -12,10 +12,12 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\UserType;
 use App\Models\CaseAssignment;
+use App\Models\CaseTransition;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
 function vendorOrg(): Organisation
@@ -202,4 +204,33 @@ function actAs(?User $user): void
 function fixtureIds(array $fixture): array
 {
     return collect($fixture['cases'])->map->id->values()->all();
+}
+
+/**
+ * The transitions a real case has on its way to $status (every status change
+ * goes through CaseTransitionService, so a real case always has them). A
+ * fixture inserted at a late status with makeCase() has no history at all,
+ * which no real case has; record one so views built from case_transitions
+ * (the vendor's Progress timeline) see what they would see in real use.
+ * One step a day ending yesterday at noon UTC, the first at $case->submitted_at.
+ */
+function caseHistory(ProcurementCase $case, CaseStatus $status): void
+{
+    $path = [
+        CaseStatus::DRAFT, CaseStatus::SUBMITTED, CaseStatus::CMO_INTAKE, CaseStatus::IN_REVIEW,
+        CaseStatus::READY_FOR_FILE, CaseStatus::FILE_PREPARED, CaseStatus::WITH_LEGAL, CaseStatus::WITH_PS,
+        CaseStatus::NON_OBJECTION_GRANTED, CaseStatus::LETTER_ISSUED, CaseStatus::CLOSED,
+    ];
+    $steps = array_slice($path, 0, array_search($status, $path, true) + 1);
+    $submitted = CarbonImmutable::parse($case->submitted_at ?? now()->subDays(count($steps)))->utc();
+    $last = CarbonImmutable::now('UTC')->subDay()->setTime(12, 0);
+
+    foreach (array_slice($steps, 1) as $i => $to) {
+        // Submission at submitted_at; the later steps spread out evenly up to yesterday.
+        $at = $i === 0 ? $submitted : $submitted->addSeconds((int) (($last->getTimestamp() - $submitted->getTimestamp()) * $i / max(1, count($steps) - 2)));
+
+        (new CaseTransition)->forceFill([
+            'case_id' => $case->id, 'from_status' => $steps[$i], 'to_status' => $to, 'created_at' => $at,
+        ])->save();
+    }
 }

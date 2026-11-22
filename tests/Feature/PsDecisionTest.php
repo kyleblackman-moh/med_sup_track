@@ -349,6 +349,8 @@ it('gives the CMO no PS form at WITH_PS', function () {
 
 it('shows the vendor the same in-progress view at WITH_PS, after a grant and after a PS return', function (string $decision) {
     $case = case10d(CaseStatus::WITH_PS);
+    // A real WITH_PS case has its history; the decision must add nothing the vendor sees.
+    caseHistory($case, CaseStatus::WITH_PS);
     $vendor = vendorUser($case->organisation()->first());
     $view = fn () => collect(pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk()))->except(['auth', 'flash', 'errors', 'quote'])->all(); // quote: the starter kit's random shared prop
 

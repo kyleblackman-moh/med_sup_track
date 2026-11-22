@@ -61,7 +61,8 @@ function case10f(CaseStatus $status, bool $withLetter = true): ProcurementCase
         'submitted_at' => CarbonImmutable::now('UTC')->subDays(20),
         'technical_track' => TrackStatus::FAVOURABLE,
         'funding_track' => TrackStatus::CONFIRMED,
-        'hardcopy_received_on' => '2026-10-25',
+        // Received two days after submission, as a calendar date in Port of Spain (not a fixed date).
+        'hardcopy_received_on' => CarbonImmutable::now('UTC')->subDays(18)->setTimezone('America/Port_of_Spain')->toDateString(),
         'hardcopy_received_at' => CarbonImmutable::now('UTC')->subDays(18),
         'hardcopy_received_by' => caseUser(Role::CmoRegistry)->id,
         'file_no' => 'HE:8/2/50/10F',
@@ -432,6 +433,9 @@ function vendorView10f($test, ProcurementCase $case): array
 
 it('still shows only "Under review" at WITH_PS and NON_OBJECTION_GRANTED', function () {
     $case = case10f(CaseStatus::WITH_PS);
+    // A real WITH_PS case has its history (submitted, intake, review ...); without it the timeline
+    // would gain its first transition from the decision itself.
+    caseHistory($case, CaseStatus::WITH_PS);
     $strip = fn (array $props) => [...$props, 'case' => Arr::except($props['case'], ['updated_at'])];
 
     $before = vendorView10f($this, $case);

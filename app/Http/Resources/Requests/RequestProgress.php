@@ -58,8 +58,12 @@ final class RequestProgress
             $milestones[] = self::milestone(strtolower($group), self::LABELS[$group], $transition->created_at);
         }
 
-        // A case submitted before transitions were recorded still shows when it was submitted.
-        if ($milestones === [] && $case->submitted_at !== null) {
+        // A case whose submission was never recorded as a transition (submitted
+        // before transitions were recorded) still shows when it was submitted,
+        // also once later transitions exist: checking only for "no milestones"
+        // made Submitted disappear at the case's first recorded step.
+        $hasSubmitted = in_array('submitted', array_column($milestones, 'key'), true);
+        if (! $hasSubmitted && $case->submitted_at !== null) {
             $milestones[] = self::milestone('submitted', self::LABELS['SUBMITTED'], $case->submitted_at);
         }
 

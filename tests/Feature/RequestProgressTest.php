@@ -159,3 +159,23 @@ it('orders same-day milestones by when each happened', function () {
 
     expect(progressLabels($case))->toBe(['Submitted', 'Under Review', 'Hardcopy Received', 'Letter Issued', 'Closed']);
 })->skip(fn () => CarbonImmutable::now('America/Port_of_Spain')->hour === 23, 'Too close to midnight in Port of Spain.');
+
+// A case whose submission was never recorded as a transition (submitted before
+// transitions were recorded) keeps its Submitted milestone, also once later
+// transitions exist. Before 2026-11-23 it vanished at the first recorded step.
+it('keeps Submitted from submitted_at when the submission itself was never recorded', function () {
+    $case = progressCase($this->vendor, [[S::CMO_INTAKE, 5], [S::IN_REVIEW, 4]], [
+        'submitted_at' => CarbonImmutable::now('UTC')->subDays(7),
+    ]);
+
+    $progress = RequestProgress::for($case);
+
+    expect(array_column($progress, 'label'))->toBe(['Submitted', 'Under Review'])
+        ->and($progress[0]['date'])->toBe(CarbonImmutable::now('UTC')->subDays(7)->setTimezone('America/Port_of_Spain')->format('Y-m-d'));
+});
+
+it('shows Submitted once when the submission was recorded', function () {
+    $case = progressCase($this->vendor, [[S::SUBMITTED, 5], [S::CMO_INTAKE, 4]]);
+
+    expect(progressLabels($case))->toBe(['Submitted', 'Under Review']);
+});
