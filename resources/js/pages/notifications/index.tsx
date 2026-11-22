@@ -64,17 +64,18 @@ export default function NotificationsIndex({ notifications, filter }: Props) {
                         <h2 id="notifications-list-heading" className="text-base font-semibold capitalize">
                             {FILTERS.find((f) => f.value === filter)?.label ?? 'All'} notifications
                         </h2>
-                        <div role="radiogroup" aria-label="Show notifications" className="join">
+                        {/* A segmented toggle (aria-pressed), not radios: RadioGuardTest keeps radios to the shared RadioGroup. */}
+                        <div role="group" aria-label="Show notifications" className="join">
                             {FILTERS.map((f) => (
-                                <input
+                                <button
                                     key={f.value}
-                                    type="radio"
-                                    name="notification-filter"
-                                    className="join-item btn btn-sm capitalize"
-                                    aria-label={f.label}
-                                    checked={filter === f.value}
-                                    onChange={() => choose(f.value)}
-                                />
+                                    type="button"
+                                    className={cn('join-item btn btn-sm capitalize', filter === f.value && 'btn-active')}
+                                    aria-pressed={filter === f.value}
+                                    onClick={() => filter !== f.value && choose(f.value)}
+                                >
+                                    {f.label}
+                                </button>
                             ))}
                         </div>
                     </div>
