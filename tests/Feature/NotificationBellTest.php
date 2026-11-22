@@ -76,10 +76,11 @@ it('counts, lists, and marks the signed-in user\'s own notifications read', func
 
     $this->actingAs($this->tech)->getJson(route('notifications.unread-count'))->assertOk()->assertExactJson(['count' => 2]);
 
-    $list = $this->actingAs($this->tech)->getJson(route('notifications.index'))->assertOk()->json();
-    expect($list['total'])->toBe(2)
+    // NOTIF-3: the dropdown's JSON moved to notifications.latest; notifications.index is now the "View all" page.
+    $list = $this->actingAs($this->tech)->getJson(route('notifications.latest'))->assertOk()->json();
+    expect($list['data'])->toHaveCount(2)
         ->and($list['unread'])->toBe(2)
-        ->and(array_keys($list['data'][0]))->toBe(['id', 'kind', 'event', 'title', 'url', 'read', 'created_at'])
+        ->and(array_keys($list['data'][0]))->toBe(['id', 'kind', 'event', 'title', 'reference', 'url', 'read', 'created_at'])
         ->and(json_encode($list))->not->toContain('App\\\\Notifications');
 
     $mine = $list['data'][0]['id'];
@@ -94,7 +95,9 @@ it('counts, lists, and marks the signed-in user\'s own notifications read', func
 
 it('needs a signed-in user', function () {
     $this->getJson(route('notifications.unread-count'))->assertUnauthorized();
+    $this->getJson(route('notifications.latest'))->assertUnauthorized();
     $this->postJson(route('notifications.read-all'))->assertUnauthorized();
+    $this->get(route('notifications.index'))->assertRedirect(route('login'));
 });
 
 it('shares unreadNotificationsCount on every page', function () {

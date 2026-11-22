@@ -36,15 +36,22 @@ import {
 } from '@/types/cases';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head } from '@inertiajs/react';
-import { CircleCheck, FileText, History, Mail, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
+import { CircleCheck, FileText, History, Info, Mail, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface Props {
+    /**
+     * WORKFLOW-2 (R3): an officer named on a forward who is not on the case.
+     * The server sends the header and their queries only (every other prop is
+     * empty); the page shows just the header and the Queries tab.
+     */
+    query_only: boolean;
     case: StaffCaseDetail;
     /** NEXT-STEP-1: the Next Step card (staff only). */
     next_step: NextStepView;
     hardcopy: HardcopyRecord | null;
-    hardcopy_dates: { today: string; earliest: string | null };
+    /** Null in query-only mode. */
+    hardcopy_dates: { today: string; earliest: string | null } | null;
     documents: StaffDocument[];
     timeline: TimelineEntry[];
     assignments: AssignmentEntry[];
@@ -100,7 +107,11 @@ function Card({ title, id, icon: Icon, children }: { title: string; id: string; 
  * with Awards & orders only when the case has any. The actions are not a tab:
  * they sit in the action column beside the tabs.
  */
-function buildTabs(detail: StaffCaseDetail, hasSummary: boolean): TabItem<TabId>[] {
+function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: boolean): TabItem<TabId>[] {
+    if (queryOnly) {
+        return [{ id: 'queries', label: 'Queries' }];
+    }
+
     if (hasSummary) {
         return [
             { id: 'overview', label: 'Overview' },
@@ -141,7 +152,7 @@ function tabFromUrl(ids: TabId[]): TabId {
     // ?tab=actions (older links) opens the overview, with the Next Step panel open.
     const wanted = new URLSearchParams(window.location.search).get('tab');
 
-    return ids.find((id) => id === wanted) ?? 'overview';
+    return ids.find((id) => id === wanted) ?? ids[0] ?? 'overview';
 }
 
 /**
@@ -156,6 +167,7 @@ function tabFromUrl(ids: TabId[]): TabId {
  * define them).
  */
 export default function CaseShow({
+    query_only: queryOnly = false,
     case: detail,
     next_step,
     hardcopy,
@@ -184,7 +196,7 @@ export default function CaseShow({
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
     ];
 
-    const tabs = buildTabs(detail, summary !== null);
+    const tabs = buildTabs(detail, summary !== null, queryOnly);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
     const [routeOpen, setRouteOpen] = useState(false);
@@ -211,7 +223,7 @@ export default function CaseShow({
     const anchorRef = useRef<HTMLDivElement>(null);
     const wasOpen = useRef(false);
     const hasNextStep = Boolean(
-        next_step && (next_step.stage || next_step.instruction || next_step.actions.length > 0 || next_step.checklist.length > 0),
+        !queryOnly && next_step && (next_step.stage || next_step.instruction || next_step.actions.length > 0 || next_step.checklist.length > 0),
     );
 
     useEffect(() => {
@@ -261,12 +273,13 @@ export default function CaseShow({
         return () => observer.disconnect();
     }, [hasNextStep]);
 
+    // Query-only: the header facts the server sends (no hardcopy, which it does not).
     const facts: [string, string, boolean?][] = [
         ['Organisation', detail.organisation ?? '—'],
         ['Procurement Type', detail.procurement_type ?? '—'],
         ['Current Holder', detail.holder_label ?? '—'],
         ['Submitted', formatDate(detail.submitted_at)],
-        ['Hardcopy', hardcopyText(hardcopy)],
+        ...(queryOnly ? [] : ([['Hardcopy', hardcopyText(hardcopy)]] as [string, string][])),
         ...(detail.file_no ? ([['File Number', detail.file_no, true]] as [string, string, boolean][]) : []),
     ];
 
@@ -317,7 +330,7 @@ export default function CaseShow({
                                 </div>
                             )}
                         </div>
-                        <p className="text-base-content/70 mt-1 text-sm">{detail.item_description ?? 'No item description'}</p>
+                        {!queryOnly && <p className="text-base-content/70 mt-1 text-sm">{detail.item_description ?? 'No item description'}</p>}
                         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3 xl:grid-cols-6">
                             {facts.map(([label, value, mono]) => (
                                 <div key={label} className="min-w-0">
@@ -333,6 +346,13 @@ export default function CaseShow({
                     <div className="min-w-0 flex-1 px-4 py-4 lg:px-6">
                         <div className="flex min-w-0 flex-col gap-4">
                             <FlashMessages />
+
+                            {queryOnly && (
+                                <div role="status" className="alert alert-soft alert-info">
+                                    <Info className="size-5" aria-hidden="true" />
+                                    <span className="text-sm">You have access to this case's queries only.</span>
+                                </div>
+                            )}
 
                             <Tabs tabs={tabs} active={active} onSelect={show} label="Case sections" className="border-base-300 capitalize" />
 
@@ -523,56 +543,58 @@ export default function CaseShow({
                     </div>
                 </div>
 
-                <div className="drawer-side z-50 print:hidden">
-                    <label htmlFor={NEXT_STEP_DRAWER} aria-label="Close your next step" className="drawer-overlay" />
-                    <section
-                        id={NEXT_STEP_PANEL}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="next-step-panel-title"
-                        className="bg-base-100 text-base-content flex min-h-full w-full flex-col sm:w-md xl:w-lg"
-                    >
-                        <header className="bg-base-100 border-base-300 sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3">
-                            <h2 id="next-step-panel-title" className="flex items-center gap-2 text-base font-semibold capitalize">
-                                <Signpost className="size-4 shrink-0" aria-hidden="true" />
-                                Your Next Step
-                            </h2>
-                            <button
-                                ref={closeRef}
-                                type="button"
-                                className="btn btn-ghost btn-sm btn-square"
-                                aria-label="Close your next step"
-                                onClick={() => setPanelOpen(false)}
-                            >
-                                <X className="size-4" aria-hidden="true" />
-                            </button>
-                        </header>
+                {!queryOnly && (
+                    <div className="drawer-side z-50 print:hidden">
+                        <label htmlFor={NEXT_STEP_DRAWER} aria-label="Close your next step" className="drawer-overlay" />
+                        <section
+                            id={NEXT_STEP_PANEL}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="next-step-panel-title"
+                            className="bg-base-100 text-base-content flex min-h-full w-full flex-col sm:w-md xl:w-lg"
+                        >
+                            <header className="bg-base-100 border-base-300 sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3">
+                                <h2 id="next-step-panel-title" className="flex items-center gap-2 text-base font-semibold capitalize">
+                                    <Signpost className="size-4 shrink-0" aria-hidden="true" />
+                                    Your Next Step
+                                </h2>
+                                <button
+                                    ref={closeRef}
+                                    type="button"
+                                    className="btn btn-ghost btn-sm btn-square"
+                                    aria-label="Close your next step"
+                                    onClick={() => setPanelOpen(false)}
+                                >
+                                    <X className="size-4" aria-hidden="true" />
+                                </button>
+                            </header>
 
-                        <div id="case-actions" className="flex min-w-0 flex-col gap-4 p-4">
-                            <NextStepCard
-                                caseId={detail.id}
-                                next={next_step}
-                                reviewers={reviewers}
-                                fileNoDefault={file_no_default}
-                                legalOfficers={legal_officers}
-                                legalForm={legal_form}
-                                psForm={ps_form}
-                                reviewForms={review_forms}
-                                letterToday={letter_dates?.today ?? null}
-                                onRoute={can.route_onward && route_panel ? openRoute : null}
-                                onOpenQueries={() => {
-                                    setPanelOpen(false);
-                                    show('queries');
-                                }}
-                            />
+                            <div id="case-actions" className="flex min-w-0 flex-col gap-4 p-4">
+                                <NextStepCard
+                                    caseId={detail.id}
+                                    next={next_step}
+                                    reviewers={reviewers}
+                                    fileNoDefault={file_no_default}
+                                    legalOfficers={legal_officers}
+                                    legalForm={legal_form}
+                                    psForm={ps_form}
+                                    reviewForms={review_forms}
+                                    letterToday={letter_dates?.today ?? null}
+                                    onRoute={can.route_onward && route_panel ? openRoute : null}
+                                    onOpenQueries={() => {
+                                        setPanelOpen(false);
+                                        show('queries');
+                                    }}
+                                />
 
-                            <CaseActions caseId={detail.id} hardcopy={hardcopy} can={can} psOutcome={ps_outcome} />
-                        </div>
-                    </section>
-                </div>
+                                <CaseActions caseId={detail.id} hardcopy={hardcopy} can={can} psOutcome={ps_outcome} />
+                            </div>
+                        </section>
+                    </div>
+                )}
             </div>
 
-            {can.route_onward && route_panel && (
+            {!queryOnly && can.route_onward && route_panel && (
                 <SendOnwardPanel
                     open={routeOpen}
                     onOpenChange={setRouteOpen}

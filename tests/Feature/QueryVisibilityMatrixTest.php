@@ -2,6 +2,7 @@
 
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus as S;
+use App\Http\Resources\Cases\StaffCaseDetail;
 use App\Models\CaseQuery;
 use App\Models\ProcurementCase;
 use App\Models\QueryMessage;
@@ -159,6 +160,14 @@ it('lets an officer named on forward answer the query without opening the rest o
         ->and($props['next_step'])->toBeNull()
         ->and($props['gate'])->toBeNull()
         ->and(array_filter(array_diff_key($props['can'], ['requests' => 0, 'cases' => 0])))->toBe([]);
+    // NOTIF-3: every page key other than the header, the queries and the flags is present but empty.
+    foreach (StaffCaseDetail::queryOnly($case, $a['tech_named']) as $key => $value) {
+        if (in_array($key, ['query_only', 'case', 'queries', 'can'], true)) {
+            continue;
+        }
+        expect($props)->toHaveKey($key)
+            ->and($props[$key])->toBeIn([null, []], "query_only sent a non-empty {$key}");
+    }
     // Documents stay on the assignment rules: the case binding refuses before any document is looked up.
     $this->actingAs($a['tech_named'])->get(route('cases.documents.download', [$case->id, Str::lower((string) Str::ulid())]))->assertNotFound();
 

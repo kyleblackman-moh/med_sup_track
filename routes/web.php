@@ -35,7 +35,9 @@ Route::middleware(['auth'])
     ->name('notifications.')
     ->controller(NotificationController::class)
     ->group(function () {
+        // NOTIF-3: "View all" is an Inertia page; the header dropdown reads latest (JSON).
         Route::get('/', 'index')->middleware('throttle:60,1')->name('index');
+        Route::get('latest', 'latest')->middleware('throttle:60,1')->name('latest');
         Route::get('unread-count', 'unreadCount')->middleware('throttle:120,1')->name('unread-count');
         Route::post('read-all', 'readAll')->middleware('throttle:30,1')->name('read-all');
         Route::post('{notification}/read', 'read')->whereUuid('notification')->middleware('throttle:60,1')->name('read');

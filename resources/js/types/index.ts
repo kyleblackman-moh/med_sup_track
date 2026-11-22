@@ -38,6 +38,8 @@ export interface SharedData {
     flash: { success: string | null; error: string | null; info: string | null };
     /** V2-4: the Ministry crest's URL once the file is supplied, else null (the sidebar shows the pill tile). */
     brand: { logo: string | null };
+    /** NOTIF-2: the bell's badge, counted at render time on the server. */
+    unreadNotificationsCount: number;
     [key: string]: unknown;
 }
 

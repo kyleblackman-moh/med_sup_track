@@ -196,7 +196,7 @@ final class StaffCaseDetail
             'letter' => null,
             'letter_dates' => null,
             'hardcopy' => null,
-            'hardcopy_dates' => ['today' => CarbonImmutable::now(RecordHardcopy::TIMEZONE)->toDateString(), 'earliest' => null],
+            'hardcopy_dates' => null,
             'documents' => [],
             'summary' => null,
             'timeline' => [],

@@ -32,7 +32,7 @@ final class Bell
     /**
      * The fields a bell row shows. Only the pointer payload, never the class name.
      *
-     * @return array{id: string, kind: string|null, event: string|null, title: string|null, url: string|null, read: bool, created_at: string|null}
+     * @return array{id: string, kind: string|null, event: string|null, title: string|null, reference: string|null, url: string|null, read: bool, created_at: string|null}
      */
     public static function row(DatabaseNotification $n): array
     {
@@ -43,6 +43,8 @@ final class Bell
             'kind' => $data['kind'] ?? null,
             'event' => $data['event'] ?? null,
             'title' => $data['title'] ?? null,
+            // The case reference the row points at (CaseNotification::toDatabase); null when it had none.
+            'reference' => $data['reference'] ?? null,
             'url' => $data['url'] ?? null,
             'read' => $n->read_at !== null,
             'created_at' => $n->created_at?->copy()->utc()->toIso8601ZuluString(),

@@ -1,9 +1,10 @@
+import { JoinPagination } from '@/components/ui/join-pagination';
 import { StatusPill } from '@/components/ui/status-pill';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
 import { type CaseFilters, type CaseListPage } from '@/types/cases';
 import { Link } from '@inertiajs/react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, FilterX, SearchX } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, ChevronUp, FilterX, SearchX } from 'lucide-react';
 
 /** Short labels for the seeded procurement type names; any other name shows in full. */
 const TYPE_SHORT: Record<string, string> = {
@@ -191,36 +192,15 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
             )}
 
             {page.total > 0 && (
-                <nav aria-label="Case list pages" className="border-base-300 flex justify-end border-t px-3 py-2">
-                    <div className="join">
-                        <PageLink href={page.prev_page_url} label="Previous" icon="prev" />
-                        <span className="join-item border-base-300 bg-base-100 flex items-center border px-3 text-sm tabular-nums">
-                            Showing {page.from}–{page.to} of {page.total}
-                        </span>
-                        <PageLink href={page.next_page_url} label="Next" icon="next" />
-                    </div>
-                </nav>
+                <JoinPagination
+                    label="Case list pages"
+                    from={page.from}
+                    to={page.to}
+                    total={page.total}
+                    prevUrl={page.prev_page_url}
+                    nextUrl={page.next_page_url}
+                />
             )}
         </div>
-    );
-}
-
-function PageLink({ href, label, icon }: { href: string | null; label: string; icon: 'prev' | 'next' }) {
-    const content = (
-        <>
-            {icon === 'prev' && <ChevronLeft className="size-4" aria-hidden="true" />}
-            {label}
-            {icon === 'next' && <ChevronRight className="size-4" aria-hidden="true" />}
-        </>
-    );
-
-    return href ? (
-        <Link href={href} preserveScroll preserveState className="btn btn-sm join-item capitalize">
-            {content}
-        </Link>
-    ) : (
-        <button type="button" className="btn btn-sm join-item capitalize" disabled>
-            {content}
-        </button>
     );
 }

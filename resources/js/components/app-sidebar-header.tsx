@@ -1,5 +1,6 @@
 import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
 import { useAppDrawer } from '@/components/app-shell';
+import { NotificationBell } from '@/components/notification-bell';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { Menu, PanelLeft } from 'lucide-react';
@@ -10,7 +11,8 @@ import { Menu, PanelLeft } from 'lucide-react';
  * (opens the side on phones; switches the full menu and the icon rail from lg),
  * then the pill tile, the system name and the application name from the app
  * config (the shared `name` prop). The user menu lives at the foot of the
- * drawer. Hidden in print.
+ * drawer. NOTIF-3: the notification bell sits at the end (staff and
+ * vendors alike; every user has their own rows). Hidden in print.
  */
 export function AppSidebarHeader() {
     const { name } = usePage<SharedData>().props;
@@ -37,6 +39,9 @@ export function AppSidebarHeader() {
                     )}
                 </span>
             </Link>
+            <div className="ms-auto flex items-center">
+                <NotificationBell />
+            </div>
         </header>
     );
 }
