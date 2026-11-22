@@ -40,6 +40,16 @@ $read = function (int $length) use ($client, &$received): string {
     return $data;
 };
 
+// IT-ADMIN: ping mode answers clamd's zPING with PONG (ClamdScanner::ping).
+if ($mode === 'ping') {
+    $read(strlen("zPING\0"));
+    file_put_contents($record, $received);
+    fwrite($client, "PONG\0");
+    fclose($client);
+    fclose($server);
+    exit(0);
+}
+
 $read(strlen("zINSTREAM\0"));
 while (true) {
     $header = $read(4);

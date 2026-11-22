@@ -2,7 +2,9 @@
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\FailedJobController;
 use App\Http\Controllers\Admin\MfaResetController;
+use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
@@ -180,6 +182,14 @@ Route::middleware(['auth', 'admin.console'])
                 Route::post('{user}/enable', 'enable')->name('enable');
                 Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
             });
+        });
+
+        // IT-ADMIN Part 3: the IT health page (the console home) and failed queue jobs.
+        Route::middleware('admin.console:'.Permission::SystemHealthView->value)->group(function () {
+            Route::get('/', SystemHealthController::class)->name('dashboard');
+            Route::get('jobs', [FailedJobController::class, 'index'])->name('jobs.index');
+            Route::post('jobs/{uuid}/retry', [FailedJobController::class, 'retry'])
+                ->whereUuid('uuid')->middleware(['admin.confirm', 'throttle:20,1'])->name('jobs.retry');
         });
 
         // IT-ADMIN Part 2: the audit log (read-only; GET only, nothing else exists).

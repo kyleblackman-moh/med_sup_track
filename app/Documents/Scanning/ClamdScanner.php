@@ -84,6 +84,44 @@ final class ClamdScanner implements Scanner
         }
     }
 
+    /**
+     * IT-ADMIN: is clamd answering? Sends zPING and expects PONG within
+     * $timeout seconds (connect and read). Never throws.
+     */
+    public function ping(int $timeout = 2): bool
+    {
+        $socket = null;
+
+        try {
+            $socket = @stream_socket_client("tcp://{$this->host}:{$this->port}", $errno, $errstr, $timeout);
+            if ($socket === false) {
+                return false;
+            }
+            stream_set_timeout($socket, $timeout);
+
+            if (! $this->write($socket, "zPING\0")) {
+                return false;
+            }
+
+            $reply = '';
+            while (! feof($socket) && ! str_contains($reply, "\0") && strlen($reply) < 64) {
+                $data = fread($socket, 64);
+                if ($data === false || $data === '' || stream_get_meta_data($socket)['timed_out']) {
+                    break;
+                }
+                $reply .= $data;
+            }
+
+            return trim(strstr($reply, "\0", true) ?: $reply) === 'PONG';
+        } catch (Throwable) {
+            return false;
+        } finally {
+            if (is_resource($socket)) {
+                fclose($socket);
+            }
+        }
+    }
+
     private function interpret(string $reply): ScanResult
     {
         $reply = trim(strstr($reply, "\0", true) ?: $reply);

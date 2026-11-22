@@ -15,6 +15,7 @@ use App\Policies\UserPolicy;
 use App\Support\AuthEventAuditor;
 use App\Support\MfaEnforcement;
 use App\Support\MfaEventAuditor;
+use App\Support\OperationsEventAuditor;
 use App\Support\RateLimits;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -73,6 +74,8 @@ class AppServiceProvider extends ServiceProvider
         // NOTIF-1: the one place emails are hooked in (queued, after commit).
         Event::subscribe(NotificationSubscriber::class);
 
+        // IT-ADMIN: email send failures, for the IT health page (mail.send_failed).
+        Event::subscribe(OperationsEventAuditor::class);
 
         // SEC-1: the named rate limiters (login, password-reset, activation, create-request, uploads).
         RateLimits::register();
