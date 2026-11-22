@@ -77,13 +77,14 @@ enum Role: string
                 P::CaseViewAll, P::DocumentUpload, P::DocumentDownload,
                 P::NonObjectionGrant, P::CaseHistoryView,
             ],
-            // No case.*, document.* or query.* permissions: users, configuration and
-            // the IT health of the system only. The role is granted from the
-            // command line only (app:user-grant-admin), never in the UI.
+            // No case work at all (no case.*, document.* or query.*, and since
+            // 2026-11-23 no assignment.reassign or delegation.manage either):
+            // users, configuration and the IT health of the system only. The
+            // role is granted from the command line only (app:user-grant-admin).
             self::SystemAdmin => [
                 P::AdminAccess, P::UsersView, P::UsersCreate, P::UsersInviteVendor, P::UsersUpdateRole,
                 P::UsersDisable, P::UsersMfaReset, P::AuditView, P::SystemHealthView, P::JobsRetry,
-                P::ConfigManage, P::AssignmentReassign, P::DelegationManage,
+                P::ConfigManage,
             ],
             // IT-ADMIN: no audit.view (Kyle, 2026-11-22). Read-only case access (spec 4.1) is not built.
             self::Auditor => [],

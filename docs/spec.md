@@ -473,7 +473,7 @@ Layers 1-3 are static and seeded. Layers 4-5 are where most access bugs appear a
 | View audit log (`audit.view`) **[Decided 2026-11-22]** | | | ✔ | | | ✔ | | ✔ | |
 | Manage users and roles | | | | | | | | ✔ | |
 | Configure routes and templates | | | | | | | | ✔ | |
-| Reassign (`assignment.reassign`) / delegate | | | ✔ | | | | | ✔ | |
+| Reassign (`assignment.reassign`) / delegate **[Decided 2026-11-23: not the System Admin]** | | | ✔ | | | | | | |
 
 This is a starting draft; the CMO's Office will change cells.
 

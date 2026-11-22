@@ -133,3 +133,33 @@ it('audits a 404 from the case area as access.denied, without the URL', function
         ->and(json_decode($row->metadata, true))->toBe(['route' => 'cases.index', 'method' => 'GET', 'status' => 404, 'reason' => 'no_case_work'])
         ->and($row->metadata)->not->toContain('secret-search');
 });
+
+// IT-ADMIN follow-up (2026-11-23): reassignment and delegation are case work.
+// There is no reassign or delegation endpoint yet, so this is checked at the
+// permission (Gate) level; the case area is already 404 for the System Admin.
+it('does not let the System Admin reassign cases or manage delegations; the CMO still may reassign', function () {
+    $admin = caseUser(Role::SystemAdmin);
+    $cmo = caseUser(Role::Cmo);
+
+    expect(Gate::forUser($admin)->allows('assignment.reassign'))->toBeFalse()
+        ->and(Gate::forUser($admin)->allows('delegation.manage'))->toBeFalse()
+        ->and(Gate::forUser($admin)->allows('config.manage'))->toBeTrue()
+        ->and(Gate::forUser($cmo)->allows('assignment.reassign'))->toBeTrue()
+        ->and(Gate::forUser($cmo)->allows('delegation.manage'))->toBeTrue();
+});
+
+it('answers 404 to the System Admin, and not to the CMO, on any reassign or delegation route', function () {
+    $case = makeCase(['org_id' => vendorOrg()->id, 'status' => CaseStatus::IN_REVIEW, 'submitted_at' => now()]);
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn (RoutingRoute $r) => preg_match('/reassign|delegat/i', $r->uri().' '.$r->getName()));
+
+    foreach ($routes as $route) {
+        $uri = '/'.preg_replace('/\{\w+\??\}/', $case->id, $route->uri());
+        $method = collect($route->methods())->reject(fn ($m) => $m === 'HEAD')->first();
+        expect($this->actingAs(caseUser(Role::SystemAdmin))->call($method, $uri)->status())->toBe(404, $uri);
+        expect($this->actingAs(caseUser(Role::Cmo))->call($method, $uri)->status())->not->toBe(404, $uri);
+    }
+
+    // None exists yet (no reassign or delegation feature). When one is added, this test covers it.
+    expect($routes->count())->toBeGreaterThanOrEqual(0);
+});

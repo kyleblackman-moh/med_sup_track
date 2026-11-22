@@ -27,7 +27,7 @@ const EXPECTED_ROLE_PERMISSIONS = [
     'system_admin' => [
         'admin.access', 'users.view', 'users.create', 'users.invite_vendor', 'users.update_role',
         'users.disable', 'users.mfa.reset', 'audit.view', 'system.health.view', 'jobs.retry',
-        'config.manage', 'assignment.reassign', 'delegation.manage',
+        'config.manage',
     ],
     'auditor' => [],
 ];
@@ -71,11 +71,15 @@ it('gives system_admin and auditor no case-content permissions', function (strin
     expect($forbidden)->toBe([]);
 })->with(['system_admin', 'auditor']);
 
-it('grants assignment.reassign to cmo and system_admin only', function () {
+it('grants assignment.reassign and delegation.manage to the cmo only (not system_admin)', function () {
     $holders = Role::whereHas('permissions', fn ($q) => $q->where('name', 'assignment.reassign'))
         ->pluck('name')->sort()->values()->all();
 
-    expect($holders)->toBe(['cmo', 'system_admin']);
+    expect($holders)->toBe(['cmo']);
+
+    $delegation = Role::whereHas('permissions', fn ($q) => $q->where('name', 'delegation.manage'))
+        ->pluck('name')->sort()->values()->all();
+    expect($delegation)->toBe(['cmo']);
 });
 
 it('splits intake (cmo_registry, cmo) from routing to review (cmo only)', function () {
