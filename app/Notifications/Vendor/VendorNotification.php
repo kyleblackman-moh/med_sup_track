@@ -51,11 +51,28 @@ abstract class VendorNotification extends CaseNotification
         return route('requests.show', $this->caseId);
     }
 
+    /**
+     * TERMINAL-1: extra email lines, read when the email is built (never passed
+     * in or stored on the bell row). Only VendorApplicationRejected has any: the
+     * message to the vendor, never the internal reason.
+     *
+     * @return list<string>
+     */
+    protected function mailLines(): array
+    {
+        return [];
+    }
+
     final public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject($this->subject())
-            ->line($this->sentence())
-            ->action('View Your Request', $this->url());
+            ->line($this->sentence());
+
+        foreach ($this->mailLines() as $line) {
+            $mail->line($line);
+        }
+
+        return $mail->action('View Your Request', $this->url());
     }
 }

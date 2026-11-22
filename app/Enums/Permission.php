@@ -27,8 +27,9 @@ enum Permission: string
     case HardcopyConfirm = 'hardcopy.confirm';
     case CaseIntake = 'case.intake';                 // T2: SUBMITTED -> CMO_INTAKE
     case CaseRouteToReview = 'case.route_to_review'; // T3: CMO_INTAKE -> IN_REVIEW
-    case CaseWithdraw = 'case.withdraw';             // T15: DRAFT|SUBMITTED|IN_REVIEW -> WITHDRAWN
-    case CaseRejectFinal = 'case.reject_final';      // T16 (disabled until Q3 is decided)
+    case CaseWithdraw = 'case.withdraw';             // T15 (staff): SUBMITTED|CMO_INTAKE|IN_REVIEW -> WITHDRAWN
+    case CaseWithdrawOwn = 'case.withdraw_own';      // T15V (vendor, own org): DRAFT|SUBMITTED -> WITHDRAWN
+    case CaseRejectFinal = 'case.reject_final';      // T16: WITH_PS|RETURNED_TO_CMO -> REJECTED_FINAL (behind workflow.final_reject_enabled)
     case TechnicalConsider = 'technical.consider';
     case FundingConfirm = 'funding.confirm';
     case FilePrepare = 'file.prepare';

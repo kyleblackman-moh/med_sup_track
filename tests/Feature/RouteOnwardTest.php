@@ -261,14 +261,12 @@ it('blocks T17 for a Legal return even through the service directly', function (
         ->and(TransitionRules::GUARD_MESSAGES['returned_by_ps'])->toBe('Only a case returned by the PS can go back to the PS');
 });
 
-it('requires a reason on T12 and T17 and keeps T11 and T16 as they were', function () {
+it('requires a reason on T12 and T17 and keeps T11 as it was', function () {
     $find = fn (string $code) => collect(TransitionRules::all())->firstWhere('code', $code);
 
     expect($find('T12')->requiresReason)->toBeTrue()->and($find('T12')->pendingGuards)->toBe([])
         ->and($find('T17')->requiresReason)->toBeTrue()->and($find('T17')->pendingGuards)->toBe([])->and($find('T17')->guard)->not->toBeNull()
-        ->and($find('T11')->requiresReason)->toBeTrue()->and($find('T11')->resetTracks)->toBe(['technical_track'])
-        ->and($find('T16')->enabled)->toBeFalse()
-        ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull();
+        ->and($find('T11')->requiresReason)->toBeTrue()->and($find('T11')->resetTracks)->toBe(['technical_track']);
 });
 
 // 3. Note ------------------------------------------------------------------------

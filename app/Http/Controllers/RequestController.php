@@ -34,6 +34,7 @@ use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
 use App\Support\RequestGroups;
 use App\Support\SqlLike;
+use App\Workflow\Actions\EndCase;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -167,11 +168,39 @@ class RequestController extends Controller
             'progress' => RequestProgress::for($procurementCase),
             // OVERNIGHT-2 (D3): external, delivered queries addressed to this organisation only.
             'queries' => $isDraft ? [] : QueryView::forVendor($procurementCase, $request->user()),
+            // TERMINAL-1: "Withdrawn" or "Not approved" and the message to the vendor; never the internal reason.
+            'ended' => EndCase::vendorOutcome($procurementCase),
             'can' => $this->can($request, [
                 'submit' => $isDraft && $report->isReady()
                     && Gate::allows('act', [$procurementCase, self::PERMISSION->value]),
+                // TERMINAL-1: the vendor's own withdrawal (T15V), DRAFT or SUBMITTED only.
+                'withdraw' => EndCase::canWithdraw($request->user(), $procurementCase),
             ]),
         ]);
+    }
+
+    /**
+     * TERMINAL-1 (T15V): the vendor withdraws its own request, DRAFT or
+     * SUBMITTED only. The reason is required and stays internal. Another
+     * organisation's case is 404 (route binding); a later status or a missing
+     * permission is 403.
+     */
+    public function withdraw(Request $request, ProcurementCase $procurementCase, EndCase $end): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:'.EndCase::REASON_MAX],
+        ], [
+            'reason.required' => 'Reason is required.',
+            'reason.max' => 'Reason needs to be '.EndCase::REASON_MAX.' characters or fewer.',
+        ]);
+
+        $result = $end->withdraw($procurementCase, $request->user(), $validated['reason']);
+
+        if ($result->already) {
+            return to_route('requests.show', $procurementCase)->with('info', 'This request was already withdrawn.');
+        }
+
+        return to_route('requests.show', $procurementCase)->with('success', 'Request withdrawn.');
     }
 
     /** Printable submission receipt. Drafts have none (404). */

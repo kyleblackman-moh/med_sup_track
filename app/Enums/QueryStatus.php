@@ -10,6 +10,8 @@ namespace App\Enums;
  * - AWAITING_FORWARD: a via-CMO message is held until the CMO forwards it.
  * - ANSWERED: the recipient's answer was delivered to the raiser.
  * - CLOSED: either side or the CMO closed it.
+ * - CANCELLED (TERMINAL-1): the case was withdrawn or finally rejected while
+ *   the query was still open; cancel_reason says which. Ends the query like CLOSED.
  */
 enum QueryStatus: string
 {
@@ -17,6 +19,19 @@ enum QueryStatus: string
     case AWAITING_FORWARD = 'AWAITING_FORWARD';
     case ANSWERED = 'ANSWERED';
     case CLOSED = 'CLOSED';
+    case CANCELLED = 'CANCELLED';
+
+    /** CLOSED or CANCELLED: nobody can add to it. */
+    public function isEnded(): bool
+    {
+        return $this === self::CLOSED || $this === self::CANCELLED;
+    }
+
+    /** @return list<string> */
+    public static function endedValues(): array
+    {
+        return [self::CLOSED->value, self::CANCELLED->value];
+    }
 
     public function label(): string
     {
@@ -25,6 +40,7 @@ enum QueryStatus: string
             self::AWAITING_FORWARD => 'Awaiting Forward',
             self::ANSWERED => 'Answered',
             self::CLOSED => 'Closed',
+            self::CANCELLED => 'Cancelled',
         };
     }
 
@@ -33,7 +49,7 @@ enum QueryStatus: string
         return match ($this) {
             self::OPEN, self::AWAITING_FORWARD => 'info',
             self::ANSWERED => 'success',
-            self::CLOSED => 'neutral',
+            self::CLOSED, self::CANCELLED => 'neutral',
         };
     }
 }

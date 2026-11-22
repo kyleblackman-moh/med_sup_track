@@ -9,7 +9,6 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\SubmissionReadiness;
 use App\Workflow\Exceptions\GateNotPassed;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -32,13 +31,38 @@ final class TransitionRules
     /** The enabled rule for this pair, or null. Disabled rules do not exist here. */
     public static function find(S $from, S $to): ?TransitionRule
     {
-        foreach (self::all() as $rule) {
-            if ($rule->enabled && $rule->to === $to && $rule->appliesFrom($from)) {
+        return self::candidates($from, $to)[0] ?? null;
+    }
+
+    /**
+     * TERMINAL-1: the rule $actor would use for this pair. Two rules can share a
+     * pair (T15V and T15 both leave SUBMITTED for WITHDRAWN): the first whose
+     * permission $actor holds, else the first (whose check then refuses them).
+     */
+    public static function findFor(S $from, S $to, User $actor): ?TransitionRule
+    {
+        $candidates = self::candidates($from, $to);
+
+        foreach ($candidates as $rule) {
+            if ($actor->can($rule->permission)) {
                 return $rule;
             }
         }
 
-        return null;
+        return $candidates[0] ?? null;
+    }
+
+    /** @return list<TransitionRule> */
+    private static function candidates(S $from, S $to): array
+    {
+        if ($from->isTerminal()) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::all(),
+            fn (TransitionRule $rule) => $rule->isEnabled() && $rule->to === $to && $rule->appliesFrom($from),
+        ));
     }
 
     /** @return list<TransitionRule> */
@@ -98,12 +122,20 @@ final class TransitionRules
             new TransitionRule('T14', [S::LETTER_ISSUED], S::CLOSED, P::LetterIssue->value,
                 holderRole: null, guard: self::letterOnRecordGuard(...)),
 
-            new TransitionRule('T15', [S::DRAFT, S::SUBMITTED, S::IN_REVIEW], S::WITHDRAWN, P::CaseWithdraw->value,
-                requiresReason: true, holderRole: null, guard: self::withdrawGuard(...)),
+            // TERMINAL-1: the vendor withdraws its own request (own org: CasePolicy::act)
+            // before intake. A separate permission from the staff rule below.
+            new TransitionRule('T15V', [S::DRAFT, S::SUBMITTED], S::WITHDRAWN, P::CaseWithdrawOwn->value,
+                requiresReason: true, holderRole: null),
 
-            // Rule TBC (open question Q3). Disabled: the service treats it as nonexistent.
+            // ASSUMPTION (TERMINAL-1): spec T15 omits CMO_INTAKE; the CMO may withdraw there too.
+            new TransitionRule('T15', [S::SUBMITTED, S::CMO_INTAKE, S::IN_REVIEW], S::WITHDRAWN, P::CaseWithdraw->value,
+                requiresReason: true, holderRole: null),
+
+            // ASSUMPTION (TERMINAL-1, Q3 open): the CMO records a final rejection on the
+            // PS's instruction. Behind workflow.final_reject_enabled; the service also
+            // requires the on-PS-instruction flag. No resubmission: the case is terminal.
             new TransitionRule('T16', [S::WITH_PS, S::RETURNED_TO_CMO], S::REJECTED_FINAL, P::CaseRejectFinal->value,
-                requiresReason: true, holderRole: null, enabled: false),
+                requiresReason: true, holderRole: null, enabledBy: 'workflow.final_reject_enabled'),
 
             // Assumption A1: after a PS query is answered the case returns to the PS.
             // Slice 10e: only a case the PS returned can go back to the PS.
@@ -224,14 +256,6 @@ final class TransitionRules
     {
         if (DB::table('cases')->where('id', $case->getKey())->value('letter_date') === null) {
             throw new GateNotPassed(['letter_date']);
-        }
-    }
-
-    /** T15: vendor users may withdraw only before intake; staff from all three statuses. */
-    private static function withdrawGuard(ProcurementCase $case, User $actor): void
-    {
-        if ($actor->isVendor() && ! in_array($case->status, [S::DRAFT, S::SUBMITTED], true)) {
-            throw new AuthorizationException('Vendor users can withdraw only before intake.');
         }
     }
 }

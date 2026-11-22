@@ -48,7 +48,7 @@ enum Role: string
         return match ($this) {
             self::VendorApplicant => [
                 P::CaseSubmit, P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
-                P::CaseWithdraw,
+                P::CaseWithdrawOwn,
             ],
             self::CmoRegistry => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::HardcopyConfirm,

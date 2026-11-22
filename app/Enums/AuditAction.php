@@ -37,12 +37,14 @@ enum AuditAction: string
     case CaseRoutedOnward = 'case.routed_onward';
     case CaseLetterIssued = 'case.letter_issued';
     case CaseClosed = 'case.closed';
+    case CaseAssignmentCancelled = 'case.assignment_cancelled'; // TERMINAL-1: the case was withdrawn or rejected
 
     // OVERNIGHT-2 (D2): query loops. Ids, counts and fixed codes only, never the message text.
     case QueryRaised = 'query.raised';
     case QueryMessagePosted = 'query.message_posted';
     case QueryForwarded = 'query.forwarded';
     case QueryClosed = 'query.closed';
+    case QueryCancelled = 'query.cancelled'; // TERMINAL-1: the case was withdrawn or rejected
 
     // FIX-2 (1): a vendor email had nobody eligible to receive it. Case id and event code only, never an address.
     case NotificationNoRecipient = 'notification.no_recipient';

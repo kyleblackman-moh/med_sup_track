@@ -79,6 +79,8 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
         Route::delete('{procurementCase}', 'destroy')->middleware('throttle:20,1')->name('destroy')
             ->missing(fn (Request $request) => RequestController::missingDraft($request));
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
+        // TERMINAL-1 (T15V): the vendor withdraws its own request (DRAFT or SUBMITTED).
+        Route::post('{procurementCase}/withdraw', 'withdraw')->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
             ->middleware('throttle:10,1')->name('submit');
         // OVERNIGHT-2 (D3): the vendor's text reply to a query from the Ministry.
@@ -131,6 +133,9 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
             Route::post('{procurementCase}/route-onward', 'routeOnward')->name('route.onward');
             Route::post('{procurementCase}/issue-letter', 'issueLetter')->name('letter.issue');
             Route::post('{procurementCase}/close', 'closeCase')->name('close');
+            // TERMINAL-1: T15 (withdraw) and T16 (final reject). Both irreversible.
+            Route::post('{procurementCase}/withdraw', 'withdraw')->name('withdraw');
+            Route::post('{procurementCase}/reject-final', 'rejectFinal')->name('reject-final');
             Route::post('{procurementCase}/hardcopy', 'markHardcopy')->name('hardcopy.store');
             Route::post('{procurementCase}/hardcopy/reverse', 'reverseHardcopy')->name('hardcopy.reverse');
         });

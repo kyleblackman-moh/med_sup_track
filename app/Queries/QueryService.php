@@ -168,8 +168,8 @@ final class QueryService
      */
     public static function statusFor(CaseQuery $query): QueryStatus
     {
-        if ($query->status === QueryStatus::CLOSED) {
-            return QueryStatus::CLOSED;
+        if ($query->status->isEnded()) {
+            return $query->status;
         }
 
         $messages = $query->messages()->get();

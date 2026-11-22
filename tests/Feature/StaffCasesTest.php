@@ -349,6 +349,8 @@ it('shows the header, requisition, holder and assignments', function () {
         'route_onward' => false,
         // Slice 10f: false on a SUBMITTED case.
         'issue_letter' => false, 'close_case' => false,
+        // TERMINAL-1: the CMO may withdraw a SUBMITTED case; final reject only from WITH_PS or RETURNED_TO_CMO.
+        'withdraw' => true, 'reject_final' => false,
     ])
         ->and($props['case']['reference_no'])->toBe($case->reference_no)
         ->and($props['case']['holder_label'])->toBe('CMO')

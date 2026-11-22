@@ -239,7 +239,7 @@ final class QueryAccess
     /** May $user add a message (answer or follow-up) to $query now? */
     public static function canReply(User $user, ProcurementCase $case, CaseQuery $query): bool
     {
-        return $query->status !== QueryStatus::CLOSED
+        return ! $query->status->isEnded()
             && self::caseOpen($case)
             && self::side($user, $query) !== null
             && self::visibleMessages($user, $case, $query)->isNotEmpty();
@@ -248,7 +248,7 @@ final class QueryAccess
     public static function canForward(User $user, ProcurementCase $case, CaseQuery $query, QueryMessage $message): bool
     {
         return $message->isHeld()
-            && $query->status !== QueryStatus::CLOSED
+            && ! $query->status->isEnded()
             && self::caseOpen($case)
             && self::isCmoDesk($user)
             && self::canSeeCase($user, $case);
@@ -272,7 +272,7 @@ final class QueryAccess
     public static function canClose(User $user, ProcurementCase $case, CaseQuery $query): bool
     {
         return ! $user->isVendor()
-            && $query->status !== QueryStatus::CLOSED
+            && ! $query->status->isEnded()
             && self::canSeeCase($user, $case)
             && (self::isCmoDesk($user) || (self::side($user, $query) !== null && self::visibleMessages($user, $case, $query)->isNotEmpty()));
     }

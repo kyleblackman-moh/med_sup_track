@@ -323,8 +323,11 @@ Inside `IN_REVIEW`, the CMO forwards to Technocrats and CAB at the same time. Th
 | T12 | `RETURNED_TO_CMO` | `WITH_LEGAL` | CMO | Technocrat answer received and forwarded to Legal | No |
 | T13 | `NON_OBJECTION_GRANTED` | `LETTER_ISSUED` | CMO | Letter generated | No |
 | T14 | `LETTER_ISSUED` | `CLOSED` | CMO | Hardcopy dispatch confirmed | No |
-| T15 | `DRAFT`, `SUBMITTED`, `IN_REVIEW` | `WITHDRAWN` | Vendor Applicant (until intake), CMO | None **[Assumption]** | **Yes** |
-| T16 | `WITH_PS`, `RETURNED_TO_CMO` | `REJECTED_FINAL` | CMO (on PS instruction) | **Rule TBC (Q3)** | **Yes** |
+| T15V | `DRAFT`, `SUBMITTED` | `WITHDRAWN` | Vendor Applicant, own organisation (`case.withdraw_own`) | None | **Yes** |
+| T15 | `SUBMITTED`, `CMO_INTAKE`, `IN_REVIEW` | `WITHDRAWN` | CMO (`case.withdraw`) | None **[Assumption: CMO_INTAKE added]** | **Yes** |
+| T16 | `WITH_PS`, `RETURNED_TO_CMO` | `REJECTED_FINAL` | CMO (`case.reject_final`), on PS instruction | "Rejected on the instruction of the Permanent Secretary" must be ticked; behind `workflow.final_reject_enabled` (default on) **[Assumption pending Q3]** | **Yes** |
+
+> **TERMINAL-1 (T15, T15V, T16).** The reason is internal (`case_transitions.reason`). An optional *message to the vendor* is stored on the same row (`external_message`); it is the only text the vendor sees, and "No further details provided." when empty. T16 also stores `on_ps_instruction`. `WITHDRAWN` and `REJECTED_FINAL` are terminal: `CaseTransitionService` refuses any transition out of a terminal status, whatever the rules list. On entry, in the same transaction, every query that has not ended becomes `CANCELLED` (`cancel_reason` "Case withdrawn" / "Case rejected") and every active assignment is cancelled, each audit-logged. **[Assumption pending Q3]** No resubmission: a withdrawn or rejected case is never reopened. The audit row carries flags and lengths only.
 
 > **Assumption A1.** After a PS query is answered, the case returns to `WITH_PS`. This path needs a transition (T17: `RETURNED_TO_CMO → WITH_PS`, CMO) that the current diagram implies but does not show. Confirm in Q2/Q3.
 

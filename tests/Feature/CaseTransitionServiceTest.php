@@ -60,7 +60,9 @@ const EXPECTED_RULES = [
     'T12' => [['RETURNED_TO_CMO'], 'WITH_LEGAL'],
     'T13' => [['NON_OBJECTION_GRANTED'], 'LETTER_ISSUED'],
     'T14' => [['LETTER_ISSUED'], 'CLOSED'],
-    'T15' => [['DRAFT', 'SUBMITTED', 'IN_REVIEW'], 'WITHDRAWN'],
+    // TERMINAL-1: the vendor's own withdrawal and the staff one are separate rules.
+    'T15V' => [['DRAFT', 'SUBMITTED'], 'WITHDRAWN'],
+    'T15' => [['SUBMITTED', 'CMO_INTAKE', 'IN_REVIEW'], 'WITHDRAWN'],
     'T16' => [['WITH_PS', 'RETURNED_TO_CMO'], 'REJECTED_FINAL'],
     'T17' => [['RETURNED_TO_CMO'], 'WITH_PS'],
 ];
@@ -69,7 +71,7 @@ const EXPECTED_RULES = [
 const EXPECTED_HOLDERS = [
     'T1' => 'cmo_registry', 'T2' => 'cmo', 'T3' => null, 'T4' => 'cmo', 'T5' => 'cmo',
     'T6' => 'legal_officer', 'T7' => 'ps_office', 'T8' => 'cmo', 'T9' => 'cmo', 'T10' => 'cmo',
-    'T11' => null, 'T12' => 'legal_officer', 'T13' => 'cmo', 'T14' => null, 'T15' => null,
+    'T11' => null, 'T12' => 'legal_officer', 'T13' => 'cmo', 'T14' => null, 'T15V' => null, 'T15' => null,
     'T16' => null, 'T17' => 'ps_office',
 ];
 
@@ -88,6 +90,7 @@ const EXPECTED_PENDING_GUARDS = [
     'T12' => [], // slice 10e: a reason is required instead
     'T13' => [], // slice 10f: replaced by the real letter-recorded guard
     'T14' => [], // slice 10f: replaced by the real letter-on-record guard
+    'T15V' => [],
     'T15' => [],
     'T16' => [],
     'T17' => [], // slice 10e: replaced by the real returned-by-PS guard
@@ -248,18 +251,23 @@ it('defines T1-T17 with the expected from and to statuses', function () {
     expect($actual)->toBe(EXPECTED_RULES);
 });
 
-it('disables T16 so find() treats it as nonexistent', function () {
-    expect(rule('T16')->enabled)->toBeFalse()
+it('puts T16 behind workflow.final_reject_enabled, so find() treats it as nonexistent when off', function () {
+    expect(rule('T16')->enabledBy)->toBe('workflow.final_reject_enabled')
+        ->and(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL)?->code)->toBe('T16');
+
+    config(['workflow.final_reject_enabled' => false]);
+
+    expect(rule('T16')->isEnabled())->toBeFalse()
         ->and(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL))->toBeNull()
-        ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull()
-        ->and(enabledCodes())->not->toContain('T16');
+        ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull();
 });
 
-it('has no two enabled rules for the same (from, to) pair', function () {
+it('has no two enabled rules for the same (from, to) pair, except T15V and T15 (distinct permissions)', function () {
     $pairs = collect(TransitionRules::all())->filter->enabled
         ->flatMap(fn (TransitionRule $r) => array_map(fn ($f) => $f->value.'>'.$r->to->value, $r->from));
 
-    expect($pairs->duplicates()->all())->toBe([]);
+    expect($pairs->duplicates()->values()->all())->toBe(['SUBMITTED>WITHDRAWN'])
+        ->and(rule('T15V')->permission)->not->toBe(rule('T15')->permission);
 });
 
 it('uses only seeded permissions', function () {
@@ -289,7 +297,8 @@ it('performs each enabled rule and records it once', function (string $code) {
     $case = caseFor($rule);
     $actor = actorFor($rule, $case);
 
-    $result = service()->transition($case, $rule->to, $actor, reasonFor($rule));
+    $psFlag = $code === 'T16' ? true : null;
+    $result = service()->transition($case, $rule->to, $actor, reasonFor($rule), onPsInstruction: $psFlag);
 
     expect($result->status)->toBe($rule->to)
         ->and($result->current_holder_role)->toBe($rule->holderRole)
@@ -308,6 +317,8 @@ it('performs each enabled rule and records it once', function (string $code) {
         'from' => $rule->from[0]->value, 'to' => $rule->to->value,
         'has_reason' => reasonFor($rule) !== null, 'reason_length' => mb_strlen((string) reasonFor($rule)),
         'rule' => $code,
+        ...(in_array($code, ['T15V', 'T15', 'T16'], true) ? ['has_external_message' => false, 'external_message_length' => 0] : []),
+        ...($code === 'T16' ? ['on_ps_instruction' => true] : []),
     ])->and((int) $audit->actor_user_id)->toBe($actor->id)
         ->and($audit->subject_type)->toBe('case')
         ->and($audit->subject_id)->toBe($case->id);
@@ -334,7 +345,7 @@ it('rejects a user without the permission and writes nothing', function (string 
 
 it('rejects every status pair without an enabled rule', function () {
     $enabled = collect(TransitionRules::all())->filter->enabled
-        ->flatMap(fn ($r) => array_map(fn ($f) => $f->value.'>'.$r->to->value, $r->from))->all();
+        ->flatMap(fn ($r) => array_map(fn ($f) => $f->value.'>'.$r->to->value, $r->from))->unique()->values()->all();
 
     $cmo = caseUser(Role::Cmo);
     $case = makeCase();
@@ -424,13 +435,12 @@ it('requires a reason where the rule says so', function (string $code, ?string $
 
     expect(fn () => service()->transition($case, $rule->to, $actor, $reason))->toThrow(ReasonRequired::class);
     expectNothingWritten($case, $rule->from[0]->value);
-})->with(['T8', 'T10', 'T11', 'T15'])->with([null, '', "  \t\n "]);
+})->with(['T8', 'T10', 'T11', 'T15V', 'T15', 'T16'])->with([null, '', "  \t\n "]);
 
-it('marks exactly T8, T10, T11, T12, T15, T17 (and the disabled T16) as needing a reason', function () {
-    // Spec 6.5 requires a reason on T16 too; it is disabled until Q3 is decided.
-    // Slice 10e: T12 and T17 carry the CMO's note as their reason.
+it('marks exactly T8, T10, T11, T12, T15V, T15, T16 and T17 as needing a reason', function () {
+    // Slice 10e: T12 and T17 carry the CMO's note as their reason. TERMINAL-1: T15V and T16.
     expect(collect(TransitionRules::all())->filter->requiresReason->pluck('code')->all())
-        ->toBe(['T8', 'T10', 'T11', 'T12', 'T15', 'T16', 'T17']);
+        ->toBe(['T8', 'T10', 'T11', 'T12', 'T15V', 'T15', 'T16', 'T17']);
 });
 
 it('accepts a null reason for rules that do not need one', function () {
@@ -555,12 +565,12 @@ it('does not let a vendor of another org withdraw', function () {
     expectNothingWritten($case, 'DRAFT');
 });
 
-it('lets staff with case.withdraw withdraw SUBMITTED and IN_REVIEW cases', function (CaseStatus $from) {
+it('lets staff with case.withdraw withdraw SUBMITTED, CMO_INTAKE and IN_REVIEW cases', function (CaseStatus $from) {
     $case = makeCase(['status' => $from]);
 
     expect(service()->transition($case, CaseStatus::WITHDRAWN, caseUser(Role::Cmo), 'Withdrawn on request')->status)
         ->toBe(CaseStatus::WITHDRAWN);
-})->with([CaseStatus::SUBMITTED, CaseStatus::IN_REVIEW]);
+})->with([CaseStatus::SUBMITTED, CaseStatus::CMO_INTAKE, CaseStatus::IN_REVIEW]);
 
 // Slice 9a: staff never see a DRAFT, so they cannot withdraw one either.
 it('does not let staff withdraw a DRAFT', function () {
@@ -664,7 +674,8 @@ it('seeds the permissions added for slice 7', function () {
     $holders = fn (string $permission) => SpatieRole::with('permissions')->orderBy('name')->get()
         ->filter(fn ($r) => $r->permissions->contains('name', $permission))->pluck('name')->all();
 
-    expect($holders('case.withdraw'))->toBe(['cmo', 'vendor_applicant'])
+    expect($holders('case.withdraw'))->toBe(['cmo'])
+        ->and($holders('case.withdraw_own'))->toBe(['vendor_applicant'])
         ->and($holders('case.reject_final'))->toBe(['cmo']);
 });
 

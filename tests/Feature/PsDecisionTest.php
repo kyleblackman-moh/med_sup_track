@@ -16,6 +16,7 @@ use App\Workflow\Exceptions\InvalidTransition;
 use App\Workflow\TransitionRules;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -383,14 +384,18 @@ it('gives WITH_PS, NON_OBJECTION_GRANTED and RETURNED_TO_CMO the same vendor lab
 
 // 7. T16 -------------------------------------------------------------------------
 
-it('keeps T16 disabled so nothing reaches REJECTED_FINAL', function () {
-    $t16 = collect(TransitionRules::all())->firstWhere('code', 'T16');
+// TERMINAL-1: T16 is the CMO's (on the PS's instruction), behind workflow.final_reject_enabled.
+it('never lets the PS decision reach REJECTED_FINAL, and blocks T16 when the flag is off', function () {
     $case = case10d(CaseStatus::WITH_PS);
 
-    expect($t16->enabled)->toBeFalse()
-        ->and(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL))->toBeNull()
+    expect(fn () => app(CaseTransitionService::class)->transition($case, CaseStatus::REJECTED_FINAL, caseUser(Role::PsOffice), 'Final rejection test', onPsInstruction: true))
+        ->toThrow(AuthorizationException::class);
+
+    config(['workflow.final_reject_enabled' => false]);
+
+    expect(TransitionRules::find(CaseStatus::WITH_PS, CaseStatus::REJECTED_FINAL))->toBeNull()
         ->and(TransitionRules::find(CaseStatus::RETURNED_TO_CMO, CaseStatus::REJECTED_FINAL))->toBeNull()
-        ->and(fn () => app(CaseTransitionService::class)->transition($case, CaseStatus::REJECTED_FINAL, caseUser(Role::Cmo), 'Final rejection test'))
+        ->and(fn () => app(CaseTransitionService::class)->transition($case, CaseStatus::REJECTED_FINAL, caseUser(Role::Cmo), 'Final rejection test', onPsInstruction: true))
         ->toThrow(InvalidTransition::class);
 
     expect(row10d($case)->status)->toBe('WITH_PS');

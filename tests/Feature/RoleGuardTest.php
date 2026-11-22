@@ -15,7 +15,7 @@ use Spatie\Permission\PermissionRegistrar;
 const VENDOR_PERMISSIONS = [
     'case.submit',
     'case.view_assigned',
-    'case.withdraw',
+    'case.withdraw_own',
     'document.upload',
     'document.download',
 ];

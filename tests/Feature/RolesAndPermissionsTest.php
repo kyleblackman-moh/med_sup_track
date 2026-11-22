@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Role;
 
 /** The expected matrix, written out independently of App\Enums\Role::permissions(). */
 const EXPECTED_ROLE_PERMISSIONS = [
-    'vendor_applicant' => ['case.submit', 'case.view_assigned', 'document.upload', 'document.download', 'case.withdraw'],
+    'vendor_applicant' => ['case.submit', 'case.view_assigned', 'document.upload', 'document.download', 'case.withdraw_own'],
     'cmo_registry' => ['case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm', 'case.intake'],
     'cmo' => [
         'case.view_all', 'case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm',

@@ -6,6 +6,7 @@ use App\Enums\ReturnKind;
 use App\Models\ProcurementCase;
 use App\Support\StaffFormMessages;
 use App\Workflow\Actions\CloseCase;
+use App\Workflow\Actions\EndCase;
 use App\Workflow\Actions\ForwardForReview;
 use App\Workflow\Actions\IntakeCase;
 use App\Workflow\Actions\IssueLetter;
@@ -285,6 +286,59 @@ class StaffCaseActionController extends Controller
         }
 
         return back()->with('success', 'Case closed.');
+    }
+
+    /** TERMINAL-1: T15, SUBMITTED | CMO_INTAKE | IN_REVIEW -> WITHDRAWN. Irreversible. */
+    public function withdraw(Request $request, ProcurementCase $procurementCase, EndCase $end): RedirectResponse
+    {
+        $validated = $this->validateForm($request, self::endRules(), self::endMessages());
+
+        $result = $end->withdraw($procurementCase, $request->user(), $validated['reason'], $validated['vendor_message'] ?? null);
+
+        if ($result->already) {
+            return back()->with('info', 'This case was already withdrawn by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Case withdrawn.');
+    }
+
+    /** TERMINAL-1: T16, WITH_PS | RETURNED_TO_CMO -> REJECTED_FINAL, on the PS's instruction. Irreversible. */
+    public function rejectFinal(Request $request, ProcurementCase $procurementCase, EndCase $end): RedirectResponse
+    {
+        $validated = $this->validateForm($request, [
+            ...self::endRules(),
+            'on_ps_instruction' => ['accepted'],
+        ], [
+            ...self::endMessages(),
+            'on_ps_instruction.accepted' => 'Confirm that the Permanent Secretary instructed this rejection.',
+        ]);
+
+        $result = $end->rejectFinal($procurementCase, $request->user(), $validated['reason'], $validated['vendor_message'] ?? null, true);
+
+        if ($result->already) {
+            return back()->with('info', 'This case was already rejected by '.$result->byLine().'.');
+        }
+
+        return back()->with('success', 'Case rejected (final).');
+    }
+
+    /** @return array<string, list<string>> */
+    private static function endRules(): array
+    {
+        return [
+            'reason' => ['required', 'string', 'max:'.EndCase::REASON_MAX],
+            'vendor_message' => ['nullable', 'string', 'max:'.EndCase::MESSAGE_MAX],
+        ];
+    }
+
+    /** @return array<string, string> */
+    private static function endMessages(): array
+    {
+        return [
+            'reason.required' => 'Reason is required.',
+            'reason.max' => 'Reason needs to be '.EndCase::REASON_MAX.' characters or fewer.',
+            'vendor_message.max' => 'Message to vendor needs to be '.EndCase::MESSAGE_MAX.' characters or fewer.',
+        ];
     }
 
     /** Slice 10e: T11 (technocrats), T12 (legal) or T17 (ps) from RETURNED_TO_CMO. */

@@ -38,7 +38,7 @@ final class QueryInbox
     public static function due(User $user, bool $includeNamed = true): array
     {
         $queries = CaseQuery::withoutGlobalScopes()
-            ->where('status', '<>', QueryStatus::CLOSED->value)
+            ->whereNotIn('status', QueryStatus::endedValues())
             ->with('messages')
             ->orderBy('created_at')
             ->limit(self::LIMIT)

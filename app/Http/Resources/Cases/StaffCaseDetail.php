@@ -19,6 +19,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Queries\QueryView;
+use App\Workflow\Actions\EndCase;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
@@ -164,7 +165,42 @@ final class StaffCaseDetail
                 'route_onward' => $canRoute,
                 'issue_letter' => $canIssueLetter,
                 'close_case' => $canClose,
+                // TERMINAL-1: the same checks EndCase (CaseTransitionService) runs.
+                'withdraw' => EndCase::canWithdraw($user, $case),
+                'reject_final' => EndCase::canRejectFinal($user, $case),
             ],
+            // TERMINAL-1: why a withdrawn or rejected case ended (staff see the reason).
+            'ended' => self::ended($case),
+        ];
+    }
+
+    /**
+     * TERMINAL-1: null unless the case is WITHDRAWN or REJECTED_FINAL. From the
+     * transition into that status: who, when, the internal reason, the message
+     * the vendor was given and (for a rejection) the PS-instruction flag.
+     *
+     * @return array{label: string, by: string|null, at: string|null, at_label: string|null, reason: string|null, vendor_message: string, on_ps_instruction: bool|null}|null
+     */
+    private static function ended(ProcurementCase $case): ?array
+    {
+        if ($case->status !== CaseStatus::WITHDRAWN && $case->status !== CaseStatus::REJECTED_FINAL) {
+            return null;
+        }
+
+        $row = CaseTransition::query()->with('actor:id,name')
+            ->where('case_id', $case->getKey())
+            ->where('to_status', $case->status->value)
+            ->orderByDesc('id')
+            ->first();
+
+        return [
+            'label' => $case->status->label(),
+            'by' => $row?->actor?->name,
+            'at' => $row?->created_at?->copy()->utc()->toIso8601ZuluString(),
+            'at_label' => $row?->created_at?->copy()->setTimezone('America/Port_of_Spain')->format('j M Y, g:i a'),
+            'reason' => $row?->reason,
+            'vendor_message' => filled($row?->external_message) ? (string) $row->external_message : EndCase::NO_DETAILS,
+            'on_ps_instruction' => $row?->on_ps_instruction,
         ];
     }
 
@@ -204,6 +240,7 @@ final class StaffCaseDetail
             'gate' => null,
             'review_forms' => [],
             'reviewers' => null,
+            'ended' => null,
             'queries' => QueryView::forStaff($case, $user),
             'can' => [
                 'requests' => $user->can(Permission::CaseSubmit->value),
@@ -212,6 +249,7 @@ final class StaffCaseDetail
                     'download_documents', 'intake', 'record_hardcopy', 'forward_for_review', 'record_review',
                     'mark_ready_for_file', 'prepare_file', 'send_to_legal', 'record_legal_decision',
                     'record_ps_decision', 'route_onward', 'issue_letter', 'close_case',
+                    'withdraw', 'reject_final',
                 ], false),
             ],
         ];

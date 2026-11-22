@@ -31,6 +31,7 @@ class CaseTransition extends Model
             'from_status' => CaseStatus::class,
             'to_status' => CaseStatus::class,
             'return_kind' => ReturnKind::class, // slice 10d: PS returns only
+            'on_ps_instruction' => 'boolean',   // TERMINAL-1: final rejections only
         ];
     }
 

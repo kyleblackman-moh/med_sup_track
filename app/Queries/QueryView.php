@@ -111,7 +111,7 @@ final class QueryView
         $case->loadMissing('organisation:id,name');
 
         return QueryAccess::visibleQueries($user, $case)
-            ->filter(fn (CaseQuery $q) => $q->status !== QueryStatus::CLOSED)
+            ->filter(fn (CaseQuery $q) => ! $q->status->isEnded())
             ->map(function (CaseQuery $q) use ($case, $user) {
                 $held = QueryAccess::forwardable($user, $case, $q);
                 $action = match (true) {
@@ -134,7 +134,7 @@ final class QueryView
     public static function waitingOn(ProcurementCase $case, CaseQuery $query): ?string
     {
         return match ($query->status) {
-            QueryStatus::CLOSED => null,
+            QueryStatus::CLOSED, QueryStatus::CANCELLED => null,
             QueryStatus::AWAITING_FORWARD => 'Waiting on the '.StageWording::CMO_OFFICE.' to forward it',
             QueryStatus::OPEN => 'Waiting on '.self::the($query->raised_to_role, $case).' to answer',
             QueryStatus::ANSWERED => 'Answered. Waiting on '.self::the($query->raised_by_role, $case).' to close it or reply',
@@ -157,7 +157,7 @@ final class QueryView
                 return [
                     'id' => (string) $query->getKey(),
                     'title' => 'Query From the '.QueryWording::MINISTRY,
-                    'status_label' => $query->status === QueryStatus::CLOSED ? 'Closed' : ($query->status === QueryStatus::OPEN ? 'Waiting on Your Reply' : 'Replied'),
+                    'status_label' => $query->status->isEnded() ? $query->status->label() : ($query->status === QueryStatus::OPEN ? 'Waiting on Your Reply' : 'Replied'),
                     'raised_on' => self::day($query->created_at),
                     'can_reply' => QueryAccess::canReply($vendor, $case, $query),
                     'messages' => $messages->map(fn (QueryMessage $m) => [
@@ -192,7 +192,7 @@ final class QueryView
                 QueryStatus::AWAITING_FORWARD => StageWording::CMO_OFFICE,
                 QueryStatus::OPEN => $named ?? $toOffice,
                 QueryStatus::ANSWERED => $raiser ?? $fromOffice,
-                QueryStatus::CLOSED => null,
+                QueryStatus::CLOSED, QueryStatus::CANCELLED => null,
             },
             'next_action' => self::nextAction($case, $query, $user),
         ];
@@ -220,6 +220,7 @@ final class QueryView
                 $cmo => 'Answered. You can close it.',
                 default => 'Answered. Waiting for '.self::the($query->raised_by_role, $case).' to reply or close it.',
             },
+            QueryStatus::CANCELLED => 'Cancelled because the case ended. Nobody can add to it.',
             default => 'Closed. Nobody can add to it.',
         };
     }
