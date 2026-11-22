@@ -26,6 +26,8 @@ export interface NavItem {
     isActive?: boolean;
     /** The server's nav.section under which this item is active (URL prefix). */
     section?: string;
+    /** QUERIES-1: a count badge after the label (hidden at 0). */
+    count?: number;
 }
 
 export interface SharedData {
@@ -34,12 +36,14 @@ export interface SharedData {
     auth: Auth;
     can: { requests: boolean; cases: boolean };
     /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
-    nav: { cmo_office: boolean; users: boolean; analytics?: boolean; section: string | null };
+    nav: { cmo_office: boolean; users: boolean; analytics?: boolean; queries?: boolean; section: string | null };
     flash: { success: string | null; error: string | null; info: string | null };
     /** V2-4: the Ministry crest's URL once the file is supplied, else null (the sidebar shows the pill tile). */
     brand: { logo: string | null };
     /** NOTIF-2: the bell's badge, counted at render time on the server. */
     unreadNotificationsCount: number;
+    /** QUERIES-1: queries waiting on this user (the sidebar Queries badge). */
+    openQueriesCount?: number;
     [key: string]: unknown;
 }
 

@@ -4,14 +4,13 @@ namespace App\Support;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
-use App\Enums\QueryStatus;
 use App\Enums\ReviewDesk;
 use App\Http\Resources\Cases\StaffCaseSummary;
-use App\Models\CaseQuery;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Queries\QueryAccess;
+use App\Queries\QueryInbox;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
@@ -224,37 +223,10 @@ final class WorkQueue
      */
     private static function queryItems(User $user, CarbonImmutable $today): array
     {
-        $queries = CaseQuery::withoutGlobalScopes()
-            ->where('status', '<>', QueryStatus::CLOSED->value)
-            ->with('messages')
-            ->orderBy('created_at')
-            ->limit(self::MAX_CASES)
-            ->get();
-
-        $cases = ProcurementCase::withoutGlobalScopes()
-            ->with(['organisation:id,name', 'requisition:id,case_id,item_description'])
-            ->whereIn('id', $queries->pluck('case_id')->unique()->values()->all())
-            ->get()->keyBy('id');
-
+        // QUERIES-1: the same rows as the Queries page (QueryInbox), grouped per case
+        // and step here; the queue keeps its case-visibility rule (no named officers).
         $due = [];
-        foreach ($queries as $query) {
-            $case = $cases->get($query->case_id);
-            if ($case === null || ! QueryAccess::canSeeCase($user, $case)) {
-                continue;
-            }
-
-            $held = QueryAccess::forwardable($user, $case, $query);
-            $found = match (true) {
-                $held !== null => ['query_forward', $held->created_at],
-                QueryAccess::needsAnswer($user, $case, $query) => ['query_answer', ($last = $query->messages->last())?->forwarded_at ?? $last?->created_at],
-                default => null,
-            };
-            if ($found === null) {
-                continue;
-            }
-
-            [$step, $since] = $found;
-            $since = $since !== null ? CarbonImmutable::parse($since)->utc() : null;
+        foreach (QueryInbox::due($user, includeNamed: false) as ['case' => $case, 'step' => $step, 'since' => $since]) {
             $key = "{$case->id}:{$step}";
             if (isset($due[$key]) && $due[$key]['since'] !== null && ($since === null || $due[$key]['since']->lte($since))) {
                 continue;

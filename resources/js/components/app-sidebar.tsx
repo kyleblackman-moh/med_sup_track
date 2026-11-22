@@ -3,7 +3,19 @@ import { isViewActive, NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ChartColumn, ClipboardList, FilePen, FileSignature, FileText, FolderOpen, Landmark, LayoutGrid, UsersRound, X } from 'lucide-react';
+import {
+    ChartColumn,
+    ClipboardList,
+    FilePen,
+    FileSignature,
+    FileText,
+    FolderOpen,
+    Landmark,
+    LayoutGrid,
+    MessageSquareText,
+    UsersRound,
+    X,
+} from 'lucide-react';
 import { AppLogoMark, SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -52,14 +64,24 @@ const adminNavItems: NavItem[] = [{ title: 'Users', url: '/admin/users', icon: U
  * nav.section.
  */
 export function AppSidebar() {
-    const { can, nav, brand } = usePage<SharedData>().props;
+    const { can, nav, brand, openQueriesCount } = usePage<SharedData>().props;
     const page = usePage();
     const { id } = useAppDrawer();
     // Shown only when the server shares nav.analytics; route() is called only then.
     const analyticsItems: NavItem[] = nav?.analytics
         ? [{ title: 'Analytics', url: route('analytics'), icon: ChartColumn, section: 'analytics' }]
         : [];
-    const navItems = [...mainNavItems, ...analyticsItems, ...(can?.requests ? [requestsNavItem] : []), ...(can?.cases ? [casesNavItem] : [])];
+    // QUERIES-1: shown when the server shares nav.queries; the count is the server's.
+    const queriesItems: NavItem[] = nav?.queries
+        ? [{ title: 'Queries', url: route('queries.index'), icon: MessageSquareText, section: 'queries', count: openQueriesCount ?? 0 }]
+        : [];
+    const navItems = [
+        ...mainNavItems,
+        ...analyticsItems,
+        ...(can?.requests ? [requestsNavItem] : []),
+        ...(can?.cases ? [casesNavItem] : []),
+        ...queriesItems,
+    ];
     const showCmo = Boolean(nav?.cmo_office);
     const adminItems = nav?.users ? adminNavItems : [];
 

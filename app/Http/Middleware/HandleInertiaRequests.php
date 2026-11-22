@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Notifications\Bell;
+use App\Queries\QueryInbox;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -98,6 +99,8 @@ class HandleInertiaRequests extends Middleware
                 'analytics' => $user !== null && ! $user->isVendor()
                     && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
                     && $user->can(Permission::CaseViewAll->value),
+                // QUERIES-1: the Queries item, for users who submit requests or see staff cases.
+                'queries' => self::queriesNav($user),
                 'section' => self::navSection($request),
             ],
             /*
@@ -111,6 +114,8 @@ class HandleInertiaRequests extends Middleware
             // NOTIF-2: the bell's badge. A closure, so it is counted at render time
             // (after a case page has marked its own notifications read).
             'unreadNotificationsCount' => fn () => $user === null ? 0 : Bell::unreadCount($user),
+            // QUERIES-1: the sidebar Queries badge (queries waiting on this user).
+            'openQueriesCount' => fn () => self::queriesNav($user) ? QueryInbox::count($user) : 0,
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
@@ -149,7 +154,14 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The sidebar sections, by the first segment of the URL path. */
-    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'admin'];
+    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'queries', 'admin'];
+
+    /** QUERIES-1: show the Queries item (display only; the route authorises itself). */
+    public static function queriesNav(?User $user): bool
+    {
+        return $user !== null && ($user->can(Permission::CaseSubmit->value)
+            || Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class));
+    }
 
     /** The section the current URL falls under (the path itself or anything below it), else null. */
     public static function navSection(Request $request): ?string

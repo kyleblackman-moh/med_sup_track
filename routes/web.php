@@ -7,6 +7,7 @@ use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
@@ -42,6 +43,13 @@ Route::middleware(['auth'])
         Route::post('read-all', 'readAll')->middleware('throttle:30,1')->name('read-all');
         Route::post('{notification}/read', 'read')->whereUuid('notification')->middleware('throttle:60,1')->name('read');
     });
+
+// QUERIES-1: the queries waiting on the signed-in user (vendors and staff).
+// Every row is found through QueryAccess; each link authorises itself again.
+Route::middleware(['auth'])
+    ->get('queries', QueryInboxController::class)
+    ->middleware('throttle:60,1')
+    ->name('queries.index');
 
 // ANALYTICS: charts and tracking for the CMO's office and the PS office only
 // (case.view_all). Everyone else, vendors included, gets 403.
