@@ -83,7 +83,12 @@ it('refuses the Analytics page with 403 to everyone without case.view_all', func
     $user = $role === Role::VendorApplicant ? vendorUser(vendorOrg()) : caseUser($role);
 
     $this->actingAs($user)->get(route('analytics'))->assertForbidden();
-})->with([Role::Technocrat, Role::CabOfficer, Role::LegalOfficer, Role::CmoRegistry, Role::VendorApplicant, Role::SystemAdmin, Role::Auditor]);
+})->with([Role::Technocrat, Role::CabOfficer, Role::LegalOfficer, Role::CmoRegistry, Role::VendorApplicant]);
+
+// IT-ADMIN: accounts with no case work at all get 404 on the whole case area (EnsureCaseAreaAccess).
+it('answers 404 on the Analytics page to accounts with no case work', function (Role $role) {
+    $this->actingAs(caseUser($role))->get(route('analytics'))->assertNotFound();
+})->with([Role::SystemAdmin, Role::Auditor]);
 
 it('sends guests to sign in', function () {
     $this->get(route('analytics'))->assertRedirect(route('login'));

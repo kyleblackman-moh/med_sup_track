@@ -143,8 +143,8 @@ it('gives system_admin and the auditor no case page and no actions', function (s
     $actors = nsActors();
     $case = nsCase(S::IN_REVIEW, $actors);
 
-    // The case list is 403 (no case permission); the case itself is hidden by the visibility scope before that, so 404.
-    $this->actingAs($actors[$who])->get(route('cases.index'))->assertForbidden();
+    // IT-ADMIN: no case work at all, so the whole case area is 404 (EnsureCaseAreaAccess), the list included.
+    $this->actingAs($actors[$who])->get(route('cases.index'))->assertNotFound();
     $this->actingAs($actors[$who])->get(route('cases.show', $case))->assertNotFound();
     expect(NextStep::for($case, $actors[$who])['actions'])->toBe([]);
 })->with(['system_admin', 'auditor']);

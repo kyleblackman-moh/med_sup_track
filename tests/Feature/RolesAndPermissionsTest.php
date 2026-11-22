@@ -17,18 +17,19 @@ const EXPECTED_ROLE_PERMISSIONS = [
     'cmo' => [
         'case.view_all', 'case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm',
         'case.intake', 'case.route_to_review', 'query.forward', 'file.prepare', 'letter.issue',
-        'case.history.view', 'vendor_user.invite', 'assignment.reassign', 'delegation.manage',
-        'case.withdraw', 'case.reject_final', 'users.mfa.reset',
+        'case.history.view', 'users.invite_vendor', 'assignment.reassign', 'delegation.manage',
+        'case.withdraw', 'case.reject_final', 'users.mfa.reset', 'audit.view',
     ],
     'technocrat' => ['case.view_assigned', 'document.upload', 'document.download', 'technical.consider', 'query.raise_to_vendor'],
     'cab_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'funding.confirm'],
-    'legal_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'legal.confirm'],
+    'legal_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'legal.confirm', 'audit.view'],
     'ps_office' => ['case.view_all', 'document.upload', 'document.download', 'nonobjection.grant', 'case.history.view'],
     'system_admin' => [
-        'audit.view', 'user.create', 'users.manage', 'vendor_user.invite', 'user.reset_credentials',
-        'config.manage', 'assignment.reassign', 'delegation.manage', 'users.mfa.reset',
+        'admin.access', 'users.view', 'users.create', 'users.invite_vendor', 'users.update_role',
+        'users.disable', 'users.mfa.reset', 'audit.view', 'system.health.view', 'jobs.retry',
+        'config.manage', 'assignment.reassign', 'delegation.manage',
     ],
-    'auditor' => ['audit.view'],
+    'auditor' => [],
 ];
 
 function rolePermissionNames(string $role): array
@@ -93,7 +94,9 @@ it('lets cmo_registry log intake but not route to review', function () {
 });
 
 it('no longer defines the retired permission names', function () {
-    expect(Permission::whereIn('name', ['case.reassign', 'case.intake_route'])->count())->toBe(0);
+    expect(Permission::whereIn('name', [
+        'case.reassign', 'case.intake_route', 'user.create', 'users.manage', 'vendor_user.invite', 'user.reset_credentials',
+    ])->count())->toBe(0);
 });
 
 it('is idempotent when the seeders run twice', function () {
@@ -129,4 +132,22 @@ it('seeds exactly one Ministry of Health and no vendor', function () {
         ->and($moh->first()->type)->toBe(OrganisationType::Moh)
         ->and($moh->first()->active)->toBeTrue()
         ->and(Organisation::where('type', OrganisationType::Vendor)->count())->toBe($vendorsBefore);
+});
+
+// IT-ADMIN (Kyle, 2026-11-22): the audit log is for the CMO, Legal and ICT only.
+it('grants audit.view to cmo, legal_officer and system_admin only (not the auditor)', function () {
+    $holders = Role::whereHas('permissions', fn ($q) => $q->where('name', 'audit.view'))
+        ->pluck('name')->sort()->values()->all();
+
+    expect($holders)->toBe(['cmo', 'legal_officer', 'system_admin']);
+});
+
+it('grants users.invite_vendor to cmo and system_admin, and the other console permissions to system_admin only', function () {
+    $holders = fn (string $perm) => Role::whereHas('permissions', fn ($q) => $q->where('name', $perm))
+        ->pluck('name')->sort()->values()->all();
+
+    expect($holders('users.invite_vendor'))->toBe(['cmo', 'system_admin']);
+    foreach (['admin.access', 'users.view', 'users.create', 'users.update_role', 'users.disable', 'system.health.view', 'jobs.retry'] as $perm) {
+        expect($holders($perm))->toBe(['system_admin']);
+    }
 });

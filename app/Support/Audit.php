@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AuditAction;
+use App\Http\Middleware\AssignRequestId;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -64,6 +65,7 @@ final class Audit
             'user_agent' => $request?->userAgent() !== null
                 ? mb_substr($request->userAgent(), 0, self::USER_AGENT_MAX)
                 : null,
+            'request_id' => AssignRequestId::of($request), // IT-ADMIN
             'metadata' => $metadata === []
                 ? null
                 : json_encode($metadata, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -86,6 +88,22 @@ final class Audit
         array $metadata = [],
         User|string|null $actor = null,
         ?array $subject = null,
+    ): void {
+        self::recordBestEffort($action, $subject, $metadata, $actor);
+    }
+
+    /**
+     * IT-ADMIN: best-effort, for SECURITY SIGNALS only (access.denied,
+     * log.viewed, mail.send_failed): rows written while a request is being
+     * refused, or while something else has already failed. A failed write
+     * must not turn a 403 or 404 into a 500, so it logs and carries on.
+     * Business actions call record() and fail closed.
+     */
+    public static function recordBestEffort(
+        AuditAction $action,
+        ?array $subject = null,
+        array $metadata = [],
+        User|string|null $actor = null,
     ): void {
         try {
             self::record($action, $subject, null, $metadata, $actor);

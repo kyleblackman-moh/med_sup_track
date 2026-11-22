@@ -436,6 +436,8 @@ The staff authentication driver hides the protocol (SAML2 or LDAP) behind one in
 
 > **MFA-1 (built).** TOTP is mandatory for every account, staff and vendor, while local accounts are in use (`mfa.enforce`, default on; it may be off only when `APP_ENV=local`, and the app refuses to boot otherwise). `EnsureMfaEnrolled` sends a signed-in user without a confirmed authenticator to `/security/mfa/setup` (QR, secret key, 6-digit confirm). Recovery codes are shown once after confirmation, with a `.txt` download, and the user cannot continue until they tick "I have saved these codes". At login, the password step runs once (`AuthenticateOrChallenge`), then Fortify's challenge takes a code or a recovery code (each recovery code works once). The challenge is limited to 5 attempts a minute per login id and per session, and the session is regenerated after enrolment and after the challenge. Users cannot disable MFA: Fortify's management endpoints are refused, and Security settings only regenerate recovery codes (behind password confirm). `users.mfa.reset` (System Admin; also the CMO, for vendor users only) clears the authenticator, ends the user's sessions and forces re-enrolment. Audit events: `mfa.enrolled`, `mfa.recovery_regenerated`, `mfa.challenge_failed`, `mfa.recovery_code_used`, `mfa.reset_by_admin`. Security emails go out on enrolment, recovery-code use and admin reset.
 
+> **IT-ADMIN (built, server side).** Accounts made in the UI start as `invited` (pending activation) and get a single-use, signed activation link (`user_invitations`, sha256 of the token only) that expires after `admin.activation.expire_hours` (48); a resend revokes the earlier link. Activation sets the password (app policy, plus a breached-password check behind `admin.passwords.check_breached`, default on, failing open on a server without internet); MFA enrolment is then forced at first sign-in. Staff accounts need `users.create`; vendor users `users.invite_vendor` (System Admin and the CMO) and an active vendor organisation. `system_admin` is never granted in the UI: `php artisan app:user-grant-admin` only, audited. The console (`/admin`) is 404 without `admin.access`; role change, disable and re-enable need a reason (stored in `admin_action_reasons`; audit rows carry `reason_id` and `reason_length`), and every admin action needs the password confirmed in the last 15 minutes. Role change and disable end the user's sessions; a role change emails them. Nobody changes their own role, disables themselves or resets their own MFA, and the last active `admin.access` holder cannot be disabled or demoted. Accounts with no case-work permission (System Admin, Auditor) get 404 on every case, document and query route. Audit rows carry a `request_id` (also sent as `X-Request-Id`); 403s and console or case-area 404s are audited as `access.denied`.
+
 ### 8.3 Five-layer access model **[Decided]**
 
 | Layer | Question answered | Implemented by |
@@ -468,7 +470,7 @@ Layers 1-3 are static and seeded. Layers 4-5 are where most access bugs appear a
 | Grant non-objection | | | | | | | ✔ | | |
 | Generate and issue letter | | | ✔ | | | | | | |
 | View case timeline | own (simplified) | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | | ✔ |
-| View audit log | | | ✔ | | | | | ✔ | ✔ |
+| View audit log (`audit.view`) **[Decided 2026-11-22]** | | | ✔ | | | ✔ | | ✔ | |
 | Manage users and roles | | | | | | | | ✔ | |
 | Configure routes and templates | | | | | | | | ✔ | |
 | Reassign (`assignment.reassign`) / delegate | | | ✔ | | | | | ✔ | |

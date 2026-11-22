@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Gate;
  * - cmo: holders of case.route_to_review, the one permission only the CMO has
  * - forStage: the active assignees holding a permission, else every holder
  * - forQueryMessage: from the query's route (query_routes data)
- * - admins: holders of users.manage (the admin permission, ADMIN-1)
+ * - admins: holders of admin.access (the IT administrators; IT-ADMIN)
  * - submitter: the vendor user who submitted the case
  */
 final class NotificationRecipients
@@ -45,7 +45,7 @@ final class NotificationRecipients
     /** @return Collection<int, User> */
     public function admins(): Collection
     {
-        return $this->staffWith(Permission::UsersManage);
+        return $this->staffWith(Permission::AdminAccess); // IT-ADMIN: the IT administrators (was users.manage)
     }
 
     /**

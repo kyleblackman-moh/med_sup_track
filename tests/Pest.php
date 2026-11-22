@@ -8,6 +8,7 @@ require_once __DIR__.'/Support/RequisitionPayloads.php';
 require_once __DIR__.'/Support/DocumentFiles.php';
 require_once __DIR__.'/Support/VendorProps.php';
 require_once __DIR__.'/Support/QueryHelpers.php';
+require_once __DIR__.'/Support/AdminHelpers.php';
 
 /*
 |--------------------------------------------------------------------------

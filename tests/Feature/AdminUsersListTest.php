@@ -13,6 +13,7 @@ use Spatie\Permission\PermissionRegistrar;
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
+    confirmAdminPassword();
 });
 
 afterEach(function () {
@@ -37,10 +38,13 @@ it('lists users with name, email, organisation, role display name, status and la
             'id' => $vendor->id,
             'name' => 'Alpha Vendor',
             'email' => $vendor->email,
+            'type' => 'Vendor',
             'organisation' => $org->name,
             'role' => 'Vendor',
             'status_label' => 'Active',
             'status_tone' => 'success',
+            'mfa_label' => 'Enrolled',
+            'mfa_tone' => 'success',
             // Stored UTC, shown in America/Port_of_Spain (UTC-4).
             'last_sign_in' => '18 Nov 2026, 10:05 am',
         ]);
@@ -116,7 +120,9 @@ it('reports a bad filter instead of ignoring it', function (array $query, string
         ->assertSessionHasErrors($key);
 })->with([
     'unknown role' => [['role' => 'superuser'], 'role'],
-    'unknown status' => [['status' => 'invited'], 'status'],
+    'unknown status' => [['status' => 'superuser'], 'status'],
+    'unknown type' => [['type' => 'robot'], 'type'],
+    'unknown MFA value' => [['mfa' => 'maybe'], 'mfa'],
     'unknown organisation' => [['org' => '01ZZZZZZZZZZZZZZZZZZZZZZZZ'], 'org'],
     'one-character search' => [['q' => 'a'], 'q'],
 ]);
@@ -126,7 +132,10 @@ it('sends the filter options with role display names and the vendor flag', funct
 
     expect(collect($props['options']['roles'])->firstWhere('value', 'vendor_applicant'))->toBe(['value' => 'vendor_applicant', 'label' => 'Vendor', 'vendor' => true])
         ->and(collect($props['options']['roles'])->firstWhere('value', 'cmo'))->toBe(['value' => 'cmo', 'label' => 'CMO', 'vendor' => false])
-        ->and($props['options']['statuses'])->toBe([['value' => 'active', 'label' => 'Active'], ['value' => 'disabled', 'label' => 'Disabled']])
+        ->and($props['options']['statuses'])->toBe([
+            ['value' => 'invited', 'label' => 'Pending activation'], ['value' => 'active', 'label' => 'Active'],
+            ['value' => 'disabled', 'label' => 'Disabled'], ['value' => 'locked', 'label' => 'Locked'],
+        ])
         ->and($props['options']['organisations'][0]['value'])->toBe(mohOrg()->id);
 });
 
@@ -161,7 +170,7 @@ it('answers 404 for a user that does not exist', function () {
     $this->actingAs(caseUser(Role::SystemAdmin))->get('/admin/users/999999999')->assertNotFound();
 });
 
-it('shares nav.users only with users.manage, never under can', function () {
+it('shares nav.users only with the console, never under can', function () {
     $adminProps = pageProps($this->actingAs(caseUser(Role::SystemAdmin))->get(route('admin.users.index'))->assertOk());
     $cmoProps = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('dashboard'))->assertOk());
 
@@ -170,3 +179,38 @@ it('shares nav.users only with users.manage, never under can', function () {
         ->and($cmoProps['nav']['users'])->toBeFalse()
         ->and(array_keys($adminProps['can']))->toBe(['requests', 'cases']);
 });
+
+it('filters by type, pending activation, locked and MFA, with the status and MFA shown on each row', function () {
+    $admin = caseUser(Role::SystemAdmin);
+    $token = Str::lower(Str::random(10));
+    $org = vendorOrg();
+    $pending = caseUser(Role::Cmo, ['name' => "IT {$token} pending", 'status' => User::STATUS_INVITED]);
+    $locked = caseUser(Role::Cmo, ['name' => "IT {$token} locked", 'locked_until' => now()->addMinutes(10)]);
+    $noMfa = withoutMfa(caseUser(Role::Cmo, ['name' => "IT {$token} nomfa"]));
+    $vendor = vendorUser($org, ['name' => "IT {$token} vendor"]);
+    $expiredLock = caseUser(Role::Cmo, ['name' => "IT {$token} expired lock", 'locked_until' => now()->subMinute()]);
+
+    $ids = fn (array $query) => collect(adminUserRows($admin, ['q' => $token, ...$query]))->pluck('id')->sort()->values()->all();
+
+    expect($ids(['status' => 'invited']))->toBe([$pending->id])
+        ->and($ids(['status' => 'locked']))->toBe([$locked->id])
+        ->and($ids(['status' => 'active']))->toBe(collect([$noMfa->id, $vendor->id, $expiredLock->id])->sort()->values()->all())
+        ->and($ids(['mfa' => 'no']))->toBe([$noMfa->id])
+        ->and($ids(['type' => 'vendor']))->toBe([$vendor->id])
+        ->and($ids(['type' => 'staff']))->not->toContain($vendor->id);
+
+    $rows = collect(adminUserRows($admin, ['q' => $token]))->keyBy('id');
+    expect($rows[$pending->id]['status_label'])->toBe('Pending activation')
+        ->and($rows[$locked->id]['status_label'])->toBe('Locked')
+        ->and($rows[$locked->id]['status_tone'])->toBe('warning')
+        ->and($rows[$noMfa->id]['mfa_label'])->toBe('Not enrolled')
+        ->and($rows[$noMfa->id]['mfa_tone'])->toBe('warning');
+});
+
+it('answers 404 for the console to anyone without admin.access', function (Role $role) {
+    $user = $role === Role::VendorApplicant ? vendorUser(vendorOrg()) : caseUser($role);
+    $target = caseUser(Role::Technocrat);
+
+    $this->actingAs($user)->get(route('admin.users.index'))->assertNotFound();
+    $this->actingAs($user)->get(route('admin.users.show', $target))->assertNotFound();
+})->with(fn () => array_values(array_filter(Role::cases(), fn (Role $r) => $r !== Role::SystemAdmin)));

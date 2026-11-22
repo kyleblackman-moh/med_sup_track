@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Accounts\MfaReset;
 use App\Accounts\UserAdministration;
 use App\Enums\OrganisationType;
 use App\Enums\Role;
@@ -9,6 +10,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Admin\UserView;
 use App\Models\Organisation;
 use App\Models\User;
+use App\Policies\UserPolicy;
+use App\Support\AccessDenials;
 use App\Support\SqlLike;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,12 +23,18 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * ADMIN-1: Admin > Users. Every action authorises itself through UserPolicy
- * (users.manage, plus user.create or user.reset_credentials where they apply).
+ * ADMIN-1, IT-ADMIN: Admin > Users. Every action authorises itself through
+ * UserPolicy. The console routes sit behind EnsureAdminConsole (404 without
+ * admin.access); create and store are outside it, so the CMO can invite
+ * vendor users (users.invite_vendor), and answer 404 to anyone who may create
+ * neither kind of account. Every change needs a recently confirmed password
+ * (ConfirmRecentPassword) and, for role, disable and enable, a reason.
  */
 class UserController extends Controller
 {
     private const PER_PAGE = 25;
+
+    public const REASON_MAX = 1000;
 
     public function index(Request $request): Response|RedirectResponse
     {
@@ -33,9 +42,11 @@ class UserController extends Controller
 
         $validator = Validator::make($request->query(), [
             'q' => ['nullable', 'string', 'min:2', 'max:100'],
+            'type' => ['nullable', 'string', Rule::in(['staff', 'vendor'])],
             'org' => ['nullable', 'string', 'max:26', Rule::exists('organisations', 'id')],
             'role' => ['nullable', 'string', Rule::in(array_map(fn (Role $r) => $r->value, Role::cases()))],
-            'status' => ['nullable', 'string', Rule::in([User::STATUS_ACTIVE, User::STATUS_DISABLED])],
+            'status' => ['nullable', 'string', Rule::in(UserView::statusFilterValues())],
+            'mfa' => ['nullable', 'string', Rule::in(['yes', 'no'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ], [
             'q.min' => 'Enter at least 2 characters of the name or email.',
@@ -47,15 +58,26 @@ class UserController extends Controller
         }
 
         $filters = $validator->validated();
+        $now = now();
 
         $page = User::query()
             ->with(['organisation:id,name', 'roles:id,name'])
             ->when($filters['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
                 ->whereRaw(...SqlLike::contains('users.name', $v))
                 ->orWhereRaw(...SqlLike::contains('users.email', $v))))
+            ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('users.user_type', $v))
             ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('users.org_id', $v))
             ->when($filters['role'] ?? null, fn ($q, $v) => $q->role($v))
-            ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('users.status', $v))
+            ->when($filters['status'] ?? null, fn ($q, $v) => match ($v) {
+                UserView::FILTER_LOCKED => $q->where('users.status', User::STATUS_ACTIVE)->where('users.locked_until', '>', $now),
+                // "Active" means able to sign in now: not inside a lockout window.
+                User::STATUS_ACTIVE => $q->where('users.status', User::STATUS_ACTIVE)
+                    ->where(fn ($w) => $w->whereNull('users.locked_until')->orWhere('users.locked_until', '<=', $now)),
+                default => $q->where('users.status', $v),
+            })
+            ->when($filters['mfa'] ?? null, fn ($q, $v) => $v === 'yes'
+                ? $q->whereNotNull('users.two_factor_confirmed_at')
+                : $q->whereNull('users.two_factor_confirmed_at'))
             ->orderBy('users.name')
             ->orderBy('users.id')
             ->paginate(self::PER_PAGE)
@@ -74,14 +96,18 @@ class UserController extends Controller
             ],
             'filters' => [
                 'q' => $filters['q'] ?? '',
+                'type' => $filters['type'] ?? '',
                 'org' => $filters['org'] ?? '',
                 'role' => $filters['role'] ?? '',
                 'status' => $filters['status'] ?? '',
+                'mfa' => $filters['mfa'] ?? '',
             ],
             'options' => [
+                'types' => UserView::typeOptions(),
                 'organisations' => self::organisationOptions(),
                 'roles' => UserView::roleOptions(),
                 'statuses' => UserView::statusOptions(),
+                'mfa' => UserView::mfaOptions(),
             ],
             // Page-level hints only; not 'can' (that would replace the shared nav flags).
             'abilities' => [
@@ -90,26 +116,27 @@ class UserController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        Gate::authorize('create', User::class);
+        $this->authorizeCreateOr404($request->user());
 
         return Inertia::render('admin/users/create', [
             'options' => [
-                'roles' => UserView::roleOptions(),
-                'organisations' => self::vendorOrganisationOptions(),
+                'roles' => self::grantableRoles($request->user()),
+                'organisations' => $request->user()->can('inviteVendor', User::class) ? self::vendorOrganisationOptions() : [],
             ],
         ]);
     }
 
     /**
-     * Step 2: name, email, role and (vendor roles only) the vendor
-     * organisation. No password is shown or emailed: the person gets a link to
-     * set their own (UserAdministration::create).
+     * A staff account (users.create) or a vendor user (users.invite_vendor):
+     * name, email, role and, for a vendor role, the vendor organisation. The
+     * account waits for activation; the person gets a single-use link.
      */
     public function store(Request $request, UserAdministration $admin): RedirectResponse
     {
-        Gate::authorize('create', User::class);
+        $actor = $request->user();
+        $this->authorizeCreateOr404($actor);
 
         $request->merge([
             'name' => trim((string) $request->input('name')),
@@ -120,7 +147,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'role' => ['required', 'string', Rule::in(array_map(fn (Role $r) => $r->value, Role::cases()))],
+            'role' => ['required', 'string', Rule::in(array_column(self::grantableRoles($actor), 'value'))],
             'organisation' => ['nullable', 'string', 'max:26'],
         ], [
             'email.unique' => 'A user with this email already exists.',
@@ -128,9 +155,12 @@ class UserController extends Controller
             'role.in' => 'Choose a role from the list.',
         ]);
 
-        [$user, $sent] = $admin->create($request->user(), $data['name'], $data['email'], Role::from($data['role']), $data['organisation']);
+        [$user, $sent] = $admin->create($actor, $data['name'], $data['email'], Role::from($data['role']), $data['organisation']);
 
-        return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'User created.'));
+        // The CMO (no access to the console) goes back to the form to invite the next one.
+        $to = $actor->can('view', $user) ? to_route('admin.users.show', $user) : to_route('admin.users.create');
+
+        return $to->with(...self::activationFlash($sent, 'User created.'));
     }
 
     public function show(Request $request, User $user): Response
@@ -142,41 +172,47 @@ class UserController extends Controller
 
         return Inertia::render('admin/users/show', [
             'user' => UserView::detail($user),
-            // Roles of the same kind as the account (vendor or staff): the only ones it can change to.
-            'role_options' => array_values(array_filter(UserView::roleOptions(), fn (array $r) => $r['vendor'] === $user->isVendor())),
+            // Roles of the same kind as the account (vendor or staff), never system_admin.
+            'role_options' => array_values(array_filter(UserView::roleOptions(grantable: true), fn (array $r) => $r['vendor'] === $user->isVendor())),
             // Page-level hints only (not 'can'); every action authorises itself.
             'abilities' => [
                 'change_role' => $actor->can('changeRole', $user),
-                'disable' => $user->isActive() && $actor->can('disable', $user),
+                'disable' => $user->status !== User::STATUS_DISABLED && $actor->can('disable', $user),
                 'enable' => $user->status === User::STATUS_DISABLED && $actor->can('enable', $user),
-                'resend_activation' => $user->isActive() && $actor->can('resendActivation', $user),
+                'resend_activation' => $user->isPendingActivation() && $actor->can('resendActivation', $user),
+                'mfa_reset' => $user->hasMfa() && MfaReset::allows($actor, $user),
             ],
+            'reason_max' => self::REASON_MAX,
         ]);
     }
 
-    /** Step 3: change the role (same kind of account; UserAdministration::changeRole). */
+    /** Change the role (same kind of account; never system_admin). A reason is required. */
     public function updateRole(Request $request, User $user, UserAdministration $admin): RedirectResponse
     {
         Gate::authorize('changeRole', $user);
 
         $data = $request->validate([
-            'role' => ['required', 'string', Rule::in(array_map(fn (Role $r) => $r->value, Role::cases()))],
+            'role' => ['required', 'string', Rule::in(array_column(UserView::roleOptions(grantable: true), 'value'))],
+            ...self::reasonRule(),
         ], [
             'role.required' => 'Choose a role.',
             'role.in' => 'Choose a role from the list.',
+            ...self::reasonMessages(),
         ]);
 
-        $admin->changeRole($request->user(), $user, Role::from($data['role']));
+        $admin->changeRole($request->user(), $user, Role::from($data['role']), $data['reason']);
 
-        return to_route('admin.users.show', $user)->with('success', 'Role saved.');
+        return to_route('admin.users.show', $user)->with('success', 'Role saved. The user has been signed out and has the new role from their next sign-in.');
     }
 
-    /** Step 3: block sign-in and end the user's sessions now. */
+    /** Block sign-in and end the user's sessions now. A reason is required. */
     public function disable(Request $request, User $user, UserAdministration $admin): RedirectResponse
     {
         Gate::authorize('disable', $user);
 
-        $admin->disable($request->user(), $user);
+        $data = $request->validate(self::reasonRule(), self::reasonMessages());
+
+        $admin->disable($request->user(), $user, $data['reason']);
 
         return to_route('admin.users.show', $user)->with('success', 'User disabled. They have been signed out and cannot sign in.');
     }
@@ -185,38 +221,75 @@ class UserController extends Controller
     {
         Gate::authorize('enable', $user);
 
-        $admin->enable($request->user(), $user);
+        $data = $request->validate(self::reasonRule(), self::reasonMessages());
 
-        return to_route('admin.users.show', $user)->with('success', 'User enabled. They can sign in again.');
+        $admin->enable($request->user(), $user, $data['reason']);
+
+        return to_route('admin.users.show', $user)->with('success', $user->fresh()->isPendingActivation()
+            ? 'User enabled. They have not activated their account yet: send them a new activation link.'
+            : 'User enabled. They can sign in again.');
     }
 
-    /** Step 3: email a new link to set a password (activation or reset). */
+    /** Email a new activation link; the earlier one stops working. */
     public function resendActivation(Request $request, User $user, UserAdministration $admin): RedirectResponse
     {
         Gate::authorize('resendActivation', $user);
 
         $sent = $admin->resendActivation($request->user(), $user);
 
-        return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'Sign-in link sent.'));
+        return to_route('admin.users.show', $user)->with(...self::activationFlash($sent, 'Activation link sent.'));
+    }
+
+    /** @return array<string, list<string>> */
+    public static function reasonRule(bool $required = true): array
+    {
+        return ['reason' => [$required ? 'required' : 'nullable', 'string', 'max:'.self::REASON_MAX]];
+    }
+
+    /** @return array<string, string> */
+    public static function reasonMessages(): array
+    {
+        return [
+            'reason.required' => 'Enter the reason.',
+            'reason.max' => 'Keep the reason to '.self::REASON_MAX.' characters or fewer.',
+        ];
+    }
+
+    /** 404 for anyone who may create neither kind of account (the area does not exist for them). */
+    private function authorizeCreateOr404(User $actor): void
+    {
+        if (! $actor->can('create', User::class)) {
+            AccessDenials::record(request(), 404, 'admin_console');
+            abort(404);
+        }
+    }
+
+    /** The roles this actor may give a new account (never system_admin). */
+    private static function grantableRoles(User $actor): array
+    {
+        return array_values(array_filter(
+            UserView::roleOptions(grantable: true),
+            fn (array $r) => UserPolicy::mayGrant($actor, Role::from($r['value'])),
+        ));
     }
 
     /**
-     * The flash after a sign-in link was (or was not) sent. When the server's
-     * mail goes to the log, the Admin is told so instead of being told it was emailed.
+     * The flash after an activation link was (or was not) sent. When the
+     * server's mail goes to the log, the Admin is told so instead of being told it was emailed.
      *
      * @return array{0: string, 1: string}
      */
     private static function activationFlash(bool $sent, string $lead): array
     {
         if (! $sent) {
-            return ['error', "{$lead} The email with the sign-in link could not be sent. Try Resend Sign-In Link."];
+            return ['error', "{$lead} The email with the activation link could not be sent. Try Resend Activation Link."];
         }
 
         if (UserAdministration::mailIsNotDelivered()) {
-            return ['info', "{$lead} Email is not set up on this server, so the sign-in link was written to the application log instead of being emailed."];
+            return ['info', "{$lead} Email is not set up on this server, so the activation link was written to the application log instead of being emailed."];
         }
 
-        return ['success', "{$lead} An email with a link to set their password has been sent."];
+        return ['success', "{$lead} An email with a link to activate the account has been sent."];
     }
 
     /** Active vendor organisations, by name (the create form). */

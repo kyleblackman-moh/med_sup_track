@@ -15,7 +15,6 @@ use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
 use App\Http\Controllers\SubmitRequestController;
 use App\Models\ProcurementCase;
-use App\Models\User;
 use App\Queries\QueryAccess;
 use App\Support\LandingPage;
 use Illuminate\Http\Request;
@@ -48,20 +47,20 @@ Route::middleware(['auth'])
 
 // QUERIES-1: the queries waiting on the signed-in user (vendors and staff).
 // Every row is found through QueryAccess; each link authorises itself again.
-Route::middleware(['auth'])
+Route::middleware(['auth', 'case.area']) // IT-ADMIN: 404 without case work
     ->get('queries', QueryInboxController::class)
     ->middleware('throttle:60,1')
     ->name('queries.index');
 
 // ANALYTICS: charts and tracking for the CMO's office and the PS office only
 // (case.view_all). Everyone else, vendors included, gets 403.
-Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
+Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
     ->get('analytics', AnalyticsController::class)
     ->name('analytics');
 
 // Vendor requests. Hidden or missing cases are 404 (ProcurementCase's global
 // scope applies to route model binding).
-Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
+Route::middleware(['auth', 'case.area', 'can:'.Permission::CaseSubmit->value])
     ->prefix('requests')
     ->name('requests.')
     ->controller(RequestController::class)
@@ -92,7 +91,7 @@ Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
 
 // Request documents. {document} is bound through the case (scopeBindings), so a
 // document of another case is 404; hidden cases and documents are 404 as well.
-Route::middleware(['auth', 'can:'.Permission::CaseSubmit->value])
+Route::middleware(['auth', 'case.area', 'can:'.Permission::CaseSubmit->value])
     ->controller(DocumentController::class)
     ->group(function () {
         Route::scopeBindings()->group(function () {
@@ -110,7 +109,7 @@ Route::bind('queryCase', fn (string $value) => QueryAccess::caseForQueryWork($va
 
 // Staff case pages (slice 9a), read-only. 403 without CasePolicy::viewStaffCases;
 // hidden and DRAFT cases are 404 through the global scope on route model binding.
-Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
+Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class])
     ->prefix('cases')
     ->name('cases.')
     ->controller(StaffCaseController::class)
@@ -153,21 +152,33 @@ Route::middleware(['auth', 'can:viewStaffCases,'.ProcurementCase::class])
         });
     });
 
-// ADMIN-1: Admin > Users. 403 without users.manage (UserPolicy); a missing user is 404.
-Route::middleware(['auth', 'can:viewAny,'.User::class])
+// IT-ADMIN: creating an account sits outside the console so the CMO can invite
+// vendor users (users.invite_vendor). Anyone who may create neither kind of
+// account gets 404 (UserController). Password confirmed in the last 15 minutes.
+Route::middleware(['auth', 'admin.confirm'])
     ->prefix('admin/users')
     ->name('admin.users.')
     ->controller(UserController::class)
     ->group(function () {
-        Route::get('/', 'index')->name('index');
         Route::get('create', 'create')->name('create');
         Route::post('/', 'store')->middleware('throttle:20,1')->name('store');
-        Route::get('{user}', 'show')->whereNumber('user')->name('show');
-        Route::middleware('throttle:20,1')->where(['user' => '[0-9]+'])->group(function () {
-            Route::put('{user}/role', 'updateRole')->name('role');
-            Route::post('{user}/disable', 'disable')->name('disable');
-            Route::post('{user}/enable', 'enable')->name('enable');
-            Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
+    });
+
+// IT-ADMIN: the IT Admin console. 404 without admin.access (EnsureAdminConsole);
+// inside it, each action checks its own permission (403) and a missing user is 404.
+Route::middleware(['auth', 'admin.console'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::prefix('users')->name('users.')->controller(UserController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('{user}', 'show')->whereNumber('user')->middleware('admin.confirm')->name('show');
+            Route::middleware(['admin.confirm', 'throttle:20,1'])->where(['user' => '[0-9]+'])->group(function () {
+                Route::put('{user}/role', 'updateRole')->name('role');
+                Route::post('{user}/disable', 'disable')->name('disable');
+                Route::post('{user}/enable', 'enable')->name('enable');
+                Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
+            });
         });
     });
 
@@ -200,13 +211,14 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // MFA-1: an administrator (or the CMO, for vendor users) resets a user's MFA. MfaReset authorises.
-Route::middleware(['auth', 'throttle:20,1'])
+// IT-ADMIN: password confirmed in the last 15 minutes.
+Route::middleware(['auth', 'admin.confirm', 'throttle:20,1'])
     ->post('admin/users/{user}/mfa-reset', MfaResetController::class)
     ->whereNumber('user')->name('admin.users.mfa-reset');
 
 // The short-lived signed link issued by documents.download and cases.documents.download.
 Route::get('documents/{document}/file', [DocumentController::class, 'file'])
-    ->middleware(['auth', 'signed'])->name('documents.file');
+    ->middleware(['auth', 'case.area', 'signed'])->name('documents.file');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

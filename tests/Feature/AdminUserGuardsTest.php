@@ -11,10 +11,10 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
-// ADMIN-1 Step 4: self-edit guard, last users.manage holder guard, and the
-// admin and auditor roles still kept out of case content.
+// ADMIN-1 Step 4, IT-ADMIN: self-edit guards, the last admin.access holder
+// guard, and the admin and auditor roles kept out of case content.
 //
-// Over HTTP the acting admin is always an active holder of users.manage and
+// Over HTTP the acting admin is always an active holder of admin.access and
 // cannot act on themselves, so the target is never the last holder there. The
 // last-holder guard is the service's own rule (for any other caller), and is
 // tested on UserAdministration directly.
@@ -23,16 +23,17 @@ beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
     Notification::fake();
+    confirmAdminPassword();
 });
 
 afterEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
-/** Leave $keep as the only active holders of users.manage (other holders in the dev database are disabled inside the test transaction). */
-function onlyManagers(User ...$keep): void
+/** Leave $keep as the only active holders of admin.access (other holders in the dev database are disabled inside the test transaction). */
+function onlyAdmins(User ...$keep): void
 {
-    User::permission(Permission::UsersManage->value)
+    User::permission(Permission::AdminAccess->value)
         ->whereNotIn('users.id', array_map(fn (User $u) => $u->id, $keep))
         ->update(['status' => User::STATUS_DISABLED]);
 }
@@ -40,7 +41,7 @@ function onlyManagers(User ...$keep): void
 it('does not let an admin change their own role (403)', function () {
     $admin = caseUser(Role::SystemAdmin);
 
-    $this->actingAs($admin)->put(route('admin.users.role', $admin), ['role' => 'cmo'])->assertForbidden();
+    $this->actingAs($admin)->put(route('admin.users.role', $admin), ['role' => 'cmo', 'reason' => 'Me.'])->assertForbidden();
 
     expect($admin->fresh()->getRoleNames()->all())->toBe(['system_admin']);
 });
@@ -48,76 +49,87 @@ it('does not let an admin change their own role (403)', function () {
 it('does not let an admin disable themselves (403)', function () {
     $admin = caseUser(Role::SystemAdmin);
 
-    $this->actingAs($admin)->post(route('admin.users.disable', $admin))->assertForbidden();
+    $this->actingAs($admin)->post(route('admin.users.disable', $admin), ['reason' => 'Me.'])->assertForbidden();
 
     expect($admin->fresh()->status)->toBe(User::STATUS_ACTIVE);
 });
 
-it('hides the role and disable actions on the admin\'s own page', function () {
+it('does not let an admin reset their own MFA (403)', function () {
+    $admin = caseUser(Role::SystemAdmin);
+
+    $this->actingAs($admin)->post(route('admin.users.mfa-reset', $admin))->assertForbidden();
+
+    expect($admin->fresh()->hasMfa())->toBeTrue();
+});
+
+it('hides the role, disable and MFA reset actions on the admin\'s own page', function () {
     $admin = caseUser(Role::SystemAdmin);
 
     $abilities = pageProps($this->actingAs($admin)->get(route('admin.users.show', $admin))->assertOk())['abilities'];
 
-    expect($abilities['change_role'])->toBeFalse()->and($abilities['disable'])->toBeFalse();
+    expect($abilities['change_role'])->toBeFalse()
+        ->and($abilities['disable'])->toBeFalse()
+        ->and($abilities['mfa_reset'])->toBeFalse();
 });
 
-it('refuses to disable the last active holder of users.manage', function () {
+it('refuses to disable the last active System Admin', function () {
     $target = caseUser(Role::SystemAdmin);
-    onlyManagers($target);
+    onlyAdmins($target);
 
-    expect(fn () => app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target))
+    expect(fn () => app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target, 'Test.'))
         ->toThrow(ValidationException::class, 'last active account');
 
     expect($target->fresh()->status)->toBe(User::STATUS_ACTIVE);
 });
 
-it('refuses to demote the last active holder of users.manage', function () {
+it('refuses to demote the last active System Admin', function () {
     $target = caseUser(Role::SystemAdmin);
-    onlyManagers($target);
+    onlyAdmins($target);
 
-    expect(fn () => app(UserAdministration::class)->changeRole(caseUser(Role::Cmo), $target, Role::Cmo))
+    expect(fn () => app(UserAdministration::class)->changeRole(caseUser(Role::Cmo), $target, Role::Cmo, 'Test.'))
         ->toThrow(ValidationException::class, 'last active account');
 
     expect($target->fresh()->getRoleNames()->all())->toBe(['system_admin']);
 });
 
-it('does not count a disabled holder as another manager', function () {
+it('does not count a disabled holder as another admin', function () {
     $target = caseUser(Role::SystemAdmin);
     caseUser(Role::SystemAdmin, ['status' => User::STATUS_DISABLED]);
-    onlyManagers($target);
+    onlyAdmins($target);
 
-    expect(fn () => app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target))
+    expect(fn () => app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target, 'Test.'))
         ->toThrow(ValidationException::class);
 });
 
-it('allows disabling or demoting a holder when another active holder remains', function () {
+it('allows disabling or demoting an admin when another active admin remains', function () {
     $actor = caseUser(Role::SystemAdmin);
     $first = caseUser(Role::SystemAdmin);
     $second = caseUser(Role::SystemAdmin);
-    onlyManagers($actor, $first, $second);
+    onlyAdmins($actor, $first, $second);
 
-    $this->actingAs($actor)->post(route('admin.users.disable', $first))->assertSessionDoesntHaveErrors();
-    $this->actingAs($actor)->put(route('admin.users.role', $second), ['role' => 'cmo'])->assertSessionDoesntHaveErrors();
+    $this->actingAs($actor)->post(route('admin.users.disable', $first), ['reason' => 'Left.'])->assertSessionDoesntHaveErrors();
+    $this->actingAs($actor)->put(route('admin.users.role', $second), ['role' => 'cmo', 'reason' => 'Moved.'])->assertSessionDoesntHaveErrors();
 
     expect($first->fresh()->status)->toBe(User::STATUS_DISABLED)
         ->and($second->fresh()->getRoleNames()->all())->toBe(['cmo']);
 });
 
-it('lets an admin change a holder to another role that keeps users.manage', function () {
-    $target = caseUser(Role::SystemAdmin);
-    onlyManagers($target);
+it('refuses system_admin in UserAdministration itself, whoever calls it', function () {
+    $target = caseUser(Role::Technocrat);
 
-    // Same role: a no-op, never refused.
-    app(UserAdministration::class)->changeRole(caseUser(Role::Cmo), $target, Role::SystemAdmin);
+    expect(fn () => app(UserAdministration::class)->changeRole(caseUser(Role::SystemAdmin), $target, Role::SystemAdmin, 'Test.'))
+        ->toThrow(ValidationException::class, 'command line only')
+        ->and(fn () => app(UserAdministration::class)->create(caseUser(Role::SystemAdmin), 'X', 'x-'.Str::lower(Str::ulid()).'@example.test', Role::SystemAdmin, null))
+        ->toThrow(ValidationException::class, 'command line only');
 
-    expect($target->fresh()->getRoleNames()->all())->toBe(['system_admin']);
+    expect($target->fresh()->getRoleNames()->all())->toBe(['technocrat']);
 });
 
-it('ignores the guard for a user who does not hold users.manage', function () {
+it('ignores the guard for a user who does not hold admin.access', function () {
     $target = caseUser(Role::Cmo);
-    onlyManagers();
+    onlyAdmins();
 
-    app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target);
+    app(UserAdministration::class)->disable(caseUser(Role::Cmo), $target, 'Test.');
 
     expect($target->fresh()->status)->toBe(User::STATUS_DISABLED);
 });

@@ -83,7 +83,8 @@ function qpRows(User $user, ProcurementCase $case, array $query = []): array
 
 it('needs a signed-in user, and refuses users who neither submit requests nor see staff cases', function () {
     $this->get(route('queries.index'))->assertRedirect(route('login'));
-    $this->actingAs(caseUser(Role::SystemAdmin))->get(route('queries.index'))->assertForbidden();
+    // IT-ADMIN: the System Admin has no case work, so the case area (queries included) is 404.
+    $this->actingAs(caseUser(Role::SystemAdmin))->get(route('queries.index'))->assertNotFound();
 });
 
 it('gives the CMO a held query to forward, and the recipients nothing until it is forwarded', function () {

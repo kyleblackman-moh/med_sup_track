@@ -57,9 +57,10 @@ enum Role: string
             self::Cmo => [
                 P::CaseViewAll, P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
                 P::HardcopyConfirm, P::CaseIntake, P::CaseRouteToReview, P::QueryForward,
-                P::FilePrepare, P::LetterIssue, P::CaseHistoryView, P::VendorUserInvite,
+                P::FilePrepare, P::LetterIssue, P::CaseHistoryView, P::UsersInviteVendor,
                 P::AssignmentReassign, P::DelegationManage, P::CaseWithdraw, P::CaseRejectFinal,
                 P::UsersMfaReset, // MFA-1: vendor users only (MfaReset)
+                P::AuditView, // IT-ADMIN: the audit log is for the CMO, Legal and ICT (Kyle, 2026-11-22)
             ],
             self::Technocrat => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
@@ -70,19 +71,22 @@ enum Role: string
             ],
             self::LegalOfficer => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::LegalConfirm,
+                P::AuditView, // IT-ADMIN (Kyle, 2026-11-22)
             ],
             self::PsOffice => [
                 P::CaseViewAll, P::DocumentUpload, P::DocumentDownload,
                 P::NonObjectionGrant, P::CaseHistoryView,
             ],
-            // No case-content permissions: administers users and configuration only.
+            // No case.*, document.* or query.* permissions: users, configuration and
+            // the IT health of the system only. The role is granted from the
+            // command line only (app:user-grant-admin), never in the UI.
             self::SystemAdmin => [
-                P::AuditView, P::UserCreate, P::UsersManage, P::VendorUserInvite, P::UserResetCredentials,
-                P::ConfigManage, P::AssignmentReassign, P::DelegationManage, P::UsersMfaReset,
+                P::AdminAccess, P::UsersView, P::UsersCreate, P::UsersInviteVendor, P::UsersUpdateRole,
+                P::UsersDisable, P::UsersMfaReset, P::AuditView, P::SystemHealthView, P::JobsRetry,
+                P::ConfigManage, P::AssignmentReassign, P::DelegationManage,
             ],
-            self::Auditor => [
-                P::AuditView,
-            ],
+            // IT-ADMIN: no audit.view (Kyle, 2026-11-22). Read-only case access (spec 4.1) is not built.
+            self::Auditor => [],
         };
     }
 

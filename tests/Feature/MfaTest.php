@@ -218,6 +218,7 @@ it('regenerates recovery codes only after a password confirm, and audits it', fu
 });
 
 it('lets an admin reset MFA: columns cleared, sessions ended, audit and email, re-enrolment forced', function () {
+    confirmAdminPassword();
     $admin = caseUser(Role::SystemAdmin);
     $user = caseUser(Role::Technocrat);
     DB::table('sessions')->insert(['id' => Str::random(40), 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()]);
@@ -239,6 +240,7 @@ it('lets an admin reset MFA: columns cleared, sessions ended, audit and email, r
 });
 
 it('lets the CMO reset vendor users only, and nobody reset themselves', function () {
+    confirmAdminPassword();
     $cmo = caseUser(Role::Cmo);
     $vendor = vendorUser(vendorOrg());
     $staff = caseUser(Role::Technocrat);

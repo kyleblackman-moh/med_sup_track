@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\ActivationController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -22,7 +23,14 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->middleware('throttle:password-reset')->name('password.store'); // SEC-1: also how a new account is activated
+        ->middleware('throttle:password-reset')->name('password.store'); // SEC-1
+
+    // IT-ADMIN: the emailed activation link of a new account. GET is a signed URL
+    // (403 if tampered with or past its expiry); POST uses the link once.
+    Route::get('activate/{invitation}', [ActivationController::class, 'show'])
+        ->whereUlid('invitation')->middleware(['signed', 'throttle:20,1'])->name('activation.show');
+    Route::post('activate/{invitation}', [ActivationController::class, 'store'])
+        ->whereUlid('invitation')->middleware('throttle:10,1')->name('activation.store');
 });
 
 Route::middleware('auth')->group(function () {

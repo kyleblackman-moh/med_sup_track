@@ -56,7 +56,8 @@ class AuthenticateUser
         }
 
         if (! $user->isActive()) {
-            return $this->fail('disabled', $email, $user);
+            // IT-ADMIN: an account that has not used its activation link yet.
+            return $this->fail($user->isPendingActivation() ? 'pending_activation' : 'disabled', $email, $user);
         }
 
         if ($user->isVendor() && ! $user->organisation?->active) {

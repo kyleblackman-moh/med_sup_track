@@ -140,7 +140,9 @@ it('has no create page: GET /requests/create is 404', function () {
 it('needs case.submit to start a request, and creates nothing without it', function (Role $role) {
     $staff = caseUser($role);
 
-    $this->actingAs($staff)->post(route('requests.store'))->assertForbidden();
+    // IT-ADMIN: accounts with no case work (System Admin, Auditor) get 404 on the whole case area.
+    $response = $this->actingAs($staff)->post(route('requests.store'));
+    in_array($role, [Role::SystemAdmin, Role::Auditor], true) ? $response->assertNotFound() : $response->assertForbidden();
 
     expect(ProcurementCase::withoutGlobalScopes()->where('created_by', $staff->id)->count())->toBe(0);
 })->with([Role::Cmo, Role::CmoRegistry, Role::SystemAdmin, Role::Auditor]);

@@ -41,13 +41,17 @@ enum Permission: string
     case QueryRaiseToVendor = 'query.raise_to_vendor';
     case QueryForward = 'query.forward';
 
-    // Administration and oversight
+    // Administration and oversight (IT-ADMIN: the IT Admin console)
+    case AdminAccess = 'admin.access';              // the /admin console exists for you (404 otherwise)
+    case UsersView = 'users.view';                  // Admin > Users list and detail
+    case UsersCreate = 'users.create';              // create a staff account (never system_admin: CLI only)
+    case UsersInviteVendor = 'users.invite_vendor'; // invite a user into a vendor organisation
+    case UsersUpdateRole = 'users.update_role';
+    case UsersDisable = 'users.disable';            // disable and re-enable
+    case UsersMfaReset = 'users.mfa.reset';         // MFA-1: vendor users only without admin.access
     case AuditView = 'audit.view';
-    case UserCreate = 'user.create';
-    case UsersManage = 'users.manage'; // ADMIN-1: Admin > Users (list, view, change role, disable, enable)
-    case VendorUserInvite = 'vendor_user.invite';
-    case UserResetCredentials = 'user.reset_credentials';
-    case UsersMfaReset = 'users.mfa.reset'; // MFA-1: reset a user's MFA (vendor users only without users.manage)
+    case SystemHealthView = 'system.health.view';
+    case JobsRetry = 'jobs.retry';
     case ConfigManage = 'config.manage';
     case DelegationManage = 'delegation.manage';
 

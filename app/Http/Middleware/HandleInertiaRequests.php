@@ -93,8 +93,11 @@ class HandleInertiaRequests extends Middleware
              */
             'nav' => [
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
-                // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes.
-                'users' => $user !== null && $user->can(Permission::UsersManage->value),
+                // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes (UserPolicy::viewAny).
+                'users' => $user !== null && Gate::forUser($user)->allows('viewAny', User::class),
+                // IT-ADMIN: the IT health page (/admin) and the audit log. Show or hide only; the routes authorise.
+                'it_health' => $user !== null && $user->can(Permission::AdminAccess->value) && $user->can(Permission::SystemHealthView->value),
+                'audit' => $user !== null && $user->can(Permission::AuditView->value),
                 // ANALYTICS: the Analytics page. Same checks as the /analytics route.
                 'analytics' => $user !== null && ! $user->isVendor()
                     && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)

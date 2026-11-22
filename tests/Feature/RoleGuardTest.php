@@ -108,7 +108,7 @@ it('names the offending role and permission when the matrix is wrong', function 
 it('names the staff permissions the vendor guard checks', function (string $permission) {
     expect(VENDOR_PERMISSIONS)->not->toContain($permission)
         ->and(DB::table('permissions')->where('name', $permission)->exists())->toBeTrue();
-})->with(['case.view_all', 'query.forward', 'query.raise_to_vendor', 'case.route_to_review', 'users.manage', 'case.intake']);
+})->with(['case.view_all', 'query.forward', 'query.raise_to_vendor', 'case.route_to_review', 'users.view', 'case.intake']);
 
 it('has at least one vendor role and one staff role to guard', function () {
     $types = array_map(fn (string $role) => seededRoleType($role), array_keys(seededMatrix()));

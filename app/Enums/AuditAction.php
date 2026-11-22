@@ -73,5 +73,13 @@ enum AuditAction: string
     case UserDisabled = 'user.disabled';
     case UserEnabled = 'user.enabled';
     case UserActivationResent = 'user.activation_resent';
+    case UserActivated = 'user.activated'; // IT-ADMIN: the person used their activation link
+    case UserAdminGranted = 'user.admin_granted'; // IT-ADMIN: system_admin given from the command line (the only way)
+
+    // IT-ADMIN: security and operations signals (audit viewer, IT health page). Route names, class names and ids only.
+    case AccessDenied = 'access.denied'; // a signed-in user was refused (403, or 404 for the admin console and case area)
+    case MailSendFailed = 'mail.send_failed';
+    case LogViewed = 'log.viewed'; // the audit log was viewed (once per filter change, capped)
+    case JobRetried = 'job.retried'; // a failed queue job was pushed back onto its queue (jobs.retry)
     case OrganisationCreated = 'organisation.created';
 }

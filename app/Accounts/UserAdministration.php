@@ -7,27 +7,28 @@ use App\Enums\OrganisationType;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\UserType;
+use App\Models\AdminActionReason;
 use App\Models\Organisation;
 use App\Models\User;
-use App\Notifications\AccountActivation;
+use App\Models\UserInvitation;
+use App\Notifications\AccountSecurityNotice;
 use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role as SpatieRole;
-use Throwable;
 
 /**
- * ADMIN-1: what Admin > Users changes. Callers have already authorised
- * (UserPolicy). Audit rows carry ids and fixed codes only, never a name,
- * email or anything typed.
+ * ADMIN-1, IT-ADMIN: what Admin > Users changes. Callers have already
+ * authorised (UserPolicy). Audit rows carry ids, fixed codes and, for a typed
+ * reason, reason_id and reason_length only (the text is in
+ * admin_action_reasons), never a name, email or anything typed.
  *
- * Role and organisation pairing: a vendor role belongs to an active VENDOR
- * organisation (required); every other role to the single MOH organisation
- * (assigned here; the form sends none).
+ * - system_admin is never given here: the command line only (app:user-grant-admin).
+ * - Role and organisation pairing: a vendor role belongs to an active VENDOR
+ *   organisation (required); every other role to the single MOH organisation.
+ * - The last active holder of admin.access is never disabled or demoted.
  */
 final class UserAdministration
 {
@@ -35,14 +36,19 @@ final class UserAdministration
 
     private const GUARD = 'web';
 
+    public function __construct(private readonly AccountActivations $activations) {}
+
     /**
-     * Create an account with a random password nobody sees, then email the
-     * person a link to choose their own (AccountActivation).
+     * Create a pending account (status "invited", a random password nobody
+     * sees) and email the person a single-use activation link.
      *
      * @return array{0: User, 1: bool} the user, and whether the email went out
+     *
+     * @throws ValidationException
      */
     public function create(User $actor, string $name, string $email, Role $role, ?string $organisationId): array
     {
+        self::refuseSystemAdmin($role);
         $organisation = $this->organisationFor($role, $organisationId);
 
         $user = DB::transaction(function () use ($actor, $name, $email, $role, $organisation) {
@@ -55,43 +61,39 @@ final class UserAdministration
                 'org_id' => $organisation->id,
                 'user_type' => $role->userType()->value,
                 'auth_source' => 'local',
-                'status' => User::STATUS_ACTIVE,
+                'status' => User::STATUS_INVITED,
                 'failed_login_attempts' => 0,
-                // They choose the password themselves, so no forced change after the link.
                 'password_change_required' => false,
                 'invited_by' => $actor->id,
             ])->save();
 
             $user->assignRole($role->value);
 
-            Audit::record(
-                AuditAction::UserCreated,
-                ['type' => 'user', 'id' => $user->id],
-                null,
-                [
-                    'user_id' => $user->id,
-                    'role' => $role->value,
-                    'organisation_id' => $organisation->id,
-                    'created_via' => 'admin',
-                ],
-                $actor,
-            );
+            Audit::record(AuditAction::UserCreated, ['type' => 'user', 'id' => $user->id], null, [
+                'user_id' => $user->id,
+                'role' => $role->value,
+                'organisation_id' => $organisation->id,
+                'created_via' => 'admin',
+            ], $actor);
 
             return $user;
         });
 
-        return [$user, $this->sendActivation($user)];
+        return [$user, $this->activations->send($user, $actor)];
     }
 
     /**
-     * Step 3: give the user another role of the same kind (a vendor role for a
-     * vendor account, a staff role for a staff account); the organisation is
-     * not changed. Nothing happens when the role is the one they have.
+     * Give the user another role of the same kind (vendor or staff); the
+     * organisation is not changed. Their sessions end at once, so the new
+     * permissions apply from their next sign-in, and they get a security email.
+     * Nothing happens when the role is the one they have.
      *
-     * @throws ValidationException when the pairing is wrong
+     * @throws ValidationException
      */
-    public function changeRole(User $actor, User $user, Role $role): void
+    public function changeRole(User $actor, User $user, Role $role, string $reason): void
     {
+        self::refuseSystemAdmin($role);
+
         if ($role->userType()->value !== $user->user_type) {
             throw ValidationException::withMessages(['role' => $user->isVendor()
                 ? 'A vendor account can only have a vendor role.'
@@ -102,15 +104,16 @@ final class UserAdministration
             return;
         }
 
-        DB::transaction(function () use ($actor, $user, $role) {
-            if (! in_array(Permission::UsersManage, $role->permissions(), true)) {
-                $this->guardLastManager($user, 'role', 'This is the last active account that can manage users. Give another account that role first.');
+        DB::transaction(function () use ($actor, $user, $role, $reason) {
+            if (! in_array(Permission::AdminAccess, $role->permissions(), true)) {
+                $this->guardLastAdmin($user, 'role', 'This is the last active account with access to the admin console. Give another account that access first.');
             }
 
             $old = $user->roles()->get(['roles.id', 'roles.name']);
             $new = SpatieRole::findByName($role->value, self::GUARD);
 
             $user->syncRoles([$role->value]);
+            $ended = SessionRevoker::revoke($user);
 
             Audit::record(AuditAction::UserRoleChanged, ['type' => 'user', 'id' => $user->id], null, [
                 'user_id' => $user->id,
@@ -119,76 +122,88 @@ final class UserAdministration
                 'old_roles' => $old->pluck('name')->values()->all(),
                 'new_role_id' => (int) $new->id,
                 'new_role' => $role->value,
+                'sessions_ended' => $ended,
+                ...AdminActionReason::store(AuditAction::UserRoleChanged->value, $actor, $user, $reason),
             ], $actor);
+
+            $user->notify(new AccountSecurityNotice($user->id, AccountSecurityNotice::ROLE_CHANGED, $role->value));
         });
     }
 
     /**
-     * Step 3: block sign-in at once. The account is marked disabled (sign-in
-     * refuses it: AuthenticateUser), its remember-me token is replaced, and
-     * its rows in the sessions table are deleted so every open session ends
-     * now. EnsureAccountActive also signs out a disabled user on their next
-     * request, whatever the session driver.
+     * Block sign-in at once: status disabled, remember-me token replaced,
+     * every session row deleted, open activation links revoked.
+     * EnsureAccountActive also signs a disabled user out on their next request.
      */
-    public function disable(User $actor, User $user): void
+    public function disable(User $actor, User $user, string $reason): void
     {
-        if (! $user->isActive()) {
+        if ($user->status === User::STATUS_DISABLED) {
             return;
         }
 
-        DB::transaction(function () use ($actor, $user) {
-            $this->guardLastManager($user, 'account', 'This is the last active account that can manage users, so it cannot be disabled.');
+        DB::transaction(function () use ($actor, $user, $reason) {
+            $this->guardLastAdmin($user, 'account', 'This is the last active account with access to the admin console, so it cannot be disabled.');
 
             $user->forceFill([
                 'status' => User::STATUS_DISABLED,
                 'disabled_at' => now(),
                 'disabled_by' => $actor->id,
-                'remember_token' => Str::random(60),
             ])->save();
 
-            $ended = DB::table('sessions')->where('user_id', $user->id)->delete();
+            $ended = SessionRevoker::revoke($user);
+            $revoked = $this->activations->revokeAll($user, $actor);
 
             Audit::record(AuditAction::UserDisabled, ['type' => 'user', 'id' => $user->id], null, [
                 'user_id' => $user->id,
                 'sessions_ended' => $ended,
+                'activation_links_revoked' => $revoked,
+                ...AdminActionReason::store(AuditAction::UserDisabled->value, $actor, $user, $reason),
             ], $actor);
         });
     }
 
-    /** Step 3: let a disabled user sign in again (their password is unchanged). */
-    public function enable(User $actor, User $user): void
+    /**
+     * Let a disabled user sign in again (their password is unchanged). An
+     * account that never activated goes back to pending activation and needs a
+     * new link (Resend Activation).
+     */
+    public function enable(User $actor, User $user, string $reason): void
     {
         if ($user->status !== User::STATUS_DISABLED) {
             return;
         }
 
-        DB::transaction(function () use ($actor, $user) {
+        DB::transaction(function () use ($actor, $user, $reason) {
+            $status = $this->neverActivated($user) ? User::STATUS_INVITED : User::STATUS_ACTIVE;
+
             $user->forceFill([
-                'status' => User::STATUS_ACTIVE,
+                'status' => $status,
                 'disabled_at' => null,
                 'disabled_by' => null,
             ])->save();
 
             Audit::record(AuditAction::UserEnabled, ['type' => 'user', 'id' => $user->id], null, [
                 'user_id' => $user->id,
+                'status' => $status,
+                ...AdminActionReason::store(AuditAction::UserEnabled->value, $actor, $user, $reason),
             ], $actor);
         });
     }
 
     /**
-     * Step 3: email a new sign-in link (it replaces any earlier one).
+     * Email a new activation link to a pending account; the earlier link stops working.
      *
      * @return bool whether the email went out
      *
-     * @throws ValidationException when the account is disabled
+     * @throws ValidationException when the account is not pending activation
      */
     public function resendActivation(User $actor, User $user): bool
     {
-        if (! $user->isActive()) {
-            throw ValidationException::withMessages(['account' => 'Enable the account before sending a sign-in link.']);
+        if (! $user->isPendingActivation()) {
+            throw ValidationException::withMessages(['account' => 'Only an account waiting for activation can be sent an activation link. An active user can use Forgot Password.']);
         }
 
-        $sent = $this->sendActivation($user);
+        $sent = $this->activations->send($user, $actor);
 
         // Recorded whether or not the mail went out ("sent"), so a failed attempt is visible too.
         Audit::record(AuditAction::UserActivationResent, ['type' => 'user', 'id' => $user->id], null, [
@@ -199,39 +214,35 @@ final class UserAdministration
         return $sent;
     }
 
-    /**
-     * Email a fresh link (a new token replaces any earlier one). False when
-     * the mail could not be sent; the error is logged, never shown.
-     */
-    public function sendActivation(User $user): bool
+    /** True when mail goes to the log or nowhere (MAIL_MAILER log or array), so nothing reaches an inbox. */
+    public static function mailIsNotDelivered(): bool
     {
-        try {
-            $user->notify(new AccountActivation(Password::broker()->createToken($user)));
+        return in_array(config('mail.default'), ['log', 'array'], true);
+    }
 
-            return true;
-        } catch (Throwable $e) {
-            Log::error('Account activation email failed', ['user_id' => $user->id, 'exception' => $e::class]);
-
-            return false;
+    /** @throws ValidationException */
+    public static function refuseSystemAdmin(Role $role): void
+    {
+        if ($role === Role::SystemAdmin) {
+            throw ValidationException::withMessages(['role' => 'The System Admin role is given from the command line only.']);
         }
     }
 
     /**
-     * Step 4: an active account holding users.manage is never the last one to
-     * lose it (by disabling or by a role without it). Checked by permission,
-     * not by role name, so "the last system_admin" stays covered whatever
-     * role holds users.manage. The other holders' rows are read under an
-     * update lock, so two admins cannot remove each other at the same moment.
+     * An active account holding admin.access is never the last one to lose it
+     * (by disabling or by a role without it). Checked by permission, not by
+     * role name. The other holders' rows are read under an update lock, so two
+     * admins cannot remove each other at the same moment.
      *
      * @throws ValidationException
      */
-    private function guardLastManager(User $user, string $key, string $message): void
+    private function guardLastAdmin(User $user, string $key, string $message): void
     {
-        if (! $user->isActive() || ! $user->can(Permission::UsersManage->value)) {
+        if (! $user->isActive() || ! $user->can(Permission::AdminAccess->value)) {
             return;
         }
 
-        $others = User::permission(Permission::UsersManage->value)
+        $others = User::permission(Permission::AdminAccess->value)
             ->where('users.status', User::STATUS_ACTIVE)
             ->whereKeyNot($user->getKey())
             ->lockForUpdate()
@@ -242,10 +253,11 @@ final class UserAdministration
         }
     }
 
-    /** True when mail goes to the log or nowhere (MAIL_MAILER log or array), so nothing reaches an inbox. */
-    public static function mailIsNotDelivered(): bool
+    /** Created here (has activation links) and never used one. Console-made accounts count as activated. */
+    private function neverActivated(User $user): bool
     {
-        return in_array(config('mail.default'), ['log', 'array'], true);
+        return UserInvitation::query()->where('user_id', $user->id)->exists()
+            && ! AccountActivations::wasActivated($user);
     }
 
     /**

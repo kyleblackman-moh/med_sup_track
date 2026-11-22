@@ -78,7 +78,9 @@ it('refuses vendors, system_admin, auditor and users without a case permission',
         default => caseUser($who),
     };
 
-    $this->actingAs($user)->get(route('cases.index'))->assertForbidden();
+    // IT-ADMIN: accounts with no case work at all (System Admin, Auditor, no role) get 404 on the case area; a vendor 403.
+    $response = $this->actingAs($user)->get(route('cases.index'));
+    $who === 'vendor' ? $response->assertForbidden() : $response->assertNotFound();
     expect(pageProps($this->actingAs($user)->get('/dashboard'))['can']['cases'])->toBeFalse();
 })->with(['vendor', 'system_admin', 'auditor', 'no_role']);
 

@@ -21,6 +21,9 @@ class User extends Authenticatable
 
     public const STATUS_DISABLED = 'disabled';
 
+    /** IT-ADMIN: created by an administrator; waiting for the person to use their activation link. */
+    public const STATUS_INVITED = 'invited';
+
     /**
      * Model-level defaults, so a user saved without these never falls back to
      * the database default for user_type ('external', from an early migration).
@@ -92,6 +95,16 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isPendingActivation(): bool
+    {
+        return $this->status === self::STATUS_INVITED;
+    }
+
+    public function hasMfa(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
     }
 
     public function isLocked(): bool

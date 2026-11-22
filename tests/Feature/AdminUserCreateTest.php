@@ -1,22 +1,24 @@
 <?php
 
 use App\Enums\Role;
+use App\Http\Middleware\ConfirmRecentPassword;
 use App\Models\User;
+use App\Models\UserInvitation;
 use App\Notifications\AccountActivation;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
-// ADMIN-1 Step 2: create a user. No plaintext password is shown or emailed;
-// the person gets a link to the existing Reset Password page.
+// ADMIN-1 Step 2, IT-ADMIN: create a user. No plaintext password is shown or emailed;
+// the account waits for activation and the person gets a single-use activation link.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->seed(RolesAndPermissionsSeeder::class);
     Notification::fake();
+    confirmAdminPassword();
 });
 
 afterEach(function () {
@@ -28,7 +30,7 @@ function newUserEmail(): string
     return 'admin1-'.Str::lower(Str::ulid()).'@example.test';
 }
 
-it('creates a staff user in the MOH with a link to set their password', function () {
+it('creates a pending staff user in the MOH with an activation link', function () {
     $admin = caseUser(Role::SystemAdmin);
     $email = newUserEmail();
 
@@ -45,20 +47,88 @@ it('creates a staff user in the MOH with a link to set their password', function
     expect($user->name)->toBe('New Technocrat')
         ->and($user->org_id)->toBe(mohOrg()->id)
         ->and($user->user_type)->toBe('staff')
-        ->and($user->status)->toBe(User::STATUS_ACTIVE)
+        ->and($user->status)->toBe(User::STATUS_INVITED)
         ->and($user->password_change_required)->toBeFalse()
         ->and((int) $user->invited_by)->toBe($admin->id)
         ->and($user->getRoleNames()->all())->toBe(['technocrat'])
         ->and($user->password)->not->toBeEmpty();
 
     Notification::assertSentTo($user, AccountActivation::class, function (AccountActivation $n) use ($user) {
-        // A real broker token for this user, opening the existing Reset Password page.
-        $mail = $n->toMail($user);
+        // A signed activation link for this user's one open invitation, valid 48 hours.
+        $invitation = UserInvitation::where('user_id', $user->id)->sole();
+        parse_str((string) parse_url($n->url, PHP_URL_QUERY), $query);
 
-        return Password::broker()->tokenExists($user, $n->token)
-            && str_contains($mail->actionUrl, '/reset-password/'.$n->token)
-            && str_contains($mail->actionUrl, 'email='.urlencode($user->email));
+        return str_contains($n->toMail($user)->actionUrl, '/activate/'.$invitation->id)
+            && isset($query['signature'], $query['expires'], $query['token'])
+            && $invitation->token_hash === UserInvitation::hashToken($query['token'])
+            && $invitation->isOpen()
+            && abs($invitation->expires_at->diffInHours(now()->addHours(48))) < 1;
     });
+});
+
+it('never lets the UI give the System Admin role', function () {
+    $email = newUserEmail();
+
+    $this->actingAs(caseUser(Role::SystemAdmin))
+        ->post(route('admin.users.store'), ['name' => 'Would Be Admin', 'email' => $email, 'role' => 'system_admin'])
+        ->assertSessionHasErrors('role');
+
+    $options = pageProps($this->get(route('admin.users.create'))->assertOk())['options'];
+
+    expect(User::where('email', $email)->exists())->toBeFalse()
+        ->and(collect($options['roles'])->pluck('value'))->not->toContain('system_admin');
+});
+
+it('lets the CMO invite vendor users but not create staff', function () {
+    $cmo = caseUser(Role::Cmo);
+    $vendorEmail = newUserEmail();
+    $staffEmail = newUserEmail();
+
+    $options = pageProps($this->actingAs($cmo)->get(route('admin.users.create'))->assertOk())['options'];
+    expect(collect($options['roles'])->pluck('value')->all())->toBe(['vendor_applicant']);
+
+    $this->post(route('admin.users.store'), [
+        'name' => 'Invited Vendor', 'email' => $vendorEmail, 'role' => 'vendor_applicant', 'organisation' => vendorOrg()->id,
+    ])->assertRedirect(route('admin.users.create'));
+
+    $this->post(route('admin.users.store'), ['name' => 'Not Allowed', 'email' => $staffEmail, 'role' => 'technocrat'])
+        ->assertSessionHasErrors('role');
+
+    $vendor = User::where('email', $vendorEmail)->sole();
+    expect($vendor->status)->toBe(User::STATUS_INVITED)
+        ->and($vendor->isVendor())->toBeTrue()
+        ->and(User::where('email', $staffEmail)->exists())->toBeFalse();
+    Notification::assertSentTo($vendor, AccountActivation::class);
+
+    // The rest of the console does not exist for the CMO.
+    $this->get(route('admin.users.index'))->assertNotFound();
+    $this->get(route('admin.users.show', $vendor))->assertNotFound();
+});
+
+it('requires an organisation to invite a vendor user', function () {
+    $email = newUserEmail();
+
+    $this->actingAs(caseUser(Role::Cmo))
+        ->post(route('admin.users.store'), ['name' => 'No Org', 'email' => $email, 'role' => 'vendor_applicant'])
+        ->assertSessionHasErrors('organisation');
+
+    expect(User::where('email', $email)->exists())->toBeFalse();
+});
+
+it('answers 404 on the create form to anyone who may create no account', function (Role $role) {
+    $this->actingAs(caseUser($role))->get(route('admin.users.create'))->assertNotFound();
+    $this->post(route('admin.users.store'), ['name' => 'X', 'email' => newUserEmail(), 'role' => 'technocrat'])->assertNotFound();
+})->with([Role::Technocrat, Role::LegalOfficer, Role::PsOffice, Role::Auditor, Role::CmoRegistry]);
+
+it('asks for the password again before creating a user', function () {
+    $email = newUserEmail();
+    $this->withSession([ConfirmRecentPassword::SESSION_KEY => now()->subMinutes(16)->getTimestamp()]);
+
+    $this->actingAs(caseUser(Role::SystemAdmin))
+        ->post(route('admin.users.store'), ['name' => 'Unconfirmed', 'email' => $email, 'role' => 'cmo'])
+        ->assertRedirect(route('password.confirm'));
+
+    expect(User::where('email', $email)->exists())->toBeFalse();
 });
 
 it('creates a vendor user in a vendor organisation', function () {
@@ -110,7 +180,7 @@ it('says the email went out when mail is delivered', function () {
 
     $this->actingAs(caseUser(Role::SystemAdmin))
         ->post(route('admin.users.store'), ['name' => 'Mailed', 'email' => newUserEmail(), 'role' => 'cmo'])
-        ->assertSessionHas('success', fn ($m) => str_contains($m, 'link to set their password has been sent'));
+        ->assertSessionHas('success', fn ($m) => str_contains($m, 'link to activate the account has been sent'));
 });
 
 it('keeps the account and reports it when the email cannot be sent', function () {

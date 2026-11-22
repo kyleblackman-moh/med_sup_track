@@ -16,9 +16,12 @@ use App\Support\AuthEventAuditor;
 use App\Support\MfaEnforcement;
 use App\Support\MfaEventAuditor;
 use App\Support\RateLimits;
+use Illuminate\Contracts\Validation\UncompromisedVerifier;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\NotPwnedVerifier;
 use Illuminate\Validation\Rules\Password;
 use InvalidArgumentException;
 
@@ -40,6 +43,14 @@ class AppServiceProvider extends ServiceProvider
             'eicar_dev' => new EicarDevScanner,
             default => throw new InvalidArgumentException('Unknown documents.scanner: '.var_export(config('documents.scanner'), true)),
         });
+
+        // IT-ADMIN: the breached-password check (activation) waits seconds, not
+        // Laravel's default 30, on a server without internet; it then fails open.
+        // extend(), not singleton(): ValidationServiceProvider is deferred and would replace a binding.
+        $this->app->extend(UncompromisedVerifier::class, fn ($verifier, $app) => new NotPwnedVerifier(
+            $app[HttpFactory::class],
+            (int) config('admin.passwords.breached_timeout_seconds', 5),
+        ));
     }
 
     /**
@@ -61,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
 
         // NOTIF-1: the one place emails are hooked in (queued, after commit).
         Event::subscribe(NotificationSubscriber::class);
+
 
         // SEC-1: the named rate limiters (login, password-reset, activation, create-request, uploads).
         RateLimits::register();
