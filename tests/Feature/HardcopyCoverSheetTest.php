@@ -68,7 +68,9 @@ it('never puts an internal id or link in the sheet', function () {
     $sheet = pageProps($this->actingAs($this->vendor)->get(route('requests.cover-sheet', $this->case)))['sheet'];
 
     expect(array_keys($sheet))->toBe(['id', 'reference_no', 'organisation_name', 'procurement_type', 'item_description', 'submitted_at', 'qr_svg', 'instruction'])
-        ->and($sheet['qr_svg'])->not->toContain('http');
+        // The SVG namespace is the only URL allowed: no link to the app or the case.
+        ->and(str_replace('http://www.w3.org/2000/svg', '', $sheet['qr_svg']))->not->toContain('http')
+        ->and($sheet['qr_svg'])->not->toContain(url('/'));
     expectVendorSafe(pageProps($this->actingAs($this->vendor)->get(route('requests.cover-sheet', $this->case))));
 });
 

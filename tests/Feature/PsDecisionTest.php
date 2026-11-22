@@ -347,6 +347,13 @@ it('gives the CMO no PS form at WITH_PS', function () {
 
 it('shows the vendor the same in-progress view at WITH_PS, after a grant and after a PS return', function (string $decision) {
     $case = case10d(CaseStatus::WITH_PS);
+    // A real case reaches the PS with its history; without it the Progress
+    // timeline falls back to "Submitted" only and the first transition changes it.
+    foreach ([[null, 'SUBMITTED', 9], ['SUBMITTED', 'IN_REVIEW', 5], ['IN_REVIEW', 'WITH_PS', 2]] as [$from, $to, $days]) {
+        DB::table('case_transitions')->insert([
+            'case_id' => $case->id, 'from_status' => $from, 'to_status' => $to, 'created_at' => CarbonImmutable::now('UTC')->subDays($days),
+        ]);
+    }
     $vendor = vendorUser($case->organisation()->first());
     $view = fn () => collect(pageProps($this->actingAs($vendor)->get(route('requests.show', $case))->assertOk()))->except(['auth', 'flash', 'errors', 'quote'])->all(); // quote: the starter kit's random shared prop
 
