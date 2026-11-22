@@ -9,12 +9,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+
+    public const AUTH_SOURCE_SSO = 'sso';
 
     public const STATUS_ACTIVE = 'active';
 
@@ -74,7 +77,22 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'disabled_at' => 'datetime', // ADMIN-1
             'password_change_required' => 'boolean',
+            'mfa_enabled' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * MFA: keep the legacy mfa_enabled column in step with Fortify's columns
+     * (true only once a secret is confirmed), so nothing reads a stale flag.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if ($user->isDirty(['two_factor_secret', 'two_factor_confirmed_at'])) {
+                $user->mfa_enabled = $user->two_factor_secret !== null && $user->two_factor_confirmed_at !== null;
+            }
+        });
     }
 
     public function organisation(): BelongsTo
@@ -95,5 +113,15 @@ class User extends Authenticatable
     public function isLocked(): bool
     {
         return $this->locked_until !== null && $this->locked_until->isFuture();
+    }
+
+    /**
+     * MFA: mandatory TOTP applies to local accounts only. SSO accounts get MFA
+     * from the directory. A row without auth_source (a model not yet
+     * refreshed) counts as local, so the safe side is enforcement.
+     */
+    public function mustUseTwoFactor(): bool
+    {
+        return (bool) config('auth.mfa_enforce') && $this->auth_source !== self::AUTH_SOURCE_SSO;
     }
 }

@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use App\Actions\Fortify\AuthenticateUser;
 use App\Actions\Fortify\IgnoreRememberMe;
+use App\Actions\Fortify\LoginResolvedUser;
+use App\Actions\Fortify\RedirectIfTwoFactorAuthenticatable;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Actions\Fortify\ResolveLoginUser;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Http\Responses\LoginResponse;
@@ -14,7 +17,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
-use Laravel\Fortify\Actions\AttemptToAuthenticate;
 use Laravel\Fortify\Actions\CanonicalizeUsername;
 use Laravel\Fortify\Actions\PrepareAuthenticatedSession;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -50,16 +52,25 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::authenticateUsing(new AuthenticateUser);
 
-        // Explicit login pipeline. The two-factor step is left out on purpose: MFA
-        // is a later slice, and with it present Fortify would run the
-        // authenticateUsing callback twice per login. Throttling is applied by
-        // the "login" rate limiter below (route middleware), not in the pipeline.
-        Fortify::authenticateThrough(fn (Request $request) => [
+        // MFA: two-factor challenge and the shared confirm-password page (Fortify's
+        // password.confirm route serves it; the setup and security pages sit behind it).
+        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
+        Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
+
+        // Explicit login pipeline. ResolveLoginUser runs the authenticateUsing
+        // callback (AuthenticateUser: lockout counting and audit) exactly once;
+        // the two-factor step and LoginResolvedUser reuse the user it accepted,
+        // instead of Fortify's RedirectIfTwoFactorAuthenticatable and
+        // AttemptToAuthenticate each validating the credentials again.
+        // Throttling is applied by the "login" rate limiter (route middleware).
+        Fortify::authenticateThrough(fn (Request $request) => array_values(array_filter([
             IgnoreRememberMe::class, // FIX-1: no remember-me cookie
             config('fortify.lowercase_usernames') ? CanonicalizeUsername::class : null,
-            AttemptToAuthenticate::class,
+            ResolveLoginUser::class,
+            RedirectIfTwoFactorAuthenticatable::class, // confirmed MFA: to the challenge, not signed in yet
+            LoginResolvedUser::class,
             PrepareAuthenticatedSession::class,
-        ]);
+        ])));
 
         // SEC-1: the "login" limiter (and the other named limiters) live in App\Support\RateLimits,
         // registered by AppServiceProvider. It still fires Lockout (audited as auth.rate_limited).

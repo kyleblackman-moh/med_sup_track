@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Http\Middleware\GuardTwoFactorChanges;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionTimeout;
@@ -26,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
             SessionTimeout::class, // SEC-1: idle and absolute session timeouts
             EnsureAccountActive::class, // ADMIN-1: a disabled account is signed out
             EnsurePasswordChanged::class,
+            EnsureTwoFactorEnabled::class, // MFA: no confirmed authenticator, no pages (config auth.mfa_enforce)
+            GuardTwoFactorChanges::class, // MFA: no turning off while mandatory, no silent secret swap
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

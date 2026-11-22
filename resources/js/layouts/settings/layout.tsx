@@ -1,6 +1,6 @@
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { KeyRound, UserRound } from 'lucide-react';
+import { KeyRound, ShieldCheck, UserRound } from 'lucide-react';
 
 const sidebarNavItems: NavItem[] = [
     {
@@ -12,6 +12,11 @@ const sidebarNavItems: NavItem[] = [
         title: 'Password',
         url: '/settings/password',
         icon: KeyRound,
+    },
+    {
+        title: 'Security',
+        url: '/settings/security',
+        icon: ShieldCheck,
     },
     // Appearance is hidden: light only for launch (design.md section 1).
 ];
@@ -36,7 +41,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <nav aria-label="Settings sections">
                     <ul className="menu menu-sm bg-base-100 border-base-300 rounded-box w-full border">
                         {sidebarNavItems.map((item) => {
-                            const active = currentPath === item.url;
+                            // The two-factor setup page belongs to Security.
+                            const active = currentPath === item.url || (item.url === '/settings/security' && currentPath === '/settings/two-factor');
                             const Icon = item.icon;
                             return (
                                 <li key={item.url}>

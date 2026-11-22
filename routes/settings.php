@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->group(function () {
@@ -16,4 +17,12 @@ Route::middleware('auth')->group(function () {
 
     // Light only (NEXT part 4): there is no appearance setting. Old links land on the profile page.
     Route::redirect('settings/appearance', 'settings/profile')->name('appearance');
+});
+
+// MFA (spec 8.2): Settings > Security and the two-factor setup page. Behind
+// password.confirm because Fortify's two-factor endpoints require it; a fresh
+// sign-in counts as confirmed (LoginResolvedUser). The writes are Fortify's routes.
+Route::middleware(['auth', 'password.confirm'])->group(function () {
+    Route::get('settings/security', [SecurityController::class, 'show'])->name('security.edit');
+    Route::get('settings/two-factor', [SecurityController::class, 'setup'])->name('two-factor.setup');
 });

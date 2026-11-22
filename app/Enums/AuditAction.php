@@ -14,6 +14,13 @@ enum AuditAction: string
     case Logout = 'auth.logout';
     case PasswordReset = 'auth.password.reset';
 
+    // MFA (Fortify TOTP). Fixed codes and counts only: never a secret, a TOTP code or a recovery code.
+    case MfaEnabled = 'auth.mfa.enabled';
+    case MfaDisabled = 'auth.mfa.disabled';
+    case MfaRecoveryCodesRegenerated = 'auth.mfa.recovery_codes_regenerated';
+    case MfaRecoveryCodeUsed = 'auth.mfa.recovery_code_used';
+    case MfaChallengeFailed = 'auth.mfa.challenge_failed';
+
     // Case workflow
     case CaseTransitioned = 'case.transitioned';
     case CaseCreated = 'case.created';
@@ -37,6 +44,9 @@ enum AuditAction: string
     case CaseRoutedOnward = 'case.routed_onward';
     case CaseLetterIssued = 'case.letter_issued';
     case CaseClosed = 'case.closed';
+    // FR-09: withdrawn (T15) or finally rejected (T16). Flags and lengths only.
+    case CaseWithdrawn = 'case.withdrawn';
+    case CaseRejected = 'case.rejected';
 
     // OVERNIGHT-2 (D2): query loops. Ids, counts and fixed codes only, never the message text.
     case QueryRaised = 'query.raised';

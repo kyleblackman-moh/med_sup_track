@@ -112,4 +112,19 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mandatory Two-Factor Authentication (spec 8.2)
+    |--------------------------------------------------------------------------
+    |
+    | When true (the default when MFA_ENFORCE is absent), a signed-in local
+    | account without a confirmed authenticator is sent to the setup page
+    | (App\Http\Middleware\EnsureTwoFactorEnabled) and cannot turn MFA off.
+    | When false, MFA is optional from Settings > Security. SSO accounts are
+    | never forced: their directory handles MFA.
+    |
+    */
+
+    'mfa_enforce' => (bool) env('MFA_ENFORCE', true),
+
 ];
