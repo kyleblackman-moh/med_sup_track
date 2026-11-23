@@ -65,6 +65,12 @@ class FortifyServiceProvider extends ServiceProvider
         // MFA-1: the code (or recovery code) step after the password.
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
 
+        // Fortify also registers a route named password.confirm (/user/confirm-password), and
+        // route('password.confirm') resolves to it: without a view it threw
+        // "ConfirmPasswordViewResponse is not instantiable" (admin actions, regenerate codes).
+        // Same page as the app's /confirm-password; Fortify's POST sets auth.password_confirmed_at.
+        Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
+
         // SEC-1: the "login" limiter (and the other named limiters) live in App\Support\RateLimits,
         // registered by AppServiceProvider. It still fires Lockout (audited as auth.rate_limited).
 
