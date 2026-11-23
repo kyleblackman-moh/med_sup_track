@@ -229,11 +229,32 @@ final class QueryAccess
             return collect();
         }
 
+        $open = self::openRouteKeys($case);
+
         return QueryRoutes::forRaiser($user)
             ->filter(fn (QueryRoute $r) => ! self::isVendorRole($r->to_role) || $user->can(Permission::QueryRaiseToVendor->value))
             // WORKFLOW-2: a direct route to a staff desk only when someone there can see the case.
             ->filter(fn (QueryRoute $r) => $r->via_cmo || self::isVendorRole($r->to_role) || self::deskOnCase($r->to_role, $case)->isNotEmpty())
+            // One query at a time per route on a case (Kyle, 2026-11-23): while one is still
+            // open (not closed or cancelled), follow-ups are replies in that thread, not a new query.
+            ->reject(fn (QueryRoute $r) => isset($open[self::routeKey($r->from_role, $r->to_role, $r->query_type->value)]))
             ->values();
+    }
+
+    /** @return array<string, true> the routes (from, to, type) with a query not yet ended on $case */
+    private static function openRouteKeys(ProcurementCase $case): array
+    {
+        return CaseQuery::query()
+            ->where('case_id', $case->getKey())
+            ->whereNotIn('status', QueryStatus::endedValues())
+            ->get(['raised_by_role', 'raised_to_role', 'type'])
+            ->mapWithKeys(fn (CaseQuery $q) => [self::routeKey($q->raised_by_role, $q->raised_to_role, $q->type->value) => true])
+            ->all();
+    }
+
+    private static function routeKey(string $from, string $to, string $type): string
+    {
+        return $from.'|'.$to.'|'.$type;
     }
 
     /** May $user add a message (answer or follow-up) to $query now? */
