@@ -2,8 +2,8 @@ import { ActionFacts, ActionPanel, actionTextareaClass } from '@/components/case
 import { PsOutcomeStatement } from '@/components/cases/ps-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { type HardcopyRecord, type PsOutcome, type StaffCaseAbilities } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { PackageCheck, PackageX } from 'lucide-react';
@@ -75,17 +75,17 @@ export function HardcopyRecordForm({
                 <label className={LABEL} htmlFor="hardcopy-received-on">
                     Date Received
                 </label>
-                <Input
+                <DatePicker
                     id="hardcopy-received-on"
-                    aria-required="true"
-                    type="date"
-                    className="input-sm w-44"
+                    required
+                    size="sm"
+                    className="w-44"
                     value={mark.data.received_on}
                     max={dates.today}
-                    min={dates.earliest ?? undefined}
-                    onChange={(e) => mark.setData('received_on', e.target.value)}
-                    aria-invalid={mark.errors.received_on ? true : undefined}
-                    aria-describedby={mark.errors.received_on ? 'hardcopy-received-on-error' : undefined}
+                    min={dates.earliest}
+                    onChange={(next) => mark.setData('received_on', next)}
+                    invalid={Boolean(mark.errors.received_on)}
+                    describedBy={mark.errors.received_on ? 'hardcopy-received-on-error' : undefined}
                 />
                 <InputError id="hardcopy-received-on-error" message={mark.errors.received_on ?? (mark.errors as Record<string, string>).hardcopy} />
             </fieldset>

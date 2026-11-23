@@ -1,3 +1,4 @@
+import { DatePicker } from '@/components/ui/date-picker';
 import { EntryCell, EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
 import { FieldGrid, FieldHint, GridRow, inputClass, selectClass, TableError, TextAreaField } from './fields';
@@ -138,16 +139,14 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     {input('quantity_delivered', 'decimal')}
                                     <EntryCell label={label('delivery')} htmlFor={`${deliveryId}-date`} width="sm">
                                         <div className="grid gap-1">
-                                            <input
+                                            <DatePicker
                                                 id={`${deliveryId}-date`}
-                                                type="date"
                                                 value={text(row.values.delivery_eta)}
-                                                className={inputClass(Boolean(etaError))}
-                                                aria-label={`Delivery Date, ${rowLabel}`}
-                                                aria-required={optional('purchase_orders.delivery_eta') === false ? true : undefined}
-                                                aria-invalid={etaError ? true : undefined}
-                                                aria-describedby={etaError ? errorsId : undefined}
-                                                onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_eta', e.target.value)}
+                                                ariaLabel={`Delivery Date, ${rowLabel}`}
+                                                required={optional('purchase_orders.delivery_eta') === false}
+                                                invalid={Boolean(etaError)}
+                                                describedBy={etaError ? errorsId : undefined}
+                                                onChange={(next) => api.setCell('purchase_orders', row.key, 'delivery_eta', next)}
                                             />
                                             <input
                                                 id={deliveryId}

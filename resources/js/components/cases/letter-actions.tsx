@@ -2,6 +2,7 @@ import { ActionFacts, ActionPanel } from '@/components/cases/action-panel';
 import { formatDay } from '@/components/cases/case-actions';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { type ActionConfirm } from '@/types/cases';
@@ -45,17 +46,15 @@ export function IssueLetterForm({ caseId, today, confirm }: { caseId: string; to
             <label className={LABEL} htmlFor={id}>
                 {label}
             </label>
-            <Input
+            <DatePicker
                 id={id}
-                aria-label={label}
-                aria-required={required ? true : undefined}
-                type="date"
-                className="input-sm"
+                required={required}
+                size="sm"
                 max={today}
                 value={d[field]}
-                onChange={(e) => form.setData(field, e.target.value)}
-                aria-invalid={errors[field] ? true : undefined}
-                aria-describedby={`${id}-hint ${id}-error`}
+                onChange={(next) => form.setData(field, next)}
+                invalid={Boolean(errors[field])}
+                describedBy={`${id}-hint ${id}-error`}
             />
             {hint && (
                 <p id={`${id}-hint`} className="label whitespace-normal">

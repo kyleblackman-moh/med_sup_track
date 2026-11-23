@@ -1,3 +1,4 @@
+import { DatePicker } from '@/components/ui/date-picker';
 import { ENTRY_WIDTH, EntryCell, type EntryWidth, type RowError, useChecksOffset } from '@/components/ui/entry-table';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -57,20 +58,32 @@ export function EntryInput({
 }: EntryInputProps) {
     return (
         <EntryCell label={label} htmlFor={id} width={width} className={className}>
-            <input
-                id={id}
-                type={kind === 'date' ? 'date' : 'text'}
-                // FORM-ERR-1 (E): a keyboard hint only; the server validates and owns the message.
-                inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
-                maxLength={maxLength}
-                value={value}
-                className={inputClass(Boolean(error))}
-                aria-label={`${label}, ${rowLabel}`}
-                aria-required={required ? true : undefined}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorListId : undefined}
-                onChange={(e) => onChange(e.target.value)}
-            />
+            {kind === 'date' ? (
+                <DatePicker
+                    id={id}
+                    value={value}
+                    onChange={onChange}
+                    ariaLabel={`${label}, ${rowLabel}`}
+                    required={required}
+                    invalid={Boolean(error)}
+                    describedBy={error ? errorListId : undefined}
+                />
+            ) : (
+                <input
+                    id={id}
+                    type="text"
+                    // FORM-ERR-1 (E): a keyboard hint only; the server validates and owns the message.
+                    inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
+                    maxLength={maxLength}
+                    value={value}
+                    className={inputClass(Boolean(error))}
+                    aria-label={`${label}, ${rowLabel}`}
+                    aria-required={required ? true : undefined}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? errorListId : undefined}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            )}
         </EntryCell>
     );
 }
