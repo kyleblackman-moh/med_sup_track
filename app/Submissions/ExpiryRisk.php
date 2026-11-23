@@ -56,6 +56,46 @@ final class ExpiryRisk
         );
     }
 
+    /** Columns the flag needs when a list eager loads the requisition and the batches. */
+    public const REQUISITION_COLUMNS = ['average_monthly_consumption', 'no_stock_on_hand'];
+
+    public const BATCH_COLUMNS = ['id', 'case_id', 'quantity', 'expiry_date'];
+
+    /**
+     * Kyle, 2026-11-23: the flag staff see on the case page, the Cases list
+     * and the work queue (CMO, Technocrats, PS), so a request whose stock may
+     * expire is noticed without opening its Stock section. Advisory only;
+     * never blocks. Null when there is nothing to flag. Expects requisition
+     * and stockExpiries loaded (lists eager load them).
+     *
+     * @return array{label: string, tone: string, detail: string}|null
+     */
+    public static function flag(ProcurementCase $case): ?array
+    {
+        $risk = self::for($case);
+        $warnings = collect($risk['expiry_warnings']);
+        $atRisk = $warnings->firstWhere('state', self::AT_RISK);
+        $expired = $warnings->where('state', self::EXPIRED)->count();
+
+        if ($atRisk === null && $expired === 0) {
+            return null;
+        }
+
+        $parts = [];
+        if ($atRisk !== null) {
+            $parts[] = 'About '.$risk['days_on_hand'].' days of stock on hand; the earliest batch expires in '.$atRisk['days_until_expiry'].' days.';
+        }
+        if ($expired > 0) {
+            $parts[] = $expired === 1 ? '1 batch is past its expiry date.' : "{$expired} batches are past their expiry date.";
+        }
+
+        return [
+            'label' => $atRisk !== null ? 'Stock may expire before use' : 'Expired stock reported',
+            'tone' => 'warning',
+            'detail' => implode(' ', $parts),
+        ];
+    }
+
     /**
      * The warnings as a list for the page (the same JSON shape when empty).
      *

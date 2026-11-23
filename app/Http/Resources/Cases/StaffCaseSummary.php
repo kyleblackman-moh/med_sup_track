@@ -4,6 +4,7 @@ namespace App\Http\Resources\Cases;
 
 use App\Enums\Role;
 use App\Models\ProcurementCase;
+use App\Submissions\ExpiryRisk;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
@@ -35,6 +36,9 @@ final class StaffCaseSummary
             'submitted_at' => $case->submitted_at?->copy()->utc()->toIso8601ZuluString(),
             // Calendar days in Port of Spain. Display only: no thresholds, no SLA meaning.
             'days_since_submitted' => $submitted ? (int) $submitted->startOfDay()->diffInDays($today) : null,
+            // Kyle, 2026-11-23: stock may expire before use (ExpiryRisk::flag); null when nothing to flag.
+            // Only when the list eager loaded the batches, so a row never costs a query per case.
+            'expiry_flag' => $case->relationLoaded('stockExpiries') ? ExpiryRisk::flag($case) : null,
         ];
     }
 

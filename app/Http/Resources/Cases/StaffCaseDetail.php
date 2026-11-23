@@ -19,6 +19,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Queries\QueryView;
+use App\Submissions\ExpiryRisk;
 use App\Workflow\Actions\EndCase;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
@@ -129,6 +130,8 @@ final class StaffCaseDetail
             // null for the old Pharm and Non-Pharm types, which keep RequisitionView.
             // NEXT part 5: without Documents; the case page has its own document list with actions.
             'summary' => RequestSummary::for($case, $user, forStaff: true, withDocuments: false),
+            // Kyle, 2026-11-23: stock may expire before use (advisory; ExpiryRisk::flag). Null when nothing to flag.
+            'expiry_flag' => ExpiryRisk::flag($case),
             'timeline' => self::timeline($case),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),

@@ -176,7 +176,7 @@ it('measures waiting time and orders the oldest first', function () {
         ->and($items[0]['status_tone'])->toBe('teal') // READY_FOR_FILE is teal (CaseStatus::tone; palette in app.css)
         ->and(array_keys($items[0]))->toBe([
             'id', 'case_id', 'step', 'action', 'reference_no', 'item_description', 'organisation',
-            'status_label', 'status_tone', 'waiting_since', 'days_waiting',
+            'status_label', 'status_tone', 'waiting_since', 'days_waiting', 'expiry_flag',
         ]);
 });
 

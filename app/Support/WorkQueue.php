@@ -11,6 +11,7 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Queries\QueryAccess;
 use App\Queries\QueryInbox;
+use App\Submissions\ExpiryRisk;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
@@ -129,7 +130,7 @@ final class WorkQueue
 
         // Visible cases only: ProcurementCase's global scope applies for the signed-in user.
         $cases = ProcurementCase::query()
-            ->with(['organisation:id,name', 'requisition:id,case_id,item_description'])
+            ->with(['organisation:id,name', 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS), 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS)])
             ->whereIn('cases.status', $statuses)
             ->select('cases.*')
             ->addSelect(['entered_status_at' => CaseTransition::query()
@@ -183,6 +184,8 @@ final class WorkQueue
                     'days_waiting' => $since !== null
                         ? (int) $since->setTimezone(StaffCaseSummary::TIMEZONE)->startOfDay()->diffInDays($today)
                         : null,
+                    // Kyle, 2026-11-23: stock may expire before use (ExpiryRisk::flag); null when nothing to flag.
+                    'expiry_flag' => ExpiryRisk::flag($case),
                 ];
             }
         }
@@ -250,6 +253,8 @@ final class WorkQueue
             'days_waiting' => $d['since'] !== null
                 ? (int) $d['since']->setTimezone(StaffCaseSummary::TIMEZONE)->startOfDay()->diffInDays($today)
                 : null,
+            // The same flag as the case rows (query rows are few: only queries waiting on this user).
+            'expiry_flag' => ExpiryRisk::flag($d['case']),
         ], $due));
     }
 

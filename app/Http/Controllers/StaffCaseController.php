@@ -15,6 +15,7 @@ use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Notifications\Bell;
+use App\Submissions\ExpiryRisk;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class StaffCaseController extends Controller
             : [$sort, $dir];
 
         $page = ProcurementCase::query()
-            ->with(['organisation:id,name', 'procurementType:id,name', 'requisition:id,case_id,item_description'])
+            ->with(['organisation:id,name', 'procurementType:id,name', 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS), 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS)])
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('cases.status', $v))
             ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
             ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
