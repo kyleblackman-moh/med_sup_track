@@ -1,17 +1,16 @@
+import { type RoleOption } from '@/components/admin/users/types';
 import InputError from '@/components/input-error';
 import { PageContent, PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
+import { FlashMessages } from '@/components/requests/flash-messages';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type RoleOption } from '@/types/admin';
 import { type OptionList } from '@/types/requests';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Mail } from 'lucide-react';
 import { type FormEventHandler } from 'react';
 
 interface Props {
+    /** Only the roles this user may give (UserController::create); organisations only when they may invite vendor users. */
     options: { roles: RoleOption[]; organisations: OptionList };
 }
 
@@ -20,11 +19,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'New User', href: '/admin/users/create' },
 ];
 
+const LABEL = 'label text-base-content text-sm font-medium capitalize';
+
 /**
- * ADMIN-1 Step 2: create an account. The Organisation field shows only for a
- * role the server marks `vendor`; staff roles join the Ministry of Health on
- * the server. No password is entered or shown: the person is emailed a link
- * to set their own. The server validates the role and organisation pairing.
+ * IT-ADMIN: create a staff account or invite a vendor user. The roles are
+ * the ones the server lets this user give; the Organisation field shows only
+ * for a role the server marks `vendor` (staff join the Ministry of Health on
+ * the server). No password is entered or shown: the account waits for
+ * activation and the person is emailed a single-use link to set their
+ * password and then MFA. The server validates the role and organisation pairing.
  */
 export default function AdminUserCreate({ options }: Props) {
     const { data, setData, post, processing, errors } = useForm({ name: '', email: '', role: '', organisation: '' });
@@ -48,14 +51,19 @@ export default function AdminUserCreate({ options }: Props) {
             <Head title="New User" />
 
             <PageContent>
-                <PageHeader title="New User" subtitle="They will get an email with a link to set their own password." />
+                <PageHeader title="New User" subtitle="They get an email with a single-use link to set their password, then set up MFA at sign-in." />
 
-                <form onSubmit={submit} noValidate className="bg-card max-w-2xl rounded-xl border shadow-xs">
-                    <div className="grid gap-5 p-5 md:p-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
+                <FlashMessages />
+
+                <form onSubmit={submit} noValidate className="card bg-base-100 border-base-300 border">
+                    <div className="card-body grid gap-1 p-4 md:p-6 lg:grid-cols-2 lg:gap-x-6">
+                        <fieldset className="fieldset py-0">
+                            <label htmlFor="name" className={LABEL}>
+                                Name
+                            </label>
+                            <input
                                 id="name"
+                                className="input input-sm w-full"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 required
@@ -65,30 +73,39 @@ export default function AdminUserCreate({ options }: Props) {
                                 aria-describedby={describedBy('name')}
                             />
                             <InputError id="name-error" message={errors.name} />
-                        </div>
+                        </fieldset>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                required
-                                maxLength={255}
-                                autoComplete="off"
-                                aria-invalid={errors.email ? true : undefined}
-                                aria-describedby={describedBy('email')}
-                            />
+                        <fieldset className="fieldset py-0">
+                            <label htmlFor="email" className={LABEL}>
+                                Email
+                            </label>
+                            <label className="input input-sm w-full">
+                                <Mail className="text-base-content/60 size-4" aria-hidden="true" />
+                                <input
+                                    id="email"
+                                    type="email"
+                                    className="grow"
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    required
+                                    maxLength={255}
+                                    autoComplete="off"
+                                    aria-invalid={errors.email ? true : undefined}
+                                    aria-describedby={describedBy('email')}
+                                />
+                            </label>
                             <InputError id="email-error" message={errors.email} />
-                        </div>
+                        </fieldset>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="role">Role</Label>
-                            <Select
+                        <fieldset className="fieldset py-0">
+                            <label htmlFor="role" className={LABEL}>
+                                Role
+                            </label>
+                            <select
+                                id="role"
+                                className="select select-sm w-full"
                                 value={data.role}
                                 onChange={(e) => chooseRole(e.target.value)}
-                                id="role"
                                 aria-required
                                 aria-invalid={errors.role ? true : undefined}
                                 aria-describedby={describedBy('role')}
@@ -101,51 +118,52 @@ export default function AdminUserCreate({ options }: Props) {
                                         {r.label}
                                     </option>
                                 ))}
-                            </Select>
+                            </select>
                             <InputError id="role-error" message={errors.role} />
-                        </div>
+                        </fieldset>
 
-                        {needsOrganisation ? (
-                            <div className="grid gap-2">
-                                <Label htmlFor="organisation">Organisation</Label>
-                                <Select
-                                    value={data.organisation}
-                                    onChange={(e) => setData('organisation', e.target.value)}
-                                    id="organisation"
-                                    aria-required
-                                    aria-invalid={errors.organisation ? true : undefined}
-                                    aria-describedby={describedBy('organisation')}
-                                >
-                                    <option value="" disabled>
-                                        Choose the vendor organisation
-                                    </option>
-                                    {options.organisations.map((o) => (
-                                        <option key={o.value} value={o.value}>
-                                            {o.label}
+                        <fieldset className="fieldset py-0">
+                            {needsOrganisation ? (
+                                <>
+                                    <label htmlFor="organisation" className={LABEL}>
+                                        Organisation
+                                    </label>
+                                    <select
+                                        id="organisation"
+                                        className="select select-sm w-full"
+                                        value={data.organisation}
+                                        onChange={(e) => setData('organisation', e.target.value)}
+                                        aria-required
+                                        aria-invalid={errors.organisation ? true : undefined}
+                                        aria-describedby={describedBy('organisation')}
+                                    >
+                                        <option value="" disabled>
+                                            Choose the vendor organisation
                                         </option>
-                                    ))}
-                                </Select>
-                                <InputError id="organisation-error" message={errors.organisation} />
-                            </div>
-                        ) : (
-                            // A staff role: the server assigns the Ministry of Health. Errors still show.
-                            <>
-                                {data.role !== '' && (
-                                    <p className="text-muted-foreground text-[13px]">Staff accounts belong to the Ministry of Health.</p>
-                                )}
-                                <InputError id="organisation-error" message={errors.organisation} />
-                            </>
-                        )}
+                                        {options.organisations.map((o) => (
+                                            <option key={o.value} value={o.value}>
+                                                {o.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </>
+                            ) : (
+                                data.role !== '' && (
+                                    <p className="label text-helper whitespace-normal lg:mt-7">Staff accounts belong to the Ministry of Health.</p>
+                                )
+                            )}
+                            {/* A staff role: the server assigns the Ministry of Health. Errors still show. */}
+                            <InputError id="organisation-error" message={errors.organisation} />
+                        </fieldset>
                     </div>
 
-                    {/* Form actions in a footer row at the bottom of the form (CLAUDE.md), never in the header. */}
-                    <div className="bg-subtle flex flex-wrap justify-end gap-2 rounded-b-xl border-t px-5 py-4 md:px-6">
-                        <Button asChild variant="outline" className="h-11 md:h-10">
-                            <Link href={route('admin.users.index')}>Cancel</Link>
-                        </Button>
-                        <Button type="submit" disabled={processing} aria-busy={processing} className="h-11 md:h-10">
+                    <div className="card-actions border-base-300 bg-base-200 rounded-b-box justify-end border-t px-4 py-3 md:px-6">
+                        <Link href={route('admin.users.index')} className="btn btn-sm capitalize">
+                            Cancel
+                        </Link>
+                        <button type="submit" className="btn btn-primary btn-sm capitalize" disabled={processing} aria-busy={processing || undefined}>
                             {processing ? 'Creating…' : 'Create User'}
-                        </Button>
+                        </button>
                     </div>
                 </form>
             </PageContent>

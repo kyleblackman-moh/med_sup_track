@@ -1,12 +1,12 @@
-import { hasActiveUserFilters, UserFilters } from '@/components/admin/user-filters';
-import { UserTable } from '@/components/admin/user-table';
+import { NO_USER_FILTERS, type AdminUserFilters, type AdminUserOptions, type AdminUserPage } from '@/components/admin/users/types';
+import { hasActiveUserFilters, UserFilters } from '@/components/admin/users/user-filters';
+import { UserTable } from '@/components/admin/users/user-table';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { FlashMessages } from '@/components/requests/flash-messages';
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AdminUserFilters, type AdminUserOptions, type AdminUserPage } from '@/types/admin';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Users', href: '/admin/users' }];
 
-/** ADMIN-1: Admin > Users. Search, filters and paging are server-side and live in the URL. */
+/** IT-ADMIN: Admin > Users. Search, filters and paging are server-side and live in the URL. */
 export default function AdminUsersIndex({ users, filters, options, abilities }: Props) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [loading, setLoading] = useState(false);
@@ -59,9 +59,10 @@ export default function AdminUsersIndex({ users, filters, options, abilities }: 
                     }
                     actions={
                         abilities.create && (
-                            <Button asChild>
-                                <Link href={route('admin.users.create')}>New User</Link>
-                            </Button>
+                            <Link href={route('admin.users.create')} className="btn btn-primary btn-sm capitalize">
+                                <UserPlus className="size-4" aria-hidden="true" />
+                                New User
+                            </Link>
                         )
                     }
                 />
@@ -74,7 +75,7 @@ export default function AdminUsersIndex({ users, filters, options, abilities }: 
                     page={users}
                     loading={loading}
                     filtersActive={hasActiveUserFilters(filters)}
-                    onClearFilters={() => visit({ q: '', org: '', role: '', status: '' })}
+                    onClearFilters={() => visit(NO_USER_FILTERS)}
                 />
             </PageContent>
         </AppLayout>
