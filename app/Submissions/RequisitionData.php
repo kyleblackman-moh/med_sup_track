@@ -146,7 +146,7 @@ final readonly class RequisitionData
     }
 
     /**
-     * V2-5: text fields of type "alnum" (the DIN) are trimmed before they are
+     * V2-5: fields of type "din" are trimmed before they are
      * validated, and an empty one becomes null (cleared). Other values are untouched.
      */
     private static function trimText(array $payload, string $code): array
@@ -157,7 +157,7 @@ final readonly class RequisitionData
 
         foreach (RequisitionRules::requisitionFields($code) as $field => $spec) {
             $value = $payload['requisition'][$field] ?? null;
-            if ($spec['type'] === 'alnum' && is_string($value)) {
+            if ($spec['type'] === 'din' && is_string($value)) {
                 $value = trim($value);
                 $payload['requisition'][$field] = $value === '' ? null : $value;
             }

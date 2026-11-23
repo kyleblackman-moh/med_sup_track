@@ -259,22 +259,20 @@ it('fails a tender cycle that ends before it starts', function (string $code) {
     expect(v2Report($case)->errors)->toBe([['key' => 'requisition.tender_cycle_end', 'message' => RequestSections::CYCLE_END_BEFORE_START]]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('keeps the DIN as letters-and-digits text with its leading zeros', function () {
+it('keeps the DIN as 8-digit text with its leading zeros', function () {
     [$case, $vendor] = newDraft();
-    saveDraft($case, $vendor, ['requisition' => ['din' => '000123']]);
+    saveDraft($case, $vendor, ['requisition' => ['din' => '00012345']]);
 
-    expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('000123');
+    expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('00012345');
 
-    // V2-5: letters are allowed; the DIN is optional and never a readiness error.
-    foreach (['12.3', '-1', '1 2', 'AB-12'] as $din) {
+    // Kyle, 2026-11-23: exactly 8 digits (this was an open length question). Optional,
+    // and never a readiness error; anything else is refused at save.
+    foreach (['12.3', '-1', '1 2', 'AB-12', '7', '000123', str_repeat('9', 9), str_repeat('9', 32), 'ABCD1234'] as $din) {
         expect(fn () => saveDraft($case, $vendor, ['requisition' => ['din' => $din]]))
             ->toThrow(ValidationException::class);
     }
 
-    // No length rule (open question): one digit and 32 digits both pass.
-    saveDraft($case, $vendor, ['requisition' => ['din' => '7']]);
-    saveDraft($case, $vendor, ['requisition' => ['din' => str_repeat('9', 32)]]);
-    expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe(str_repeat('9', 32));
+    expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('00012345');
 });
 
 it('asks an old AD_HOC draft to choose one of the five types first', function () {

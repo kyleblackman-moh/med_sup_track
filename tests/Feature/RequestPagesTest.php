@@ -268,7 +268,7 @@ it('saves the valid fields of an invalid payload and returns each failing field 
     $notSaved = collect($saved['not_saved'])->pluck('message', 'key');
 
     expect($notSaved->keys()->sort()->values()->all())->toBe(['quotations.0.unit_price', 'requisition.din'])
-        ->and($notSaved['requisition.din'])->toBe('Enter the DIN using letters and numbers only.')
+        ->and($notSaved['requisition.din'])->toBe('Enter the DIN as exactly 8 digits, for example 02345678.')
         ->and($notSaved['quotations.0.unit_price'])->toStartWith('Quotation Row 1: Unit Price')
         ->and($saved['status'])->toBe('Saved. 2 fields need attention and were not saved yet.');
 

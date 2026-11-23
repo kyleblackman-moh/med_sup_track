@@ -94,7 +94,7 @@ function badValuesFor(array $spec): array
     return match ($spec['type']) {
         'string', 'text' => [['an', 'array'], isset($spec['max']) ? str_repeat('a', $spec['max'] + 1) : ['x']],
         'digits' => [['x'], str_repeat('1', $spec['max'] + 1), '12a'],
-        'alnum' => [['x'], str_repeat('a', $spec['max'] + 1), 'a-b'],
+        'din' => [['x'], '1234567', 'ABCD1234'],
         'qty' => ['abc', '-1', '1.234'],
         'price' => ['abc', '-1', '1.23456'],
         'rate' => ['abc', '101', '1.234'],

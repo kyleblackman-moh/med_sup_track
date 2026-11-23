@@ -40,7 +40,7 @@ final class RequisitionRules
 
     /** Plain messages for rules whose default message would be unclear. */
     public const MESSAGES = [
-        'requisition.din.regex' => 'Enter the DIN using letters and numbers only.',
+        'requisition.din.regex' => 'Enter the DIN as exactly 8 digits, for example 02345678.',
     ];
 
     /**
@@ -197,7 +197,7 @@ final class RequisitionRules
             'request_date' => ['type' => 'date'],
             'need_classification' => ['type' => 'enum', 'enum' => NeedClassification::class],
             'item_description' => self::str(500),
-            'din' => self::str(32),
+            'din' => ['type' => 'din'], // Kyle, 2026-11-23: exactly 8 digits, as on the Ad Hoc form
             'item_code' => self::str(64),
             'unit_of_measure' => self::str(32),
             'purpose' => ['type' => 'text'],
@@ -280,8 +280,8 @@ final class RequisitionRules
             'item_description' => self::str(500),
             'strength' => self::str(100),
             'dosage_form' => self::str(100),
-            // V2-5: optional; letters and digits only, case and leading zeros kept; max is the column size.
-            'din' => ['type' => 'alnum', 'max' => 32],
+            // V2-5: optional. Kyle, 2026-11-23: exactly 8 digits (a string, so leading zeros are kept).
+            'din' => ['type' => 'din'],
             'quantity_requested' => ['type' => 'qty'],
             'unit_of_measure' => self::str(32),
             'clinical_note' => ['type' => 'text', 'max' => 2000],
@@ -434,8 +434,8 @@ final class RequisitionRules
             'text' => isset($spec['max']) ? ['string', 'max:'.$spec['max']] : ['string'],
             // A string, so leading zeros are kept.
             'digits' => ['string', 'max:'.$spec['max'], 'regex:/^\d+$/'],
-            // V2-5 (DIN): letters and digits only; trimmed, and empty stored as null (RequisitionData).
-            'alnum' => ['string', 'max:'.$spec['max'], 'regex:/^[A-Za-z0-9]+$/'],
+            // DIN: exactly 8 digits; trimmed, and empty stored as null (RequisitionData).
+            'din' => ['string', 'regex:/^\d{8}$/'],
             'rowid' => ['integer', 'min:1'],
             'date' => ['date_format:Y-m-d'],
             'enum' => [Rule::enum($spec['enum'])],

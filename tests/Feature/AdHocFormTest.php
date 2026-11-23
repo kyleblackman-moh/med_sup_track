@@ -147,7 +147,8 @@ it('caps the clinical note at 2000 and the price note at 1000 characters', funct
     expect(adHocValidationErrors(['requisition' => ['clinical_note' => str_repeat('x', 2000), 'price_note' => str_repeat('x', 1000)]]))->toBe([]);
 });
 
-it('accepts a DIN of letters and digits, keeping case and leading zeros, with no length rule', function (?string $din) {
+// Kyle, 2026-11-23: the DIN is always exactly 8 digits (optional; leading zeros kept).
+it('accepts a DIN of exactly 8 digits, keeping leading zeros', function (?string $din) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe([]);
 
     [$case, $vendor] = newDraft();
@@ -156,24 +157,24 @@ it('accepts a DIN of letters and digits, keeping case and leading zeros, with no
     expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe($din);
 })->with([
     'leading zero' => ['02345678'],
-    'one digit' => ['7'],
-    'twelve digits' => ['000123456789'],
-    '32 digits' => [str_repeat('1', 32)],
-    'letters' => ['ABC123'],
+    'all zeros but one' => ['00000007'],
+    'eight digits' => ['12345678'],
     'cleared' => [null],
 ]);
 
-it('refuses a DIN that is not letters and digits only', function (mixed $din, string $message) {
+it('refuses a DIN that is not exactly 8 digits', function (mixed $din, string $message) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe(['requisition.din' => $message]);
 })->with([
-    'space' => ['0234 5678', 'Enter the DIN using letters and numbers only.'],
-    'dash' => ['0234-5678', 'Enter the DIN using letters and numbers only.'],
-    'decimal' => ['123.4', 'Enter the DIN using letters and numbers only.'],
-    'negative' => ['-123', 'Enter the DIN using letters and numbers only.'],
+    'space' => ['0234 5678', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'dash' => ['0234-5678', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'decimal' => ['123.4', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'negative' => ['-123', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'one digit' => ['7', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'seven digits' => ['0234567', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'nine digits' => ['023456789', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'letters' => ['ABC12345', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
     // A number would lose leading zeros, so only text is accepted.
     'number, not text' => [2345678, 'DIN needs to be text.'],
-    // max 32 is the column size, not a DIN length rule.
-    '33 digits' => [str_repeat('1', 33), 'DIN needs to be 32 characters or fewer.'],
 ]);
 
 // 3. Upsert by row id ------------------------------------------------------------------

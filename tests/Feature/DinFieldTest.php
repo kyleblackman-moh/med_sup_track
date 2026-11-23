@@ -5,6 +5,7 @@ use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
 use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
+use App\Submissions\RequisitionRules;
 use App\Submissions\SubmissionReadiness;
 use App\Submissions\SubmitCase;
 use Database\Seeders\ProcurementTypeSeeder;
@@ -14,8 +15,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
-// V2-5 step 1: the DIN is optional and alphanumeric (letters and digits only),
-// trimmed, case and leading zeros kept, empty stored as null. DatabaseTransactions only.
+// V2-5 step 1, changed 2026-11-23 (Kyle): the DIN is optional and, when given, exactly
+// 8 digits; trimmed, leading zeros kept, empty stored as null. DatabaseTransactions only.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -34,16 +35,16 @@ function dinOf(ProcurementCase $case): ?string
     return CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din');
 }
 
-it('accepts a DIN of letters and digits, keeping case and leading zeros', function (string $din) {
+it('accepts a DIN of exactly 8 digits, keeping leading zeros', function (string $din) {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
 
     expect(dinOf($case))->toBe($din);
-})->with(['ABC123', '0012345A', 'abc0123']);
+})->with(['02345678', '00000001', '12345678', '99999999']);
 
 it('trims the DIN and stores an empty one as null', function (?string $din) {
     [$case, $vendor] = newDraft();
-    saveDraft($case, $vendor, ['requisition' => ['din' => 'X1']]);
+    saveDraft($case, $vendor, ['requisition' => ['din' => '12345678']]);
     saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
 
     expect(dinOf($case))->toBeNull();
@@ -51,27 +52,29 @@ it('trims the DIN and stores an empty one as null', function (?string $din) {
 
 it('trims spaces around a DIN', function () {
     [$case, $vendor] = newDraft();
-    saveDraft($case, $vendor, ['requisition' => ['din' => '  AB12  ']]);
+    saveDraft($case, $vendor, ['requisition' => ['din' => '  02345678  ']]);
 
-    expect(dinOf($case))->toBe('AB12');
+    expect(dinOf($case))->toBe('02345678');
 });
 
-it('refuses a DIN with anything but letters and digits', function (string $din) {
+it('refuses a DIN that is not exactly 8 digits', function (string $din) {
     [$case, $vendor] = newDraft();
 
     try {
         saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
         $this->fail('The DIN was accepted.');
     } catch (ValidationException $e) {
-        expect($e->errors())->toBe(['requisition.din' => ['Enter the DIN using letters and numbers only.']]);
+        expect($e->errors())->toBe(['requisition.din' => ['Enter the DIN as exactly 8 digits, for example 02345678.']]);
     }
-})->with(['AB-12', 'AB 12', '12.5', 'É12']);
+})->with([
+    'letters' => ['ABC12345'], 'letters and digits' => ['0012345A'], '7 digits' => ['1234567'], '9 digits' => ['123456789'],
+    'a dash' => ['1234-567'], 'a space inside' => ['1234 5678'], 'a decimal' => ['1234567.'], 'non-ASCII digits' => ['١٢٣٤٥٦٧٨'],
+]);
 
-it('refuses a DIN longer than the column', function () {
-    [$case, $vendor] = newDraft();
+it('refuses a DIN that is not 8 digits on the older request form too', function () {
+    $rules = RequisitionRules::requisitionFields('NON_PHARM');
 
-    expect(fn () => saveDraft($case, $vendor, ['requisition' => ['din' => str_repeat('A', 33)]]))
-        ->toThrow(ValidationException::class);
+    expect($rules['din'])->toBe(['type' => 'din']);
 });
 
 it('never requires the DIN to submit, for any type', function (string $code) {
@@ -97,7 +100,7 @@ it('shows a dash in the summary when there is no DIN, and finds a draft by its D
     $din = collect($summary['sections'])->flatMap(fn ($s) => $s['blocks'])->flatMap(fn ($b) => $b['items'] ?? [])->firstWhere('label', 'DIN');
     expect($din['value'] ?? null)->toBe('—');
 
-    saveDraft($case, $vendor, ['requisition' => ['din' => 'ZX0099']]);
-    $response = $this->actingAs($vendor)->get(route('requests.index', ['q' => 'zx0099']))->assertOk();
+    saveDraft($case, $vendor, ['requisition' => ['din' => '00990099']]);
+    $response = $this->actingAs($vendor)->get(route('requests.index', ['q' => '00990099']))->assertOk();
     expect(array_column(pageProps($response)['requests']['data'], 'id'))->toBe([$case->id]);
 });

@@ -194,11 +194,11 @@ final class RequisitionMessages
                 "{$path}.max" => "{$name} needs to be :max characters or fewer.",
                 "{$path}.regex" => "{$name} needs to contain digits only.",
             ],
-            'alnum' => [
+            'din' => [
                 "{$path}.string" => "{$name} needs to be text.",
-                "{$path}.max" => "{$name} needs to be :max characters or fewer.",
-                "{$path}.regex" => "{$name} needs to contain letters and numbers only.",
+                "{$path}.regex" => "{$name} needs to be exactly 8 digits, for example 02345678.",
             ],
+
             'qty' => [
                 "{$path}.numeric" => "{$name} needs to be a number, for example 2800.",
                 "{$path}.regex" => "{$name} needs to be 0 or more, with up to 2 decimal places, for example 2800.",
