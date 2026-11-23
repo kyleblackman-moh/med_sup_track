@@ -1,6 +1,6 @@
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { KeyRound, UserRound } from 'lucide-react';
+import { KeyRound, ShieldCheck, UserRound } from 'lucide-react';
 
 const sidebarNavItems: NavItem[] = [
     {
@@ -12,6 +12,11 @@ const sidebarNavItems: NavItem[] = [
         title: 'Password',
         url: '/settings/password',
         icon: KeyRound,
+    },
+    {
+        title: 'Security',
+        url: '/settings/security',
+        icon: ShieldCheck,
     },
     // Appearance is hidden: light only for launch (design.md section 1).
 ];
