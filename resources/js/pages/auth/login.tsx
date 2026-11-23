@@ -2,7 +2,7 @@ import InputError from '@/components/input-error';
 import { AuthShell } from '@/layouts/auth/auth-shell';
 import { cn } from '@/lib/utils';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { CircleCheck, Eye, EyeOff, KeyRound, LogIn, Mail, Smartphone } from 'lucide-react';
+import { CircleCheck, Eye, EyeOff } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 type LoginForm = {
@@ -17,10 +17,9 @@ interface LoginProps {
 
 /**
  * The sign-in page (Blueprint pages/sign-in, Clean UI) in the account shell:
- * the Ministry's identity panel on large screens, the form on the right.
- * Email and password (with show/hide), the recovery link beside the
- * password, one primary Sign In, then what happens next: the two-step code,
- * and that accounts come by invitation from the CMO's office.
+ * one compact centred card with the title, email, password (show/hide) with
+ * the recovery link beside its label, and one Sign In. Under the card: the
+ * two-step code that follows and that accounts come by invitation.
  */
 export default function Login({ status, canResetPassword }: LoginProps) {
     const [showPassword, setShowPassword] = useState(false);
@@ -37,11 +36,20 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     };
 
     return (
-        <AuthShell>
+        <AuthShell
+            footer={
+                <>
+                    <p>After your password, you&apos;ll confirm with a code from your authenticator app.</p>
+                    <p className="mt-1">Accounts are by invitation only. Contact the CMO&apos;s office for one.</p>
+                </>
+            }
+        >
             <Head title="Sign in" />
 
-            <h1 className="text-2xl font-semibold capitalize">Sign In</h1>
-            <p className="text-base-content/70 mt-1 text-sm">Use the email address your account was issued to.</p>
+            <div className="text-center">
+                <h1 className="text-xl font-semibold capitalize">Sign In to Your Account</h1>
+                <p className="text-base-content/70 mt-1 text-sm">Enter the email and password for your account.</p>
+            </div>
 
             {status && (
                 <div role="status" className="alert alert-success alert-soft mt-6 text-sm">
@@ -50,28 +58,25 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 </div>
             )}
 
-            <form className="mt-8" onSubmit={submit} noValidate>
-                <fieldset className="fieldset gap-5 py-0">
+            <form className="mt-6" onSubmit={submit} noValidate>
+                <fieldset className="fieldset gap-4 py-0">
                     <div className="grid gap-1.5">
                         <label htmlFor="email" className="label text-base-content text-sm font-medium capitalize">
                             Email
                         </label>
-                        <label className={cn('input w-full', errors.email && 'input-error')}>
-                            <Mail className="text-base-content/60 size-4 shrink-0" aria-hidden="true" />
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                required
-                                autoFocus
-                                autoComplete="username"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                aria-invalid={errors.email ? true : undefined}
-                                aria-describedby={errors.email ? 'email-error' : undefined}
-                                className="grow"
-                            />
-                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            required
+                            autoFocus
+                            autoComplete="username"
+                            value={data.email}
+                            onChange={(e) => setData('email', e.target.value)}
+                            aria-invalid={errors.email ? true : undefined}
+                            aria-describedby={errors.email ? 'email-error' : undefined}
+                            className={cn('input w-full', errors.email && 'input-error')}
+                        />
                         <InputError id="email-error" message={errors.email} />
                     </div>
 
@@ -81,13 +86,12 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 Password
                             </label>
                             {canResetPassword && (
-                                <Link href={route('password.request')} className="link link-primary text-sm">
+                                <Link href={route('password.request')} className="link link-primary link-hover text-sm font-medium">
                                     Forgot password?
                                 </Link>
                             )}
                         </div>
                         <label className={cn('input w-full pr-1', errors.password && 'input-error')}>
-                            <KeyRound className="text-base-content/60 size-4 shrink-0" aria-hidden="true" />
                             <input
                                 id="password"
                                 name="password"
@@ -115,28 +119,16 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </div>
                 </fieldset>
 
-                <button type="submit" disabled={processing} aria-busy={processing} className="btn btn-primary btn-block mt-8 capitalize">
-                    {processing ? (
-                        <span className="loading loading-spinner loading-sm" aria-hidden="true" />
-                    ) : (
-                        <LogIn className="size-4" aria-hidden="true" />
-                    )}
+                <button
+                    type="submit"
+                    disabled={processing}
+                    aria-busy={processing}
+                    className="btn btn-primary btn-block from-primary to-info mt-6 border-0 bg-linear-to-r capitalize"
+                >
+                    {processing && <span className="loading loading-spinner loading-sm" aria-hidden="true" />}
                     {processing ? 'Signing In…' : 'Sign In'}
                 </button>
             </form>
-
-            <div className="divider my-8" />
-
-            <ul className="text-base-content/70 grid gap-3 text-sm">
-                <li className="flex items-start gap-2">
-                    <Smartphone className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <span>After your password, you&apos;ll confirm with a code from your authenticator app.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                    <Mail className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <span>Accounts are by invitation only. To get one, contact the CMO&apos;s office.</span>
-                </li>
-            </ul>
         </AuthShell>
     );
 }
