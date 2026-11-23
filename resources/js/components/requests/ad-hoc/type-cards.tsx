@@ -4,9 +4,10 @@ import { type RequestTypeOption } from '@/types/requests';
 import { CircleAlert } from 'lucide-react';
 
 // V2-2: the request type as the first block of the form. RADIO-1: the shared
-// radio rows (RadioOption) stacked one per line, never side by side, with the
-// type's icon square; native radios in one fieldset (arrow keys move between
-// them); the label only, no descriptions. The options, their order and their group ("Ad Hoc") come from
+// radio rows (RadioOption) with the type's icon square; native radios in one
+// fieldset (arrow keys move between them); the label only, no descriptions.
+// Each group sits in a grid: three across for a group of three (the Ad Hoc
+// types on top), two across for the rest, one per line on phones. The options, their order and their group ("Ad Hoc") come from
 // the server (type_options); no type code is known or checked here.
 
 interface TypeCardsProps {
@@ -21,6 +22,15 @@ interface TypeCardsProps {
 }
 
 const ID = 'request-type';
+
+/** The group's columns: one on phones, then two, and three for a group of three or more on wide screens. */
+function gridClass(count: number): string {
+    if (count >= 3) {
+        return 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3';
+    }
+
+    return count === 2 ? 'grid grid-cols-1 sm:grid-cols-2' : 'grid grid-cols-1';
+}
 
 export function TypeCards({ value, options, onChange, disabled, error, showHiddenNote }: TypeCardsProps) {
     const groups: { label: string | null; options: RequestTypeOption[] }[] = [];
@@ -83,10 +93,12 @@ export function TypeCards({ value, options, onChange, disabled, error, showHidde
                 group.label ? (
                     <fieldset key={group.label} className="fieldset min-w-0 gap-2 py-0">
                         <legend className="fieldset-legend pt-0 text-sm capitalize">{group.label}</legend>
-                        <RadioStack>{group.options.map(card)}</RadioStack>
+                        <RadioStack className={gridClass(group.options.length)}>{group.options.map(card)}</RadioStack>
                     </fieldset>
                 ) : (
-                    <RadioStack key={`group-${g}`}>{group.options.map(card)}</RadioStack>
+                    <RadioStack key={`group-${g}`} className={gridClass(group.options.length)}>
+                        {group.options.map(card)}
+                    </RadioStack>
                 ),
             )}
 
