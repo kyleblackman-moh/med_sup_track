@@ -1,4 +1,5 @@
 import { bellApi, isAuthStop } from '@/lib/notifications';
+import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const POLL_MS = 60_000;
@@ -19,6 +20,21 @@ export function useUnreadCount(shared: number, fetchCount: () => Promise<number>
 
     // A page visit brings a fresh count from the server.
     useEffect(() => setCount(shared), [shared]);
+
+    // Every successful visit (a page, a form post, a partial reload) carries the
+    // server's count after that request, e.g. after a case page marked its own
+    // notifications read. Take it even when it equals the last shared value:
+    // a poll may have raised the badge since, and it must come back down.
+    useEffect(
+        () =>
+            router.on('success', (event) => {
+                const next = event.detail.page.props.unreadNotificationsCount;
+                if (typeof next === 'number') {
+                    setCount(next);
+                }
+            }),
+        [],
+    );
 
     const refresh = useCallback(async () => {
         if (stopped.current) {
