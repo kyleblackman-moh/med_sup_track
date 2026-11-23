@@ -116,7 +116,7 @@ final class SubmissionReadiness
             $n = $i + 1;
             $this->warning("stock_expiries.{$i}.expiry_date", $warning['state'] === ExpiryRisk::EXPIRED
                 ? "Stock batch {$n} is past its expiry date."
-                : "Stock batch {$n} may expire before it is used: about {$warning['cover_days']} days of stock up to this batch, and it expires in {$warning['days_until_expiry']} days.");
+                : "Stock batch {$n} may expire before it is used: about {$warning['cover_days']} days of stock on hand, and this batch (the earliest to expire) expires in {$warning['days_until_expiry']} days.");
         }
     }
 

@@ -63,22 +63,25 @@ it('agrees with the simple rule for one batch', function (string $quantity, int 
     '45.5 days of cover, expires in 45' => ['455', 45, true],
 ]);
 
-it('does not raise the false alarm of the simple rule across batches', function () {
-    // 10 a day. A: 50 units, expires in 10 days (5 days of cover). B: 500 units, expires in 200 days.
-    // Simple rule: 550 units = 55 days of cover > 10 days to the first expiry: a false alarm.
-    // Earliest first: A is used up in 5 days (< 10), A + B in 55 days (< 200). No warning.
+// Kyle, 2026-11-23: the rule is days on hand (all stock) > days until the earliest expiry.
+// It replaces the per-batch rule, which did not flag the first case below.
+it('flags days on hand above the days until the earliest expiry, across batches', function () {
+    // 10 a day. A: 50 units, expires in 10 days. B: 500 units, expires in 200 days.
+    // 550 units = 55 days on hand > 10 days to the earliest expiry: flagged, on A.
     $result = risk('300', [riskBatch(2, '500', 200), riskBatch(1, '50', 10)]);
 
-    expect($result['expiry_warnings'])->toBe([])
+    expect($result['expiry_warnings'])->toBe([1 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '55.00']])
         ->and($result['days_on_hand'])->toBe(55);
 });
 
-it('counts every earlier batch in the cover of a later one', function () {
-    // 10 a day. A: 80 units in 10 days (8 days, fine). B: 50 units in 12 days: 130 units = 13 days > 12.
+it('compares against the earliest expiry only, and flags the request once', function () {
+    // 10 a day. A: 80 units in 10 days. B: 50 units in 12 days: 130 units = 13 days > 10.
     $result = risk('300', [riskBatch(1, '80', 10), riskBatch(2, '50', 12)]);
 
-    expect(array_keys($result['expiry_warnings']))->toBe([2])
-        ->and($result['expiry_warnings'][2])->toBe(['state' => 'at_risk', 'days_until_expiry' => 12, 'cover_days' => '13.00']);
+    expect($result['expiry_warnings'])->toBe([1 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '13.00']]);
+
+    // 130 units = 13 days, earliest expiry in 13 days: not more, no flag.
+    expect(risk('300', [riskBatch(1, '80', 13), riskBatch(2, '50', 40)])['expiry_warnings'])->toBe([]);
 });
 
 it('does not flag exact equality, and compares exactly', function (string $amc, string $quantity, int $days, bool $atRisk) {
@@ -92,12 +95,19 @@ it('does not flag exact equality, and compares exactly', function (string $amc, 
     'expires today with stock left' => ['300', '1', 0, true],
 ]);
 
-it('marks a batch past its expiry date as expired, and leaves it out of later cover', function () {
-    // 10 a day. Expired: 100 units (yesterday). Next: 50 units in 10 days = 5 days of cover: fine.
+it('marks a batch past its expiry date as expired, and still counts it in days on hand', function () {
+    // 10 a day. Expired: 100 units (yesterday). Next: 50 units in 10 days.
+    // Days on hand counts all stock: 150 units = 15 days > 10 days to the earliest unexpired batch.
     $result = risk('300', [riskBatch(1, '100', -1), riskBatch(2, '50', 10)]);
 
-    expect($result['expiry_warnings'])->toBe([1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '10.00']])
-        ->and($result['days_on_hand'])->toBe(15); // the stock total still counts it
+    expect($result['expiry_warnings'])->toBe([
+        1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '10.00'],
+        2 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '15.00'],
+    ])->and($result['days_on_hand'])->toBe(15);
+
+    // With only 5 days on hand in all, only the expired batch is reported.
+    expect(risk('300', [riskBatch(1, '20', -1), riskBatch(2, '30', 10)])['expiry_warnings'])
+        ->toBe([1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '2.00']]);
 });
 
 it('gives no warning and no days on hand when AMC is 0 or missing, or there is no stock', function (?string $amc, bool $noStock) {
@@ -119,11 +129,15 @@ it('rounds days on hand down to whole days, null without stock', function (Closu
     'zero stock' => [fn () => [riskBatch(1, '0', 400)], null],
 ]);
 
-it('leaves a batch without an expiry date out of the rule, but counts it in the stock', function () {
+it('never flags a batch without an expiry date, but counts it in days on hand', function () {
     $undated = (new CaseStockExpiry)->forceFill(['id' => 9, 'quantity' => '100', 'expiry_date' => null]);
 
+    // 110 units = 11 days on hand > 0 days to the earliest dated expiry.
     expect(risk('300', [$undated, riskBatch(1, '10', 0)]))
-        ->toBe(['days_on_hand' => 11, 'expiry_warnings' => [1 => ['state' => 'at_risk', 'days_until_expiry' => 0, 'cover_days' => '1.00']]]);
+        ->toBe(['days_on_hand' => 11, 'expiry_warnings' => [1 => ['state' => 'at_risk', 'days_until_expiry' => 0, 'cover_days' => '11.00']]]);
+
+    // Only undated stock: nothing to compare against.
+    expect(risk('300', [$undated])['expiry_warnings'])->toBe([]);
 });
 
 // 2. Reference date --------------------------------------------------------------------
@@ -165,7 +179,7 @@ it('reports the risk as readiness warnings and never blocks the submit', functio
     $today = CarbonImmutable::now('America/Port_of_Spain');
     saveDraft($case, $vendor, ['stock_expiries' => [
         ['quantity' => '50', 'expiry_date' => $today->subDay()->toDateString()],   // expired
-        ['quantity' => '300', 'expiry_date' => $today->addDays(5)->toDateString()], // 18 days of cover, 5 left
+        ['quantity' => '300', 'expiry_date' => $today->addDays(5)->toDateString()], // 21 days on hand in all, 5 left
     ]]);
     $case = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
 
@@ -173,7 +187,8 @@ it('reports the risk as readiness warnings and never blocks the submit', functio
     expect($report->errors)->toBe([])
         ->and($report->warnings)->toBe([
             ['key' => 'stock_expiries.0.expiry_date', 'message' => 'Stock batch 1 is past its expiry date.'],
-            ['key' => 'stock_expiries.1.expiry_date', 'message' => 'Stock batch 2 may expire before it is used: about 18.00 days of stock up to this batch, and it expires in 5 days.'],
+            // Days on hand counts all stock (350 units at 500 a month = 21 days) against the earliest unexpired batch.
+            ['key' => 'stock_expiries.1.expiry_date', 'message' => 'Stock batch 2 may expire before it is used: about 21.00 days of stock on hand, and this batch (the earliest to expire) expires in 5 days.'],
         ]);
 
     app(SubmitCase::class)->handle($case, $vendor);

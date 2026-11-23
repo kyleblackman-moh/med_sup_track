@@ -271,7 +271,7 @@ it('words the expiry warning from the submission date once submitted', function 
 
     $warning = collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('type', 'warning');
     expect($warning['title'])->toBe('Some stock may expire before it is used')
-        ->and($warning['lines'])->toBe(['Batch expiring '.$expiry->format('j M Y').': about 100 days of cover, expires in 10 days']);
+        ->and($warning['lines'])->toBe(['Batch expiring '.$expiry->format('j M Y').': about 100 days of stock on hand, and it expires in 10 days (the earliest to expire)']);
 });
 
 // 5. Documents and isolation -------------------------------------------------------------------

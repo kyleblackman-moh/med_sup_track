@@ -223,7 +223,7 @@ it('sends the at-risk and expired batches as structured items', function () {
     saveDraft($case, $vendor, [
         'requisition' => ['average_monthly_consumption' => '30', 'no_stock_on_hand' => false],
         'stock_expiries' => [
-            ['quantity' => '100', 'expiry_date' => $today->addDays(10)->toDateString()],  // 100 days of cover, expires in 10: at risk
+            ['quantity' => '100', 'expiry_date' => $today->addDays(10)->toDateString()],  // earliest unexpired: 115 days on hand, expires in 10: at risk
             ['quantity' => '5', 'expiry_date' => $today->subDay()->toDateString()],       // expired
             ['quantity' => '10', 'expiry_date' => $today->addYears(2)->toDateString()],   // fine
         ],
@@ -237,7 +237,7 @@ it('sends the at-risk and expired batches as structured items', function () {
             'batch' => 'Batch 2', // batches are listed earliest expiry first, as on the form
             'quantity' => '100',
             'expiry_date' => $today->addDays(10)->format('j M Y'),
-            'cover_days' => '100',
+            'cover_days' => '115', // days on hand (all stock), Kyle 2026-11-23
             'days_to_expiry' => '10',
         ]],
         'expired' => [[

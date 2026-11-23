@@ -238,7 +238,7 @@ final class RequestSummary
             $date = self::date($case->stockExpiries->firstWhere('id', $batchId)?->expiry_date);
             $lines[] = $warning['state'] === ExpiryRisk::EXPIRED
                 ? "Batch expiring {$date} has expired"
-                : "Batch expiring {$date}: about ".Display::wholeDays($warning['cover_days'])." days of cover, expires in {$warning['days_until_expiry']} days";
+                : "Batch expiring {$date}: about ".Display::wholeDays($warning['cover_days'])." days of stock on hand, and it expires in {$warning['days_until_expiry']} days (the earliest to expire)";
         }
         if ($lines !== []) {
             $blocks[] = ['type' => 'warning', 'title' => 'Some stock may expire before it is used', 'lines' => $lines];

@@ -18,13 +18,14 @@ use Illuminate\Support\Collection;
  * - Days on hand = stock total / (AMC / 30), in whole days (rounded down).
  *   Null when AMC is missing or 0, "No stock on hand" is ticked, or there is
  *   no stock.
- * - Expiry rule, per batch, earliest expiry first: cover days = the quantity
- *   of this batch and every earlier usable batch / (AMC / 30). The batch is
- *   "at_risk" when cover days > days until it expires (strictly). A batch
- *   already past its expiry date is "expired"; it is not counted in the
- *   cover of later batches (expired stock is not used first). No warning at
- *   all when AMC is missing or 0, or "No stock on hand" is ticked.
- * - The rule is exact (compared as quantity x 30 against days x AMC); cover
+ * - Expiry rule (Kyle, 2026-11-23; replaces the per-batch rule): the request
+ *   is "at_risk" when days on hand (the whole stock total / (AMC / 30), as
+ *   shown) > the days until the earliest expiry date that has not passed
+ *   (strictly). The warning sits on that earliest batch, with cover days =
+ *   days on hand. A batch already past its expiry date is "expired" (its own
+ *   warning); like every batch, it still counts in the stock total. No
+ *   warning at all when AMC is missing or 0, or "No stock on hand" is ticked.
+ * - The rule is exact (compared as total x 30 against days x AMC); cover
  *   days are reported to 2 decimal places.
  * - Reference date: today (Trinidad time) while the case is a DRAFT; the
  *   submission date afterwards.
@@ -106,7 +107,7 @@ final class ExpiryRisk
             : null;
 
         $warnings = [];
-        $cumulative = '0';
+        $earliest = null;
         $day = CarbonImmutable::parse($today->toDateString());
 
         foreach ($usable as $batch) {
@@ -119,17 +120,22 @@ final class ExpiryRisk
                     'cover_days' => Decimal::round2(Decimal::div(Decimal::mul($batch->quantity, '30'), $amc)),
                 ];
 
-                continue; // not counted in the cover of later batches
+                continue;
             }
 
-            $cumulative = Decimal::add($cumulative, $batch->quantity);
+            $earliest ??= [$batch, $daysUntil];
+        }
 
-            // cover days > days until expiry  <=>  cumulative x 30 > days x AMC (exact).
-            if (Decimal::compare(Decimal::mul($cumulative, '30'), Decimal::mul((string) $daysUntil, $amc)) > 0) {
+        // Kyle, 2026-11-23: days on hand (the whole stock total) > days until the earliest
+        // expiry that has not passed  <=>  total x 30 > days x AMC (exact).
+        if ($earliest !== null && Decimal::compare($total, '0') > 0) {
+            [$batch, $daysUntil] = $earliest;
+
+            if (Decimal::compare(Decimal::mul($total, '30'), Decimal::mul((string) $daysUntil, $amc)) > 0) {
                 $warnings[(int) $batch->getKey()] = [
                     'state' => self::AT_RISK,
                     'days_until_expiry' => $daysUntil,
-                    'cover_days' => Decimal::round2(Decimal::div(Decimal::mul($cumulative, '30'), $amc)),
+                    'cover_days' => Decimal::round2(Decimal::div(Decimal::mul($total, '30'), $amc)),
                 ];
             }
         }
