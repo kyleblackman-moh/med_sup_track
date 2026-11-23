@@ -177,14 +177,14 @@ it('formats the computed values on the server', function () {
 
     expect($display['stock_total'])->toBe('200.5')
         ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
-        ->and($display['awards_total'])->toBe('5,050.00')
-        ->and($display['total_cost'])->toBe('4,473.00') // 1.5975 x 2800
+        ->and($display['awards_total'])->toBe('$5,050.00')
+        ->and($display['total_cost'])->toBe('$4,473.00') // 1.5975 x 2800
         // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
         ->and($display['price_change_vs_tender'])->toBe('27.80%')
         ->and($display['price_change_vs_previous'])->toBe('6.50%')
         ->and($display['rows']['tender_awards'])->toBe([
-            ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '3,750.00'],
-            ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '1,300.00'],
+            ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '$3,750.00'],
+            ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '$1,300.00'],
         ])
         ->and($display['rows']['purchase_orders'])->toBe([['id' => $case->purchaseOrders->first()->id, 'quantity_outstanding' => '1,800']])
         ->and(array_column($display['rows']['stock_expiries'], 'expiry_date'))
@@ -207,8 +207,12 @@ it('formats quantities, money, percentages and dates as text', function () {
         ->and(Display::quantity('2800.00'))->toBe('2,800')
         ->and(Display::quantity('0.00'))->toBe('0')
         ->and(Display::quantity(null))->toBe(Display::EMPTY)
-        ->and(Display::money('1234.5'))->toBe('1,234.50')
-        ->and(Display::money('999999999999.994'))->toBe('999,999,999,999.99')
+        ->and(Display::money('1234.5'))->toBe('$1,234.50')
+        ->and(Display::money('999999999999.994'))->toBe('$999,999,999,999.99')
+        ->and(Display::money('-5'))->toBe('-$5.00')
+        ->and(Display::price('1.5975'))->toBe('$1.5975')
+        ->and(Display::price('1200'))->toBe('$1,200.00')
+        ->and(Display::money(null))->toBe(Display::EMPTY)
         ->and(Display::percent('62.5'))->toBe('62.50%')
         ->and(Display::wholeDays('12.50'))->toBe('13')
         ->and(Display::wholeDays('12.49'))->toBe('12')

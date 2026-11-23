@@ -27,7 +27,10 @@ final class Display
         return self::group($whole).($fraction === '' ? '' : '.'.$fraction);
     }
 
-    /** A money amount: thousands separators and 2 decimals ("1,234.50"). */
+    /** Kyle, 2026-11-23: amounts are shown in dollars ("$1,234.50"). */
+    public const CURRENCY = '$';
+
+    /** A money amount: dollars, thousands separators and 2 decimals ("$1,234.50"). */
     public static function money(?string $value): string
     {
         if ($value === null || ! is_numeric($value)) {
@@ -36,12 +39,13 @@ final class Display
 
         [$whole, $fraction] = self::split(Decimal::round2($value));
 
-        return self::group($whole).'.'.str_pad(substr($fraction, 0, 2), 2, '0');
+        return self::dollars(self::group($whole).'.'.str_pad(substr($fraction, 0, 2), 2, '0'));
     }
 
     /**
-     * V2-3: a unit price (stored to 4 decimals): thousands separators, at least
-     * 2 decimals, trailing zeros beyond those dropped ("1.5975", "1.25", "1,200.00").
+     * V2-3: a unit price (stored to 4 decimals): dollars, thousands separators,
+     * at least 2 decimals, trailing zeros beyond those dropped ("$1.5975",
+     * "$1.25", "$1,200.00").
      */
     public static function price(?string $value): string
     {
@@ -51,7 +55,15 @@ final class Display
 
         [$whole, $fraction] = self::split($value);
 
-        return self::group($whole).'.'.str_pad(rtrim($fraction, '0'), 2, '0');
+        return self::dollars(self::group($whole).'.'.str_pad(rtrim($fraction, '0'), 2, '0'));
+    }
+
+    /** "1,234.50" -> "$1,234.50"; a minus sign goes in front of the symbol ("-$5.00"). */
+    private static function dollars(string $amount): string
+    {
+        return str_starts_with($amount, '-')
+            ? '-'.self::CURRENCY.substr($amount, 1)
+            : self::CURRENCY.$amount;
     }
 
     /** V2-3: yes/no for a stored flag; a dash when it was never answered. */

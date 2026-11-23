@@ -232,10 +232,10 @@ it('computes and formats every figure on the server', function () {
 
     expect(summaryFields($summary, 'awarded_supplier'))->toBe([
         'Number of Suppliers Awarded' => '2',
-        'Total Cost of the Awards' => '5,050.00',
+        'Total Cost of the Awards' => '$5,050.00',
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
-        ->toBe([['75.00%', '3,750.00', '1.25'], ['25.00%', '1,300.00', '1.30']])
+        ->toBe([['75.00%', '$3,750.00', '$1.25'], ['25.00%', '$1,300.00', '$1.30']])
         ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'][0]['cells']['quantity_outstanding'])->toBe('1,800')
         ->and(summaryFields($summary, 'stock'))->toMatchArray(['Stock Total' => '200.5 Each', 'Days on Hand' => '12', 'No Stock on Hand' => 'No'])
         ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray([
@@ -243,9 +243,9 @@ it('computes and formats every figure on the server', function () {
             'Number of Quotations' => '2',
             'Quotations Considered' => '1',
             'Recommended Quotation' => 'Supplier D',
-            'Recommended Unit Price' => '1.5975',
+            'Recommended Unit Price' => '$1.5975',
             'Quantity to Purchase' => '2,800 Each',
-            'Total Cost' => '4,473.00',
+            'Total Cost' => '$4,473.00',
             'Change Against Tender Price' => '27.80%',
             'Change Against Previous Price' => '6.50%',
             'Quoted Price Is Acceptable' => 'Yes',
