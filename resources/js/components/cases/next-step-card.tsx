@@ -35,6 +35,9 @@ const INLINE = ['prepare_file', 'legal_decision', 'ps_decision', 'issue_letter',
 
 interface Props {
     caseId: string;
+    /** HARDCOPY-1: shown in the hardcopy confirmation (reference and vendor). */
+    reference: string | null;
+    organisation: string | null;
     next: NextStepView;
     reviewers: EligibleReviewers | null;
     fileNoDefault: string | null;
@@ -120,6 +123,8 @@ function ConfirmAction({
  */
 export function NextStepCard({
     caseId,
+    reference,
+    organisation,
     next,
     reviewers,
     fileNoDefault,
@@ -281,7 +286,18 @@ export function NextStepCard({
             </ActionPanel>
 
             {/* The checklist's Date Received form, as its own panel. */}
-            {hardcopyForms.map((item) => item.hardcopy_form && <HardcopyRecordForm key={item.key} caseId={caseId} dates={item.hardcopy_form} />)}
+            {hardcopyForms.map(
+                (item) =>
+                    item.hardcopy_form && (
+                        <HardcopyRecordForm
+                            key={item.key}
+                            caseId={caseId}
+                            reference={reference}
+                            organisation={organisation}
+                            dates={item.hardcopy_form}
+                        />
+                    ),
+            )}
 
             {/* The step's own form opens as the next panel in the column. */}
             {expandedAction && inlineForm(expandedAction)}

@@ -10,6 +10,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\HardcopyLookupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
@@ -118,6 +119,8 @@ Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::c
     ->controller(StaffCaseController::class)
     ->group(function () {
         Route::get('/', 'index')->name('index');
+        // HARDCOPY-1: the dashboard's "Hardcopy received" box (exact reference, cases the user can see).
+        Route::get('hardcopy-lookup', HardcopyLookupController::class)->middleware('throttle:60,1')->name('hardcopy-lookup');
         // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.
         Route::get('{queryCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')

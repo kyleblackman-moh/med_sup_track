@@ -587,6 +587,8 @@ export default function CaseShow({
                             <div id="case-actions" className="flex min-w-0 flex-col gap-4 p-4">
                                 <NextStepCard
                                     caseId={detail.id}
+                                    reference={detail.reference_no}
+                                    organisation={detail.organisation}
                                     next={next_step}
                                     reviewers={reviewers}
                                     fileNoDefault={file_no_default}
