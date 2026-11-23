@@ -8,12 +8,14 @@ import { SubmitPanel } from '@/components/requests/submit-panel';
 import { SupportingDocuments } from '@/components/requests/supporting-documents';
 import { VendorQueries } from '@/components/requests/vendor-queries';
 import { WithdrawRequest } from '@/components/requests/withdraw-request';
+import { type TabItem, Tabs } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
 import { BadgeCheck, Ban, FilePen, Mailbox, PackageCheck, ReceiptText } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
     case: RequestDetail;
@@ -30,6 +32,8 @@ interface Props {
     queries: VendorQuery[];
 }
 
+type RequestTab = 'request' | 'documents';
+
 /** A calendar date (Y-m-d), shown as-is: no time zone shift. */
 function formatDay(day: string): string {
     return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-TT', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
@@ -40,6 +44,14 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
         { title: 'Requests', href: route('requests.index') },
         // V2-4 (design.md section 6): the last crumb is the reference, or "New Request" before there is one.
         { title: detail.reference_no ?? 'New Request', href: route('requests.show', detail.id) },
+    ];
+
+    // The long parts of the page, one at a time: the request itself, then its documents.
+    const [tab, setTab] = useState<RequestTab>('request');
+    const documentCount = documents.reduce((n, group) => n + group.documents.length, 0);
+    const tabs: TabItem<RequestTab>[] = [
+        { id: 'request', label: 'Your Request' },
+        { id: 'documents', label: documentCount > 0 ? `Supporting Documents (${documentCount})` : 'Supporting Documents' },
     ];
 
     return (
@@ -124,18 +136,20 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
 
                 {readiness && <SubmitPanel caseId={detail.id} readiness={readiness} canSubmit={can.submit} />}
 
-                {summary ? (
-                    <section aria-labelledby="request-summary-heading" className="space-y-4">
-                        <h2 id="request-summary-heading" className="text-lg font-semibold capitalize">
-                            Your Request
-                        </h2>
-                        <RequestSummary summary={summary} />
-                    </section>
-                ) : (
-                    <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
-                )}
-
-                <SupportingDocuments caseId={detail.id} groups={documents} readOnly />
+                <div className="min-w-0">
+                    <Tabs tabs={tabs} active={tab} onSelect={setTab} label="Request sections" />
+                    <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="pt-4">
+                        {tab === 'request' &&
+                            (summary ? (
+                                <section aria-label="Your Request" className="space-y-4">
+                                    <RequestSummary summary={summary} />
+                                </section>
+                            ) : (
+                                <RequisitionView content={detail} isPharm={detail.procurement_type.category === 'PHARM'} />
+                            ))}
+                        {tab === 'documents' && <SupportingDocuments caseId={detail.id} groups={documents} readOnly embedded />}
+                    </div>
+                </div>
             </PageContent>
         </AppLayout>
     );
