@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/ui/date-picker';
 import { FIELD_GRID, FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
@@ -145,7 +146,16 @@ export function TextField({
             <label htmlFor={id} className={fieldLabelClass}>
                 {label}
             </label>
-            {suffix ? (
+            {type === 'date' ? (
+                <DatePicker
+                    id={id}
+                    value={value}
+                    onChange={onChange}
+                    invalid={Boolean(error)}
+                    required={optional === false}
+                    describedBy={describedBy(hint && hintId, error && errorId)}
+                />
+            ) : suffix ? (
                 <label className={inputClass(Boolean(error))}>
                     {control}
                     <span className="label">{suffix}</span>

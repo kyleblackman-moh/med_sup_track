@@ -1,4 +1,5 @@
 import { type AuditFilters, type AuditOptions, EMPTY_FILTERS } from '@/components/audit/types';
+import { DatePicker } from '@/components/ui/date-picker';
 import { CalendarRange, CircleAlert, Filter, Search, X } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 
@@ -166,28 +167,28 @@ export function AuditFiltersForm({ filters, options, errors, onApply }: Props) {
                             <label className={LABEL} htmlFor="audit-from">
                                 From
                             </label>
-                            <input
+                            <DatePicker
                                 id="audit-from"
-                                type="date"
-                                className="input input-sm w-full tabular-nums"
+                                size="sm"
+                                placeholder="Any date"
                                 value={draft.from}
                                 max={draft.to || undefined}
-                                onChange={(e) => set('from', e.target.value)}
-                                aria-invalid={invalid('from')}
+                                onChange={(next) => set('from', next)}
+                                invalid={Boolean(invalid('from'))}
                             />
                         </div>
                         <div className="grid gap-1">
                             <label className={LABEL} htmlFor="audit-to">
                                 To
                             </label>
-                            <input
+                            <DatePicker
                                 id="audit-to"
-                                type="date"
-                                className="input input-sm w-full tabular-nums"
+                                size="sm"
+                                placeholder="Any date"
                                 value={draft.to}
                                 min={draft.from || undefined}
-                                onChange={(e) => set('to', e.target.value)}
-                                aria-invalid={invalid('to')}
+                                onChange={(next) => set('to', next)}
+                                invalid={Boolean(invalid('to'))}
                             />
                         </div>
                     </div>
