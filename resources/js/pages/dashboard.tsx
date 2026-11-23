@@ -67,20 +67,28 @@ export default function Dashboard({ workQueue, header, queue, drafts, hardcopyLo
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-6">
-                <PageHeader
-                    className={RISE[0]}
-                    titleClassName="capitalize"
-                    title={header.title}
-                    subtitle={header.subtitle}
-                    actions={
-                        primary && (
-                            <Link href={primary.href} className={PRIMARY_ACTION}>
-                                <primary.icon className="size-4" aria-hidden="true" />
-                                {primary.title}
-                            </Link>
-                        )
-                    }
-                />
+                {/* The greeting in a card with daisyUI's aura (a light running round its border), in the theme's primary colour.
+                    Used once on the page; it stands still for users who prefer reduced motion. */}
+                <div className="aura text-primary block motion-reduce:animate-none">
+                    <div className="card bg-base-100 text-base-content">
+                        <div className="card-body p-4 lg:px-6">
+                            <PageHeader
+                                className={RISE[0]}
+                                titleClassName="capitalize"
+                                title={header.title}
+                                subtitle={header.subtitle}
+                                actions={
+                                    primary && (
+                                        <Link href={primary.href} className={PRIMARY_ACTION}>
+                                            <primary.icon className="size-4" aria-hidden="true" />
+                                            {primary.title}
+                                        </Link>
+                                    )
+                                }
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 {hardcopyLookup && (
                     <div className={RISE[1]}>
