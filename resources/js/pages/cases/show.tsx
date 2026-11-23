@@ -1,5 +1,6 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
 import { CaseTimeline } from '@/components/cases/case-timeline';
+import { CaseEndedAlert, EndCasePanel } from '@/components/cases/end-case';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
 import { QueriesPanel } from '@/components/cases/queries-panel';
@@ -14,6 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AssignmentEntry,
+    type CaseEnded,
     type EligibleReviewers,
     type GateState,
     type GrantedLine,
@@ -68,6 +70,8 @@ interface Props {
     route_panel: RoutePanel | null;
     letter: LetterRecord | null;
     letter_dates: { today: string } | null;
+    /** TERMINAL-1: how a withdrawn or rejected case ended; null otherwise. */
+    ended: CaseEnded | null;
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
     /** OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on. */
@@ -187,6 +191,7 @@ export default function CaseShow({
     route_panel,
     letter,
     letter_dates,
+    ended,
     summary,
     queries,
     can,
@@ -422,9 +427,19 @@ export default function CaseShow({
                                             </div>
                                         )}
 
+                                        {ended && <CaseEndedAlert ended={ended} />}
+
                                         <Card title="Gate" id="gate-heading" icon={ShieldCheck}>
                                             <GateTracker gate={gate} />
                                         </Card>
+
+                                        <EndCasePanel
+                                            caseId={detail.id}
+                                            reference={detail.reference_no}
+                                            organisation={detail.organisation}
+                                            canWithdraw={can.withdraw}
+                                            canReject={can.reject_final}
+                                        />
                                     </>
                                 )}
 

@@ -138,6 +138,23 @@ export interface StaffCaseAbilities {
     route_onward: boolean;
     issue_letter: boolean;
     close_case: boolean;
+    /** TERMINAL-1: withdraw (T15) and final rejection on the PS's instruction (T16). */
+    withdraw: boolean;
+    reject_final: boolean;
+}
+
+/** TERMINAL-1 (staff): how a withdrawn or rejected case ended; the server's `ended` prop. */
+export interface CaseEnded {
+    label: string;
+    by: string | null;
+    at: string | null;
+    at_label: string | null;
+    /** Internal: staff only. */
+    reason: string | null;
+    /** What the vendor sees (the server's "No further details provided." when none was given). */
+    vendor_message: string;
+    /** True for a final rejection; null for a withdrawal. */
+    on_ps_instruction: boolean | null;
 }
 
 export interface ReviewerOption {
