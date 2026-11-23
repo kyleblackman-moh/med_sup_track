@@ -44,7 +44,8 @@ it('lands each user on the page their permissions lead to', function (?string $r
     'cab officer' => [Role::CabOfficer->value, '/dashboard'],
     'legal officer' => [Role::LegalOfficer->value, '/dashboard'],
     'ps office' => [Role::PsOffice->value, '/dashboard'],
-    'system admin (neither)' => [Role::SystemAdmin->value, '/dashboard'],
+    // IT-ADMIN: admin.access + system.health.view and no case work: the IT health page.
+    'system admin' => [Role::SystemAdmin->value, '/admin'],
     'auditor (neither)' => [Role::Auditor->value, '/dashboard'],
     'no role (neither)' => [null, '/dashboard'],
 ]);
@@ -73,4 +74,16 @@ it('keeps the dashboard free of permission names', function () {
 
     expect($source)->not->toContain('auth.can')
         ->and($source)->not->toContain('permission}');
+});
+
+it('shares the IT Admin sidebar entries by permission', function () {
+    $admin = caseUser(Role::SystemAdmin);
+    $cmo = caseUser(Role::Cmo);
+    $tech = caseUser(Role::Technocrat);
+
+    $nav = fn ($user) => pageProps($this->actingAs($user)->get(route('profile.edit'))->assertOk())['nav'];
+
+    expect($nav($admin))->toMatchArray(['it_health' => true, 'audit' => true, 'audit_url' => '/admin/audit'])
+        ->and($nav($cmo))->toMatchArray(['it_health' => false, 'audit' => true, 'audit_url' => '/audit'])
+        ->and($nav($tech))->toMatchArray(['it_health' => false, 'audit' => false, 'audit_url' => null]);
 });

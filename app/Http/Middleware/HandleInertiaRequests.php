@@ -98,6 +98,8 @@ class HandleInertiaRequests extends Middleware
                 // IT-ADMIN: the IT health page (/admin) and the audit log. Show or hide only; the routes authorise.
                 'it_health' => $user !== null && $user->can(Permission::AdminAccess->value) && $user->can(Permission::SystemHealthView->value),
                 'audit' => $user !== null && $user->can(Permission::AuditView->value),
+                // IT-ADMIN: where the Audit item goes: the console's copy for console users, /audit for the CMO and Legal.
+                'audit_url' => self::auditUrl($user),
                 // ANALYTICS: the Analytics page. Same checks as the /analytics route.
                 'analytics' => $user !== null && ! $user->isVendor()
                     && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
@@ -157,7 +159,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The sidebar sections, by the first segment of the URL path. */
-    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'queries', 'admin'];
+    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'queries', 'admin', 'audit'];
 
     /** QUERIES-1: show the Queries item (display only; the route authorises itself). */
     public static function queriesNav(?User $user): bool
@@ -167,6 +169,18 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The section the current URL falls under (the path itself or anything below it), else null. */
+    /** IT-ADMIN: the audit log URL for the sidebar, or null without audit.view. Display only; the routes authorise. */
+    public static function auditUrl(?User $user): ?string
+    {
+        if ($user === null || ! $user->can(Permission::AuditView->value)) {
+            return null;
+        }
+
+        return $user->can(Permission::AdminAccess->value)
+            ? route('admin.audit.index', absolute: false)
+            : route('audit.index', absolute: false);
+    }
+
     public static function navSection(Request $request): ?string
     {
         $first = explode('/', trim($request->path(), '/'))[0];

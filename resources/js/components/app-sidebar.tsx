@@ -4,6 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Activity,
     ChartColumn,
     ClipboardList,
     FilePen,
@@ -13,6 +14,7 @@ import {
     Landmark,
     LayoutGrid,
     MessageSquareText,
+    ScrollText,
     UsersRound,
     X,
 } from 'lucide-react';
@@ -53,7 +55,18 @@ const cmoNavItems: NavItem[] = [
 ];
 
 // ADMIN-1: shown when the server shares nav.users.
-const adminNavItems: NavItem[] = [{ title: 'Users', url: '/admin/users', icon: UsersRound, section: 'admin' }];
+const usersNavItem: NavItem = { title: 'Users', url: '/admin/users', icon: UsersRound, section: 'admin' };
+
+/** The admin item whose path is the longest prefix of the page's path (so /admin/users/5 is Users, /admin/jobs is Health). */
+function longestPrefixItem(items: NavItem[], pageUrl: string): NavItem | undefined {
+    const path = new URL(pageUrl, window.location.origin).pathname;
+    return items
+        .filter((item) => {
+            const itemPath = new URL(item.url, window.location.origin).pathname;
+            return path === itemPath || path.startsWith(itemPath.endsWith('/') ? itemPath : `${itemPath}/`);
+        })
+        .sort((a, b) => b.url.length - a.url.length)[0];
+}
 
 /**
  * The drawer side's panel (Blueprint: drawer + menu w-full); the layout places
@@ -83,11 +96,17 @@ export function AppSidebar() {
         ...queriesItems,
     ];
     const showCmo = Boolean(nav?.cmo_office);
-    const adminItems = nav?.users ? adminNavItems : [];
+    // IT-ADMIN: Health (the console home) and Audit, each shown only when the server shares its flag.
+    const adminItems: NavItem[] = [
+        ...(nav?.it_health ? [{ title: 'Health', url: route('admin.dashboard'), icon: Activity }] : []),
+        ...(nav?.users ? [usersNavItem] : []),
+        ...(nav?.audit_url ? [{ title: 'Audit', url: nav.audit_url, icon: ScrollText }] : []),
+    ];
 
     const activeView = showCmo ? cmoNavItems.find((item) => isViewActive(item.url, page.url)) : undefined;
+    const activeAdmin = nav?.section === 'admin' || nav?.section === 'audit' ? longestPrefixItem(adminItems, page.url) : undefined;
     const activeUrl =
-        activeView?.url ?? [...navItems, ...adminItems].find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
+        activeView?.url ?? activeAdmin?.url ?? navItems.find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
 
     return (
         <aside className="bg-base-100 border-base-300 is-drawer-close:w-16 flex min-h-full w-64 flex-col border-r motion-safe:transition-[width] motion-safe:duration-200">

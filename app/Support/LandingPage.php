@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Where a user lands after login when there is no intended URL. Decided by the
  * same checks as the shared `can.requests` and `can.cases` flags
- * (HandleInertiaRequests): permissions and policy, never role names.
+ * (HandleInertiaRequests): permissions and policy, never role names. Console
+ * users without case work land on the IT health page (/admin).
  */
 final class LandingPage
 {
@@ -27,6 +28,11 @@ final class LandingPage
 
         if ($user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)) {
             return route('cases.index', absolute: false);
+        }
+
+        // IT-ADMIN: an account with the IT Admin console and no case work (the System Admin) starts on IT health.
+        if ($user !== null && $user->can(Permission::AdminAccess->value) && $user->can(Permission::SystemHealthView->value)) {
+            return route('admin.dashboard', absolute: false);
         }
 
         return route('dashboard', absolute: false);

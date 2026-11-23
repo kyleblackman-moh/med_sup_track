@@ -36,7 +36,18 @@ export interface SharedData {
     auth: Auth;
     can: { requests: boolean; cases: boolean };
     /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
-    nav: { cmo_office: boolean; users: boolean; analytics?: boolean; queries?: boolean; section: string | null };
+    nav: {
+        cmo_office: boolean;
+        users: boolean;
+        analytics?: boolean;
+        queries?: boolean;
+        /** IT-ADMIN: the IT health page (/admin). */
+        it_health?: boolean;
+        audit?: boolean;
+        /** IT-ADMIN: the audit log URL for this user (console or /audit), or null. */
+        audit_url?: string | null;
+        section: string | null;
+    };
     flash: { success: string | null; error: string | null; info: string | null };
     /** V2-4: the Ministry crest's URL once the file is supplied, else null (the sidebar shows the pill tile). */
     brand: { logo: string | null };
