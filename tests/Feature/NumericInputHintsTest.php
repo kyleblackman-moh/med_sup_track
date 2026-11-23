@@ -29,8 +29,11 @@ it('gives every number-like request field a numeric keyboard hint', function (st
 it('maps the cell kinds to inputmode, as a hint only', function () {
     $cells = file_get_contents(resource_path(AD_HOC_DIR.'entry-fields.tsx'));
 
+    // Since 7e15679 a date cell is the calendar picker; every other cell is a text input with the hint.
     expect($cells)->toContain("inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}")
-        ->and($cells)->toContain("type={kind === 'date' ? 'date' : 'text'}");
+        ->and($cells)->toContain("kind === 'date' ? (")
+        ->and($cells)->toContain('<DatePicker')
+        ->and($cells)->toContain('type="text"');
 });
 
 it('never uses type="number" or a client-side pattern on the request form', function () {
