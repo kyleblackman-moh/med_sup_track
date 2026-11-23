@@ -57,7 +57,9 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         waiters: ((ok: boolean) => void)[];
         /** Set by stop(): the draft is being deleted, so nothing more is saved. */
         stopped: boolean;
-    }>({ version: 0, savedVersion: 0, inFlight: false, lastStart: 0, timer: null, waiters: [], stopped: false });
+        /** Set by flush({ immediate: true }): the next save skips the MIN_GAP_MS wait (still one at a time). */
+        skipGap: boolean;
+    }>({ version: 0, savedVersion: 0, inFlight: false, lastStart: 0, timer: null, waiters: [], stopped: false, skipGap: false });
 
     const api = useRef<{ run: () => void; schedule: (ms: number) => void } | null>(null);
 
@@ -89,7 +91,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
 
                 return;
             }
-            const wait = e.lastStart + MIN_GAP_MS - Date.now();
+            const wait = e.skipGap ? 0 : e.lastStart + MIN_GAP_MS - Date.now();
             if (wait > 0) {
                 schedule(wait);
 
@@ -99,6 +101,7 @@ export function useAutosave({ url, payload, onSaved }: Options) {
             const sent = e.version;
             let ok = false;
             let invalid = false;
+            e.skipGap = false;
             e.inFlight = true;
             e.lastStart = Date.now();
             setStatus('saving');
@@ -184,14 +187,22 @@ export function useAutosave({ url, payload, onSaved }: Options) {
         api.current?.schedule(DEBOUNCE_MS);
     };
 
-    /** Save now (respecting the gap); resolves once everything changed so far is saved. */
-    const flush = () =>
+    /**
+     * Save now; resolves once everything changed so far is saved. Respects
+     * MIN_GAP_MS unless `immediate`: then the next save starts as soon as
+     * none is in flight (for an answer that changes which sections the
+     * server shows, such as the previous-request question).
+     */
+    const flush = (options: { immediate?: boolean } = {}) =>
         new Promise<boolean>((resolve) => {
             const e = engine.current;
             if (e.version === e.savedVersion && !e.inFlight) {
                 resolve(true);
 
                 return;
+            }
+            if (options.immediate) {
+                e.skipGap = true;
             }
             e.waiters.push(resolve);
             if (!e.inFlight) {

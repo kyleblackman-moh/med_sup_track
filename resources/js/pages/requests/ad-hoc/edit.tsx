@@ -197,7 +197,8 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
             }
             update((current) => ({ ...current, previousRequest: value }));
             // Save now, so the server shows or hides Details of Variation Requested straight away.
-            window.setTimeout(() => void autosave.flush(), 0);
+            // Immediate: without it the save waited out the 5-second gap after the last autosave.
+            window.setTimeout(() => void autosave.flush({ immediate: true }), 0);
         },
         setCell: (section, rowKey, name, value) =>
             updateRows(section, (rows) => rows.map((row) => (row.key === rowKey ? { ...row, values: { ...row.values, [name]: value } } : row))),
