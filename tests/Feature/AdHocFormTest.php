@@ -321,7 +321,7 @@ it('computes the AD_HOC figures on the server', function () {
         'quotations_received' => 2,
         'quotations_considered' => 1,
         'recommended_unit_price' => '1.5975',
-        'total_cost' => '4473.00',                          // 1.5975 x 2800
+        'total_cost' => '5032.13',                          // 2800 x 1.5975 = 4473.00, plus 12.5% VAT 559.13
         'price_change_vs_tender_percent' => '27.80',        // (1.5975 - 1.25) / 1.25
         'price_change_vs_previous_percent' => '6.50',       // (1.5975 - 1.50) / 1.50
     ])
@@ -368,8 +368,10 @@ it('computes each figure from the saved rows only, null when not computable', fu
     'no tender price' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'tender_price' => null]], 'price_change_vs_tender_percent', null],
     'zero previous price' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'previous_price' => '0']], 'price_change_vs_previous_percent', null],
     'price decrease' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'previous_price' => '2.1300']], 'price_change_vs_previous_percent', '-25.00'],
-    'two recommended: no total cost' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('C', '1.00', ['is_recommended' => true]), adHocQuoteRow('D', '2.00', ['is_recommended' => true])]], 'total_cost', null],
-    'no quantity to purchase: no total cost' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_to_purchase' => null]], 'total_cost', null],
+    // 2026-11-23: the total cost is the recommended rows' Total Price (2800 x price, plus 12.5% VAT), summed.
+    'two recommended: their totals summed' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('C', '1.00', ['is_recommended' => true]), adHocQuoteRow('D', '2.00', ['is_recommended' => true])]], 'total_cost', '9450.00'],
+    'no recommended row: no total cost' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('C', '1.00')]], 'total_cost', null],
+    'no unit price on the recommended row: no total cost' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('C', '1.00', ['is_recommended' => true, 'unit_price' => null])]], 'total_cost', null],
 ]);
 
 it('treats a blank quantity delivered as 0 for the quantity outstanding', function () {

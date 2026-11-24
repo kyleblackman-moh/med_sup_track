@@ -6,12 +6,14 @@ use App\Enums\PreviousPriceMaintained;
 use App\Enums\TechnicalStatus;
 use App\Models\Concerns\BelongsToCase;
 use App\Support\Decimal;
+use App\Support\QuotationPrice;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * One supplier quotation. Excluded quotations are kept. Totals are computed,
- * never stored; the VAT rate is per-row data, never a hard-coded rate.
+ * never stored. The old types' VAT rate is per-row data (vat_rate); the
+ * request form's rows use config('procurement.vat_rate') (QuotationPrice).
  */
 class CaseQuotation extends Model
 {
@@ -111,6 +113,30 @@ class CaseQuotation extends Model
         $vat = $this->recommendedVatAmount();
 
         return $vat === null ? null : Decimal::round2(Decimal::add($this->recommendedTotal(), $vat));
+    }
+
+    /** Kyle, 2026-11-23: the request form row's Subtotal (Quantity x Unit Price, 2 dp); null until both are entered. */
+    public function subtotal(): ?string
+    {
+        return $this->price()['subtotal'] ?? null;
+    }
+
+    /** The row's VAT at config('procurement.vat_rate'), on the rounded subtotal. */
+    public function vatAmount(): ?string
+    {
+        return $this->price()['vat'] ?? null;
+    }
+
+    /** Subtotal + VAT. */
+    public function totalPrice(): ?string
+    {
+        return $this->price()['total'] ?? null;
+    }
+
+    /** @return array{subtotal: string, vat: string, total: string}|null */
+    private function price(): ?array
+    {
+        return QuotationPrice::compute($this->quantity_offered, $this->unit_price);
     }
 
     private function lineTotal(?string $quantity): ?string

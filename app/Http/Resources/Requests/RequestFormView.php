@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Requests;
 
 use App\Models\CasePurchaseOrder;
+use App\Models\CaseQuotation;
 use App\Models\CaseStockExpiry;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
@@ -12,6 +13,7 @@ use App\Submissions\ReadinessReport;
 use App\Submissions\RequestSections;
 use App\Support\Decimal;
 use App\Support\Display;
+use App\Support\QuotationPrice;
 
 /**
  * Slice V2-2: the "form" prop of the request form. Additive; nothing here
@@ -107,6 +109,8 @@ final class RequestFormView
                 ? Display::EMPTY
                 : Display::money($awardTotals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
             'total_cost' => Display::money($case->totalCost()),
+            // 2026-11-23: the form's live Subtotal / VAT / Total use this rate (QuotationPrice; never hard-coded in React).
+            'vat_rate' => QuotationPrice::vatRate(),
             // V2-3: the price comparison's changes, with the sign added here (never in React).
             'price_change_vs_tender' => Display::percent($case->priceChangePercent($case->requisition?->tender_price)),
             'price_change_vs_previous' => Display::percent($case->priceChangePercent($case->requisition?->previous_price)),
@@ -119,6 +123,13 @@ final class RequestFormView
                 'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
                     'id' => $po->getKey(),
                     'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
+                ])->values()->all(),
+                // 2026-11-23: each saved quotation row's computed money, as saved.
+                'quotations' => $case->quotations->map(fn (CaseQuotation $q) => [
+                    'id' => $q->getKey(),
+                    'subtotal' => Display::money($q->subtotal()),
+                    'vat' => Display::money($q->vatAmount()),
+                    'total_price' => Display::money($q->totalPrice()),
                 ])->values()->all(),
                 'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $b) => [
                     'id' => $b->getKey(),

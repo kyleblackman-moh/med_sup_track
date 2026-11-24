@@ -259,13 +259,18 @@ class ProcurementCase extends Model
         return $recommended->count() === 1 ? $recommended->first() : null;
     }
 
-    /** Recommended unit price x quantity to purchase, 2 decimals; null if either is missing. */
+    /**
+     * Kyle, 2026-11-23: the recommended row(s)' Total Price (Subtotal + VAT,
+     * CaseQuotation::totalPrice), summed; null while no recommended row has one.
+     */
     public function totalCost(): ?string
     {
-        $price = $this->recommendedQuotation()?->unit_price;
-        $quantity = $this->requisition?->quantity_to_purchase;
+        $totals = $this->quotations
+            ->filter(fn (CaseQuotation $q) => $q->is_recommended)
+            ->map(fn (CaseQuotation $q) => $q->totalPrice())
+            ->filter(fn (?string $t) => $t !== null);
 
-        return $price === null || $quantity === null ? null : Decimal::round2(Decimal::mul($price, $quantity));
+        return $totals->isEmpty() ? null : Decimal::round2($totals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0'));
     }
 
     /**

@@ -178,7 +178,7 @@ it('formats the computed values on the server', function () {
     expect($display['stock_total'])->toBe('200.5')
         ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
         ->and($display['awards_total'])->toBe('$5,050.00')
-        ->and($display['total_cost'])->toBe('$4,473.00') // 1.5975 x 2800
+        ->and($display['total_cost'])->toBe('$5,032.13') // 2800 x 1.5975 = 4,473.00, plus 12.5% VAT 559.13
         // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
         ->and($display['price_change_vs_tender'])->toBe('27.80%')
         ->and($display['price_change_vs_previous'])->toBe('6.50%')
@@ -199,7 +199,7 @@ it('shows a dash for values that cannot be worked out yet', function () {
         ->and($display['days_on_hand'])->toBe(Display::EMPTY)
         ->and($display['awards_total'])->toBe(Display::EMPTY)
         ->and($display['total_cost'])->toBe(Display::EMPTY)
-        ->and($display['rows'])->toBe(['tender_awards' => [], 'purchase_orders' => [], 'stock_expiries' => []]);
+        ->and($display['rows'])->toBe(['tender_awards' => [], 'purchase_orders' => [], 'quotations' => [], 'stock_expiries' => []]);
 });
 
 it('formats quantities, money, percentages and dates as text', function () {

@@ -245,7 +245,7 @@ it('computes and formats every figure on the server', function () {
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',
             'Quantity to Purchase' => '2,800 Each',
-            'Total Cost' => '$4,473.00',
+            'Total Cost' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
             'Quoted Price Is Acceptable' => 'Yes',
         ])
         // 2026-11-23: the tender and previous price show for Tender Excess only.
