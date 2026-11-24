@@ -17,6 +17,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementType;
 use App\Notifications\Bell;
 use App\Submissions\ExpiryRisk;
+use App\Support\SqlLike;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -51,6 +52,8 @@ class StaffCaseController extends Controller
             'org' => ['nullable', 'string', 'max:26', Rule::exists('organisations', 'id')->where('type', OrganisationType::Vendor->value)],
             // Letters, digits, '-' and '/' only, so the LIKE pattern needs no escaping.
             'ref' => ['nullable', 'string', 'min:3', 'max:30', 'regex:/^[A-Za-z0-9\/-]+$/'],
+            // 2026-11-24: one search over reference, item and organisation (wildcards literal, SqlLike).
+            'q' => ['nullable', 'string', 'min:2', 'max:100'],
             'sort' => ['nullable', 'string', Rule::in(self::SORTS)],
             'dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
             // CAB view: in review with funding not yet confirmed.
@@ -87,6 +90,10 @@ class StaffCaseController extends Controller
             ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
             ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
             ->when($filters['ref'] ?? null, fn ($q, $v) => $q->where('cases.reference_no', 'like', "%{$v}%"))
+            ->when(trim((string) ($filters['q'] ?? '')) !== '' ? trim($filters['q']) : null, fn ($q, $v) => $q->where(fn ($w) => $w
+                ->whereRaw(...SqlLike::contains('cases.reference_no', $v))
+                ->orWhereHas('requisition', fn ($r) => $r->whereRaw(...SqlLike::contains('case_requisitions.item_description', $v)))
+                ->orWhereHas('organisation', fn ($o) => $o->whereRaw(...SqlLike::contains('organisations.name', $v)))))
             ->when(($filters['awaiting'] ?? null) === 'funding', fn ($q) => $q
                 ->where('cases.status', CaseStatus::IN_REVIEW->value)
                 ->whereIn('cases.funding_track', [TrackStatus::PENDING->value, TrackStatus::NOT_CONFIRMED->value, TrackStatus::QUERY_OPEN->value]))
@@ -113,6 +120,7 @@ class StaffCaseController extends Controller
                 'type' => isset($filters['type']) ? (string) $filters['type'] : '',
                 'org' => $filters['org'] ?? '',
                 'ref' => $filters['ref'] ?? '',
+                'q' => $filters['q'] ?? '',
                 'awaiting' => $filters['awaiting'] ?? '',
                 'sort' => $sort,
                 'dir' => $dir,
