@@ -58,7 +58,7 @@ it('seeds NOT_SELECTED as an inactive type with no category and no required file
     expect($type->name)->toBe('Not Selected')
         ->and($type->is_active)->toBeFalse()
         ->and($type->category)->toBeNull()
-        ->and($type->documents->pluck('purpose')->map(fn ($p) => $p->value)->all())->toBe(['bids', 'regulatory', 'evidence'])
+        ->and($type->documents->pluck('purpose')->map(fn ($p) => $p->value)->all())->toBe(['bids', 'regulatory', 'evidence', 'other_supporting'])
         ->and($type->documents->where('is_required', true)->count())->toBe(0)
         ->and(ProcurementTypeProfile::REQUEST_TYPES)->not->toContain('NOT_SELECTED');
 

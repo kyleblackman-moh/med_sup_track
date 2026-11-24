@@ -17,7 +17,7 @@ it('keeps the other item helpers', function (string $hint) {
     expect(itemTenderSource())->toContain("hint=\"{$hint}\"");
 })->with([
     'quantity requested' => ['In figures, for example 2800.'],
-    'DIN' => ['Letters and numbers only.'],
+    'DIN' => ['Exactly 8 digits, for example 02345678.'],
 ]);
 
 it('renders helper text as 13px muted text', function () {

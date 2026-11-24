@@ -47,7 +47,6 @@ export const REQUISITION_FIELDS = [
     'average_monthly_consumption',
     // 2026-11-23: no_stock_on_hand is set by the server from the batch total; never sent.
     'rfq_audience',
-    'quantity_to_purchase',
     'tender_price',
     'previous_price',
     'quoted_price_acceptable',

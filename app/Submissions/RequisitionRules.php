@@ -300,6 +300,8 @@ final class RequisitionRules
             // no_stock_on_hand is set by the server from the batch total (Kyle, 2026-11-23); never sent.
             // 4 Quotations
             'rfq_audience' => ['type' => 'enum', 'enum' => RfqAudience::class],
+            // Kyle, 2026-11-24: no longer on the form or checked; still accepted so an older
+            // payload (or the dev sample) saves. The column keeps its value.
             'quantity_to_purchase' => ['type' => 'qty'],
             // 5 Price comparison. Tender and previous price show for Tender Excess only
             // (RequestSections::HIDDEN_FIELDS) but are accepted for every type, so a draft

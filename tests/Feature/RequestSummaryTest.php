@@ -205,7 +205,7 @@ it('includes every V2-1 field', function () {
     expect(summaryFields($summary, 'request_type'))->toBe([
         'Request Type' => 'Ad Hoc - Tender Unable to Supply',
         'Tender Cycle Start' => '1 Jan 2026',
-        'Tender Cycle End' => '31 Dec 2027',
+        'Tender Cycle End' => '31 Oct 2026',
         RequestSummary::PREVIOUS_REQUEST_LABEL => 'No',
     ])
         ->and($item)->toMatchArray([
@@ -244,7 +244,6 @@ it('computes and formats every figure on the server', function () {
             'Quotations Considered' => '1',
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',
-            'Quantity to Purchase' => '2,800 Each',
             'Total Cost (incl. VAT)' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
             'Quoted Price Is Acceptable' => 'Yes',
         ])

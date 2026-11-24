@@ -46,6 +46,7 @@ function formDocuments(bool $bidsRequired): array
         ['bids', 'Bids', $bidsRequired],
         ['regulatory', 'Regulatory Documents', false],
         ['evidence', 'Evidence', false],
+        ['other_supporting', 'Additional Documents', false],
     ];
 }
 

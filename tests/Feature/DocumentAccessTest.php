@@ -122,6 +122,7 @@ it('lists the AD_HOC categories with label, hint and required flag', function ()
         ['bids', 'Bids', true, false],
         ['regulatory', 'Regulatory Documents', false, false],
         ['evidence', 'Evidence', false, false],
+        ['other_supporting', 'Additional Documents', false, false],
     ]);
     foreach ($props['documents'] as $group) {
         expect($group['hint'])->toBeString()->not->toBe('');
@@ -135,7 +136,7 @@ it('shows documents of a category the type no longer uses as read-only earlier u
 
     $groups = collect(editProps($this->actingAs($vendor)->get("/requests/{$case->id}/edit"))['documents'])->keyBy('purpose');
 
-    expect($groups->keys()->all())->toBe(['bids', 'regulatory', 'evidence', 'earlier'])
+    expect($groups->keys()->all())->toBe(['bids', 'regulatory', 'evidence', 'other_supporting', 'earlier'])
         ->and($groups['earlier'])->toMatchArray(['label' => 'Earlier Uploads', 'is_required' => false, 'read_only' => true])
         ->and(collect($groups['earlier']['documents'])->pluck('id')->all())->toBe([$earlier->id])
         ->and($groups['earlier']['documents'][0])->toMatchArray(['can_download' => true, 'can_replace' => false, 'can_withdraw' => false])

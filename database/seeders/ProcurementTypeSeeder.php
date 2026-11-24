@@ -66,6 +66,8 @@ class ProcurementTypeSeeder extends Seeder
             [D::bids, 'Bids', $bidsRequired, 'For example the RFQ, the comparison sheet and the supplier quotations.'],
             [D::regulatory, 'Regulatory Documents', false, 'For example registration and product specifications.'],
             [D::evidence, 'Evidence', false, 'For example stock and usage records, correspondence and sample reports.'],
+            // Kyle, 2026-11-24: a block for anything else the vendor wants to add.
+            [D::other_supporting, 'Additional Documents', false, 'Anything else that supports the request.'],
         ];
 
         return [

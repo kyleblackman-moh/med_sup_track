@@ -388,13 +388,13 @@ it('treats a blank quantity delivered as 0 for the quantity outstanding', functi
 
 // 6. Document categories -----------------------------------------------------------
 
-it('accepts AD_HOC uploads in the bids, regulatory and evidence categories', function (DocumentPurpose $purpose) {
+it('accepts AD_HOC uploads in the bids, regulatory, evidence and additional categories', function (DocumentPurpose $purpose) {
     [$case, $vendor] = newDraft();
 
     $document = app(DocumentUploadService::class)->store($case, $vendor, $purpose, upload('file.pdf', pdfBytes()));
 
     expect($document->purpose)->toBe($purpose);
-})->with([DocumentPurpose::bids, DocumentPurpose::regulatory, DocumentPurpose::evidence]);
+})->with([DocumentPurpose::bids, DocumentPurpose::regulatory, DocumentPurpose::evidence, DocumentPurpose::other_supporting]);
 
 it('accepts several files in one category, one request each', function () {
     [$case, $vendor] = newDraft();
@@ -427,7 +427,7 @@ it('refuses the old categories for AD_HOC', function (DocumentPurpose $purpose) 
 
     expect(fn () => app(DocumentUploadService::class)->store($case, $vendor, $purpose, upload('file.pdf', pdfBytes())))
         ->toThrow(ValidationException::class, 'This document is not part of this type of request.');
-})->with([DocumentPurpose::original_rfq, DocumentPurpose::signed_request, DocumentPurpose::other_supporting]);
+})->with([DocumentPurpose::original_rfq, DocumentPurpose::signed_request]);
 
 it('refuses the new categories for an old type', function () {
     [$case, $vendor] = legacyDraft('AD_HOC_PHARM');

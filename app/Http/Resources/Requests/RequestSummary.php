@@ -272,7 +272,6 @@ final class RequestSummary
                 'Quotations Considered' => (string) $case->quotationsConsidered(),
                 'Recommended Quotation' => Display::text($recommended?->supplier_name),
                 'Recommended Unit Price' => Display::price($recommended?->unit_price),
-                'Quantity to Purchase' => self::withUnit(Display::quantity($r?->quantity_to_purchase), $unit),
                 // v0.4: the recommended quotations' Total Price, which includes VAT.
                 'Total Cost (incl. VAT)' => Display::money($case->totalCost()),
             ]),

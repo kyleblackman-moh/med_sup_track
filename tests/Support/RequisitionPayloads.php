@@ -130,7 +130,7 @@ function adHocPayload(): array
             'tender_issue_explanation' => 'The awarded supplier delivered part of the order only.',
             // Slice V2-1. The tender outcome is no longer read (not sent).
             'tender_cycle_start' => '2026-01-01',
-            'tender_cycle_end' => '2027-12-31',
+            'tender_cycle_end' => '2026-10-31',
             'quantity_on_order' => '1800',
             'stock_location' => 'Central stores',
             'average_monthly_consumption' => '500',

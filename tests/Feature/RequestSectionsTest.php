@@ -190,7 +190,6 @@ dataset('requirements', [
     // 2026-11-23: no "a batch or no stock" item: a batch total of 0 is no stock on hand (FormRulesTest).
     'a quotation' => ['quotes', fn ($p) => [...$p, 'quotations' => []], true, true, ['quotations', 'quotations.recommended'], 'quotation_comparison'],
     'a recommended quotation' => ['quotes', fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier D', '1.5975')]], true, true, ['quotations.recommended'], 'quotation_comparison'],
-    'quantity to purchase' => ['quotes', fn ($p) => withRequisition($p, ['quantity_to_purchase' => null]), true, true, ['requisition.quantity_to_purchase'], 'quotation_comparison'],
     // V2-5: every type, once the answer is Yes.
     'variation details' => [null, fn ($p) => [...$p, 'previous_request_in_cycle' => true], false, true, ['variation_rows'], 'variation_details'],
     'Bids file' => ['bids', null, true, false, ['documents.bids'], 'documents'],
@@ -299,7 +298,7 @@ it('saves and returns the new V2-1 fields', function () {
     $detail = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['case'];
 
     expect($detail['requisition'])->toMatchArray([
-        'tender_cycle_start' => '2026-01-01', 'tender_cycle_end' => '2027-12-31', 'quantity_on_order' => '1800.00',
+        'tender_cycle_start' => '2026-01-01', 'tender_cycle_end' => '2026-10-31', 'quantity_on_order' => '1800.00',
         'tender_reference' => 'TENDER-2026-14 (2026-2027)',
     ])
         ->and($detail['tender_awards'][0]['country_of_origin'])->toBe('Country A')
@@ -313,7 +312,7 @@ it('saves and returns the new V2-1 fields', function () {
     app(SubmitCase::class)->handle($case, $vendor);
     $staff = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk())['case'];
     expect(collect($staff['variation_rows'])->map(fn ($r) => Arr::except($r, 'id'))->all())->toBe([variationEntry()])
-        ->and($staff['requisition']['tender_cycle_end'])->toBe('2027-12-31');
+        ->and($staff['requisition']['tender_cycle_end'])->toBe('2026-10-31');
 });
 
 // 5. ChangeRequestType ----------------------------------------------------------------

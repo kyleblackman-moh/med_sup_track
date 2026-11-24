@@ -288,12 +288,11 @@ class DevSampleCase extends Command
                 'unit_of_measure' => 'Each',
                 'tender_reference' => 'DEV-TENDER',
                 'tender_cycle_start' => $today->subYear()->startOfMonth()->toDateString(),
-                'tender_cycle_end' => $today->addYear()->endOfMonth()->toDateString(),
+                'tender_cycle_end' => $today->toDateString(), // no cycle date in the future (2026-11-24)
                 'tender_issue_explanation' => 'Dev sample: the awarded supplier delivered part of the order only.',
                 'stock_location' => 'Central stores',
                 'average_monthly_consumption' => '500',
                 'rfq_audience' => 'ALL_REGISTERED',
-                'quantity_to_purchase' => '2800',
             ],
             'tender_awards' => [
                 ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '0.6500'],

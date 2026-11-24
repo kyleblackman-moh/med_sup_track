@@ -181,8 +181,6 @@ final class RequestSections
     /* Kyle, 2026-11-23: the quantity and date rules. ":n" and ":x" are filled with display quantities. */
     public const QUANTITY_OVER_REQUESTED = 'Quantity cannot be more than the quantity requested (:n).';
 
-    public const TOTAL_OVER_REQUESTED = 'Total quantity (:x) is more than the quantity requested (:n).';
-
     public const ORDERED_IN_FUTURE = 'Date ordered must be today or earlier.';
 
     public const DELIVERED_OVER_ORDERED = 'Quantity delivered cannot be more than quantity ordered.';
@@ -208,10 +206,10 @@ final class RequestSections
 
     public const CYCLE_END_BEFORE_START = 'The tender cycle end cannot be before its start.';
 
-    /** Kyle, 2026-11-24: the tender cycle must include today (Port of Spain). */
+    /** Kyle, 2026-11-24: neither date of the tender cycle may be in the future (Port of Spain). */
     public const CYCLE_START_AFTER_TODAY = 'The tender cycle cannot start after today.';
 
-    public const CYCLE_END_BEFORE_TODAY = 'The tender cycle cannot end before today.';
+    public const CYCLE_END_AFTER_TODAY = 'The tender cycle end cannot be in the future.';
 
     /**
      * The sections a type shows, in form order, with whether each is optional
@@ -309,7 +307,7 @@ final class RequestSections
                 ...$rows('quotations', ['supplier_name', 'quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks']),
                 // Asked only on a row that was not considered, and then required.
                 'quotations.reason_accepted_excluded' => true,
-                'quantity_to_purchase' => $byType('quotations'),
+                // Kyle, 2026-11-24: Quantity to Purchase is no longer on the form.
                 // Kyle, 2026-11-23: Tender Excess only; left out of the map where hidden.
                 ...array_fill_keys(array_values(array_diff(['tender_price', 'previous_price'], self::hiddenFields($code))), false),
                 'price_note' => false,
@@ -418,7 +416,7 @@ final class RequestSections
             'stock' => $case->stockExpiries->isNotEmpty()
                 || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_order']),
             'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
-                'rfq_audience', 'quantity_to_purchase', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
+                'rfq_audience', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
             ]),
             'documents' => Document::withoutGlobalScopes()->current()
                 ->where('case_id', $case->getKey())
@@ -498,7 +496,7 @@ final class RequestSections
     /** V2-5: the tender cycle and the previous-request answer, required for every type. */
     private function requestType(CaseRequisition $r, ?bool $previousRequest, callable $add): void
     {
-        // Kyle, 2026-11-24: the cycle must include today, so the start is not after it and the end not before it.
+        // Kyle, 2026-11-24: no date of the cycle in the future (the end is today at the latest).
         $today = CarbonImmutable::now('America/Port_of_Spain')->toDateString();
 
         if ($r->tender_cycle_start === null) {
@@ -511,8 +509,8 @@ final class RequestSections
             $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
         } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
             $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
-        } elseif ($r->tender_cycle_end->toDateString() < $today) {
-            $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_TODAY);
+        } elseif ($r->tender_cycle_end->toDateString() > $today) {
+            $add('requisition.tender_cycle_end', self::CYCLE_END_AFTER_TODAY);
         }
 
         if ($previousRequest === null) {
@@ -637,19 +635,12 @@ final class RequestSections
             $add('quotations.recommended', self::RECOMMEND_ONE);
         }
 
-        if ($required && ($r->quantity_to_purchase === null || Decimal::compare($r->quantity_to_purchase, '0') <= 0)) {
-            $add('requisition.quantity_to_purchase', 'Enter a quantity to purchase greater than zero.');
-        }
-
-        // Kyle, 2026-11-23: no quotation row, and not the total being purchased (the
-        // quantity to purchase), may be above the quantity requested. Quotation
-        // comparison only: award quantities are tender quantities and may exceed it.
+        // Kyle, 2026-11-23: no quotation row may be above the quantity requested.
+        // Quotation comparison only: award quantities are tender quantities and may
+        // exceed it. (2026-11-24: Quantity to Purchase left the form, and its checks.)
         $requested = $r->quantity_requested;
         if ($requested !== null && Decimal::compare($requested, '0') > 0) {
             $n = Display::quantity($requested);
-            if ($r->quantity_to_purchase !== null && Decimal::compare($r->quantity_to_purchase, $requested) > 0) {
-                $add('requisition.quantity_to_purchase', strtr(self::TOTAL_OVER_REQUESTED, [':x' => Display::quantity($r->quantity_to_purchase), ':n' => $n]));
-            }
             foreach ($quotations as $i => $q) {
                 if ($q->quantity_offered !== null && Decimal::compare($q->quantity_offered, $requested) > 0) {
                     $add("quotations.{$i}.quantity_offered", RequisitionMessages::rowLabel('quotations', (int) $i).': '.strtr(self::QUANTITY_OVER_REQUESTED, [':n' => $n]));

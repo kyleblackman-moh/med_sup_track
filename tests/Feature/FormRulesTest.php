@@ -82,19 +82,10 @@ it('accepts a quotation row quantity equal to the quantity requested', function 
     expect(frErrors($case))->not->toHaveKey('quotations.0.quantity_offered')->not->toHaveKey('quotations.1.quantity_offered');
 });
 
-it('refuses a total quantity to purchase above the quantity requested', function () {
+// Kyle, 2026-11-24: Quantity to Purchase left the form; it is never checked now.
+it('does not check the quantity to purchase', function () {
     [$case] = frDraft(mutate: function ($p) {
         $p['requisition']['quantity_to_purchase'] = '3000';
-
-        return $p;
-    });
-
-    expect(frErrors($case))->toHaveKey('requisition.quantity_to_purchase', 'Total quantity (3,000) is more than the quantity requested (2,800).');
-});
-
-it('accepts a total quantity to purchase within the quantity requested', function () {
-    [$case] = frDraft(mutate: function ($p) {
-        $p['requisition']['quantity_to_purchase'] = '1500';
 
         return $p;
     });
@@ -345,12 +336,12 @@ it('keeps hidden prices in the draft and clears them at submit, auditing names o
 
 it('refuses to submit while any of these rules fails, and submits once it is fixed', function () {
     [$case, $vendor] = readyDraft();
-    saveDraft($case, $vendor, ['requisition' => ['quantity_to_purchase' => '9999']]);
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_end' => CarbonImmutable::now('America/Port_of_Spain')->addDay()->toDateString()]]);
 
     expect(fn () => app(SubmitCase::class)->handle($case, $vendor))->toThrow(SubmissionNotReady::class)
         ->and(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->status)->toBe(CaseStatus::DRAFT);
 
-    saveDraft($case, $vendor, ['requisition' => ['quantity_to_purchase' => '2800']]);
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_end' => '2026-10-31']]);
     app(SubmitCase::class)->handle($case, $vendor);
 
     expect(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->status)->toBe(CaseStatus::SUBMITTED);

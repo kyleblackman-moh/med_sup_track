@@ -3,7 +3,7 @@ import { RowErrorList } from '@/components/ui/entry-table';
 import { quotationPrice } from '@/lib/quotation-price';
 import { type ReactNode } from 'react';
 import { collectRowErrors, EntryInlineCheck } from './entry-fields';
-import { FieldGrid, FieldHint, Figure, GridRow, inputClass, RadioGroupField, TableError, TextAreaField, TextField } from './fields';
+import { FieldGrid, FieldHint, Figure, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -76,7 +76,6 @@ function money(amount: string): string {
  */
 export function QuotationSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
-    const unit = text(state.requisition.unit_of_measure).trim();
     const rows = state.rows.quotations;
     const optional = (name: string) => api.optional('quotation_comparison', name);
     const cap = config.row_caps.quotations;
@@ -286,17 +285,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                 </div>
             </GridRow>
 
-            <TextField
-                width="xs"
-                id={fieldId.requisition('quantity_to_purchase')}
-                label="Quantity to Purchase"
-                optional={optional('quantity_to_purchase')}
-                inputMode="decimal"
-                value={text(state.requisition.quantity_to_purchase)}
-                onChange={(value) => api.setField('quantity_to_purchase', value)}
-                error={api.fieldError('quantity_to_purchase')}
-                suffix={unit || undefined}
-            />
             <GridRow width="md">
                 <dl>
                     <Figure width="full" label="Total Cost (Recommended Quotation, incl. VAT)" value={form.display.total_cost} />

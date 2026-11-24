@@ -131,7 +131,7 @@ it('blocks the type-dependent sections of a draft with no type chosen', function
         // Nothing type-dependent is optional until the type is chosen.
         ->and($sections['item_tender']['required']['tender_reference'])->toBeTrue()
         ->and($sections['stock']['required']['average_monthly_consumption'])->toBeTrue()
-        ->and($sections['quotation_comparison']['required']['quantity_to_purchase'])->toBeTrue();
+        ->and($sections['quotation_comparison']['required'])->not->toHaveKey('quantity_to_purchase');
 });
 
 // 2. Required flags ---------------------------------------------------------------------
@@ -152,7 +152,7 @@ it('sends the field-level required flags of each type from the section rules', f
         ->and($sections['stock']['required']['average_monthly_consumption'])->toBe($r['stock'])
         ->and($sections['stock']['required']['stock_location'])->toBeFalse()
         ->and($sections['stock']['required']['quantity_on_order'])->toBeFalse()
-        ->and($sections['quotation_comparison']['required']['quantity_to_purchase'])->toBe($r['quotes'])
+        ->and($sections['quotation_comparison']['required'])->not->toHaveKey('quantity_to_purchase')
         ->and($sections['quotation_comparison']['required']['rfq_audience'])->toBeFalse()
         // A row that is entered must be complete, whatever the type.
         ->and($sections['awarded_supplier']['required'])->toBe([

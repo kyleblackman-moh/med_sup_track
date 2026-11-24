@@ -95,7 +95,7 @@ it('completes section 1 only when a type is chosen, the cycle is valid and the q
     saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => '2026-06-01', 'tender_cycle_end' => '2026-05-01']]);
     expect(requestTypeIssues($case))->toBe(['requisition.tender_cycle_end', 'previous_request_in_cycle']);
 
-    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_end' => '2027-05-31'], 'previous_request_in_cycle' => false]);
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_end' => '2026-10-31'], 'previous_request_in_cycle' => false]);
     expect(requestTypeIssues($case))->toBe([]);
 
     $form = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['form'];
@@ -104,7 +104,7 @@ it('completes section 1 only when a type is chosen, the cycle is valid and the q
     ]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('requires the tender cycle to include today (Port of Spain)', function () {
+it('refuses a tender cycle date in the future (Port of Spain)', function () {
     [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
     $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
     $messages = function () use ($case): array {
@@ -113,19 +113,21 @@ it('requires the tender cycle to include today (Port of Spain)', function () {
         return collect($errors)->filter(fn ($e) => str_starts_with($e['key'], 'requisition.tender_cycle'))->pluck('message', 'key')->all();
     };
 
-    // Starts tomorrow: not yet the current cycle.
-    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->addDay()->toDateString(), 'tender_cycle_end' => $today->addYear()->toDateString()]]);
+    // Starts tomorrow.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->addDay()->toDateString(), 'tender_cycle_end' => $today->addDays(2)->toDateString()]]);
     expect($messages())->toBe(['requisition.tender_cycle_start' => RequestSections::CYCLE_START_AFTER_TODAY]);
 
-    // Ended yesterday: a past cycle.
-    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->subYear()->toDateString(), 'tender_cycle_end' => $today->subDay()->toDateString()]]);
-    expect($messages())->toBe(['requisition.tender_cycle_end' => RequestSections::CYCLE_END_BEFORE_TODAY]);
+    // Started in the past but ends tomorrow.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->subYear()->toDateString(), 'tender_cycle_end' => $today->addDay()->toDateString()]]);
+    expect($messages())->toBe(['requisition.tender_cycle_end' => RequestSections::CYCLE_END_AFTER_TODAY]);
 
-    // Starting and ending today counts.
+    // A past cycle, and one ending today, both count.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->subYear()->toDateString(), 'tender_cycle_end' => $today->subMonth()->toDateString()]]);
+    expect($messages())->toBe([]);
     saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->toDateString(), 'tender_cycle_end' => $today->toDateString()]]);
     expect($messages())->toBe([])
         ->and(RequestSections::CYCLE_START_AFTER_TODAY)->toBe('The tender cycle cannot start after today.')
-        ->and(RequestSections::CYCLE_END_BEFORE_TODAY)->toBe('The tender cycle cannot end before today.');
+        ->and(RequestSections::CYCLE_END_AFTER_TODAY)->toBe('The tender cycle end cannot be in the future.');
 });
 
 it('keeps section 1 incomplete while no type is chosen', function () {
@@ -133,7 +135,7 @@ it('keeps section 1 incomplete while no type is chosen', function () {
     $this->actingAs($vendor)->post(route('requests.store'))->assertRedirect();
     $case = ProcurementCase::withoutGlobalScopes()->where('created_by', $vendor->id)->latest('created_at')->firstOrFail();
     saveDraft($case, $vendor, [
-        'requisition' => ['tender_cycle_start' => '2026-01-01', 'tender_cycle_end' => '2026-12-31'],
+        'requisition' => ['tender_cycle_start' => '2026-01-01', 'tender_cycle_end' => '2026-10-31'],
         'previous_request_in_cycle' => false,
     ]);
 
