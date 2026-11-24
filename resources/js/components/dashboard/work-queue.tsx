@@ -1,3 +1,4 @@
+import { ExpiryFlag } from '@/components/cases/expiry-flag';
 import { DataTable, DataTableCell, DataTableHeaderCell, DataTableRow, dataTableRefClass } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterChips, type FilterChip } from '@/components/ui/filter-chips';
@@ -5,7 +6,7 @@ import { StatusPill, TONE_CLASSES } from '@/components/ui/status-pill';
 import { useLiveSearch } from '@/hooks/use-live-search';
 import { rowLink } from '@/lib/row-link';
 import { cn } from '@/lib/utils';
-import { type StatusTone } from '@/types/cases';
+import { type ExpiryFlag as ExpiryFlagData, type StatusTone } from '@/types/cases';
 import { Link } from '@inertiajs/react';
 import { ArrowRight, FileClock, Inbox, Search, Siren, Undo2, type LucideIcon } from 'lucide-react';
 
@@ -22,6 +23,8 @@ export interface WorkQueueItem {
     status_tone: StatusTone;
     waiting_since: string | null;
     days_waiting: number | null;
+    /** Kyle, 2026-11-24: stock may expire before use; null when there is nothing to flag. */
+    expiry_flag?: ExpiryFlagData | null;
 }
 
 export interface WorkQueueData {
@@ -99,6 +102,7 @@ function RowMeta({ item }: { item: QueueRow }) {
             {item.tags.map((tag) => (
                 <Tag key={tag.key} tag={tag} />
             ))}
+            <ExpiryFlag flag={item.expiry_flag} />
             <span className="truncate">{[item.type_label, item.organisation].filter(Boolean).join(' · ') || '—'}</span>
         </span>
     );

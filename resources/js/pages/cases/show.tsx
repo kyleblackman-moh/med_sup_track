@@ -1,6 +1,7 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { CaseEndedAlert, EndCasePanel } from '@/components/cases/end-case';
+import { ExpiryFlag } from '@/components/cases/expiry-flag';
 import { FileJourney } from '@/components/cases/file-journey';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
@@ -347,6 +348,7 @@ export default function CaseShow({
                             )}
                         </div>
                         {title !== detail.reference_no && <p className="text-base-content/70 mt-1 text-sm">{detail.reference_no}</p>}
+                        <ExpiryFlag flag={detail.expiry_flag} variant="alert" className="mt-3" />
                         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3 xl:grid-cols-6">
                             {facts.map(([label, value, mono]) => (
                                 <div key={label} className="min-w-0">

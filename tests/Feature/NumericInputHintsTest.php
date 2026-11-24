@@ -22,7 +22,8 @@ it('gives every number-like request field a numeric keyboard hint', function (st
     'Unit Cost' => ['awarded-supplier-section.tsx', "/input\\('unit_cost', 'decimal'\\)/"],
     'Quantity Ordered' => ['existing-arrangement-section.tsx', "/input\\('quantity_ordered', 'decimal'\\)/"],
     'Quantity Delivered' => ['existing-arrangement-section.tsx', "/input\\('quantity_delivered', 'decimal'\\)/"],
-    'Batch Quantity' => ['stock-section.tsx', "/kind=\\{column\\.key === 'expiry_date' \\? 'date' : 'decimal'\\}/"],
+    'Quantity on Hand' => ['stock-section.tsx', "/field\\('quantity_on_hand'\\)\\}[^>]*inputMode=\"decimal\"/s"],
+    '% Awarded' => ['awarded-supplier-section.tsx', "/input\\('percentage_awarded', 'decimal'\\)/"],
 ]);
 
 it('maps the cell kinds to inputmode, as a hint only', function () {

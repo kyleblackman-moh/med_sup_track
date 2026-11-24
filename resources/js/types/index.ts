@@ -43,6 +43,9 @@ export interface SharedData {
         users: boolean;
         analytics?: boolean;
         queries?: boolean;
+        /** 2026-11-24: the Cases and File Tracking items (same checks as their routes). */
+        cases?: boolean;
+        tracking?: boolean;
         /** IT-ADMIN: the IT health page (/admin). */
         it_health?: boolean;
         audit?: boolean;

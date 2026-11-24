@@ -10,37 +10,30 @@ import { PriceSection } from './price-section';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
- * Kyle, 2026-11-24: each quotation is one supplier block, a small table. The
- * header holds the Supplier, Considered, Recommended and remove; under it three
- * table lines, each a row of column headers over a row of fields:
- *   Quantity | Unit Price | Subtotal | VAT | Total Price
- *   Ex Stock | Lead Time (Days) | Brand
- *   Manufacturer | Country of Origin | Remarks
- * Subtotal, VAT and Total Price are worked out live. The layout is EntrySheet
- * (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
+ * Kyle, 2026-11-24 (second pass): each quotation is one supplier block, a
+ * small table. The header holds the Supplier, Considered, Recommended and
+ * remove; under it two table lines, each a row of column headers over a row of
+ * fields, the short numbers in narrow cells (spans of the 15 tracks):
+ *   Quantity | Unit Price | Ex Stock | Lead Time (Days) | Brand
+ *   Manufacturer | Country of Origin | Remarks (the widest)
+ * then Subtotal, VAT and Total Price under the table like a total, worked out
+ * live. The layout is EntrySheet (components/ui/entry-sheet.tsx); the test
+ * reads SHEET_LINES.
  */
-const SHEET_LINES: { key: string; label: string }[][] = [
+const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
-        { key: 'quantity_offered', label: 'Quantity' },
-        { key: 'unit_price', label: 'Unit Price' },
-        { key: 'subtotal', label: 'Subtotal' },
-        { key: 'vat', label: 'VAT' },
-        { key: 'total_price', label: 'Total Price' },
+        { key: 'quantity_offered', label: 'Quantity', span: 2 },
+        { key: 'unit_price', label: 'Unit Price', span: 2 },
+        { key: 'quantity_available_now', label: 'Ex Stock', span: 2 },
+        { key: 'lead_time_days', label: 'Lead Time (Days)', span: 3 },
+        { key: 'brand', label: 'Brand', span: 6 },
     ],
     [
-        { key: 'quantity_available_now', label: 'Ex Stock' },
-        { key: 'lead_time_days', label: 'Lead Time (Days)' },
-        { key: 'brand', label: 'Brand' },
-    ],
-    [
-        { key: 'manufacturer', label: 'Manufacturer' },
-        { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'remarks', label: 'Remarks' },
+        { key: 'manufacturer', label: 'Manufacturer', span: 4 },
+        { key: 'country_of_origin', label: 'Country of Origin', span: 4 },
+        { key: 'remarks', label: 'Remarks', span: 7 },
     ],
 ];
-
-/** The worked-out cells: a figure, not a field. */
-const COMPUTED = ['subtotal', 'vat', 'total_price'];
 
 /** Every message of an entry in one list under it, in the order the block shows the fields. */
 const ERROR_ORDER = [
@@ -134,14 +127,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     />
                                 );
                             };
-                            const figure = (label: string, value: string) => (
-                                <span className="text-base-content px-1 text-sm font-semibold tabular-nums">
-                                    <span className="sr-only">
-                                        {label}, {rowLabel}:{' '}
-                                    </span>
-                                    {value}
-                                </span>
-                            );
                             const considered = row.values.considered === true;
                             const recommended = row.values.is_recommended === true;
                             // Kyle, 2026-11-24: Considered OR Recommended, never both ticked. Recommended is stored as
@@ -153,9 +138,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             const cells: Record<string, ReactNode> = {
                                 quantity_offered: input('quantity_offered', 'decimal'),
                                 unit_price: input('unit_price', 'decimal'),
-                                subtotal: figure('Subtotal', price ? money(price.subtotal) : '—'),
-                                vat: figure('VAT', price ? money(price.vat) : '—'),
-                                total_price: figure('Total Price', price ? money(price.total) : '—'),
                                 quantity_available_now: input('quantity_available_now', 'decimal'),
                                 lead_time_days: input('lead_time_days', 'integer'),
                                 brand: input('brand', 'text', 200),
@@ -242,10 +224,31 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     lines={SHEET_LINES.map((line) =>
                                         line.map((column) => ({
                                             ...column,
-                                            htmlFor: COMPUTED.includes(column.key) ? undefined : id(column.key),
+                                            htmlFor: id(column.key),
                                             content: cells[column.key],
                                         })),
                                     )}
+                                    foot={
+                                        // Worked out live, under the table like a total.
+                                        <dl
+                                            aria-label={`Totals, ${rowLabel}`}
+                                            className="flex flex-wrap items-baseline justify-end gap-x-6 gap-y-1 px-1 text-sm"
+                                        >
+                                            {[
+                                                ['Subtotal', price ? money(price.subtotal) : '—'],
+                                                ['VAT', price ? money(price.vat) : '—'],
+                                            ].map(([label, value]) => (
+                                                <div key={label} className="flex items-baseline gap-2">
+                                                    <dt className="text-base-content/70 capitalize">{label}</dt>
+                                                    <dd className="tabular-nums">{value}</dd>
+                                                </div>
+                                            ))}
+                                            <div className="border-base-300 flex items-baseline gap-2 border-s ps-6">
+                                                <dt className="font-semibold capitalize">Total Price</dt>
+                                                <dd className="font-semibold tabular-nums">{price ? money(price.total) : '—'}</dd>
+                                            </div>
+                                        </dl>
+                                    }
                                     below={
                                         (!considered || errors.length > 0) && (
                                             <>

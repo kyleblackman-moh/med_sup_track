@@ -1,3 +1,4 @@
+import { ExpiryFlag } from '@/components/cases/expiry-flag';
 import { JoinPagination } from '@/components/ui/join-pagination';
 import { StatusPill } from '@/components/ui/status-pill';
 import { rowLink } from '@/lib/row-link';
@@ -135,8 +136,9 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                   </Link>
                                               </td>
                                               <td className="whitespace-nowrap">{typeLabel(row.procurement_type)}</td>
-                                              <td className="max-w-0 truncate" title={row.item_description ?? undefined}>
-                                                  {row.item_description ?? '—'}
+                                              <td className="max-w-0" title={row.item_description ?? undefined}>
+                                                  <span className="block truncate">{row.item_description ?? '—'}</span>
+                                                  <ExpiryFlag flag={row.expiry_flag} className="mt-1" />
                                               </td>
                                               {showOrganisation && <td className="whitespace-nowrap max-lg:hidden">{row.organisation ?? '—'}</td>}
                                               <td className="whitespace-nowrap">
@@ -175,6 +177,7 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                               {row.reference_no ?? '—'}
                                           </Link>
                                           <span className="block truncate text-sm">{row.item_description ?? '—'}</span>
+                                          <ExpiryFlag flag={row.expiry_flag} />
                                           <span className="text-base-content/70 block text-xs">
                                               {row.holder_label ?? '—'} ·{' '}
                                               <span className="tabular-nums">

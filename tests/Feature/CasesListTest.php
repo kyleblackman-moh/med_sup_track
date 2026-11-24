@@ -95,14 +95,14 @@ it('scopes the list per role', function () {
         ->and(clIds(caseUser(Role::CabOfficer), ['org' => $org->id]))->toBe([]);
 });
 
-it('never lists a vendor draft for staff, through any filter or the Drafts shortcut', function () {
+it('never lists a vendor draft for staff, through any filter or the Awaiting Letter shortcut', function () {
     $org = vendorOrg();
     $draft = clCase($org, CaseStatus::DRAFT, 'Draft feeding tube');
     $cmo = caseUser(Role::Cmo);
 
     expect(clIds($cmo, ['org' => $org->id]))->not->toContain($draft->id)
         ->and(clIds($cmo, ['q' => 'Draft feeding tube']))->not->toContain($draft->id)
-        // The sidebar's "Drafts" item is this saved view: non-objection granted, not drafts.
+        // The sidebar's "Awaiting Letter" item is this saved view: non-objection granted, not drafts.
         ->and(clIds($cmo, ['status' => 'NON_OBJECTION_GRANTED', 'org' => $org->id]))->not->toContain($draft->id);
     $this->actingAs($cmo)->get(route('cases.index', ['status' => 'DRAFT']))->assertRedirect(route('cases.index'));
     $this->actingAs($cmo)->get(route('cases.show', $draft))->assertNotFound();

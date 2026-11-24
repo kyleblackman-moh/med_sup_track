@@ -7,13 +7,14 @@ import {
     Activity,
     ChartColumn,
     ClipboardList,
-    FilePen,
     FileSignature,
     FileText,
     FolderOpen,
     Landmark,
     LayoutGrid,
+    Mail,
     MessageSquareText,
+    Route,
     ScrollText,
     UsersRound,
     X,
@@ -37,12 +38,20 @@ const requestsNavItem: NavItem = {
     section: 'requests',
 };
 
-// Shown only when the server shares can.cases (staff case pages; display only).
+// 2026-11-24: shown when the server shares nav.cases (the case register; display only).
 const casesNavItem: NavItem = {
-    title: 'File Tracking',
+    title: 'Cases',
     url: '/cases',
     icon: FolderOpen,
     section: 'cases',
+};
+
+// 2026-11-24: shown when the server shares nav.tracking. /tracking is JSON only, so the
+// item opens the File Tracking board on the dashboard (same checks as the board).
+const trackingNavItem: NavItem = {
+    title: 'File Tracking',
+    url: '/dashboard#file-tracking',
+    icon: Route,
 };
 
 // Office of the CMO shortcuts: saved views of the case register. Shown when the
@@ -51,7 +60,7 @@ const cmoNavItems: NavItem[] = [
     { title: 'To Review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
     { title: 'CAB', url: '/cases?awaiting=funding', icon: Landmark },
     { title: 'PS File', url: '/cases?status=WITH_PS', icon: FileSignature },
-    { title: 'Drafts', url: '/cases?status=NON_OBJECTION_GRANTED', icon: FilePen },
+    { title: 'Awaiting Letter', url: '/cases?status=NON_OBJECTION_GRANTED', icon: Mail },
 ];
 
 // ADMIN-1: shown when the server shares nav.users.
@@ -93,7 +102,8 @@ export function AppSidebar() {
         ...(nav?.dashboard === false ? [] : mainNavItems),
         ...analyticsItems,
         ...(can?.requests ? [requestsNavItem] : []),
-        ...(can?.cases ? [casesNavItem] : []),
+        ...(nav?.cases ? [casesNavItem] : []),
+        ...(nav?.tracking ? [trackingNavItem] : []),
         ...queriesItems,
     ];
     const showCmo = Boolean(nav?.cmo_office);

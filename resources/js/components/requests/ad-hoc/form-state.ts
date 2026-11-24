@@ -45,7 +45,8 @@ export const REQUISITION_FIELDS = [
     'quantity_on_order',
     'stock_location',
     'average_monthly_consumption',
-    // 2026-11-23: no_stock_on_hand is set by the server from the batch total; never sent.
+    // Kyle, 2026-11-24: typed; no_stock_on_hand is set by the server from it (0 = none); never sent.
+    'quantity_on_hand',
     'rfq_audience',
     'tender_price',
     'previous_price',
@@ -55,7 +56,16 @@ export const REQUISITION_FIELDS = [
 
 /** Row columns per section, in table order, with the value a new row starts with. */
 export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
-    tender_awards: { supplier_name: '', manufacturer: '', brand: '', country_of_origin: '', quantity_awarded: '', unit_cost: '' },
+    tender_awards: {
+        supplier_name: '',
+        manufacturer: '',
+        brand: '',
+        country_of_origin: '',
+        quantity_awarded: '',
+        unit_cost: '',
+        // Kyle, 2026-11-24: typed (was the server's figure).
+        percentage_awarded: '',
+    },
     purchase_orders: {
         award_id: '',
         po_number: '',
@@ -66,7 +76,8 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         delivery_state: '',
         delivery_date: '',
     },
-    stock_expiries: { quantity: '', expiry_date: '' },
+    // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is one typed field).
+    stock_expiries: { expiry_date: '' },
     quotations: {
         considered: true,
         is_recommended: false,

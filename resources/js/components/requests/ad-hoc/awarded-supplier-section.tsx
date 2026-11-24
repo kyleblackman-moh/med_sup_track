@@ -6,9 +6,11 @@ import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
- * V2-2 section "Awarded supplier": one entry per supplier. % awarded and the
- * line cost are the server's (shown once the row is saved); the total is at
- * the foot. One line per entry once the card is 66rem wide (FORM-ERR-1); narrower, each entry wraps.
+ * V2-2 section "Awarded supplier": one entry per supplier. Kyle, 2026-11-24:
+ * % Awarded is typed (optional, 0 to 100, up to 2 decimals; the server checks
+ * it). The line cost is the server's (shown once the row is saved); the total
+ * is at the foot. A quantity awarded above the quantity requested is reported
+ * on its Quantity Awarded cell. One line per entry once the card is 66rem wide (FORM-ERR-1); narrower, each entry wraps.
  */
 export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.tender_awards;
@@ -23,7 +25,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'country_of_origin', label: 'Country of Origin' },
         { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'xs' },
         { key: 'unit_cost', label: 'Unit Cost', width: 'xs' },
-        { key: 'percentage', label: '% Awarded', width: 'value' },
+        { key: 'percentage_awarded', label: '% Awarded', width: 'xs' },
         { key: 'line_cost', label: 'Line Cost', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
@@ -86,7 +88,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('country_of_origin', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
-                            <EntryValue label="% Awarded" rowLabel={rowLabel} value={shown?.percentage ?? '—'} />
+                            {input('percentage_awarded', 'decimal')}
                             <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} />
                         </EntryRow>
                     );

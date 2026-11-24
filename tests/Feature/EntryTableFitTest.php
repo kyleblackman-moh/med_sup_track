@@ -69,20 +69,23 @@ it('lays each quotation out as a supplier block of three table lines in the agre
     preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
     $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // Kyle, 2026-11-24: the supplier in the block's header, then three lines.
+    // Kyle, 2026-11-24 (second pass): the supplier in the block's header, then two lines with
+    // the short numbers in narrow cells; Subtotal, VAT and Total Price under the table as a total.
     expect($keys)->toBe([
-        ['quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'],
-        ['quantity_available_now', 'lead_time_days', 'brand'],
+        ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand'],
         ['manufacturer', 'country_of_origin', 'remarks'],
     ])
-        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock' }")
+        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 2 }")
+        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 7 }")
+        ->and($source)->toContain('foot={')
+        ->and($source)->toContain('Total Price')
         // Ex Stock is a number, not a checkbox.
         ->and($source)->toContain("input('quantity_available_now', 'decimal')")
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
         ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
-        // The block is the shared EntrySheet: a collapsible block (details) holding a real bordered table,
-        // a line of five 3 tracks each and a line of three 5 each (15, table-fixed), scrolling inside the block.
+        // The block is the shared EntrySheet: a collapsible block (details) holding a real bordered table
+        // of 15 tracks (table-fixed), each field its span of them, scrolling inside the block.
         ->and($source)->toContain('<EntrySheet')
         ->and($sheet = file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain('const TRACKS = 15;')
         ->and($sheet)->toContain('<details')
@@ -91,6 +94,7 @@ it('lays each quotation out as a supplier block of three table lines in the agre
         ->and($sheet)->toContain('max-w-full overflow-x-auto')
         ->and($sheet)->toMatch('/<table className="[^"]*\\btable-fixed\\b/')
         ->and($sheet)->toContain('scope="col"')
+        ->and($sheet)->toContain('colSpan={field.span ?? share}')
         // Kyle, 2026-11-24: Considered OR Recommended, never both ticked; Recommended is stored as considered.
         ->and($source)->toContain('checked={considered && !recommended}')
         ->and($source)->toMatch("/api\\.chooseRecommended\\(row\\.key\\);\\s*api\\.setCell\\('quotations', row\\.key, 'considered', true\\);/")

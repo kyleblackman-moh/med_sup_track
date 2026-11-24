@@ -76,6 +76,7 @@ export function FileTrackingBoard({ board }: { board: TrackingBoard }) {
 
     return (
         <section
+            id="file-tracking"
             aria-labelledby="file-tracking-heading"
             className="card bg-base-100 border-base-300 min-w-0 overflow-hidden border shadow-xs transition-shadow duration-200 hover:shadow-md"
         >

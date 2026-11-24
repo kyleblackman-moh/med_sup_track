@@ -16,6 +16,15 @@ export interface StaffCaseSummary {
     holder_label: string | null;
     submitted_at: string | null;
     days_since_submitted: number | null;
+    /** Kyle, 2026-11-24: stock may expire before use (ExpiryRisk::flag); null when there is nothing to flag. */
+    expiry_flag?: ExpiryFlag | null;
+}
+
+/** ExpiryRisk::flag: the server's label, tone and detail. */
+export interface ExpiryFlag {
+    label: string;
+    tone: StatusTone;
+    detail: string;
 }
 
 /**
@@ -48,6 +57,8 @@ export interface CaseFilters {
     type: string;
     org: string;
     ref: string;
+    /** 2026-11-24: one search over reference, item and organisation (the server's ?q=). */
+    q: string;
     /** 'funding': in review, funding not yet confirmed (the CAB view). */
     awaiting: '' | 'funding';
     /** 'days' is days since submission (submitted_at, reversed) on the server. */

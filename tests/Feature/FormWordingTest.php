@@ -32,8 +32,9 @@ it('names Quantity on Hand as the Stock section shows it', function () {
     // 2026-11-24: Quantity on Hand is its own typed field; quantity_on_order is the quantity on order.
     expect(RequisitionMessages::fieldLabel('quantity_on_hand'))->toBe('Quantity on Hand')
         ->and(RequisitionMessages::fieldLabel('quantity_on_order'))->toBe('Quantity on Order')
-        // The screen still shows the read-only figure until the Stock section is rebuilt (UI).
-        ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/stock-section.tsx')))->toContain('label="Quantity on Hand (Total)"');
+        // The Stock section's typed field (the read-only total is gone).
+        ->and($stock = file_get_contents(resource_path('js/components/requests/ad-hoc/stock-section.tsx')))->toContain('label="Quantity on Hand"')
+        ->and($stock)->not->toContain('Quantity on Hand (Total)');
 });
 
 it('says "needs", never "must" or "invalid", in every vendor form message', function () {

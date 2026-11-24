@@ -2,29 +2,31 @@ import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-ta
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
 import { collectRowErrors, EntryInput } from './entry-fields';
-import { FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
+import { CheckboxField, FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
-/** A batch quantity that counts as nothing: empty, or zero ("0", "0.00"). */
-const isZero = (value: string) => /^\s*(0*(\.0*)?)?\s*$/.test(value);
+/** A typed quantity that is zero ("0", "0.00"); empty is not zero. */
+const isZero = (value: string) => /^\s*0*(\.0*)?\s*$/.test(value) && /\d/.test(value);
 
 /**
- * V2-2 section "Stock". The unit of measure from section 1 is shown beside the
- * quantities. 2026-11-23: the quantity on hand is the batch total (read-only,
- * the server's, a dash until the average monthly consumption is entered), and
- * "No stock on hand" is a status the server sets when that total is 0; the
- * vendor no longer ticks it. Days on hand and the expiry warning are the
- * server's; the warning never blocks a submit.
+ * V2-2 section "Stock". Kyle, 2026-11-24:
+ * - The average monthly consumption is a plain number (no unit after it).
+ * - The quantity on hand is typed (requisition.quantity_on_hand), with the
+ *   unit of measure after it. "No stock on hand" is a tick box that sets it to
+ *   0 (unticking clears it); the server records no stock on hand whenever the
+ *   quantity on hand is 0 (StockOnHand), so typing 0 ticks it too.
+ * - A stock batch is its expiry date only.
+ * Days on hand and the expiry warning are the server's; the warning never
+ * blocks a submit.
  */
 export function StockSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
     const unit = text(state.requisition.unit_of_measure).trim();
     const rows = state.rows.stock_expiries;
-    const consumptionEntered = text(state.requisition.average_monthly_consumption).trim() !== '';
-    // The server's rule (StockOnHand), shown live: consumption entered and every batch is 0 or empty.
-    const noStock = consumptionEntered && rows.every((row) => isZero(text(row.values.quantity)));
+    const onHand = text(state.requisition.quantity_on_hand);
+    const noStock = isZero(onHand);
     const optional = (name: string) => api.optional('stock', name);
     const cap = config.row_caps.stock_expiries;
     const tableError = api.tableError('stock_expiries');
@@ -37,10 +39,7 @@ export function StockSection({ api }: { api: FormApi }) {
         optional: optional(name),
     });
 
-    const columns: EntryColumn[] = [
-        { key: 'quantity', label: unit ? `Quantity (${unit})` : 'Quantity', width: 'xs' },
-        { key: 'expiry_date', label: 'Expiry Date', width: 'sm' },
-    ];
+    const columns: EntryColumn[] = [{ key: 'expiry_date', label: 'Expiry Date', width: 'sm' }];
 
     return (
         <FieldGrid>
@@ -57,7 +56,15 @@ export function StockSection({ api }: { api: FormApi }) {
                 label="Average Monthly Consumption"
                 inputMode="decimal"
                 hint="Enter 0 if the item has not been used."
-                suffix={unit || undefined}
+            />
+            <TextField {...field('quantity_on_hand')} width="xs" label="Quantity on Hand" inputMode="decimal" suffix={unit || undefined} />
+            <CheckboxField
+                width="xs"
+                id={fieldId.requisition('no_stock_on_hand')}
+                label="No Stock on Hand"
+                checked={noStock}
+                onChange={(checked) => api.setField('quantity_on_hand', checked ? '0' : '')}
+                hint="Sets the quantity on hand to 0."
             />
             {
                 <GridRow>
@@ -104,7 +111,7 @@ export function StockSection({ api }: { api: FormApi }) {
                                                 id={fieldId.cell('stock_expiries', row.key, column.key)}
                                                 label={column.label}
                                                 rowLabel={rowLabel}
-                                                kind={column.key === 'expiry_date' ? 'date' : 'decimal'}
+                                                kind="date"
                                                 width={column.width}
                                                 value={text(row.values[column.key])}
                                                 onChange={(value) => api.setCell('stock_expiries', row.key, column.key, value)}
@@ -123,21 +130,14 @@ export function StockSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <FieldGrid as="dl">
-                    <Figure
-                        width="xs"
-                        label="Quantity on Hand (Total)"
-                        value={consumptionEntered ? form.display.stock_total : '—'}
-                        suffix={consumptionEntered && unit ? unit : undefined}
-                    />
                     <Figure width="xs" label="Days on Hand" value={form.expiry.days_on_hand} />
                 </FieldGrid>
                 {noStock && (
                     <p role="status" className="mt-3 flex items-center gap-2 text-sm">
                         <span className="badge badge-soft badge-warning badge-sm capitalize">No stock on hand</span>
-                        <span className="text-base-content/70">The batches add up to 0. This is set for you; there is nothing to tick.</span>
+                        <span className="text-base-content/70">The quantity on hand is 0.</span>
                     </p>
                 )}
-                {!noStock && <p className="text-base-content/70 mt-3 text-sm">The total of the batches above; it updates after each save.</p>}
             </GridRow>
 
             <ExpiryBanner expiry={form.expiry} />

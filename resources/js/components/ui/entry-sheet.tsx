@@ -7,9 +7,11 @@ export interface SheetField {
     /** The control's id; omitted for a read-only figure. */
     htmlFor?: string;
     content: ReactNode;
+    /** Its share of the line in tracks (of TRACKS); lines without spans share the tracks equally. */
+    span?: number;
 }
 
-/** The table's tracks: a line of five takes 3 each, a line of three 5 each (15 equal columns, table-fixed). */
+/** The table's tracks: 15 equal columns (table-fixed); a field spans its `span`, else an equal share of its line. */
 const TRACKS = 15;
 
 interface EntrySheetProps {
@@ -25,6 +27,8 @@ interface EntrySheetProps {
     remove?: ReactNode;
     /** The table lines (3 or 5 fields each): a row of column headers over a row of cells. */
     lines: SheetField[][];
+    /** Right under the table, at its end: worked-out totals (Subtotal, VAT, Total Price). */
+    foot?: ReactNode;
     /** Under the table, full width (a reason, the entry's error list); nothing is drawn when empty. */
     below?: ReactNode;
     /** Open on first render (default true). */
@@ -40,7 +44,7 @@ interface EntrySheetProps {
  * block, never the page. A jump to a field inside a closed block opens it
  * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, summary, title, controls, remove, lines, below, defaultOpen = true }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, foot, below, defaultOpen = true }: EntrySheetProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -67,7 +71,7 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                         <caption className="sr-only">{label}</caption>
                         <tbody>
                             {lines.map((line) => {
-                                const span = TRACKS / line.length;
+                                const share = TRACKS / line.length;
 
                                 return [
                                     <tr key={`${line[0]?.key}-head`} className="bg-base-200">
@@ -75,7 +79,7 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                                             <th
                                                 key={field.key}
                                                 scope="col"
-                                                colSpan={span}
+                                                colSpan={field.span ?? share}
                                                 className="border-base-300 text-base-content/70 border text-xs font-medium capitalize"
                                             >
                                                 {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : field.label}
@@ -84,7 +88,7 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                                     </tr>,
                                     <tr key={`${line[0]?.key}-cells`}>
                                         {line.map((field) => (
-                                            <td key={field.key} colSpan={span} className="border-base-300 border p-1.5">
+                                            <td key={field.key} colSpan={field.span ?? share} className="border-base-300 border p-1.5">
                                                 {field.content}
                                             </td>
                                         ))}
@@ -94,6 +98,8 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                         </tbody>
                     </table>
                 </div>
+
+                {foot}
 
                 {below && <div className="grid gap-3">{below}</div>}
             </div>

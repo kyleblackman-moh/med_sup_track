@@ -49,7 +49,7 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
         visit({ sort: key, dir });
     };
 
-    const clearFilters = () => visit({ status: '', type: '', org: '', ref: '', awaiting: '' });
+    const clearFilters = () => visit({ status: '', type: '', org: '', ref: '', q: '', awaiting: '' });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
