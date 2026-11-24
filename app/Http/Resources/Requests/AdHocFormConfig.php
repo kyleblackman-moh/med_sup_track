@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Requests;
 
+use App\Enums\DeliveryState;
 use App\Enums\RfqAudience;
 use App\Submissions\FormWording;
 use App\Submissions\RequisitionRules;
@@ -22,6 +23,11 @@ final class AdHocFormConfig
                     ['value' => RfqAudience::ALL_REGISTERED->value, 'label' => 'All registered suppliers'],
                     ['value' => RfqAudience::SPECIFIED->value, 'label' => 'Specified suppliers'],
                 ],
+                // 2026-11-24: the order row's Delivery Status dropdown, labelled by the enum.
+                'delivery_state' => array_map(
+                    fn (DeliveryState $s) => ['value' => $s->value, 'label' => $s->label()],
+                    DeliveryState::cases(),
+                ),
             ],
             'row_caps' => RequisitionRules::ROW_CAPS,
             'max_lengths' => [

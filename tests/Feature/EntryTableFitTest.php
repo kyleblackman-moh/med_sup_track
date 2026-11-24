@@ -68,13 +68,15 @@ it('lays each quotation out in two lines in the agreed order', function () {
     $source = file_get_contents(resource_path('js/components/requests/ad-hoc/quotation-section.tsx'));
     $keys = fn (string $line) => array_map(fn (string $c) => preg_match("/key: '(\\w+)'/", $c, $m) ? $m[1] : '', columnsOf($source, $line));
 
-    expect($keys('line1'))->toBe(['supplier_name', 'quantity_offered', 'unit_price', 'lead_time_days', 'checks'])
-        ->and($keys('line2'))->toBe(['brand', 'manufacturer', 'country_of_origin', 'remarks'])
-        // The short numbers are xs; the three controls sit side by side in one group.
+    // 2026-11-24: the agreed column order; Considered and Recommended are narrow controls on the label line.
+    expect($keys('line1'))->toBe(['supplier_name', 'quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'])
+        ->and($keys('line2'))->toBe(['ex_stock', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks'])
+        // The short numbers are xs; the computed money is read-only (value cells).
         ->and($source)->toContain("{ key: 'quantity_offered', label: 'Quantity', width: 'xs' }")
         ->and($source)->toContain("{ key: 'unit_price', label: 'Unit Price', width: 'xs' }")
         ->and($source)->toContain("{ key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' }")
-        ->and($source)->toMatch('/<EntryCheckGroup[^>]*>\s*<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation".*?id=\{id\(\'ex_stock\'\)\}/s')
+        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price', width: 'value' }")
+        ->and($source)->toMatch('/controls=\{\s*<div role="group"[^>]*>\s*<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
         // The reason renders only for a quotation that is not considered, on its own full-width line.
         ->and($source)->toMatch('/below=\{\s*\/\/[^\n]*\n\s*!considered && \(\s*<TextAreaField/')
         ->and($source)->toContain('label="Reason Quotation Wasn\'t Considered"')

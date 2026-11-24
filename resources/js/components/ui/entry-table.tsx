@@ -263,6 +263,8 @@ interface EntryCardRowProps {
     label: string;
     /** The remove icon button (with an aria-label naming the row), at the end of the label line. */
     remove?: ReactNode;
+    /** Small controls on the label line, before the remove button (the quotation's Considered and Recommended). */
+    controls?: ReactNode;
     /** The lines of cells. Each is one line at the table's breakpoint and wraps to labelled fields below it. */
     lines: ReactNode[];
     /** Content under the lines, full width (a reason asked only for this entry). */
@@ -280,14 +282,17 @@ interface EntryCardRowProps {
  * narrower, its fields wrap into a grid of ~160px columns. Nothing overlaps
  * and nothing scrolls sideways, whatever the viewport or the sidebar.
  */
-export function EntryCardRow({ label, remove, lines, below, errors = [], errorsId }: EntryCardRowProps) {
+export function EntryCardRow({ label, remove, controls, lines, below, errors = [], errorsId }: EntryCardRowProps) {
     const layout = LAYOUT[useContext(TableContext).breakpoint];
 
     return (
         <div role="group" aria-label={label} className="grid gap-3 px-4 py-3">
-            <div className="flex min-h-9 items-center justify-between gap-2">
+            <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <p className="text-sm font-semibold">{label}</p>
-                {remove}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {controls}
+                    {remove}
+                </div>
             </div>
             {lines.map((line, i) => (
                 <div key={i} className={layout.row}>

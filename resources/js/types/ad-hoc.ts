@@ -37,7 +37,7 @@ export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
 
 export interface AdHocConfig {
     /** V2-3: no tender outcome; awards and orders never depend on it. */
-    options: { rfq_audience: OptionList };
+    options: { rfq_audience: OptionList; delivery_state: OptionList };
     row_caps: Record<ChildSection, number>;
     max_lengths: Record<string, number>;
     uploads: UploadRules;
@@ -123,13 +123,17 @@ export interface FormDisplay {
     stock_total: string;
     days_on_hand: string;
     awards_total: string;
+    /** The recommended quotation(s)' Total Price, VAT included (server formatted). */
     total_cost: string;
+    /** The VAT rate for the live Subtotal / VAT / Total Price ("0.125"); never hard-coded in React. */
+    vat_rate: string;
     /** V2-3: "12.50%", or a dash. */
     price_change_vs_tender: string;
     price_change_vs_previous: string;
     rows: {
         tender_awards: { id: number; percentage: string; line_cost: string }[];
         purchase_orders: { id: number; quantity_outstanding: string }[];
+        quotations: { id: number; subtotal: string; vat: string; total_price: string }[];
         stock_expiries: { id: number; expiry_date: string }[];
     };
 }

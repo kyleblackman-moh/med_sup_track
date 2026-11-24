@@ -40,6 +40,8 @@ interface EntryInputProps {
     className?: string;
     /** V2-4b: the server requires the column whenever a row is entered (aria-required). */
     required?: boolean;
+    /** Date cells: the latest day that can be chosen ('YYYY-MM-DD'). */
+    max?: string;
 }
 
 export function EntryInput({
@@ -55,6 +57,7 @@ export function EntryInput({
     width,
     className,
     required,
+    max,
 }: EntryInputProps) {
     return (
         <EntryCell label={label} htmlFor={id} width={width} className={className}>
@@ -64,6 +67,7 @@ export function EntryInput({
                     value={value}
                     onChange={onChange}
                     ariaLabel={`${label}, ${rowLabel}`}
+                    max={max}
                     required={required}
                     invalid={Boolean(error)}
                     describedBy={error ? errorListId : undefined}

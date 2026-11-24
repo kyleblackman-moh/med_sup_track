@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 export interface ProgressItem {
@@ -8,6 +9,8 @@ export interface ProgressItem {
     href: string;
     /** The marker text; defaults to the position in the list. */
     number?: number;
+    /** v0.4: the section has something to fix (from the server's issues); a small error dot on its marker. */
+    problem?: boolean;
 }
 
 /** The application header's height (design.md section 5). */
@@ -122,7 +125,14 @@ export function ProgressStrip({ items, label = 'Form progress' }: { items: Progr
                                 aria-current={isCurrent ? 'step' : undefined}
                                 className="focus-visible:ring-ring group relative flex flex-col items-center gap-2 rounded-lg px-1 py-0.5 text-center outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                             >
-                                <span className="flex h-10 items-center justify-center">
+                                <span className="relative flex h-10 items-center justify-center">
+                                    {item.problem && (
+                                        // A shape, not only a colour: the alert icon on the marker's corner.
+                                        <CircleAlert
+                                            aria-hidden="true"
+                                            className="text-error bg-base-100 absolute top-0 left-1/2 z-10 ms-3 size-4 rounded-full"
+                                        />
+                                    )}
                                     <span
                                         aria-hidden="true"
                                         className={cn(
@@ -140,6 +150,7 @@ export function ProgressStrip({ items, label = 'Form progress' }: { items: Progr
                                         {item.label}
                                     </span>
                                     {isCurrent && <span className="sr-only">, current section</span>}
+                                    {item.problem && <span className="sr-only">, has items to fix</span>}
                                 </span>
                             </a>
                         </li>

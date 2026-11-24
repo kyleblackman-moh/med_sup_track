@@ -1,5 +1,6 @@
-import { EntryCardRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
-import { collectRowErrors, EntryCheckGroup, EntryInlineCheck, EntryInput } from './entry-fields';
+import { EntryCardRow, EntryCell, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
+import { quotationPrice } from '@/lib/quotation-price';
+import { collectRowErrors, EntryInlineCheck, EntryInput, EntryValue } from './entry-fields';
 import { FieldGrid, FieldHint, Figure, GridRow, RadioGroupField, TableError, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
@@ -7,21 +8,26 @@ import { PriceSection } from './price-section';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
- * FORM-COMPACT-1 (2): each quotation is a small card in two lines (the
- * fit test reads `line1` and `line2`): Supplier, Quantity, Unit Price, Lead
- * Time (Days) and the three checks; then Brand, Manufacturer, Country of
- * Origin and Remarks. Each line is one row once the card is 54rem wide (every
- * field at its minimum, EntryTableFitTest); narrower, its fields wrap.
+ * FORM-COMPACT-1 (2), 2026-11-24 order: each quotation is a small card in two
+ * lines (the fit test reads `line1` and `line2`): Supplier, Quantity, Unit
+ * Price, Subtotal, VAT and Total Price; then Ex Stock, Lead Time (Days),
+ * Brand, Manufacturer, Country of Origin and Remarks. Considered and
+ * Recommended are narrow controls on the card's label line. Each line is one
+ * row once the card is 54rem wide (every field at its minimum,
+ * EntryTableFitTest); narrower, its fields wrap.
  */
 const line1: EntryColumn[] = [
     { key: 'supplier_name', label: 'Supplier', width: 'md' },
     { key: 'quantity_offered', label: 'Quantity', width: 'xs' },
     { key: 'unit_price', label: 'Unit Price', width: 'xs' },
-    { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' },
-    { key: 'checks', label: 'Considered, Recommended and Ex Stock', width: 'checks' },
+    { key: 'subtotal', label: 'Subtotal', width: 'value' },
+    { key: 'vat', label: 'VAT', width: 'value' },
+    { key: 'total_price', label: 'Total Price', width: 'value' },
 ];
 
 const line2: EntryColumn[] = [
+    { key: 'ex_stock', label: 'Ex Stock', width: 'xs' },
+    { key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' },
     { key: 'brand', label: 'Brand', width: 'md' },
     { key: 'manufacturer', label: 'Manufacturer', width: 'md' },
     { key: 'country_of_origin', label: 'Country of Origin', width: 'md' },
@@ -34,16 +40,23 @@ const ERROR_ORDER = [
     'supplier_name',
     'quantity_offered',
     'unit_price',
-    'lead_time_days',
     'considered',
     'is_recommended',
     'ex_stock',
+    'lead_time_days',
     'brand',
     'manufacturer',
     'country_of_origin',
     'remarks',
     'reason_accepted_excluded',
 ];
+
+/** "1234.50" to "$1,234.50", as the server's Display::money. */
+function money(amount: string): string {
+    const [whole, fraction] = amount.split('.');
+
+    return `$${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction}`;
+}
 
 /**
  * V2-2 section "Quotation comparison": who received the RFQ, one card per
@@ -113,6 +126,8 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 />
                             );
                             const considered = row.values.considered === true;
+                            // Live as the vendor types: the server's rule and rate (quotation-price.ts, form.display.vat_rate).
+                            const price = quotationPrice(text(row.values.quantity_offered), text(row.values.unit_price), form.display.vat_rate);
 
                             return (
                                 <EntryCardRow
@@ -131,42 +146,51 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             {input('supplier_name', 'text', 200)}
                                             {input('quantity_offered', 'decimal')}
                                             {input('unit_price', 'decimal')}
-                                            {input('lead_time_days', 'integer')}
-                                            <EntryCheckGroup label={`Choices, ${rowLabel}`}>
-                                                <EntryInlineCheck
-                                                    id={id('considered')}
-                                                    label="Considered"
-                                                    rowLabel={rowLabel}
-                                                    type="checkbox"
-                                                    checked={considered}
-                                                    onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
-                                                />
-                                                <EntryInlineCheck
-                                                    id={id('is_recommended')}
-                                                    label="Recommended"
-                                                    rowLabel={rowLabel}
-                                                    type="radio"
-                                                    name="recommended-quotation"
-                                                    checked={row.values.is_recommended === true}
-                                                    onChange={() => api.chooseRecommended(row.key)}
-                                                />
-                                                <EntryInlineCheck
-                                                    id={id('ex_stock')}
-                                                    label="Ex Stock"
-                                                    rowLabel={rowLabel}
-                                                    type="checkbox"
-                                                    checked={row.values.ex_stock === true}
-                                                    onChange={(checked) => api.setCell('quotations', row.key, 'ex_stock', checked)}
-                                                />
-                                            </EntryCheckGroup>
+                                            <EntryValue label="Subtotal" rowLabel={rowLabel} value={price ? money(price.subtotal) : '—'} />
+                                            <EntryValue label="VAT" rowLabel={rowLabel} value={price ? money(price.vat) : '—'} />
+                                            <EntryValue label="Total Price" rowLabel={rowLabel} value={price ? money(price.total) : '—'} />
                                         </>,
                                         <>
+                                            <EntryCell label="Ex Stock" htmlFor={id('ex_stock')} width="xs">
+                                                <span className="flex min-h-11 items-center md:min-h-10">
+                                                    <input
+                                                        id={id('ex_stock')}
+                                                        type="checkbox"
+                                                        className="checkbox checkbox-sm"
+                                                        aria-label={`Ex Stock, ${rowLabel}`}
+                                                        checked={row.values.ex_stock === true}
+                                                        onChange={(e) => api.setCell('quotations', row.key, 'ex_stock', e.target.checked)}
+                                                    />
+                                                </span>
+                                            </EntryCell>
+                                            {input('lead_time_days', 'integer')}
                                             {input('brand', 'text', 200)}
                                             {input('manufacturer', 'text', 200)}
                                             {input('country_of_origin', 'text', 100)}
                                             {input('remarks', 'text', 255)}
                                         </>,
                                     ]}
+                                    controls={
+                                        <div role="group" aria-label={`Choices, ${rowLabel}`} className="flex flex-wrap items-center gap-x-4">
+                                            <EntryInlineCheck
+                                                id={id('considered')}
+                                                label="Considered"
+                                                rowLabel={rowLabel}
+                                                type="checkbox"
+                                                checked={considered}
+                                                onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
+                                            />
+                                            <EntryInlineCheck
+                                                id={id('is_recommended')}
+                                                label="Recommended"
+                                                rowLabel={rowLabel}
+                                                type="radio"
+                                                name="recommended-quotation"
+                                                checked={row.values.is_recommended === true}
+                                                onChange={() => api.chooseRecommended(row.key)}
+                                            />
+                                        </div>
+                                    }
                                     below={
                                         // Only for a quotation that was not considered; no space otherwise.
                                         !considered && (
@@ -206,7 +230,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
             />
             <GridRow width="md">
                 <dl>
-                    <Figure width="full" label="Total Cost (Recommended Quotation)" value={form.display.total_cost} />
+                    <Figure width="full" label="Total Cost (Recommended Quotation, incl. VAT)" value={form.display.total_cost} />
                 </dl>
                 <div className="mt-1">
                     <FieldHint>The total is worked out by the system and updates after each save.</FieldHint>

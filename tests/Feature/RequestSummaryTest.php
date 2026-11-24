@@ -245,7 +245,7 @@ it('computes and formats every figure on the server', function () {
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',
             'Quantity to Purchase' => '2,800 Each',
-            'Total Cost' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
+            'Total Cost (incl. VAT)' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
             'Quoted Price Is Acceptable' => 'Yes',
         ])
         // 2026-11-23: the tender and previous price show for Tender Excess only.
@@ -283,6 +283,22 @@ it('words the expiry warning from the submission date once submitted', function 
     $warning = collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('type', 'warning');
     expect($warning['title'])->toBe('Some stock may expire before it is used')
         ->and($warning['lines'])->toBe(['Batch expiring '.$expiry->format('j M Y').': about 100 days of stock on hand, and it expires in 10 days (the earliest to expire)']);
+});
+
+it('states "No stock on hand" plainly when the batch total is 0, for the vendor and staff', function () {
+    [$case, $vendor] = summaryDraft();
+    // Test setup: the flag the server sets from a zero batch total.
+    DB::table('case_requisitions')->where('case_id', $case->id)->update(['no_stock_on_hand' => true]);
+
+    $block = collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('title', RequestSummary::NO_STOCK_TITLE);
+    expect($block)->toBe(['type' => 'warning', 'title' => 'No stock on hand', 'lines' => [RequestSummary::NO_STOCK_LINE]])
+        ->and(summaryFields(summaryOf($case, $vendor), 'stock')['No Stock on Hand'])->toBe('Yes');
+});
+
+it('shows no "No stock on hand" block while there is stock', function () {
+    [$case, $vendor] = summaryDraft();
+
+    expect(collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('title', RequestSummary::NO_STOCK_TITLE))->toBeNull();
 });
 
 // 5. Documents and isolation -------------------------------------------------------------------

@@ -324,12 +324,33 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
 
     const visible = form.sections.filter((section) => section.visible);
 
-    // V2-4b: the strip shows position only (the server's visible sections, in order); completion is each section's state pill.
+    // v0.4 readiness: what still blocks Review and Submit, from the last save (the server's issues, or
+    // the fields that save left out). The bar counts them and links to the first; the strip marks their sections.
+    const readiness = summaryItems(request_sections, notSavedItems, state);
+    const toFix = readiness.length;
+    const problemSections = new Set<FormSectionKey>([
+        ...request_sections.filter((section) => section.issues.length > 0).map((section) => section.key),
+        ...notSavedItems.map((item) => item.section),
+    ]);
+
+    /** "{n} items to fix": show every issue inline and in the summary, then go to the first one. */
+    const showFirstProblem = () => {
+        setShowIssues(true);
+        setReview('issues');
+        const first = readiness[0];
+        if (first?.target) {
+            window.setTimeout(() => focusTarget(first.target), 0);
+        }
+    };
+
+    // V2-4b: the strip shows position (the server's visible sections, in order); completion is each section's
+    // state pill. v0.4: a section with something to fix carries a marker.
     const progress: ProgressItem[] = visible.map((section) => ({
         key: section.key,
         label: section.label,
         number: section.number ?? undefined,
         href: `#section-${section.key}`,
+        problem: problemSections.has(section.key),
     }));
 
     return (
@@ -403,8 +424,26 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                                     {savingDraft ? 'Saving…' : 'Save Draft'}
                                 </BarButton>
                             )}
+                            {/* v0.4: while anything blocks, the count links to the first problem and Review and Submit waits. */}
+                            {toFix > 0 && (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost text-error capitalize max-md:h-11"
+                                    aria-describedby="review-submit-blocked"
+                                    onClick={showFirstProblem}
+                                >
+                                    <CircleAlert aria-hidden="true" className="size-4" />
+                                    {toFix} {toFix === 1 ? 'item' : 'items'} to fix
+                                </button>
+                            )}
                             {/* One primary action per view. OVERNIGHT-3 (A2): Submit Request is on the Review page. */}
-                            <BarButton variant="default" disabled={reviewing} aria-busy={reviewing || undefined} onClick={() => void startReview()}>
+                            <BarButton
+                                variant="default"
+                                disabled={reviewing || toFix > 0}
+                                aria-busy={reviewing || undefined}
+                                aria-describedby={toFix > 0 ? 'review-submit-blocked' : undefined}
+                                onClick={() => void startReview()}
+                            >
                                 Review and Submit
                                 {reviewing ? (
                                     <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
@@ -415,6 +454,9 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                         </>
                     }
                 />
+                <span id="review-submit-blocked" className="sr-only">
+                    Review and Submit is available once nothing is left to fix.
+                </span>
             </PageContent>
 
             <DeleteDraftDialog

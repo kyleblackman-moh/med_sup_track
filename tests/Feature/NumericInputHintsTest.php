@@ -12,7 +12,6 @@ it('gives every number-like request field a numeric keyboard hint', function (st
 })->with([
     'Quantity Requested' => ['item-tender-section.tsx', "/field\\('quantity_requested'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     'Average Monthly Consumption' => ['stock-section.tsx', "/field\\('average_monthly_consumption'\\)\\}[^>]*inputMode=\"decimal\"/s"],
-    'Quantity on Order' => ['stock-section.tsx', "/field\\('quantity_on_order'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     'Quantity to Purchase' => ['quotation-section.tsx', "/requisition\\('quantity_to_purchase'\\)[^>]*inputMode=\"decimal\"/s"],
     'Tender Price' => ['price-section.tsx', "/requisition\\('tender_price'\\)[^>]*inputMode=\"decimal\"/s"],
     'Previous Price' => ['price-section.tsx', "/requisition\\('previous_price'\\)[^>]*inputMode=\"decimal\"/s"],

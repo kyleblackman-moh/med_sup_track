@@ -56,6 +56,11 @@ final class RequestSummary
 
     private const TIMEZONE = 'America/Port_of_Spain';
 
+    /** v0.4: the stock block when the batch total is 0 (no_stock_on_hand, set by the server). */
+    public const NO_STOCK_TITLE = 'No stock on hand';
+
+    public const NO_STOCK_LINE = 'The stock batches total 0, so there is no stock of this item on hand.';
+
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
     public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true, bool $forPrint = false): ?array
     {
@@ -225,6 +230,11 @@ final class RequestSummary
             'Days on Hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
         ])];
 
+        // v0.4: stated plainly on the review page and staff pages, not only as a Yes/No field.
+        if ($noStock) {
+            $blocks[] = ['type' => 'warning', 'title' => self::NO_STOCK_TITLE, 'lines' => [self::NO_STOCK_LINE]];
+        }
+
         if (! $noStock) {
             $blocks[] = self::table('Stock Batches', 'Batch', [
                 'quantity' => 'Quantity',
@@ -263,7 +273,8 @@ final class RequestSummary
                 'Recommended Quotation' => Display::text($recommended?->supplier_name),
                 'Recommended Unit Price' => Display::price($recommended?->unit_price),
                 'Quantity to Purchase' => self::withUnit(Display::quantity($r?->quantity_to_purchase), $unit),
-                'Total Cost' => Display::money($case->totalCost()),
+                // v0.4: the recommended quotations' Total Price, which includes VAT.
+                'Total Cost (incl. VAT)' => Display::money($case->totalCost()),
             ]),
             self::table('Quotations', 'Quotation Row', [
                 'considered' => 'Considered',

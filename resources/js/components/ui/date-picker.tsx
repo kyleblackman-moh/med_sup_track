@@ -19,6 +19,11 @@ export function formatDayValue(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+/** Today's date in Port of Spain ('YYYY-MM-DD'), the server's "today" for date limits. */
+export function todayInPortOfSpain(): string {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Port_of_Spain' });
+}
+
 /** "2 Nov 2026": the day as the field shows it. */
 function displayDay(date: Date): string {
     return date.toLocaleDateString('en-TT', { day: 'numeric', month: 'short', year: 'numeric' });

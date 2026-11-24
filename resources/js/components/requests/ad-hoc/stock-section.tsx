@@ -2,22 +2,29 @@ import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-ta
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
 import { collectRowErrors, EntryInput } from './entry-fields';
-import { CheckboxField, FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
+import { FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
+/** A batch quantity that counts as nothing: empty, or zero ("0", "0.00"). */
+const isZero = (value: string) => /^\s*(0*(\.0*)?)?\s*$/.test(value);
+
 /**
  * V2-2 section "Stock". The unit of measure from section 1 is shown beside the
- * quantities. "No Stock on Hand" hides the batches (the server then ignores
- * them). The stock total, days on hand and the expiry warning are the
+ * quantities. 2026-11-23: the quantity on hand is the batch total (read-only,
+ * the server's, a dash until the average monthly consumption is entered), and
+ * "No stock on hand" is a status the server sets when that total is 0; the
+ * vendor no longer ticks it. Days on hand and the expiry warning are the
  * server's; the warning never blocks a submit.
  */
 export function StockSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
     const unit = text(state.requisition.unit_of_measure).trim();
-    const noStock = state.requisition.no_stock_on_hand === true;
     const rows = state.rows.stock_expiries;
+    const consumptionEntered = text(state.requisition.average_monthly_consumption).trim() !== '';
+    // The server's rule (StockOnHand), shown live: consumption entered and every batch is 0 or empty.
+    const noStock = consumptionEntered && rows.every((row) => isZero(text(row.values.quantity)));
     const optional = (name: string) => api.optional('stock', name);
     const cap = config.row_caps.stock_expiries;
     const tableError = api.tableError('stock_expiries');
@@ -52,18 +59,7 @@ export function StockSection({ api }: { api: FormApi }) {
                 hint="Enter 0 if the item has not been used."
                 suffix={unit || undefined}
             />
-            <TextField {...field('quantity_on_order')} width="xs" label="Quantity on Hand" inputMode="decimal" suffix={unit || undefined} />
-
-            <CheckboxField
-                width="full"
-                id={fieldId.requisition('no_stock_on_hand')}
-                label="No Stock on Hand"
-                checked={noStock}
-                onChange={(checked) => api.setField('no_stock_on_hand', checked)}
-                hint="Tick this instead of listing stock batches."
-            />
-
-            {!noStock && (
+            {
                 <GridRow>
                     <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">
                         <TableError message={tableError || undefined} />
@@ -123,13 +119,25 @@ export function StockSection({ api }: { api: FormApi }) {
                         </EntryTable>
                     </div>
                 </GridRow>
-            )}
+            }
 
             <GridRow>
                 <FieldGrid as="dl">
-                    <Figure width="xs" label="Stock Total" value={form.display.stock_total} suffix={unit || undefined} />
+                    <Figure
+                        width="xs"
+                        label="Quantity on Hand (Total)"
+                        value={consumptionEntered ? form.display.stock_total : '—'}
+                        suffix={consumptionEntered && unit ? unit : undefined}
+                    />
                     <Figure width="xs" label="Days on Hand" value={form.expiry.days_on_hand} />
                 </FieldGrid>
+                {noStock && (
+                    <p role="status" className="mt-3 flex items-center gap-2 text-sm">
+                        <span className="badge badge-soft badge-warning badge-sm capitalize">No stock on hand</span>
+                        <span className="text-base-content/70">The batches add up to 0. This is set for you; there is nothing to tick.</span>
+                    </p>
+                )}
+                {!noStock && <p className="text-base-content/70 mt-3 text-sm">The total of the batches above; it updates after each save.</p>}
             </GridRow>
 
             <ExpiryBanner expiry={form.expiry} />

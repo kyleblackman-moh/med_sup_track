@@ -45,7 +45,7 @@ export const REQUISITION_FIELDS = [
     'quantity_on_order',
     'stock_location',
     'average_monthly_consumption',
-    'no_stock_on_hand',
+    // 2026-11-23: no_stock_on_hand is set by the server from the batch total; never sent.
     'rfq_audience',
     'quantity_to_purchase',
     'tender_price',
@@ -63,8 +63,9 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         quantity_ordered: '',
         ordered_on: '',
         quantity_delivered: '',
-        delivery_eta: '',
-        delivery_status: '',
+        // 2026-11-23: the Delivery Status dropdown and the delivery date (delivery_eta / free-text status retired).
+        delivery_state: '',
+        delivery_date: '',
     },
     stock_expiries: { quantity: '', expiry_date: '' },
     quotations: {
@@ -114,9 +115,7 @@ export function initialState(detail: AdHocDetail): FormState {
     const requisition: Values = {};
     for (const field of REQUISITION_FIELDS) {
         const value = detail.requisition[field];
-        if (field === 'no_stock_on_hand') {
-            requisition[field] = value === true;
-        } else if (field === 'quoted_price_acceptable') {
+        if (field === 'quoted_price_acceptable') {
             requisition[field] = typeof value === 'boolean' ? value : null;
         } else {
             requisition[field] = value === null || value === undefined ? '' : String(value);
@@ -142,8 +141,6 @@ const blankToNull = (value: Value) => (typeof value === 'string' && value.trim()
 /** The save payload: every field and every row (rows missing from it are deleted by the server). */
 export function toPayload(state: FormState): Record<string, unknown> {
     const requisition = Object.fromEntries(Object.entries(state.requisition).map(([name, value]) => [name, blankToNull(value)]));
-    // The column is NOT NULL with a default; never send null for it.
-    requisition.no_stock_on_hand = state.requisition.no_stock_on_hand === true;
 
     const payload: Record<string, unknown> = { requisition, previous_request_in_cycle: state.previousRequest };
     for (const section of CHILD_SECTIONS) {
