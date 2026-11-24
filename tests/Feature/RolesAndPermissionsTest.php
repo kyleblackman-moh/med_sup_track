@@ -13,17 +13,18 @@ use Spatie\Permission\Models\Role;
 /** The expected matrix, written out independently of App\Enums\Role::permissions(). */
 const EXPECTED_ROLE_PERMISSIONS = [
     'vendor_applicant' => ['case.submit', 'case.view_assigned', 'document.upload', 'document.download', 'case.withdraw_own'],
-    'cmo_registry' => ['case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm', 'case.intake'],
+    'cmo_registry' => ['case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm', 'case.intake', 'cases.list', 'tracking.view'],
     'cmo' => [
         'case.view_all', 'case.view_assigned', 'document.upload', 'document.download', 'hardcopy.confirm',
         'case.intake', 'case.route_to_review', 'query.forward', 'file.prepare', 'letter.issue',
         'case.history.view', 'users.invite_vendor', 'assignment.reassign', 'delegation.manage',
         'case.withdraw', 'case.reject_final', 'users.mfa.reset', 'audit.view',
+        'cases.list', 'tracking.view', 'analytics.view', // 2026-11-24: sidebar pages
     ],
-    'technocrat' => ['case.view_assigned', 'document.upload', 'document.download', 'technical.consider', 'query.raise_to_vendor'],
-    'cab_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'funding.confirm'],
-    'legal_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'legal.confirm', 'audit.view'],
-    'ps_office' => ['case.view_all', 'document.upload', 'document.download', 'nonobjection.grant', 'case.history.view'],
+    'technocrat' => ['case.view_assigned', 'document.upload', 'document.download', 'technical.consider', 'query.raise_to_vendor', 'cases.list', 'tracking.view'],
+    'cab_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'funding.confirm', 'cases.list', 'tracking.view'],
+    'legal_officer' => ['case.view_assigned', 'document.upload', 'document.download', 'legal.confirm', 'audit.view', 'cases.list', 'tracking.view'],
+    'ps_office' => ['case.view_all', 'document.upload', 'document.download', 'nonobjection.grant', 'case.history.view', 'cases.list', 'tracking.view', 'analytics.view'],
     'system_admin' => [
         'admin.access', 'users.view', 'users.create', 'users.invite_vendor', 'users.update_role',
         'users.disable', 'users.mfa.reset', 'audit.view', 'system.health.view', 'jobs.retry',

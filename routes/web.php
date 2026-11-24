@@ -59,13 +59,13 @@ Route::middleware(['auth', 'case.area']) // IT-ADMIN: 404 without case work
 
 // ANALYTICS: charts and tracking for the CMO's office and the PS office only
 // (case.view_all). Everyone else, vendors included, gets 403.
-Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
+Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value, 'can:'.Permission::AnalyticsView->value])
     ->get('analytics', AnalyticsController::class)
     ->name('analytics');
 
 // 2026-11-24: File Tracking (JSON until the page comes with the UI). Staff case
 // area only; scoped to the cases the user can see, hidden cases 404.
-Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class])
+Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::TrackingView->value])
     ->prefix('tracking')
     ->name('tracking.')
     ->controller(FileTrackingController::class)
@@ -132,7 +132,7 @@ Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::c
     ->name('cases.')
     ->controller(StaffCaseController::class)
     ->group(function () {
-        Route::get('/', 'index')->name('index');
+        Route::get('/', 'index')->middleware('can:'.Permission::CasesList->value)->name('index'); // 2026-11-24
         // HARDCOPY-1: the dashboard's "Hardcopy received" box (exact reference, cases the user can see).
         Route::get('hardcopy-lookup', HardcopyLookupController::class)->middleware('throttle:60,1')->name('hardcopy-lookup');
         // WORKFLOW-2 (R3): {queryCase} also opens the page (query-only) for an officer named on a forward; anyone else is 404.

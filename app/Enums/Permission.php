@@ -55,6 +55,13 @@ enum Permission: string
     case ConfigManage = 'config.manage';
     case DelegationManage = 'delegation.manage';
 
+    // Sidebar pages (Kyle, 2026-11-24). Each is held by exactly the roles that
+    // could open the page before, so no access changed; rows stay scoped by
+    // VisibleToUserScope. The page checks it; the nav flag shows or hides.
+    case CasesList = 'cases.list';        // Cases (/cases)
+    case TrackingView = 'tracking.view';  // File Tracking (/tracking)
+    case AnalyticsView = 'analytics.view'; // Analytics (/analytics)
+
     /** @return list<string> */
     public static function values(): array
     {

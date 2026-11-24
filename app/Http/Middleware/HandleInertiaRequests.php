@@ -103,7 +103,13 @@ class HandleInertiaRequests extends Middleware
                 // ANALYTICS: the Analytics page. Same checks as the /analytics route.
                 'analytics' => $user !== null && ! $user->isVendor()
                     && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
-                    && $user->can(Permission::CaseViewAll->value),
+                    && $user->can(Permission::CaseViewAll->value)
+                    && $user->can(Permission::AnalyticsView->value),
+                // 2026-11-24: the Cases and File Tracking items. Same checks as their routes.
+                'cases' => $user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
+                    && $user->can(Permission::CasesList->value),
+                'tracking' => $user !== null && Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
+                    && $user->can(Permission::TrackingView->value),
                 // QUERIES-1: the Queries item, for users who submit requests or see staff cases.
                 'queries' => self::queriesNav($user),
                 'section' => self::navSection($request),

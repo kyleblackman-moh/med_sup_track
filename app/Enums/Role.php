@@ -53,6 +53,7 @@ enum Role: string
             self::CmoRegistry => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::HardcopyConfirm,
                 P::CaseIntake,
+                P::CasesList, P::TrackingView, // 2026-11-24: sidebar pages
             ],
             self::Cmo => [
                 P::CaseViewAll, P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
@@ -61,21 +62,26 @@ enum Role: string
                 P::AssignmentReassign, P::DelegationManage, P::CaseWithdraw, P::CaseRejectFinal,
                 P::UsersMfaReset, // MFA-1: vendor users only (MfaReset)
                 P::AuditView, // IT-ADMIN: the audit log is for the CMO, Legal and ICT (Kyle, 2026-11-22)
+                P::CasesList, P::TrackingView, P::AnalyticsView, // 2026-11-24: sidebar pages
             ],
             self::Technocrat => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload,
                 P::TechnicalConsider, P::QueryRaiseToVendor,
+                P::CasesList, P::TrackingView, // 2026-11-24: sidebar pages (their assigned cases only)
             ],
             self::CabOfficer => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::FundingConfirm,
+                P::CasesList, P::TrackingView, // 2026-11-24: sidebar pages (their assigned cases only)
             ],
             self::LegalOfficer => [
                 P::CaseViewAssigned, P::DocumentUpload, P::DocumentDownload, P::LegalConfirm,
                 P::AuditView, // IT-ADMIN (Kyle, 2026-11-22)
+                P::CasesList, P::TrackingView, // 2026-11-24: sidebar pages (their assigned cases only)
             ],
             self::PsOffice => [
                 P::CaseViewAll, P::DocumentUpload, P::DocumentDownload,
                 P::NonObjectionGrant, P::CaseHistoryView,
+                P::CasesList, P::TrackingView, P::AnalyticsView, // 2026-11-24: sidebar pages
             ],
             // No case work at all (no case.*, document.* or query.*, and since
             // 2026-11-23 no assignment.reassign or delegation.manage either):
