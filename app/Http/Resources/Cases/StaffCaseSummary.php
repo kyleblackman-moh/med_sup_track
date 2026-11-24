@@ -5,6 +5,7 @@ namespace App\Http\Resources\Cases;
 use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Submissions\ExpiryRisk;
+use App\Workflow\CaseHolders;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
@@ -32,7 +33,9 @@ final class StaffCaseSummary
             'status' => $case->status->value,
             'status_label' => $case->status->label(),
             'status_tone' => $case->status->tone(),
-            'holder_label' => self::holderLabel($case->current_holder_role),
+            // Kyle, 2026-11-24: every active assignment for the current stage (both desks in review), else the stage owner.
+            'holder_label' => CaseHolders::label($case),
+            'holders' => CaseHolders::for($case),
             'submitted_at' => $case->submitted_at?->copy()->utc()->toIso8601ZuluString(),
             // Calendar days in Port of Spain. Display only: no thresholds, no SLA meaning.
             'days_since_submitted' => $submitted ? (int) $submitted->startOfDay()->diffInDays($today) : null,

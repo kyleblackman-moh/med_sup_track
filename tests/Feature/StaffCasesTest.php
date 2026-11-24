@@ -202,7 +202,7 @@ it('lists the expected columns, without drafts', function () {
     expect($props['cases']['data'])->toHaveCount(1)
         ->and(array_keys($row))->toBe([
             'id', 'reference_no', 'organisation', 'procurement_type', 'item_description', 'status',
-            'status_label', 'status_tone', 'holder_label', 'submitted_at', 'days_since_submitted', 'expiry_flag',
+            'status_label', 'status_tone', 'holder_label', 'holders', 'submitted_at', 'days_since_submitted', 'expiry_flag',
         ])
         ->and($row['status_tone'])->toBe('info') // SUBMITTED is info (CaseStatus::tone; palette in app.css)
         ->and($row['reference_no'])->toBe($case->reference_no)

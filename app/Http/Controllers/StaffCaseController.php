@@ -73,7 +73,14 @@ class StaffCaseController extends Controller
             : [$sort, $dir];
 
         $page = ProcurementCase::query()
-            ->with(['organisation:id,name', 'procurementType:id,name', 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS), 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS)])
+            ->with([
+                'organisation:id,name', 'procurementType:id,name',
+                'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS),
+                'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS),
+                // The current holders (CaseHolders), without a query per row.
+                'assignments' => fn ($q) => $q->whereNull('completed_at')->whereNull('cancelled_at'),
+                'assignments.user:id,name',
+            ])
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('cases.status', $v))
             ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
             ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
