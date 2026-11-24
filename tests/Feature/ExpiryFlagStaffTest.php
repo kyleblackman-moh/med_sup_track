@@ -36,7 +36,7 @@ function flaggedCase(string $quantity, int $days): ProcurementCase
     [$case, $vendor] = readyDraft('AD_HOC_EMERGENCY');
     $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
     saveDraft($case, $vendor, [
-        'requisition' => ['average_monthly_consumption' => '30', 'no_stock_on_hand' => false],
+        'requisition' => ['average_monthly_consumption' => '30'],
         'stock_expiries' => [['quantity' => $quantity, 'expiry_date' => $today->addDays($days)->toDateString()]],
     ]);
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);

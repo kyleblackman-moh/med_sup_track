@@ -118,6 +118,11 @@ final class SaveRequisition
 
             $saved = [...$saved, ...array_keys($counts)];
 
+            // Kyle, 2026-11-23: "no stock on hand" follows the batch total (request form only).
+            if (ProcurementTypeProfile::for((string) $locked->procurementType()->value('code'))->isAdHocForm()) {
+                StockOnHand::sync($caseId);
+            }
+
             $locked->touch();
 
             // Names and counts only; never field values. Fail closed.
@@ -167,7 +172,11 @@ final class SaveRequisition
         $values = [];
         foreach ($fields as $field) {
             $value = $row->getAttribute($field);
-            $values[$field] = is_bool($value) || $value === null ? $value : (string) $value;
+            $values[$field] = match (true) {
+                is_bool($value) || $value === null => $value,
+                $value instanceof \BackedEnum => (string) $value->value, // the order's delivery_state
+                default => (string) $value,
+            };
         }
 
         return RequisitionRules::isBlankRow($values);

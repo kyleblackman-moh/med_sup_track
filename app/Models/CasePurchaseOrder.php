@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryState;
 use App\Models\Concerns\BelongsToCase;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Model;
@@ -26,8 +27,10 @@ class CasePurchaseOrder extends Model
         'quantity_ordered',
         'ordered_on',
         'quantity_delivered',
-        'delivery_eta',
-        'delivery_status',
+        'delivery_eta',    // kept; no longer written by the request form (2026-11-23)
+        'delivery_status', // free text; kept, no longer written by the request form (2026-11-23)
+        'delivery_state',  // Kyle, 2026-11-23: the Delivery Status dropdown
+        'delivery_date',
     ];
 
     protected function casts(): array
@@ -39,6 +42,8 @@ class CasePurchaseOrder extends Model
             'ordered_on' => 'date',
             'quantity_delivered' => 'decimal:2',
             'delivery_eta' => 'date',
+            'delivery_state' => DeliveryState::class,
+            'delivery_date' => 'date',
         ];
     }
 

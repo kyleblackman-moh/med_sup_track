@@ -70,6 +70,7 @@ const SLICE_6B_COLUMNS = [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
         'po_number' => 'nvarchar(64)', 'quantity_ordered' => 'decimal(14,2)', 'ordered_on' => 'date',
         'quantity_delivered' => 'decimal(14,2)', 'delivery_eta' => 'date', 'delivery_status' => 'nvarchar(120)',
+        'delivery_state' => 'nvarchar(32)', 'delivery_date' => 'date', // 2026-11-23
         'created_at' => 'datetime', 'updated_at' => 'datetime',
         'award_id' => 'bigint', // F1
     ],

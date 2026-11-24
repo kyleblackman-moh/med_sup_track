@@ -28,7 +28,7 @@ function quoteRow(string $supplier, string $price, array $overrides = []): array
         'brand' => 'Generic Brand',
         'unit_price' => $price,
         'currency' => 'TTD',
-        'quantity_offered' => '3000',
+        'quantity_offered' => '2800', // 2026-11-23: not above the quantity requested
         'lead_time_days' => 30,
         'price_valid_until' => now()->addYear()->toDateString(),
         'previous_price_maintained' => 'UNKNOWN',
@@ -134,7 +134,6 @@ function adHocPayload(): array
             'quantity_on_order' => '1800',
             'stock_location' => 'Central stores',
             'average_monthly_consumption' => '500',
-            'no_stock_on_hand' => false,
             'rfq_audience' => 'ALL_REGISTERED',
             'quantity_to_purchase' => '2800',
             'tender_price' => '1.2500',
@@ -178,7 +177,7 @@ function adHocQuoteRow(string $supplier, string $price, array $overrides = []): 
         'manufacturer' => 'Generic Manufacturer',
         'brand' => 'Generic Brand',
         'unit_price' => $price,
-        'quantity_offered' => '3000',
+        'quantity_offered' => '2800', // 2026-11-23: not above the quantity requested
         'lead_time_days' => 30,
         'considered' => true,
         'is_recommended' => false,
@@ -193,7 +192,7 @@ function adHocOrdersFor(ProcurementCase $case): array
 
     return [
         'purchase_orders' => [
-            ['award_id' => (int) $awardId, 'po_number' => 'PO-1001', 'quantity_ordered' => '3000', 'ordered_on' => '2026-06-01', 'quantity_delivered' => '1200', 'delivery_status' => 'Part delivered'],
+            ['award_id' => (int) $awardId, 'po_number' => 'PO-1001', 'quantity_ordered' => '3000', 'ordered_on' => '2026-06-01', 'quantity_delivered' => '1200', 'delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => '2026-06-15'],
         ],
     ];
 }

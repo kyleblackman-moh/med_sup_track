@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Models\CaseAssignment;
+use App\Models\CaseRequisition;
 use App\Models\CaseTransition;
 use App\Models\CaseVariationRow;
 use App\Models\ProcurementCase;
@@ -100,6 +101,9 @@ final class SubmitCase
             return;
         }
 
+        // Kyle, 2026-11-23: "no stock on hand" follows the batch total, checked again under the lock.
+        StockOnHand::sync($case->getKey());
+
         $counts = [];
         foreach (RequestSections::discardedAtSubmit($code, SubmissionReadiness::previousRequest($case)) as $section) {
             $counts[$section] = match ($section) {
@@ -113,6 +117,25 @@ final class SubmitCase
                 ['type' => 'case', 'id' => $case->getKey()],
                 $case->getKey(),
                 ['reason' => 'section_hidden', 'counts' => $counts],
+                $actor,
+            );
+        }
+
+        // Kyle, 2026-11-23: request fields this type hides (the tender and previous price
+        // outside Tender Excess) are cleared. The audit names the fields, never their values.
+        $requisition = CaseRequisition::withoutGlobalScopes()->where('case_id', $case->getKey())->first();
+        $cleared = $requisition === null ? [] : array_values(array_filter(
+            RequestSections::hiddenFields($code),
+            fn (string $field) => $requisition->getAttribute($field) !== null,
+        ));
+
+        if ($cleared !== []) {
+            $requisition->forceFill(array_fill_keys($cleared, null))->save();
+            Audit::record(
+                AuditAction::CaseDraftFieldsDiscarded,
+                ['type' => 'case', 'id' => $case->getKey()],
+                $case->getKey(),
+                ['reason' => 'field_hidden', 'fields' => $cleared],
                 $actor,
             );
         }

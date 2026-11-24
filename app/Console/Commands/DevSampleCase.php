@@ -273,7 +273,7 @@ class DevSampleCase extends Command
             'manufacturer' => 'Generic Manufacturer',
             'brand' => 'Generic Brand',
             'unit_price' => $price,
-            'quantity_offered' => '3000',
+            'quantity_offered' => '2800', // not above the quantity requested (2026-11-23)
             'lead_time_days' => 30,
             'considered' => true,
             'is_recommended' => false,
@@ -292,7 +292,6 @@ class DevSampleCase extends Command
                 'tender_issue_explanation' => 'Dev sample: the awarded supplier delivered part of the order only.',
                 'stock_location' => 'Central stores',
                 'average_monthly_consumption' => '500',
-                'no_stock_on_hand' => false,
                 'rfq_audience' => 'ALL_REGISTERED',
                 'quantity_to_purchase' => '2800',
             ],
@@ -344,7 +343,8 @@ class DevSampleCase extends Command
                     'quantity_ordered' => '3000',
                     'ordered_on' => $today->subMonths(2)->toDateString(),
                     'quantity_delivered' => '1200',
-                    'delivery_status' => 'Part delivered',
+                    'delivery_state' => 'PARTIALLY_DELIVERED',
+                    'delivery_date' => $today->subMonth()->toDateString(),
                 ],
             ],
         ];

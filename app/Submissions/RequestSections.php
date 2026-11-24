@@ -2,6 +2,7 @@
 
 namespace App\Submissions;
 
+use App\Enums\DeliveryState;
 use App\Enums\ScanStatus;
 use App\Models\CaseQuotation;
 use App\Models\CaseRequisition;
@@ -9,6 +10,7 @@ use App\Models\Document;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
+use App\Support\Display;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -106,11 +108,15 @@ final class RequestSections
             'quantity_awarded' => 'enter the quantity awarded',
             'unit_cost' => 'enter the unit cost',
         ]],
+        // Kyle, 2026-11-23: the delivery status too (the delivery date is required unless
+        // the status is Not delivered: orders()).
         'purchase_orders' => ['Order row', [
             'award_id' => 'choose the supplier from the award rows',
             'po_number' => 'enter the PO number',
             'quantity_ordered' => 'enter the quantity ordered',
+            'delivery_state' => 'choose the delivery status',
         ]],
+        // The expiry date is required only on a batch with a quantity above 0 (stock()).
         'stock_expiries' => ['Stock batch', [
             'quantity' => 'enter the quantity',
             'expiry_date' => 'enter the expiry date',
@@ -159,7 +165,39 @@ final class RequestSections
 
     public const AWARD_ROW_NEEDED = 'Add at least one awarded supplier.';
 
-    public const STOCK_NEEDED = 'Add a stock batch, or tick "No stock on hand".';
+    /**
+     * Kyle, 2026-11-23: request fields shown only for some types. Hidden ones are
+     * not required, stay in the draft (the type may change back) and are cleared
+     * at submit (SubmitCase), like the variation details.
+     *
+     * @var array<string, list<string>> field => the types that show it
+     */
+    public const FIELDS_FOR_TYPES = [
+        'tender_price' => [ProcurementTypeProfile::TENDER_EXCESS],
+        'previous_price' => [ProcurementTypeProfile::TENDER_EXCESS],
+    ];
+
+    /* Kyle, 2026-11-23: the quantity and date rules. ":n" and ":x" are filled with display quantities. */
+    public const QUANTITY_OVER_REQUESTED = 'Quantity cannot be more than the quantity requested (:n).';
+
+    public const TOTAL_OVER_REQUESTED = 'Total quantity (:x) is more than the quantity requested (:n).';
+
+    public const ORDERED_IN_FUTURE = 'Date ordered must be today or earlier.';
+
+    public const DELIVERED_OVER_ORDERED = 'Quantity delivered cannot be more than quantity ordered.';
+
+    public const DELIVERY_IN_FUTURE = 'Delivery date must be today or earlier.';
+
+    public const DELIVERY_BEFORE_ORDERED = 'Delivery date cannot be before the date ordered.';
+
+    public const FULLY_DELIVERED_MISMATCH = 'Fully delivered needs the quantity delivered to equal the quantity ordered.';
+
+    public const PARTIALLY_DELIVERED_MISMATCH = 'Partially delivered needs a quantity delivered above 0 and below the quantity ordered.';
+
+    public const NOT_DELIVERED_MISMATCH = 'Not delivered needs a quantity delivered of 0.';
+
+    /** The form's time zone: "today" for the date rules. */
+    public const LOCAL_TIMEZONE = 'America/Port_of_Spain';
 
     public const QUOTATION_NEEDED = 'Add at least one quotation.';
 
@@ -250,7 +288,8 @@ final class RequestSections
             'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
             'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
             'existing_arrangement' => [
-                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_eta', 'delivery_status']),
+                // The delivery date is required unless the status is Not delivered (false here: conditional).
+                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_date']),
                 'tender_issue_explanation' => false,
             ],
             'stock' => [
@@ -265,8 +304,8 @@ final class RequestSections
                 // Asked only on a row that was not considered, and then required.
                 'quotations.reason_accepted_excluded' => true,
                 'quantity_to_purchase' => $byType('quotations'),
-                'tender_price' => false,
-                'previous_price' => false,
+                // Kyle, 2026-11-23: Tender Excess only; left out of the map where hidden.
+                ...array_fill_keys(array_values(array_diff(['tender_price', 'previous_price'], self::hiddenFields($code))), false),
                 'price_note' => false,
             ],
             'documents' => [],
@@ -294,6 +333,17 @@ final class RequestSections
     public static function discardedAtSubmit(string $code, ?bool $previousRequest = null): array
     {
         return array_values(array_filter(self::ONLY_WHEN_PREVIOUS_REQUEST, fn (string $s) => ! self::isVisible($code, $s, $previousRequest)));
+    }
+
+    /**
+     * Kyle, 2026-11-23: the request fields $code does not show (FIELDS_FOR_TYPES).
+     * Never required; SubmitCase clears them at submit.
+     *
+     * @return list<string>
+     */
+    public static function hiddenFields(string $code): array
+    {
+        return array_keys(array_filter(self::FIELDS_FOR_TYPES, fn (array $types) => ! in_array($code, $types, true)));
     }
 
     /** A section with nothing in it that blocks submission for this type. */
@@ -358,7 +408,8 @@ final class RequestSections
             'variation_details' => $case->variationRows->isNotEmpty(),
             'awarded_supplier' => $case->tenderAwards->isNotEmpty(),
             'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
-            'stock' => $case->stockExpiries->isNotEmpty() || (bool) $r?->no_stock_on_hand
+            // Not no_stock_on_hand: the server sets it from the batch total (an empty draft has it).
+            'stock' => $case->stockExpiries->isNotEmpty()
                 || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_order']),
             'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
                 'rfq_audience', 'quantity_to_purchase', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
@@ -427,8 +478,10 @@ final class RequestSections
         }
         self::checkRows('tender_awards', $rows['tender_awards'], $add);
 
-        // Existing arrangement: orders are optional; an order that exists must be complete.
+        // Existing arrangement: orders are optional; an order that exists must be complete and consistent.
+        $today = now(self::LOCAL_TIMEZONE)->toDateString();
         self::checkRows('purchase_orders', $rows['purchase_orders'], $add);
+        $this->orders($rows['purchase_orders'], $today, $add);
 
         $this->stock($r, $rows['stock_expiries'], $requires['stock'], $add);
         $this->quotations($r, $rows['quotations'], $requires['quotations'], $add);
@@ -477,9 +530,63 @@ final class RequestSections
     }
 
     /**
-     * Required: average monthly consumption (0 allowed) and either "No stock on
-     * hand" or one complete batch. Batches are ignored when "No stock on hand"
-     * is ticked; a batch that is entered must be complete either way.
+     * Kyle, 2026-11-23: each saved order row. The date ordered and the delivery
+     * date are not after today (Port of Spain); the delivery date is required
+     * unless the status is Not delivered, and not before the date ordered; the
+     * quantity delivered (blank = 0) is not above the quantity ordered and agrees
+     * with the status. Missing values are left to checkRows.
+     */
+    private function orders(Collection $orders, string $today, callable $add): void
+    {
+        foreach ($orders as $i => $po) {
+            $row = 'purchase_orders.'.$i;
+            $label = RequisitionMessages::rowLabel('purchase_orders', (int) $i).': ';
+            $ordered = $po->ordered_on?->toDateString();
+            $delivered = $po->quantity_delivered ?? '0';
+            $state = $po->delivery_state;
+
+            if ($ordered !== null && $ordered > $today) {
+                $add("{$row}.ordered_on", $label.self::ORDERED_IN_FUTURE);
+            }
+
+            $over = $po->quantity_ordered !== null && Decimal::compare($delivered, $po->quantity_ordered) > 0;
+            if ($over) {
+                $add("{$row}.quantity_delivered", $label.self::DELIVERED_OVER_ORDERED);
+            }
+
+            if ($state !== null && $state !== DeliveryState::NOT_DELIVERED && $po->delivery_date === null) {
+                $add("{$row}.delivery_date", $label.RequisitionMessages::columnLabel('purchase_orders', 'delivery_date').' is required.');
+            }
+
+            $date = $po->delivery_date?->toDateString();
+            if ($date !== null && $date > $today) {
+                $add("{$row}.delivery_date", $label.self::DELIVERY_IN_FUTURE);
+            } elseif ($date !== null && $ordered !== null && $date < $ordered) {
+                $add("{$row}.delivery_date", $label.self::DELIVERY_BEFORE_ORDERED);
+            }
+
+            // The status against the quantities (once the quantity ordered is in and not exceeded).
+            if ($state === null || $po->quantity_ordered === null || $over) {
+                continue;
+            }
+            $mismatch = match ($state) {
+                DeliveryState::FULLY_DELIVERED => Decimal::compare($delivered, $po->quantity_ordered) !== 0 ? self::FULLY_DELIVERED_MISMATCH : null,
+                DeliveryState::PARTIALLY_DELIVERED => Decimal::compare($delivered, '0') <= 0 || Decimal::compare($delivered, $po->quantity_ordered) >= 0
+                    ? self::PARTIALLY_DELIVERED_MISMATCH : null,
+                DeliveryState::NOT_DELIVERED => Decimal::compare($delivered, '0') !== 0 ? self::NOT_DELIVERED_MISMATCH : null,
+            };
+            if ($mismatch !== null) {
+                $add("{$row}.delivery_state", $label.$mismatch);
+            }
+        }
+    }
+
+    /**
+     * Kyle, 2026-11-23: required, the average monthly consumption (0 allowed).
+     * Quantity on hand is the batch total: with a total of 0 (no batches, or
+     * every quantity 0) the case has no stock on hand (set by the server, see
+     * StockOnHand) and no batch is needed. Every batch that is entered needs its
+     * quantity, and an expiry date when its quantity is above 0.
      */
     private function stock(CaseRequisition $r, Collection $batches, bool $required, callable $add): void
     {
@@ -487,14 +594,14 @@ final class RequestSections
             $add('requisition.average_monthly_consumption', 'Enter the average monthly consumption (0 if none).');
         }
 
-        if ($r->no_stock_on_hand) {
-            return;
+        foreach ($batches as $i => $batch) {
+            $label = RequisitionMessages::rowLabel('stock_expiries', (int) $i).': ';
+            if ($batch->quantity === null) {
+                $add("stock_expiries.{$i}.quantity", $label.RequisitionMessages::columnLabel('stock_expiries', 'quantity').' is required.');
+            } elseif (Decimal::compare($batch->quantity, '0') > 0 && $batch->expiry_date === null) {
+                $add("stock_expiries.{$i}.expiry_date", $label.RequisitionMessages::columnLabel('stock_expiries', 'expiry_date').' is required.');
+            }
         }
-
-        if ($required && $batches->isEmpty()) {
-            $add('stock_expiries', self::STOCK_NEEDED);
-        }
-        self::checkRows('stock_expiries', $batches, $add);
     }
 
     /**
@@ -519,6 +626,22 @@ final class RequestSections
 
         if ($required && ($r->quantity_to_purchase === null || Decimal::compare($r->quantity_to_purchase, '0') <= 0)) {
             $add('requisition.quantity_to_purchase', 'Enter a quantity to purchase greater than zero.');
+        }
+
+        // Kyle, 2026-11-23: no quotation row, and not the total being purchased (the
+        // quantity to purchase), may be above the quantity requested. Quotation
+        // comparison only: award quantities are tender quantities and may exceed it.
+        $requested = $r->quantity_requested;
+        if ($requested !== null && Decimal::compare($requested, '0') > 0) {
+            $n = Display::quantity($requested);
+            if ($r->quantity_to_purchase !== null && Decimal::compare($r->quantity_to_purchase, $requested) > 0) {
+                $add('requisition.quantity_to_purchase', strtr(self::TOTAL_OVER_REQUESTED, [':x' => Display::quantity($r->quantity_to_purchase), ':n' => $n]));
+            }
+            foreach ($quotations as $i => $q) {
+                if ($q->quantity_offered !== null && Decimal::compare($q->quantity_offered, $requested) > 0) {
+                    $add("quotations.{$i}.quantity_offered", RequisitionMessages::rowLabel('quotations', (int) $i).': '.strtr(self::QUANTITY_OVER_REQUESTED, [':n' => $n]));
+                }
+            }
         }
 
         foreach ($quotations as $i => $q) {

@@ -225,7 +225,7 @@ it('sends the at-risk and expired batches as structured items', function () {
     [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
     $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
     saveDraft($case, $vendor, [
-        'requisition' => ['average_monthly_consumption' => '30', 'no_stock_on_hand' => false],
+        'requisition' => ['average_monthly_consumption' => '30'],
         'stock_expiries' => [
             ['quantity' => '100', 'expiry_date' => $today->addDays(10)->toDateString()],  // earliest unexpired: 115 days on hand, expires in 10: at risk
             ['quantity' => '5', 'expiry_date' => $today->subDay()->toDateString()],       // expired

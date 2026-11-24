@@ -49,7 +49,6 @@ final class RequisitionMessages
         'quantity_on_order' => 'Quantity on Hand', // the label on screen (Stock)
         'stock_location' => 'Location',
         'average_monthly_consumption' => 'Average Monthly Consumption',
-        'no_stock_on_hand' => 'No Stock on Hand',
         'rfq_audience' => 'RFQ Sent To',
         'quantity_to_purchase' => 'Quantity to Purchase',
         'quoted_price_acceptable' => 'Quoted Price Is Acceptable',
@@ -78,6 +77,8 @@ final class RequisitionMessages
             'po_number' => 'PO Number',
             'ordered_on' => 'Date Ordered',
             'delivery_eta' => 'Delivery Date',
+            'delivery_state' => 'Delivery Status',
+            'delivery_date' => 'Delivery Date',
         ],
         'stock_expiries' => [],
         'variation_rows' => [

@@ -2,6 +2,7 @@
 
 namespace App\Submissions;
 
+use App\Enums\DeliveryState;
 use App\Enums\NeedClassification;
 use App\Enums\PreviousPriceMaintained;
 use App\Enums\RfqAudience;
@@ -296,11 +297,13 @@ final class RequisitionRules
             // 3 Stock
             'stock_location' => self::str(200),
             'average_monthly_consumption' => ['type' => 'qty'],
-            'no_stock_on_hand' => ['type' => 'bool', 'default' => true],
+            // no_stock_on_hand is set by the server from the batch total (Kyle, 2026-11-23); never sent.
             // 4 Quotations
             'rfq_audience' => ['type' => 'enum', 'enum' => RfqAudience::class],
             'quantity_to_purchase' => ['type' => 'qty'],
-            // 5 Price comparison
+            // 5 Price comparison. Tender and previous price show for Tender Excess only
+            // (RequestSections::HIDDEN_FIELDS) but are accepted for every type, so a draft
+            // keeps them if its type changes back; SubmitCase clears them when hidden.
             'tender_price' => ['type' => 'price'],
             'previous_price' => ['type' => 'price'],
             'quoted_price_acceptable' => ['type' => 'bool'],
@@ -394,8 +397,10 @@ final class RequisitionRules
                 'quantity_ordered' => ['type' => 'qty'],
                 'ordered_on' => ['type' => 'date'],
                 'quantity_delivered' => ['type' => 'qty'],
-                'delivery_eta' => ['type' => 'date'],
-                'delivery_status' => self::str(120),
+                // Kyle, 2026-11-23: the status dropdown and the delivery date replace the
+                // old delivery_eta / free-text delivery_status (columns kept, no longer accepted).
+                'delivery_state' => ['type' => 'enum', 'enum' => DeliveryState::class],
+                'delivery_date' => ['type' => 'date'],
             ],
             'stock_expiries' => [
                 'id' => $id,

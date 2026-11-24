@@ -390,7 +390,7 @@ it('shows exact server-computed values', function () {
     $this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('requests/show')
         ->where('case.quotations.2.unit_price', '1.5975')
-        ->where('case.quotations.2.derived.offered_total', '4792.50')
+        ->where('case.quotations.2.derived.offered_total', '4473.00') // 2800 offered x 1.5975
         ->where('case.quotations.2.derived.recommended_total', '4473.00')
         ->where('case.quotations.2.derived.recommended_vat_amount', '559.13')
         ->where('case.quotations.2.derived.recommended_total_including_vat', '5032.13')

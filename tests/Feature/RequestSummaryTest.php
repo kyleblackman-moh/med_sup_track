@@ -246,10 +246,21 @@ it('computes and formats every figure on the server', function () {
             'Recommended Unit Price' => '$1.5975',
             'Quantity to Purchase' => '2,800 Each',
             'Total Cost' => '$4,473.00',
-            'Change Against Tender Price' => '27.80%',
-            'Change Against Previous Price' => '6.50%',
             'Quoted Price Is Acceptable' => 'Yes',
-        ]);
+        ])
+        // 2026-11-23: the tender and previous price show for Tender Excess only.
+        ->and(summaryFields($summary, 'quotation_comparison'))->not->toHaveKeys(['Tender Price', 'Change Against Tender Price', 'Change Against Previous Price']);
+});
+
+it('shows the tender and previous price comparison for Tender Excess', function () {
+    [$case, $vendor] = summaryDraft('TENDER_EXCESS');
+
+    expect(summaryFields(summaryOf($case, $vendor), 'quotation_comparison'))->toMatchArray([
+        'Tender Price' => '$1.25',
+        'Previous Price' => '$1.50',
+        'Change Against Tender Price' => '27.80%',
+        'Change Against Previous Price' => '6.50%',
+    ]);
 });
 
 it('words the expiry warning from the submission date once submitted', function () {
@@ -257,7 +268,7 @@ it('words the expiry warning from the submission date once submitted', function 
     $submitted = CarbonImmutable::now('America/Port_of_Spain')->startOfDay()->subDays(60);
     $expiry = $submitted->addDays(10); // expired today, 10 days ahead on the submission date
     saveDraft($case, $vendor, [
-        'requisition' => ['average_monthly_consumption' => '30', 'no_stock_on_hand' => false],
+        'requisition' => ['average_monthly_consumption' => '30'],
         'stock_expiries' => [['quantity' => '100', 'expiry_date' => $expiry->toDateString()]],
     ]);
 

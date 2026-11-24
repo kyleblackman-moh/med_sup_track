@@ -329,7 +329,7 @@ it('computes the AD_HOC figures on the server', function () {
         ->and(collect($detail['tender_awards'])->pluck('derived.total')->all())->toBe(['3750.00', '1300.00'])
         ->and($detail['totals']['tender_awards'])->toBe(['quantity_awarded' => '4000.00', 'total' => '5050.00'])
         ->and($detail['purchase_orders'][0]['derived']['quantity_outstanding'])->toBe('1800.00')
-        ->and(collect($detail['quotations'])->pluck('derived.offered_total')->all())->toBe(['4200.00', '4792.50'])
+        ->and(collect($detail['quotations'])->pluck('derived.offered_total')->all())->toBe(['3920.00', '4473.00']) // 2800 offered (not above the quantity requested)
         ->and($detail['requisition']['derived'])->toBe(['stock_on_hand' => '200.50']); // 120 + 80.5; no coverage for the vendor
 });
 
@@ -357,8 +357,10 @@ it('computes each figure from the saved rows only, null when not computable', fu
 
     expect($values[$figure])->toBe($expected);
 })->with([
-    'no stock on hand ignores the batches' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'no_stock_on_hand' => true]], 'stock_on_hand', '0.00'],
-    'no batches, no flag' => [fn ($p) => [...$p, 'stock_expiries' => []], 'stock_on_hand', null],
+    // 2026-11-23: "no stock on hand" is set by the server: a batch total of 0 once the consumption is entered.
+    'batches of 0 with consumption' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '0']]], 'stock_on_hand', '0.00'],
+    'no batches with consumption' => [fn ($p) => [...$p, 'stock_expiries' => []], 'stock_on_hand', '0.00'],
+    'no batches, no consumption' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => null], 'stock_expiries' => []], 'stock_on_hand', null],
     'batch without quantity skipped' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '10'], ['expiry_date' => '2027-01-31']]], 'stock_on_hand', '10.00'],
     'coverage needs consumption' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => null]], 'coverage_months', null],
     'same supplier twice counts once' => [fn ($p) => [...$p, 'tender_awards' => [['supplier_name' => 'Supplier A'], ['supplier_name' => ' supplier a '], ['supplier_name' => null]]], 'suppliers_awarded', 1],

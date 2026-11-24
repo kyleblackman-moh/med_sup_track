@@ -211,11 +211,12 @@ final class AdHocSections
         return match ($key) {
             'item' => filled($r?->item_description) ? Str::limit((string) $r->item_description, 80) : 'Not started',
             'tender' => self::tenderSummary($case),
+            // 2026-11-23: "no stock on hand" is set by the server from the batch total, so an
+            // untouched draft has it too: only once something is entered does it say so.
             'stock' => match (true) {
+                $case->stockExpiries->isEmpty() && $r?->average_monthly_consumption === null && blank($r?->stock_location) => 'Not started',
                 (bool) $r?->no_stock_on_hand => 'No stock on hand',
-                $case->stockExpiries->isNotEmpty() => self::count($case->stockExpiries->count(), 'batch', 'batches').', '.$case->batchStockOnHand().' on hand',
-                $r?->average_monthly_consumption !== null || filled($r?->stock_location) => 'No batches yet',
-                default => 'Not started',
+                default => self::count($case->stockExpiries->count(), 'batch', 'batches').', '.$case->batchStockOnHand().' on hand',
             },
             'quotations' => $case->quotationsReceived() > 0
                 ? self::count($case->quotationsReceived(), 'quotation').', '.$case->quotationsConsidered().' considered'

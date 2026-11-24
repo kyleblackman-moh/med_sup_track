@@ -190,8 +190,8 @@ final class RequestSummary
                 'quantity_ordered' => 'Quantity Ordered',
                 'ordered_on' => 'Date Ordered',
                 'quantity_delivered' => 'Quantity Delivered',
-                'delivery_eta' => 'Delivery Date',
                 'delivery_status' => 'Delivery Status',
+                'delivery_date' => 'Delivery Date',
                 'quantity_outstanding' => 'Quantity Outstanding',
             ], $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
                 'supplier' => Display::text($suppliers[$po->award_id] ?? null),
@@ -199,8 +199,10 @@ final class RequestSummary
                 'quantity_ordered' => Display::quantity($po->quantity_ordered),
                 'ordered_on' => self::date($po->ordered_on),
                 'quantity_delivered' => Display::quantity($po->quantity_delivered),
-                'delivery_eta' => self::date($po->delivery_eta),
-                'delivery_status' => Display::text($po->delivery_status),
+                // 2026-11-23: the status dropdown and delivery date; a row saved before them
+                // (and not mapped by the migration) shows its old values instead.
+                'delivery_status' => $po->delivery_state?->label() ?? Display::text($po->delivery_status),
+                'delivery_date' => self::date($po->delivery_date ?? $po->delivery_eta),
                 'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
             ])->values()->all()),
             self::fields(['Issues Affecting the Tender Quantity' => Display::text($case->requisition?->tender_issue_explanation)]),
@@ -293,12 +295,16 @@ final class RequestSummary
         ];
 
         // The optional price comparison, only once something is entered in it (as on the form).
-        if ($r !== null && ($r->tender_price !== null || $r->previous_price !== null || $r->quoted_price_acceptable !== null || filled($r->price_note))) {
+        // 2026-11-23: the tender and previous price only where the type shows them (Tender Excess).
+        $prices = $r !== null && ! in_array('tender_price', RequestSections::hiddenFields((string) $case->procurementType?->code), true);
+        if ($r !== null && (($prices && ($r->tender_price !== null || $r->previous_price !== null)) || $r->quoted_price_acceptable !== null || filled($r->price_note))) {
             $blocks[] = self::fields([
-                'Tender Price' => Display::price($r->tender_price),
-                'Previous Price' => Display::price($r->previous_price),
-                'Change Against Tender Price' => Display::percent($case->priceChangePercent($r->tender_price)),
-                'Change Against Previous Price' => Display::percent($case->priceChangePercent($r->previous_price)),
+                ...($prices ? [
+                    'Tender Price' => Display::price($r->tender_price),
+                    'Previous Price' => Display::price($r->previous_price),
+                    'Change Against Tender Price' => Display::percent($case->priceChangePercent($r->tender_price)),
+                    'Change Against Previous Price' => Display::percent($case->priceChangePercent($r->previous_price)),
+                ] : []),
                 'Quoted Price Is Acceptable' => Display::yesNo($r->quoted_price_acceptable === null ? null : (bool) $r->quoted_price_acceptable),
                 'Note on the Price' => Display::text($r->price_note),
             ]);
