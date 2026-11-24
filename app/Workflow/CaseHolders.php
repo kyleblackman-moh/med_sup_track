@@ -83,6 +83,22 @@ final class CaseHolders
         return Role::tryFrom($role)?->label() ?? Str::headline($role);
     }
 
+    /**
+     * The assignment purposes that work a stage, in display order, regardless of
+     * track decisions (FileTracking reads it for past stages).
+     *
+     * @return list<string>
+     */
+    public static function stagePurposes(CaseStatus $status): array
+    {
+        return match ($status) {
+            CaseStatus::SUBMITTED => ['intake'],
+            CaseStatus::IN_REVIEW => ['technical', 'funding'],
+            CaseStatus::WITH_LEGAL => ['legal'],
+            default => [],
+        };
+    }
+
     /** @return list<string> the assignment purposes that hold the case at its current stage, in display order */
     private static function purposes(ProcurementCase $case): array
     {

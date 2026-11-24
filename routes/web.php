@@ -10,6 +10,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\FileTrackingController;
 use App\Http\Controllers\HardcopyLookupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
@@ -61,6 +62,17 @@ Route::middleware(['auth', 'case.area']) // IT-ADMIN: 404 without case work
 Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class, 'can:'.Permission::CaseViewAll->value])
     ->get('analytics', AnalyticsController::class)
     ->name('analytics');
+
+// 2026-11-24: File Tracking (JSON until the page comes with the UI). Staff case
+// area only; scoped to the cases the user can see, hidden cases 404.
+Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::class])
+    ->prefix('tracking')
+    ->name('tracking.')
+    ->controller(FileTrackingController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{procurementCase}', 'show')->name('show');
+    });
 
 // Vendor requests. Hidden or missing cases are 404 (ProcurementCase's global
 // scope applies to route model binding).
