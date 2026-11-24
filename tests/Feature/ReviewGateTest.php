@@ -249,7 +249,7 @@ it('audits each outcome without the reason text', function () {
 
     $meta = json_decode($technical[0]->metadata, true);
     expect($meta)->toMatchArray(['outcome' => 'not_favourable', 'previous_track' => 'PENDING', 'track' => 'NOT_FAVOURABLE', 'reason_given' => true])
-        ->and(array_keys($meta))->toBe(['outcome', 'previous_track', 'track', 'reason_given', 'event_id'])
+        ->and(array_keys($meta))->toBe(['outcome', 'previous_outcome', 'previous_track', 'track', 'reason_given', 'reason_id', 'event_id'])
         ->and(json_decode($funding[0]->metadata, true))->toMatchArray(['outcome' => 'confirmed', 'track' => 'CONFIRMED', 'reason_given' => false]);
 });
 

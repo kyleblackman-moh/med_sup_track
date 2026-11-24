@@ -159,8 +159,8 @@ it('tells the CMO each review outcome (info), then Ready to Prepare File (action
 
     $titles = collect(nrReceived($this->a['cmo']))->filter(fn ($n) => $n instanceof FundingReviewRecorded)->map->title()->all();
     expect(array_values($titles))->toBe([
-        'Funding Recorded on '.$case->reference_no.': Funding not confirmed',
-        'Funding Recorded on '.$case->reference_no.': Funding confirmed',
+        'Funding Recorded on '.$case->reference_no.': Virement Required',
+        'Funding Recorded on '.$case->reference_no.': Availability of Funds',
     ])->and(TechnicalReviewRecorded::for($case)->kind())->toBe(CaseNotification::INFO)
         ->and(ReadyToPrepareFile::for($case)->kind())->toBe(CaseNotification::ACTION);
 });

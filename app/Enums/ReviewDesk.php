@@ -61,13 +61,26 @@ enum ReviewDesk: string
         };
     }
 
-    /** The outcomes a reviewer at this desk may record: [positive, negative]. */
+    /**
+     * The outcomes a reviewer at this desk may record, positive first, the one
+     * negative outcome last (Kyle, 2026-11-24: funding has two positive ones).
+     *
+     * @return list<ReviewOutcome>
+     */
     public function outcomes(): array
     {
         return match ($this) {
             self::Technical => [ReviewOutcome::Favourable, ReviewOutcome::NotFavourable],
-            self::Funding => [ReviewOutcome::Confirmed, ReviewOutcome::NotConfirmed],
+            self::Funding => [ReviewOutcome::Confirmed, ReviewOutcome::VerifiedByAccounts, ReviewOutcome::NotConfirmed],
         };
+    }
+
+    /** The negative outcome (needs a reason). */
+    public function negativeOutcome(): ReviewOutcome
+    {
+        $outcomes = $this->outcomes();
+
+        return end($outcomes);
     }
 
     public function positiveTrack(): TrackStatus

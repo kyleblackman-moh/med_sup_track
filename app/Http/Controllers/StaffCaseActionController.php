@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReturnKind;
+use App\Enums\ReviewDesk;
+use App\Enums\ReviewOutcome;
 use App\Models\ProcurementCase;
 use App\Support\StaffFormMessages;
 use App\Workflow\Actions\CloseCase;
@@ -111,10 +113,14 @@ class StaffCaseActionController extends Controller
         return back()->with('success', 'Technical review recorded.');
     }
 
-    /** Slice 10b: a CAB officer records confirmed | not_confirmed. */
+    /** A CAB officer records Availability of Funds | Verified by Accounts | Virement Required (Kyle, 2026-11-24). */
     public function funding(Request $request, ProcurementCase $procurementCase, RecordFundingConfirmation $record): RedirectResponse
     {
-        $validated = $this->outcomeInput($request, ['confirmed', 'not_confirmed'], 'not_confirmed');
+        $validated = $this->outcomeInput(
+            $request,
+            array_map(fn (ReviewOutcome $o) => $o->value, ReviewDesk::Funding->outcomes()),
+            ReviewDesk::Funding->negativeOutcome()->value,
+        );
 
         $record->handle($procurementCase, $request->user(), $validated['outcome'], $validated['reason'] ?? null);
 

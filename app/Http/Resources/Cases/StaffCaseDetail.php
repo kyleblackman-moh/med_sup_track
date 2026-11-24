@@ -7,6 +7,7 @@ use App\Enums\DocumentVisibility;
 use App\Enums\Permission;
 use App\Enums\ReturnKind;
 use App\Enums\ReviewDesk;
+use App\Enums\ReviewOutcome;
 use App\Enums\Role;
 use App\Enums\ScanStatus;
 use App\Enums\TrackStatus;
@@ -489,15 +490,14 @@ final class StaffCaseDetail
             }
 
             $latest = TrackCalculator::reviewers($case, $desk)[(int) $user->getKey()]['latest'];
-            [$positive, $negative] = $desk->outcomes();
-
             $forms[] = [
                 'track' => $desk->value,
                 'label' => $desk->label(),
-                'outcomes' => [
-                    ['value' => $positive->value, 'label' => $positive->label(), 'positive' => true],
-                    ['value' => $negative->value, 'label' => $negative->label(), 'positive' => false],
-                ],
+                // Kyle, 2026-11-24: funding has three (two positive, Virement Required last).
+                'outcomes' => array_map(
+                    fn (ReviewOutcome $o) => ['value' => $o->value, 'label' => $o->label(), 'positive' => $o->isPositive()],
+                    $desk->outcomes(),
+                ),
                 'current' => $latest === null ? null : [
                     'outcome' => $latest->outcome->value,
                     'label' => $latest->outcome->label(),

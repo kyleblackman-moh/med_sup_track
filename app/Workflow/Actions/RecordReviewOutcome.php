@@ -61,6 +61,9 @@ final class RecordReviewOutcome
                 throw new AuthorizationException('You are not assigned to this review.');
             }
 
+            // This reviewer's outcome before this change (null on their first), for the audit.
+            $before = TrackCalculator::reviewers($locked, $desk)->get((int) $actor->getKey())['latest'] ?? null;
+
             $event = (new CaseTrackEvent)->forceFill([
                 'case_id' => $locked->getKey(),
                 'track' => $desk,
@@ -81,9 +84,13 @@ final class RecordReviewOutcome
                 $locked->getKey(),
                 [
                     'outcome' => $chosen->value,
+                    // Kyle, 2026-11-24: every change shows old and new, and the reason's id
+                    // (the case_track_events row that holds the text), never the text.
+                    'previous_outcome' => $before?->outcome?->value,
                     'previous_track' => $previous?->value,
                     'track' => $locked->{$desk->track()}->value,
                     'reason_given' => $reason !== null,
+                    'reason_id' => $reason !== null ? (int) $event->getKey() : null,
                     'event_id' => (int) $event->getKey(),
                 ],
                 $actor,
