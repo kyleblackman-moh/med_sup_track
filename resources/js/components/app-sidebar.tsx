@@ -89,7 +89,8 @@ export function AppSidebar() {
         ? [{ title: 'Queries', url: route('queries.index'), icon: MessageSquareText, section: 'queries', count: openQueriesCount ?? 0 }]
         : [];
     const navItems = [
-        ...mainNavItems,
+        // Kyle, 2026-11-24: vendors' home is Requests, so the server hides Dashboard for them.
+        ...(nav?.dashboard === false ? [] : mainNavItems),
         ...analyticsItems,
         ...(can?.requests ? [requestsNavItem] : []),
         ...(can?.cases ? [casesNavItem] : []),

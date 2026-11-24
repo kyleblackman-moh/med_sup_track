@@ -47,16 +47,11 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
                     </span>
                     <div className="md:border-base-300 min-w-0 space-y-1 md:border-l md:pl-5">
                         <p className="text-base-content/70 tracking-caption text-xs font-medium uppercase">Request</p>
-                        {/* V2-4b: the page's one h1 is the server's heading (the item description, else "New
-                            Request"). With a reference it sits under the number; before there is one it is the
-                            large text itself (never "Draft": the status pill says that). */}
-                        {hero.reference ? (
-                            <>
-                                <p className="text-hero-ref tracking-title leading-tight font-bold tabular-nums">{hero.reference}</p>
-                                <h1 className="text-hero-title leading-snug font-semibold break-words">{hero.heading}</h1>
-                            </>
-                        ) : (
-                            <h1 className="text-hero-ref tracking-title leading-tight font-bold break-words">{hero.heading}</h1>
+                        {/* Kyle, 2026-11-24: the page's one h1 is the drug and DIN (the server's heading, else
+                            "New Request") in the large mono the reference used; the reference sits under it. */}
+                        <h1 className="text-hero-ref tracking-title leading-tight font-bold break-words">{hero.heading}</h1>
+                        {hero.reference && (
+                            <p className="text-base-content/70 text-hero-title leading-snug font-medium tabular-nums">{hero.reference}</p>
                         )}
                     </div>
                 </div>

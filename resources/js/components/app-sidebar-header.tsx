@@ -1,5 +1,6 @@
 import { APP_BRAND, AppLogoMark } from '@/components/app-logo';
 import { useAppDrawer } from '@/components/app-shell';
+import { GreetingClock } from '@/components/greeting-clock';
 import { NotificationBell } from '@/components/notification-bell';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -12,7 +13,8 @@ import { Menu, PanelLeft } from 'lucide-react';
  * then the pill tile, the system name and the application name from the app
  * config (the shared `name` prop). The user menu lives at the foot of the
  * drawer. NOTIF-3: the notification bell sits at the end (staff and
- * vendors alike; every user has their own rows). Hidden in print.
+ * vendors alike; every user has their own rows), after the greeting and
+ * live clock (GreetingClock). Hidden in print.
  */
 export function AppSidebarHeader() {
     const { name } = usePage<SharedData>().props;
@@ -39,7 +41,9 @@ export function AppSidebarHeader() {
                     )}
                 </span>
             </Link>
-            <div className="ms-auto flex items-center">
+            {/* Kyle, 2026-11-24: the greeting and a live clock sit beside the bell (they left the dashboard). */}
+            <div className="ms-auto flex items-center gap-2">
+                <GreetingClock />
                 <NotificationBell />
             </div>
         </header>

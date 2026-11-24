@@ -1,11 +1,11 @@
-import { DraftsCard, type DashboardDrafts } from '@/components/dashboard/drafts-card';
+import { FileTrackingBoard } from '@/components/dashboard/file-tracking-board';
 import { RISE } from '@/components/dashboard/motion';
-import { ReferenceLookup } from '@/components/dashboard/reference-lookup';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageHeader } from '@/components/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { type TrackingBoard } from '@/types/tracking';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ChevronRight, FileText, FolderOpen, type LucideIcon } from 'lucide-react';
 
@@ -19,28 +19,27 @@ interface Destination {
 interface Props {
     /** Null for users with no queue permissions (vendors, auditors, ...). */
     workQueue: WorkQueueData | null;
-    /** The greeting and one subtitle line, in local time (server). */
-    header: { title: string; subtitle: string };
+    /** "3 items waiting on you" (server); null without a queue. The greeting lives in the top bar. */
+    summary: string | null;
     /** Case id => request type name for the queue's rows (sent by the server; DASH-1: the rows carry their own type_label). */
     requestTypes: Record<string, string>;
     /** DASH-1: the queue card after the server applied the filter and the search; null without a queue. */
     queue: DashboardQueue | null;
-    /** The user's own drafts (vendors); null for staff. Charts and tracking live on Analytics. */
-    drafts: DashboardDrafts | null;
-    /** HARDCOPY-1: show the reference lookup (hardcopy.confirm holders); the lookup authorises itself. */
-    hardcopyLookup?: boolean;
+    /** Kyle, 2026-11-24: the File Tracking board (File Tracking holders); null otherwise. */
+    tracking: TrackingBoard | null;
 }
 
 const PRIMARY_ACTION = 'btn btn-primary btn-sm capitalize transition-transform active:scale-[0.97]';
 
 /**
- * Landing page, one for every role (Flowbite look on daisyUI): the greeting,
- * then one card. Staff get the work queue; vendors get only Your Drafts (no
- * stats, charts or internal stage names); anyone else gets the places they can
- * go, driven by the shared `can` flags. Charts and tracking live on Analytics.
+ * Landing page for staff (Kyle, 2026-11-24: vendors land on their Requests
+ * list; the greeting and clock sit in the top bar). What needs the user's
+ * action comes first (the work queue), then the File Tracking board: where
+ * every open file is and its days at each unit. Anyone else gets the places
+ * they can go, driven by the shared `can` flags. Charts live on Analytics.
  * Never shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, header, queue, drafts, hardcopyLookup = false }: Props) {
+export default function Dashboard({ workQueue, summary, queue, tracking }: Props) {
     const { can } = usePage<SharedData>().props;
     // DASH-1: the one crumb is the page itself, from the named route.
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: route('dashboard') }];
@@ -60,50 +59,32 @@ export default function Dashboard({ workQueue, header, queue, drafts, hardcopyLo
             ? [{ title: 'File Tracking', description: 'Find any case and see where it is.', href: route('cases.index'), icon: FolderOpen }]
             : []),
     ];
-    // The header's one primary action: the case list for staff, else the user's first destination. Vendors use the drafts card's New Request.
-    const primary = drafts === null ? (destinations.at(-1) ?? null) : null;
+    // The header's one primary action: the case list for staff, else the user's first destination.
+    const primary = destinations.at(-1) ?? null;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-6">
-                {/* The greeting in a card with daisyUI's aura (a light running round its border), in the theme's primary colour.
-                    Used once on the page; it stands still for users who prefer reduced motion. */}
-                <div className="aura text-primary block motion-reduce:animate-none">
-                    <div className="card bg-base-100 text-base-content">
-                        <div className="card-body p-4 lg:px-6">
-                            <PageHeader
-                                className={RISE[0]}
-                                titleClassName="capitalize"
-                                title={header.title}
-                                subtitle={header.subtitle}
-                                actions={
-                                    primary && (
-                                        <Link href={primary.href} className={PRIMARY_ACTION}>
-                                            <primary.icon className="size-4" aria-hidden="true" />
-                                            {primary.title}
-                                        </Link>
-                                    )
-                                }
-                            />
-                        </div>
-                    </div>
-                </div>
+                <PageHeader
+                    className={RISE[0]}
+                    title="Dashboard"
+                    titleClassName="capitalize"
+                    subtitle={summary ?? undefined}
+                    actions={
+                        primary && (
+                            <Link href={primary.href} className={PRIMARY_ACTION}>
+                                <primary.icon className="size-4" aria-hidden="true" />
+                                {primary.title}
+                            </Link>
+                        )
+                    }
+                />
 
-                {hardcopyLookup && (
-                    <div className={RISE[1]}>
-                        <ReferenceLookup />
-                    </div>
-                )}
-
-                <div className={RISE[2]}>
-                    {queue && drafts === null && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
-
-                    {drafts && <DraftsCard drafts={drafts} canCreate={can?.requests === true} />}
-
+                <div className={RISE[1]}>
+                    {queue && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
                     {/* For users without a queue: the places they can go, as cards; else the empty state. */}
                     {!workQueue &&
-                        drafts === null &&
                         (destinations.length === 0 ? (
                             <div className="card bg-base-100 border-base-300 border">
                                 <EmptyState message="There is nothing for you to work on here yet." />
@@ -137,6 +118,12 @@ export default function Dashboard({ workQueue, header, queue, drafts, hardcopyLo
                             </nav>
                         ))}
                 </div>
+
+                {tracking && (
+                    <div className={RISE[2]}>
+                        <FileTrackingBoard board={tracking} />
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

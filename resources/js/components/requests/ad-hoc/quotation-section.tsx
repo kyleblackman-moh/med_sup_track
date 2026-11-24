@@ -3,7 +3,7 @@ import { RowErrorList } from '@/components/ui/entry-table';
 import { quotationPrice } from '@/lib/quotation-price';
 import { type ReactNode } from 'react';
 import { collectRowErrors, EntryInlineCheck } from './entry-fields';
-import { FieldGrid, FieldHint, Figure, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
+import { FieldGrid, FieldHint, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -282,15 +282,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             <AddRowButton label="Add Quotation" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('quotations')} />
                         </div>
                     </div>
-                </div>
-            </GridRow>
-
-            <GridRow width="md">
-                <dl>
-                    <Figure width="full" label="Total Cost (Recommended Quotation, incl. VAT)" value={form.display.total_cost} />
-                </dl>
-                <div className="mt-1">
-                    <FieldHint>The total is worked out by the system and updates after each save.</FieldHint>
                 </div>
             </GridRow>
 

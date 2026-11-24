@@ -56,15 +56,8 @@ export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }:
             {/* FORM-COMPACT-1: the two dates (xs) and the question (lg) share one row from a 56rem card. */}
             <FieldGrid>
                 {/* Kyle, 2026-11-24: neither date may be in the future (the server checks it too). */}
-                <TextField {...field('tender_cycle_start')} width="xs" label="Tender Cycle Start" type="date" max={today} hint="Today or earlier." />
-                <TextField
-                    {...field('tender_cycle_end')}
-                    width="xs"
-                    label="Tender Cycle End"
-                    type="date"
-                    max={today}
-                    hint="Not before the start, and not in the future."
-                />
+                <TextField {...field('tender_cycle_start')} width="xs" label="Tender Cycle Start" type="date" max={today} />
+                <TextField {...field('tender_cycle_end')} width="xs" label="Tender Cycle End" type="date" max={today} />
                 <PreviousRequestQuestion
                     width="lg"
                     value={api.state.previousRequest}

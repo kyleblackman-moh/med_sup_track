@@ -55,11 +55,13 @@ final class CaseHero
         $vendorView = $viewer === null || $viewer->isVendor();
         $isDraft = $case->status === CaseStatus::DRAFT;
         $title = $case->requisition?->item_description;
+        $din = trim((string) $case->requisition?->din);
 
         return [
             'reference' => $case->reference_no,
             'title' => is_string($title) && trim($title) !== '' ? $title : null,
-            'heading' => is_string($title) && trim($title) !== '' ? $title : self::UNTITLED,
+            // Kyle, 2026-11-24: the drug and its DIN name the case ("Degarelix · DIN 02345678").
+            'heading' => is_string($title) && trim($title) !== '' ? $title.($din !== '' ? ' · DIN '.$din : '') : self::UNTITLED,
             'type' => $type === null || $code === ProcurementTypeProfile::NOT_SELECTED ? null : [
                 'label' => $type->name,
                 'icon' => RequestDetailResource::TYPE_ICONS[$code] ?? self::DEFAULT_TYPE_ICON,

@@ -1,15 +1,10 @@
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
 import { CheckboxField, FieldGrid, Figure, GridRow, TextAreaField, TextField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 
-const REFERENCE_PRICES = ['tender_price', 'previous_price'];
-const OTHER_FIELDS = ['quoted_price_acceptable', 'price_note'];
-
 /**
- * Section 5, Price comparison (optional). Hidden behind "Add Price Comparison"
- * until something is entered. The quoted price and the change against each
+ * Section 5, Price comparison (optional). Kyle, 2026-11-24: always shown (no
+ * "Add Price Comparison" button, no intro line). The quoted price and the change against each
  * entered price are computed and formatted by the server (V2-3: the "%" too).
  * 2026-11-23: the tender and previous price (and their changes) show only
  * where the server's section map names them (Tender Excess); hidden values
@@ -18,41 +13,7 @@ const OTHER_FIELDS = ['quoted_price_acceptable', 'price_note'];
 export function PriceSection({ api }: { api: FormApi }) {
     const { state, detail, config } = api;
     const showPrices = api.optional('quotation_comparison', 'tender_price') !== undefined;
-    const fields = showPrices ? [...REFERENCE_PRICES, ...OTHER_FIELDS] : OTHER_FIELDS;
-    const entered = fields.some((name) => {
-        const value = state.requisition[name];
-        return typeof value === 'boolean' || (typeof value === 'string' && value.trim() !== '');
-    });
-    const [adding, setAdding] = useState(false);
     const figures = detail.figures;
-
-    if (!entered && !adding) {
-        return (
-            <div className="grid gap-2">
-                <p className="text-base-content/70 text-sm">
-                    {showPrices
-                        ? 'Compare the quoted price with the tender price or the price paid last time.'
-                        : 'Say whether the quoted price is acceptable, with a note if needed.'}
-                </p>
-                <div>
-                    <button
-                        type="button"
-                        className="btn btn-outline btn-sm capitalize"
-                        onClick={() => {
-                            setAdding(true);
-                            window.setTimeout(
-                                () => document.getElementById(fieldId.requisition(showPrices ? 'tender_price' : 'quoted_price_acceptable'))?.focus(),
-                                0,
-                            );
-                        }}
-                    >
-                        <Plus aria-hidden="true" className="size-4" />
-                        Add Price Comparison
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <FieldGrid>

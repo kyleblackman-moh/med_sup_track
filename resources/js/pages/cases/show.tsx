@@ -1,6 +1,7 @@
 import { CaseActions, formatDay, hardcopyText } from '@/components/cases/case-actions';
 import { CaseTimeline } from '@/components/cases/case-timeline';
 import { CaseEndedAlert, EndCasePanel } from '@/components/cases/end-case';
+import { FileJourney } from '@/components/cases/file-journey';
 import { GateTracker } from '@/components/cases/gate-tracker';
 import { NextStepCard } from '@/components/cases/next-step-card';
 import { QueriesPanel } from '@/components/cases/queries-panel';
@@ -12,6 +13,7 @@ import { RequisitionView } from '@/components/requests/requisition-view';
 import { StatusPill } from '@/components/ui/status-pill';
 import { type TabItem, Tabs } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import { caseTitle } from '@/lib/case-title';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AssignmentEntry,
@@ -37,8 +39,9 @@ import {
     type TimelineEntry,
 } from '@/types/cases';
 import { type RequestSummaryView } from '@/types/summary';
+import { type CaseTracking } from '@/types/tracking';
 import { Head, Link } from '@inertiajs/react';
-import { CircleCheck, FileText, History, Info, Mail, Printer, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
+import { CircleCheck, FileText, History, Info, Mail, Printer, Route, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface Props {
@@ -56,6 +59,8 @@ interface Props {
     hardcopy_dates: { today: string; earliest: string | null } | null;
     documents: StaffDocument[];
     timeline: TimelineEntry[];
+    /** Kyle, 2026-11-24: the File Tracking tab (where the file is, days per unit, every stage); null in query-only mode. */
+    tracking: CaseTracking | null;
     assignments: AssignmentEntry[];
     gate: GateState | null;
     review_forms: ReviewForm[];
@@ -79,7 +84,7 @@ interface Props {
     can: StaffCaseAbilities;
 }
 
-type TabId = 'overview' | RequisitionTab | 'queries' | 'history';
+type TabId = 'overview' | 'tracking' | RequisitionTab | 'queries' | 'history';
 
 const TZ = 'America/Port_of_Spain';
 
@@ -119,6 +124,7 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: bool
     if (hasSummary) {
         return [
             { id: 'overview', label: 'Overview' },
+            { id: 'tracking', label: 'File Tracking' },
             { id: 'details', label: 'Request Details' },
             { id: 'documents', label: 'Documents' },
             { id: 'queries', label: 'Queries' },
@@ -130,6 +136,7 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: bool
 
     return [
         { id: 'overview', label: 'Overview' },
+        { id: 'tracking', label: 'File Tracking' },
         { id: 'details', label: 'Request Details' },
         { id: 'stock', label: 'Stock' },
         { id: 'tender', label: 'Tender & RFQ' },
@@ -177,6 +184,7 @@ export default function CaseShow({
     hardcopy,
     documents,
     timeline,
+    tracking,
     assignments,
     gate,
     review_forms,
@@ -201,6 +209,9 @@ export default function CaseShow({
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
     ];
 
+    const din = typeof detail.requisition?.din === 'string' ? detail.requisition.din : null;
+    const itemName = typeof detail.requisition?.item_description === 'string' ? detail.requisition.item_description : detail.item_description;
+    const title = queryOnly ? (detail.reference_no ?? 'Case') : caseTitle(itemName, din, detail.reference_no);
     const tabs = buildTabs(detail, summary !== null, queryOnly);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
@@ -290,7 +301,7 @@ export default function CaseShow({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={detail.reference_no ?? 'Case'} />
+            <Head title={title} />
 
             <div className="drawer drawer-end min-w-0 flex-1">
                 <input
@@ -306,8 +317,8 @@ export default function CaseShow({
                 <div className="drawer-content flex min-w-0 flex-col" inert={panelOpen}>
                     <header className="bg-base-100 border-base-300 border-b px-4 py-4 lg:px-6">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                            {/* V2-3: the reference is the page title here, in mono. */}
-                            <h1 className="font-mono text-xl font-semibold">{detail.reference_no ?? 'Case'}</h1>
+                            {/* Kyle, 2026-11-24: the drug and DIN are the page title, in the reference's mono; the reference sits under it. */}
+                            <h1 className="font-mono text-xl font-semibold">{title}</h1>
                             <StatusPill label={detail.status_label} tone={detail.status_tone} className="capitalize" />
                             {hasNextStep && (
                                 // The anchor keeps the button's place; the button itself floats once the anchor scrolls away.
@@ -335,7 +346,7 @@ export default function CaseShow({
                                 </div>
                             )}
                         </div>
-                        {!queryOnly && <p className="text-base-content/70 mt-1 text-sm">{detail.item_description ?? 'No item description'}</p>}
+                        {title !== detail.reference_no && <p className="text-base-content/70 mt-1 text-sm">{detail.reference_no}</p>}
                         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3 xl:grid-cols-6">
                             {facts.map(([label, value, mono]) => (
                                 <div key={label} className="min-w-0">
@@ -525,6 +536,12 @@ export default function CaseShow({
                                             )}
                                         </Card>
                                     </>
+                                )}
+
+                                {active === 'tracking' && tracking && (
+                                    <Card title="File Tracking" id="tracking-heading" icon={Route}>
+                                        <FileJourney tracking={tracking} />
+                                    </Card>
                                 )}
 
                                 {active === 'history' && (

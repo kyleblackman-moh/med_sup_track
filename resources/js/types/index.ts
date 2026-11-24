@@ -37,6 +37,8 @@ export interface SharedData {
     can: { requests: boolean; cases: boolean };
     /** Sidebar sections (show/hide only). Separate from `can`, which a page prop can replace. */
     nav: {
+        /** Kyle, 2026-11-24: false for vendors (their home is Requests). */
+        dashboard?: boolean;
         cmo_office: boolean;
         users: boolean;
         analytics?: boolean;

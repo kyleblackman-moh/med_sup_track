@@ -576,14 +576,14 @@ it('keeps form actions out of the request form headers', function () {
 
 it('gives a draft a hero with "Last Saved" and no reference', function () {
     [$case, $vendor] = newDraft('TENDER_EXCESS');
-    saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Hero item']]);
+    saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Hero item', 'din' => '02345678']]);
 
     $response = $this->actingAs($vendor)->get(route('requests.edit', $case))->assertOk();
     $hero = pageProps($response)['case']['hero'];
 
     expect($hero['reference'])->toBeNull()
         ->and($hero['title'])->toBe('Hero item')
-        ->and($hero['heading'])->toBe('Hero item')
+        ->and($hero['heading'])->toBe('Hero item · DIN 02345678') // Kyle, 2026-11-24: drug and DIN
         ->and($hero['type']['label'])->toBe(procurementTypeByCode('TENDER_EXCESS')->name)
         ->and($hero['type']['icon'])->toBe('trending-up')
         ->and($hero['status_label'])->toBe('Draft')

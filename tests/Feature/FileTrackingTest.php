@@ -7,6 +7,7 @@ use App\Models\CaseRequisition;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Workflow\FileTracking;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Str;
@@ -146,4 +147,80 @@ it('shows only the cases the user can see', function () {
     $this->actingAs($technocrat)->getJson(route('tracking.show', $case))->assertNotFound();
     $this->actingAs(caseUser(Role::Cmo))->getJson(route('tracking.show', $draft))->assertNotFound();
     $this->actingAs(vendorUser(vendorOrg()))->getJson(route('tracking.index'))->assertForbidden();
+});
+
+// Kyle, 2026-11-24: where the file is, when it last arrived there, and the days at each unit.
+
+it('adds up the time at each unit, returns included, and finds where the file is now', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    $tracking = FileTracking::units(CaseTransition::query()->where('case_id', $case->id)->orderBy('created_at')->get());
+
+    expect(array_map(fn ($u) => [$u['key'], $u['seconds'], $u['days'], $u['visited'], $u['current']], $tracking['units']))->toBe([
+        ['cmo', 3 * 86400 + 12 * 3600, '3 days', true, false],   // submitted, intake, ready, prepared, returned
+        ['technocrats', 2 * 86400, '2 days', true, false],       // in review
+        ['legal', 3 * 86400 + 12 * 3600, '3 days', true, true],  // both visits, the open one to now
+        ['ps', 0, '—', false, false],
+    ])
+        ->and($tracking['current'])->toMatchArray([
+            'key' => 'legal',
+            'label' => 'Legal Unit',
+            // Back from the CMO at 9 Nov 00:00 UTC: 8 Nov in Port of Spain.
+            'received_at' => '8 Nov 2026',
+            'seconds' => 86400 + 12 * 3600,
+            'days' => '1 day',
+        ]);
+});
+
+it('gives every timeline stage its unit', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    expect(array_column(FileTracking::timeline($case), 'unit'))->toBe(['cmo', 'cmo', 'technocrats', 'cmo', 'cmo', 'legal', 'cmo', 'legal'])
+        ->and(FileTracking::unitOf(S::CLOSED))->toBeNull()
+        ->and(FileTracking::days(null))->toBe('—')
+        ->and(FileTracking::days(3600))->toBe('Under 1 day')
+        ->and(FileTracking::days(86400))->toBe('1 day');
+});
+
+it('puts the File Tracking board on the dashboard for the cases the user can see', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    $board = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('dashboard'))->assertOk())['tracking'];
+    $row = collect($board['rows'])->firstWhere('id', $case->id);
+
+    expect($board['units'])->toBe(FileTracking::UNITS)
+        ->and($row)->toMatchArray([
+            'reference' => $case->reference_no,
+            'item' => 'Feeding tube',
+            'din' => null,
+            'href' => '/cases/'.$case->id,
+            'stage' => 'With Legal',
+        ])
+        ->and($row['current']['key'])->toBe('legal')
+        ->and(array_column($row['units'], 'days', 'key'))->toBe(['cmo' => '3 days', 'technocrats' => '2 days', 'legal' => '3 days', 'ps' => '—']);
+
+    // Not theirs: an unassigned technocrat's board leaves it out.
+    $techRows = pageProps($this->actingAs(caseUser(Role::Technocrat))->get(route('dashboard'))->assertOk())['tracking']['rows'];
+    expect(array_column($techRows, 'id'))->not->toContain($case->id);
+});
+
+it('sends the File Tracking tab with the case page', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    $tracking = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case))->assertOk())['tracking'];
+
+    expect($tracking['current']['key'])->toBe('legal')
+        ->and(count($tracking['stages']))->toBe(8)
+        ->and($tracking['stages'][7]['open'])->toBeTrue();
+});
+
+it('hides the Dashboard item from vendors, whose home is Requests', function () {
+    $nav = fn ($user) => pageProps($this->actingAs($user)->get(route('profile.edit'))->assertOk())['nav'];
+
+    expect($nav(vendorUser(vendorOrg()))['dashboard'])->toBeFalse()
+        ->and($nav(caseUser(Role::Cmo))['dashboard'])->toBeTrue();
 });

@@ -3,7 +3,6 @@
 use App\Enums\CaseStatus as S;
 use App\Enums\Role;
 use App\Http\Resources\Dashboard\AnalyticsCharts;
-use App\Http\Resources\Dashboard\DashboardDrafts;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
@@ -154,39 +153,19 @@ it('counts only the cases the user can see', function () {
         ->and($after['withdrawn'] - $before['withdrawn'])->toBe(0);
 });
 
-// Dashboard drafts ------------------------------------------------------------------------------
+// Vendor home --------------------------------------------------------------------------------
 
-it('gives a vendor its own organisation\'s drafts on the dashboard, and nothing else', function () {
-    [$draft, $vendor] = newDraft('TENDER_EXCESS');
-    [$otherDraft] = newDraft('TENDER_EXCESS'); // another organisation's draft
-    $submitted = analyticsCase(S::SUBMITTED, ['org_id' => $vendor->org_id, 'created_by' => $vendor->id]);
+// Kyle, 2026-11-24: a vendor's dashboard is their Requests list.
+it('sends a vendor from the dashboard to their Requests list', function () {
+    [, $vendor] = newDraft('TENDER_EXCESS');
 
-    $props = pageProps($this->actingAs($vendor)->get(route('dashboard'))->assertOk());
-    $drafts = $props['drafts'];
-    $ids = array_column($drafts['items'], 'id');
-
-    expect($ids)->toContain($draft->id)
-        ->and($ids)->not->toContain($otherDraft->id)
-        ->and($ids)->not->toContain($submitted->id)
-        ->and($drafts['total'])->toBe(1)
-        ->and($drafts['requests_href'])->toBe('/requests?group=drafts')
-        ->and($props)->not->toHaveKey('stats')
-        ->and($props)->not->toHaveKey('pipeline')
-        ->and($props)->not->toHaveKey('gateTracker');
-
-    $item = collect($drafts['items'])->firstWhere('id', $draft->id);
-    expect(array_keys($item))->toBe(['id', 'reference', 'title', 'type', 'updated', 'edit_href'])
-        ->and($item['title'])->toBe($item['type'] ?? DashboardDrafts::UNTITLED)
-        ->and($item['edit_href'])->toBe('/requests/'.$draft->id.'/edit')
-        ->and($item['updated'])->toMatch('/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2} (am|pm)$/');
-
-    expectVendorSafe($drafts);
+    $this->actingAs($vendor)->get(route('dashboard'))->assertRedirect(route('requests.index'));
 });
 
 it('gives staff no drafts card', function (Role $role) {
     $props = pageProps($this->actingAs(caseUser($role))->get(route('dashboard'))->assertOk());
 
-    expect($props['drafts'])->toBeNull();
+    expect($props)->not->toHaveKey('drafts');
 })->with([Role::Cmo, Role::PsOffice, Role::Technocrat, Role::CabOfficer, Role::LegalOfficer]);
 
 // Navigation ------------------------------------------------------------------------------------

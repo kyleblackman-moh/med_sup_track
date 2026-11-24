@@ -6,7 +6,6 @@ use App\Http\Resources\Dashboard\DashboardView;
 use App\Models\CaseRequisition;
 use App\Models\ProcurementCase;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
@@ -87,7 +86,9 @@ it('no longer sends tiles, the pipeline or the gate tracker with the dashboard',
     expect($props)->not->toHaveKey('stats')
         ->and($props)->not->toHaveKey('pipeline')
         ->and($props)->not->toHaveKey('gateTracker')
-        ->and($props)->toHaveKeys(['workQueue', 'header', 'requestTypes', 'queue', 'drafts']);
+        ->and($props)->toHaveKeys(['workQueue', 'summary', 'requestTypes', 'queue', 'tracking'])
+        // Kyle, 2026-11-24: the greeting moved to the top bar; the hardcopy box and the drafts card left.
+        ->and($props)->not->toHaveKeys(['header', 'drafts', 'hardcopyLookup']);
 })->with([Role::Cmo->value, Role::PsOffice->value, Role::Technocrat->value]);
 
 it('never counts cases a role without case.view_all cannot see', function () {
@@ -122,8 +123,9 @@ it('gives vendors no tiles, so another organisation is never counted for them', 
     $vendor = vendorUser(vendorOrg());
     statsCase(CaseStatus::SUBMITTED); // another organisation's case
 
-    expect(DashboardView::stats($vendor))->toBeNull()
-        ->and(dashboardProps($this, $vendor)['workQueue'])->toBeNull();
+    expect(DashboardView::stats($vendor))->toBeNull();
+    // Kyle, 2026-11-24: their dashboard is their Requests list.
+    $this->actingAs($vendor)->get(route('dashboard'))->assertRedirect(route('requests.index'));
 });
 
 it('gives staff without the case list no tiles', function () {
@@ -164,16 +166,11 @@ it('sends each tile its Title Case label and short description from the server (
     expect($technocrat)->toBe(['open' => 'Cases that are not yet closed']);
 });
 
-it('builds the header on the server in local time', function () {
-    $user = caseUser(Role::Cmo, ['name' => 'Avery Example']);
-    // 11:30 UTC is 07:30 in Port of Spain.
-    $header = DashboardView::header($user, ['items' => [['id' => 'a'], ['id' => 'b']]], CarbonImmutable::parse('2026-11-18 11:30:00', 'UTC'));
-
-    expect($header)->toBe([
-        'title' => 'Good morning, Avery',
-        'subtitle' => 'Wednesday 18 November 2026 · 2 items waiting on you',
-    ])->and(DashboardView::header($user, null, CarbonImmutable::parse('2026-11-18 23:00:00', 'UTC'))['subtitle'])
-        ->toBe('Wednesday 18 November 2026');
+it('sums up the items waiting on the user under the title', function () {
+    expect(DashboardView::summary(['items' => [['id' => 'a'], ['id' => 'b']]]))->toBe('2 items waiting on you')
+        ->and(DashboardView::summary(['items' => [['id' => 'a']]]))->toBe('1 item waiting on you')
+        ->and(DashboardView::summary(['items' => []]))->toBe('No items waiting on you')
+        ->and(DashboardView::summary(null))->toBeNull();
 });
 
 it('sends the request type of each queue row', function () {

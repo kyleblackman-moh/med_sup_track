@@ -4,7 +4,6 @@ namespace App\Http\Resources\Dashboard;
 
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
-use App\Http\Resources\Cases\StaffCaseSummary;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\Scopes\VisibleToUserScope;
@@ -15,16 +14,14 @@ use App\Support\WorkQueue;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\NextStep;
 use App\Workflow\StageWording;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 
 /**
  * The dashboard's display data beside the work queue (design.md section 6:
  * one page for every staff role). Read-only. Everything here is formatted on
  * the server; the page shows it as is.
  *
- * - header(): the page title (greeting) and one subtitle line, in local time.
+ * - summary(): the line under the title (items waiting on the user).
  * - stats(): the Analytics page's stat tiles from ONE grouped COUNT over the
  *   cases the viewer can see (VisibleToUserScope, applied for $user
  *   explicitly). No targets, trends or SLA values.
@@ -84,27 +81,20 @@ final class DashboardView
     ];
 
     /**
+     * Kyle, 2026-11-24: the dashboard's one line under its title: how many
+     * items wait on the user ("No items waiting on you" with none). The
+     * greeting and the date now live in the top bar.
+     *
      * @param  array{items: list<array<string, mixed>>}|null  $queue
-     * @return array{title: string, subtitle: string}
      */
-    public static function header(User $user, ?array $queue, ?CarbonImmutable $now = null): array
+    public static function summary(?array $queue): ?string
     {
-        $now ??= CarbonImmutable::now(StaffCaseSummary::TIMEZONE);
-        $local = $now->setTimezone(StaffCaseSummary::TIMEZONE);
-        $greeting = match (true) {
-            $local->hour < 12 => 'Good morning',
-            $local->hour < 17 => 'Good afternoon',
-            default => 'Good evening',
-        };
-        $firstName = Str::of($user->name)->trim()->explode(' ')->first() ?: $user->name;
-
-        $subtitle = $local->format('l j F Y');
-        if ($queue !== null && $queue['items'] !== []) {
-            $n = count($queue['items']);
-            $subtitle .= ' · '.number_format($n).' '.($n === 1 ? 'item' : 'items').' waiting on you';
+        if ($queue === null) {
+            return null;
         }
+        $n = count($queue['items']);
 
-        return ['title' => "{$greeting}, {$firstName}", 'subtitle' => $subtitle];
+        return $n === 0 ? 'No items waiting on you' : number_format($n).' '.($n === 1 ? 'item' : 'items').' waiting on you';
     }
 
     /**

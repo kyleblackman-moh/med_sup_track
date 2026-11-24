@@ -29,6 +29,7 @@ use App\Workflow\Actions\RecordPsDecision;
 use App\Workflow\Actions\RouteReturnedCase;
 use App\Workflow\Actions\SendToLegal;
 use App\Workflow\EligibleReviewers;
+use App\Workflow\FileTracking;
 use App\Workflow\NextStep;
 use App\Workflow\StageWording;
 use App\Workflow\TrackCalculator;
@@ -134,6 +135,11 @@ final class StaffCaseDetail
             // Kyle, 2026-11-23: stock may expire before use (advisory; ExpiryRisk::flag). Null when nothing to flag.
             'expiry_flag' => ExpiryRisk::flag($case),
             'timeline' => self::timeline($case),
+            // Kyle, 2026-11-24: the File Tracking tab: where the file is, days per unit and every stage visit.
+            'tracking' => [
+                ...FileTracking::units(CaseTransition::query()->where('case_id', $case->getKey())->orderBy('created_at')->orderBy('id')->get()),
+                'stages' => FileTracking::timeline($case),
+            ],
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),
             // Slice 10b: the outcome forms this user may use (empty for everyone else).
@@ -240,6 +246,7 @@ final class StaffCaseDetail
             'documents' => [],
             'summary' => null,
             'timeline' => [],
+            'tracking' => null,
             'assignments' => [],
             'gate' => null,
             'review_forms' => [],

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Http\Controllers\DashboardController;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Notifications\Bell;
@@ -92,6 +93,8 @@ class HandleInertiaRequests extends Middleware
              * item. Display only.
              */
             'nav' => [
+                // Kyle, 2026-11-24: vendors' home is Requests (/dashboard sends them there), so no Dashboard item.
+                'dashboard' => $user !== null && ! DashboardController::requestsHome($user),
                 'cmo_office' => $user !== null && ! $user->isVendor() && $user->can(Permission::FilePrepare->value),
                 // ADMIN-1: the Administration group (Users). Same check as the /admin/users routes (UserPolicy::viewAny).
                 'users' => $user !== null && Gate::forUser($user)->allows('viewAny', User::class),
