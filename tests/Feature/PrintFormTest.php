@@ -12,12 +12,14 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\PermissionRegistrar;
 
-// Kyle, 2026-11-24: the printable request form, server side (JSON until the
-// page comes with the UI). Vendor: own organisation, any status. Staff: anyone
-// who can view the case. The request form only, nothing internal. Audited.
-// DatabaseTransactions only.
+// Kyle, 2026-11-24: the printable request form (Inertia pages requests/print
+// and cases/print, prop `print`). Vendor: own organisation, any status. Staff:
+// anyone who can view the case. The request form only, nothing internal.
+// Audited. DatabaseTransactions only.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -40,6 +42,12 @@ function pfSubmitted(string $code = 'AD_HOC_TENDER_UNABLE'): array
     return [ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor];
 }
 
+/** The `print` prop of an Inertia response. */
+function pfProp(TestResponse $response): array
+{
+    return $response->viewData('page')['props']['print'];
+}
+
 /** Every label and cell value in the printed sections, flattened. */
 function pfText(array $print): string
 {
@@ -51,17 +59,19 @@ it('prints the vendor\'s own request at any status, a draft too', function () {
     saveDraft($draft, $vendor, adHocPayload());
     [$submitted, $vendor2] = pfSubmitted();
 
-    $this->actingAs($vendor)->getJson(route('requests.print', $draft))->assertOk()->assertJsonPath('print.header.status', 'Draft');
-    $this->actingAs($vendor2)->getJson(route('requests.print', $submitted))->assertOk()
-        ->assertJsonPath('print.header.reference', $submitted->reference_no)
-        ->assertJsonPath('print.header.status', 'Submitted');
+    $this->actingAs($vendor)->get(route('requests.print', $draft))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('requests/print')->where('print.header.status', 'Draft'));
+    $this->actingAs($vendor2)->get(route('requests.print', $submitted))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('requests/print')
+            ->where('print.header.reference', $submitted->reference_no)
+            ->where('print.header.status', 'Submitted'));
 });
 
 it('is 404 for another organisation\'s request', function () {
     [$case] = pfSubmitted();
     $other = vendorUser(vendorOrg());
 
-    $this->actingAs($other)->getJson(route('requests.print', $case))->assertNotFound();
+    $this->actingAs($other)->get(route('requests.print', $case))->assertNotFound();
 });
 
 it('lets staff who can view the case print it, and hides drafts and unassigned cases (404)', function () {
@@ -69,16 +79,17 @@ it('lets staff who can view the case print it, and hides drafts and unassigned c
     [$draft, $vendor] = newDraft();
     saveDraft($draft, $vendor, adHocPayload());
 
-    $this->actingAs(caseUser(Role::Cmo))->getJson(route('cases.print', $case))->assertOk()->assertJsonPath('print.header.status', 'Submitted');
-    $this->actingAs(caseUser(Role::Cmo))->getJson(route('cases.print', $draft))->assertNotFound();
-    $this->actingAs(caseUser(Role::Technocrat))->getJson(route('cases.print', $case))->assertNotFound(); // not assigned
+    $this->actingAs(caseUser(Role::Cmo))->get(route('cases.print', $case))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('cases/print')->where('print.header.status', 'Submitted'));
+    $this->actingAs(caseUser(Role::Cmo))->get(route('cases.print', $draft))->assertNotFound();
+    $this->actingAs(caseUser(Role::Technocrat))->get(route('cases.print', $case))->assertNotFound(); // not assigned
 });
 
 it('carries every visible section in order, every value and the computed figures', function () {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-24 02:30', 'UTC')); // 22:30 on the 23rd in Port of Spain
     [$case, $vendor] = pfSubmitted();
 
-    $print = $this->actingAs($vendor)->getJson(route('requests.print', $case))->assertOk()->json('print');
+    $print = pfProp($this->actingAs($vendor)->get(route('requests.print', $case))->assertOk());
     $text = pfText($print);
 
     expect(array_column($print['sections'], 'key'))->toBe(['request_type', 'item_tender', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents'])
@@ -104,21 +115,22 @@ it('never carries internal data, for the vendor or for staff', function () {
     makeDocument($case, requiredPurposes($case)[0] ?? DocumentPurpose::cases()[0]->value, ['visibility' => 'INTERNAL', 'scan_status' => 'CLEAN', 'original_name' => 'internal-memo.pdf']);
 
     foreach ([[$vendor, 'requests.print'], [caseUser(Role::Cmo), 'cases.print']] as [$user, $route]) {
-        $body = $this->actingAs($user)->getJson(route($route, $case))->assertOk()->getContent();
+        $print = pfProp($this->actingAs($user)->get(route($route, $case))->assertOk());
+        $body = json_encode($print, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         expect($body)->not->toContain('vote 12')
             ->not->toContain('Virement')
             ->not->toContain('internal-memo.pdf')
             ->not->toContain('Visibility')
-            ->and(json_decode($body, true)['print'])->not->toHaveKeys(['queries', 'review', 'funding']);
+            ->and($print)->not->toHaveKeys(['queries', 'review', 'funding']);
     }
 });
 
 it('audits each print with the audience only', function () {
     [$case, $vendor] = pfSubmitted();
 
-    $this->actingAs($vendor)->getJson(route('requests.print', $case))->assertOk();
-    $this->actingAs(caseUser(Role::Cmo))->getJson(route('cases.print', $case))->assertOk();
+    $this->actingAs($vendor)->get(route('requests.print', $case))->assertOk();
+    $this->actingAs(caseUser(Role::Cmo))->get(route('cases.print', $case))->assertOk();
 
     expect(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CasePrinted->value)
         ->orderBy('id')->pluck('metadata')->map(fn ($m) => json_decode($m, true))->all())

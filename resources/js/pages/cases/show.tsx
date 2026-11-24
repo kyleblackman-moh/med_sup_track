@@ -37,8 +37,8 @@ import {
     type TimelineEntry,
 } from '@/types/cases';
 import { type RequestSummaryView } from '@/types/summary';
-import { Head } from '@inertiajs/react';
-import { CircleCheck, FileText, History, Info, Mail, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { CircleCheck, FileText, History, Info, Mail, Printer, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface Props {
@@ -350,6 +350,16 @@ export default function CaseShow({
 
                     <div className="min-w-0 flex-1 px-4 py-4 lg:px-6">
                         <div className="flex min-w-0 flex-col gap-4">
+                            {/* The printable request form: request-form types only (summary is null otherwise, as is the print route). */}
+                            {summary && (
+                                <div className="flex flex-wrap justify-end gap-2 print:hidden">
+                                    <Link href={route('cases.print', detail.id)} className="btn btn-sm capitalize">
+                                        <Printer className="size-4" aria-hidden="true" />
+                                        Print
+                                    </Link>
+                                </div>
+                            )}
+
                             <FlashMessages />
 
                             {queryOnly && (

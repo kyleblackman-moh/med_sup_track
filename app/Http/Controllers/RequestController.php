@@ -38,7 +38,6 @@ use App\Support\SqlLike;
 use App\Workflow\Actions\EndCase;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -218,14 +217,14 @@ class RequestController extends Controller
 
     /**
      * 2026-11-24: the printable form, any status (a draft too). Another
-     * organisation's case is 404 (route model binding scope). JSON until the
-     * print page comes with the UI; the payload is PrintForm.
+     * organisation's case is 404 (route model binding scope). The page is
+     * requests/print; the payload is PrintForm.
      */
-    public function print(Request $request, ProcurementCase $procurementCase): JsonResponse
+    public function print(Request $request, ProcurementCase $procurementCase): Response
     {
         Gate::authorize('view', $procurementCase);
 
-        return response()->json(['print' => PrintForm::for($procurementCase, $request->user(), PrintForm::VENDOR) ?? abort(404)]);
+        return Inertia::render('requests/print', ['print' => PrintForm::for($procurementCase, $request->user(), PrintForm::VENDOR) ?? abort(404)]);
     }
 
     public function edit(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response|RedirectResponse

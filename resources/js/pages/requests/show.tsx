@@ -14,7 +14,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
-import { BadgeCheck, Ban, FilePen, Mailbox, PackageCheck, ReceiptText } from 'lucide-react';
+import { BadgeCheck, Ban, FilePen, Mailbox, PackageCheck, Printer, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -65,7 +65,7 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
                 <CaseHero hero={detail.hero} />
 
                 {/* The page's links (as they were), in a row under the hero. */}
-                {(detail.can.edit || detail.reference_no || can.withdraw) && (
+                {(detail.can.edit || detail.reference_no || can.withdraw || summary) && (
                     <div className="flex flex-wrap justify-end gap-2">
                         {can.withdraw && <WithdrawRequest caseId={detail.id} reference={detail.reference_no} />}
                         {detail.can.edit && (
@@ -78,6 +78,13 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
                             <Link href={route('requests.receipt', detail.id)} className="btn btn-sm capitalize">
                                 <ReceiptText className="size-4" aria-hidden="true" />
                                 Receipt
+                            </Link>
+                        )}
+                        {/* The printable form: request-form types only (summary is null for the old types, as is the print route). */}
+                        {summary && (
+                            <Link href={route('requests.print', detail.id)} className="btn btn-sm capitalize">
+                                <Printer className="size-4" aria-hidden="true" />
+                                Print
                             </Link>
                         )}
                     </div>
