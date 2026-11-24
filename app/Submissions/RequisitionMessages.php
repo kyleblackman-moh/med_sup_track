@@ -64,7 +64,7 @@ final class RequisitionMessages
             'quantity_offered' => 'Quantity',
             'unit_price' => 'Unit Price',
             'lead_time_days' => 'Lead Time (Days)',
-            'ex_stock' => 'Ex Stock',
+            'quantity_available_now' => 'Ex Stock',
             'is_recommended' => 'Recommended',
             'reason_accepted_excluded' => 'Reason Not Considered',
             'vat_rate' => 'VAT Rate',

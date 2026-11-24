@@ -4,13 +4,13 @@
 // full-width list under the row (RowErrorList, through EntryRow's errors),
 // never inside a narrow cell. Static checks on the source.
 
-/** Every TSX file that renders entry-table rows (EntryRow, or FORM-COMPACT-1 EntryCardRow). */
+/** Every TSX file that renders entry-table rows (EntryRow, FORM-COMPACT-1 EntryCardRow, or the 2026-11-24 EntrySheet). */
 function entryRowFiles(): array
 {
     $files = [];
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js')));
     foreach ($iterator as $file) {
-        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && preg_match('/<Entry(?:Card)?Row\b/', file_get_contents($file->getPathname())) === 1) {
+        if ($file->isFile() && str_ends_with($file->getFilename(), '.tsx') && preg_match('/<Entry(?:Card)?Row\b|<EntrySheet\b/', file_get_contents($file->getPathname())) === 1) {
             $files[] = str_replace('\\', '/', $file->getPathname());
         }
     }
@@ -35,7 +35,8 @@ it('passes every row its errors and the id of its error list', function () {
         $source = file_get_contents($path);
 
         expect(str_contains($source, 'errors={'))->toBeTrue("{$path}: EntryRow without errors")
-            ->and(str_contains($source, 'errorsId={'))->toBeTrue("{$path}: EntryRow without errorsId")
+            // An EntrySheet draws the list itself under its table (RowErrorList id={errorsId}).
+            ->and(str_contains($source, 'errorsId={') || str_contains($source, '<RowErrorList id={errorsId}'))->toBeTrue("{$path}: EntryRow without errorsId")
             ->and(str_contains($source, 'collectRowErrors('))->toBeTrue("{$path}: row errors not collected");
     }
 });

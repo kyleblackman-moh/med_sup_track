@@ -300,7 +300,7 @@ final class RequestSections
             ],
             'quotation_comparison' => [
                 'rfq_audience' => false,
-                ...$rows('quotations', ['supplier_name', 'quantity_offered', 'unit_price', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks']),
+                ...$rows('quotations', ['supplier_name', 'quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks']),
                 // Asked only on a row that was not considered, and then required.
                 'quotations.reason_accepted_excluded' => true,
                 'quantity_to_purchase' => $byType('quotations'),

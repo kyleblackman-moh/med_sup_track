@@ -57,28 +57,35 @@ it('switches each table to one line only where every column fits at its minimum'
     expect((int) $m[1])->toBe($expectedRem)
         ->and(oneLineWidth($source))->toBeLessThanOrEqual($breakpointPx, "{$file}: needs ".oneLineWidth($source)."px, breaks at {$breakpointPx}px");
 })->with([
-    'quotations (two lines)' => ['quotation-section.tsx', 54],
     'awarded suppliers' => ['awarded-supplier-section.tsx', 66],
     'orders' => ['existing-arrangement-section.tsx', 66],
     'stock batches' => ['stock-section.tsx', 32],
     'variations' => ['variation-section.tsx', 45],
 ]);
 
-it('lays each quotation out in two lines in the agreed order', function () {
+it('lays each quotation out as a supplier block of three table lines in the agreed order', function () {
     $source = file_get_contents(resource_path('js/components/requests/ad-hoc/quotation-section.tsx'));
-    $keys = fn (string $line) => array_map(fn (string $c) => preg_match("/key: '(\\w+)'/", $c, $m) ? $m[1] : '', columnsOf($source, $line));
+    preg_match('/const SHEET_LINES[^=]*= \[(.*?)\n\];/s', $source, $block);
+    preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
+    $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // 2026-11-24: the agreed column order; Considered and Recommended are narrow controls on the label line.
-    expect($keys('line1'))->toBe(['supplier_name', 'quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'])
-        ->and($keys('line2'))->toBe(['ex_stock', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks'])
-        // The short numbers are xs; the computed money is read-only (value cells).
-        ->and($source)->toContain("{ key: 'quantity_offered', label: 'Quantity', width: 'xs' }")
-        ->and($source)->toContain("{ key: 'unit_price', label: 'Unit Price', width: 'xs' }")
-        ->and($source)->toContain("{ key: 'lead_time_days', label: 'Lead Time (Days)', width: 'xs' }")
-        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price', width: 'value' }")
-        ->and($source)->toMatch('/controls=\{\s*<div role="group"[^>]*>\s*<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
-        // The reason renders only for a quotation that is not considered, on its own full-width line.
-        ->and($source)->toMatch('/below=\{\s*\/\/[^\n]*\n\s*!considered && \(\s*<TextAreaField/')
+    // Kyle, 2026-11-24: the supplier in the block's header, then three lines.
+    expect($keys)->toBe([
+        ['quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'],
+        ['quantity_available_now', 'lead_time_days', 'brand'],
+        ['manufacturer', 'country_of_origin', 'remarks'],
+    ])
+        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock' }")
+        // Ex Stock is a number, not a checkbox.
+        ->and($source)->toContain("input('quantity_available_now', 'decimal')")
+        ->and($source)->not->toContain("'ex_stock'")
+        // The block's header: Supplier, then Considered and the one Recommended radio.
+        ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
+        // The block is the shared EntrySheet: a line of five shares 15 tracks 3 each, a line of three 5 each, once 40rem wide.
+        ->and($source)->toContain('<EntrySheet')
+        ->and(file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain("'bg-base-300 grid grid-cols-2 gap-px @min-[40rem]:grid-cols-15'")
+        // The reason renders only for a quotation that is not considered.
+        ->and($source)->toMatch('/!considered && \(\s*<TextAreaField/')
         ->and($source)->toContain('label="Reason Quotation Wasn\'t Considered"')
         ->and($source)->toContain('label="Add Quotation"');
 });

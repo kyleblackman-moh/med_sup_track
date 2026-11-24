@@ -218,7 +218,7 @@ it('includes every V2-1 field', function () {
         ->and($awards['rows'][1]['cells']['country_of_origin'])->toBe(Display::EMPTY)
         ->and(array_column($quotes['columns'], 'label'))->toContain('Ex Stock', 'Lead Time (Days)', 'Remarks', 'Country of Origin')
         ->and($quotes['rows'][1]['cells'])->toMatchArray([
-            'ex_stock' => 'Yes', 'lead_time_days' => '30', 'remarks' => 'Two-week delivery.', 'country_of_origin' => 'Country B', 'recommended' => 'Yes',
+            'ex_stock' => '500 Each', 'lead_time_days' => '30', 'remarks' => 'Two-week delivery.', 'country_of_origin' => 'Country B', 'recommended' => 'Yes',
         ])
         ->and($quotes['rows'][0]['cells'])->toMatchArray(['considered' => 'No', 'reason' => 'No registration on file.', 'ex_stock' => Display::EMPTY]);
 });

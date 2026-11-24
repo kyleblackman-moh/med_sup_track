@@ -18,6 +18,7 @@ it('gives every number-like request field a numeric keyboard hint', function (st
     'Quotation Quantity' => ['quotation-section.tsx', "/input\\('quantity_offered', 'decimal'\\)/"],
     'Quotation Unit Price' => ['quotation-section.tsx', "/input\\('unit_price', 'decimal'\\)/"],
     'Quotation Lead Time (Days)' => ['quotation-section.tsx', "/input\\('lead_time_days', 'integer'\\)/"],
+    'Quotation Ex Stock' => ['quotation-section.tsx', "/input\\('quantity_available_now', 'decimal'\\)/"],
     'Quantity Awarded' => ['awarded-supplier-section.tsx', "/input\\('quantity_awarded', 'decimal'\\)/"],
     'Unit Cost' => ['awarded-supplier-section.tsx', "/input\\('unit_cost', 'decimal'\\)/"],
     'Quantity Ordered' => ['existing-arrangement-section.tsx', "/input\\('quantity_ordered', 'decimal'\\)/"],

@@ -485,7 +485,7 @@ it('drops a blank row on save; a blank row with an id is deleted; an id-only row
         ['id' => $secondId, 'supplier_name' => '', 'manufacturer' => null, 'brand' => null,
             'unit_price' => null, 'quantity_offered' => null, 'lead_time_days' => null,
             'reason_accepted_excluded' => null, 'considered' => true, 'is_recommended' => false,
-            'ex_stock' => null, 'country_of_origin' => null, 'remarks' => ''],                    // emptied: deleted
+            'quantity_available_now' => null, 'country_of_origin' => null, 'remarks' => ''],      // emptied: deleted
         ['client_key' => 'k-blank', 'considered' => true, 'is_recommended' => false],           // new and blank: dropped
     ], 'purchase_orders' => [['client_key' => 'k-order', 'quantity_delivered' => '0']]]);    // only the default: dropped
 

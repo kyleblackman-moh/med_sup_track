@@ -302,7 +302,10 @@ final class RequestSummary
                 'subtotal' => Display::money($q->subtotal()),
                 'vat' => Display::money($q->vatAmount()),
                 'total_price' => Display::money($q->totalPrice()),
-                'ex_stock' => Display::yesNo($q->ex_stock === null ? null : (bool) $q->ex_stock),
+                // 2026-11-24: a quantity; a row saved before then shows its old yes/no.
+                'ex_stock' => $q->quantity_available_now !== null
+                    ? self::withUnit(Display::quantity($q->quantity_available_now), $unit)
+                    : Display::yesNo($q->ex_stock === null ? null : (bool) $q->ex_stock),
                 'lead_time_days' => Display::text($q->lead_time_days),
                 'brand' => Display::text($q->brand),
                 'manufacturer' => Display::text($q->manufacturer),

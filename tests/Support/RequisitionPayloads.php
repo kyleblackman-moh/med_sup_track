@@ -152,7 +152,7 @@ function adHocPayload(): array
         ],
         'quotations' => [
             adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => 'No registration on file.']),
-            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'ex_stock' => true, 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.']),
+            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'quantity_available_now' => '500', 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.']),
         ],
     ];
 }

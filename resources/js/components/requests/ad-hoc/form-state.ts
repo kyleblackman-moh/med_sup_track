@@ -74,7 +74,7 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         supplier_name: '',
         quantity_offered: '',
         unit_price: '',
-        ex_stock: false,
+        quantity_available_now: '',
         lead_time_days: '',
         brand: '',
         manufacturer: '',

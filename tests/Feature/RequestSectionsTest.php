@@ -303,8 +303,10 @@ it('saves and returns the new V2-1 fields', function () {
         'tender_reference' => 'TENDER-2026-14 (2026-2027)',
     ])
         ->and($detail['tender_awards'][0]['country_of_origin'])->toBe('Country A')
-        ->and($detail['quotations'][1])->toMatchArray(['ex_stock' => true, 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.'])
-        ->and($detail['quotations'][0]['ex_stock'])->toBeNull()
+        ->and($detail['quotations'][1])->toMatchArray(['quantity_available_now' => '500.00', 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.'])
+        ->and($detail['quotations'][0]['quantity_available_now'])->toBeNull()
+        // 2026-11-24: Ex Stock is a quantity; the old yes/no is no longer sent.
+        ->and($detail['quotations'][0])->not->toHaveKey('ex_stock')
         ->and(collect($detail['variation_rows'])->map(fn ($r) => Arr::except($r, 'id'))->all())->toBe([variationEntry()]);
 
     // Staff see the same content once submitted.

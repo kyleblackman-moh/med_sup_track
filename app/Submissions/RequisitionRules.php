@@ -376,8 +376,10 @@ final class RequisitionRules
                 'considered' => ['type' => 'bool', 'default' => true],
                 'reason_accepted_excluded' => self::str(500),
                 'is_recommended' => ['type' => 'bool', 'default' => true],
-                // V2-1
-                'ex_stock' => ['type' => 'bool'],
+                // Kyle, 2026-11-24: Ex Stock is the quantity available from stock, a number, kept in
+                // the existing quantity_available_now column. The old ex_stock yes/no column is kept
+                // (dropped fields keep their columns) and no longer written by the request form.
+                'quantity_available_now' => ['type' => 'qty'],
                 'country_of_origin' => self::str(100),
                 'remarks' => self::str(255),
             ],
