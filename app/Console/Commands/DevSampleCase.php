@@ -295,8 +295,8 @@ class DevSampleCase extends Command
                 'rfq_audience' => 'ALL_REGISTERED',
             ],
             'tender_awards' => [
-                ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '0.6500'],
-                ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '0.7000'],
+                ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '2100', 'unit_cost' => '0.6500'],
+                ['supplier_name' => 'Supplier B', 'quantity_awarded' => '700', 'unit_cost' => '0.7000'],
             ],
             'stock_expiries' => [
                 ['quantity' => '150', 'expiry_date' => $today->addMonths(6)->toDateString()],

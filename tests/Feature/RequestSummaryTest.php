@@ -81,7 +81,8 @@ it('lists the type\'s visible sections in form order, numbered among the visible
     expect(array_column($summary['sections'], 'key'))->toBe(array_column($visible, 'key'))
         ->and(array_column($summary['sections'], 'label'))->toBe(array_column($visible, 'label'))
         ->and(array_column($summary['sections'], 'number'))->toBe(range(1, count($visible)))
-        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 8 : 7)
+        // 2026-11-24: Existing Approved Arrangement is Tender Variation only.
+        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 8 : 6)
         ->and($summary['sections'][0]['key'])->toBe('request_type')
         ->and($summary['type_label'])->toBe(procurementTypeByCode($code)->name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
@@ -167,7 +168,7 @@ it('is null for a case that is not on the request form', function () {
 // 2. Awards and orders never depend on the tender outcome ---------------------------------
 
 it('shows awards and orders without a tender outcome, and never the outcome', function () {
-    [$case, $vendor] = summaryDraft();
+    [$case, $vendor] = summaryDraft('TENDER_VARIATION'); // 2026-11-24: orders show for Tender Variation only
     expect(DB::table('case_requisitions')->where('case_id', $case->id)->value('tender_outcome'))->toBeNull();
 
     $summary = summaryOf($case, $vendor);
@@ -186,7 +187,7 @@ it('says "None entered" for a table with no rows and a dash for empty optional v
     $summary = summaryOf($case, $vendor);
 
     expect(summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers')['empty'])->toBe(RequestSummary::NONE)
-        ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['empty'])->toBe(RequestSummary::NONE)
+        ->and(summarySection($summary, 'existing_arrangement'))->toBeNull() // 2026-11-24: Tender Variation only
         ->and(summaryTable($summary, 'quotation_comparison', 'Quotations')['rows'])->toBe([])
         ->and(summaryFields($summary, 'item_tender')['Strength'])->toBe(Display::EMPTY)
         ->and(summaryFields($summary, 'stock')['Days on Hand'])->toBe(Display::EMPTY);
@@ -232,12 +233,16 @@ it('computes and formats every figure on the server', function () {
 
     expect(summaryFields($summary, 'awarded_supplier'))->toBe([
         'Number of Suppliers Awarded' => '2',
-        'Total Cost of the Awards' => '$5,050.00',
+        'Total Cost of the Awards' => '$3,535.00',
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
-        ->toBe([['75.00%', '$3,750.00', '$1.25'], ['25.00%', '$1,300.00', '$1.30']])
-        ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'][0]['cells']['quantity_outstanding'])->toBe('1,800')
-        ->and(summaryFields($summary, 'stock'))->toMatchArray(['Stock Total' => '200.5 Each', 'Days on Hand' => '12', 'No Stock on Hand' => 'No'])
+        ->toBe([['75.00%', '$2,625.00', '$1.25'], ['25.00%', '$910.00', '$1.30']])
+        ->and(summarySection($summary, 'existing_arrangement'))->toBeNull() // 2026-11-24: Tender Variation only
+        // 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
+        ->and(summaryFields($summary, 'stock'))->toMatchArray([
+            'Average Monthly Consumption' => '500', 'Quantity on Hand' => '200.5', 'Days on Hand' => '12', 'No Stock on Hand' => 'No',
+        ])
+        ->and(summaryTable($summary, 'stock', 'Stock Batches')['columns'])->toHaveCount(1)
         ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray([
             'RFQ Sent To' => 'All registered suppliers',
             'Number of Quotations' => '2',
@@ -267,8 +272,8 @@ it('words the expiry warning from the submission date once submitted', function 
     $submitted = CarbonImmutable::now('America/Port_of_Spain')->startOfDay()->subDays(60);
     $expiry = $submitted->addDays(10); // expired today, 10 days ahead on the submission date
     saveDraft($case, $vendor, [
-        'requisition' => ['average_monthly_consumption' => '30'],
-        'stock_expiries' => [['quantity' => '100', 'expiry_date' => $expiry->toDateString()]],
+        'requisition' => ['average_monthly_consumption' => '30', 'quantity_on_hand' => '100'],
+        'stock_expiries' => [['expiry_date' => $expiry->toDateString()]],
     ]);
 
     // A DRAFT is measured from today: the batch has expired.

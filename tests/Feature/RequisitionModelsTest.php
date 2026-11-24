@@ -161,24 +161,16 @@ it('multiplies tender award costs exactly', function () {
 
 // 6. Award percentages ----------------------------------------------------------
 
-it('computes each award as a share of the awarded quantity', function () {
+// Kyle, 2026-11-24: % awarded is typed by the vendor, never calculated.
+it('stores the typed % awarded as given, and calculates nothing', function () {
     $this->actingAs(caseUser(Role::Cmo));
     $case = submittedCase();
-    $a = $case->tenderAwards()->create(['supplier_name' => 'A', 'quantity_awarded' => '2800', 'unit_cost' => '1']);
-    $b = $case->tenderAwards()->create(['supplier_name' => 'B', 'quantity_awarded' => '1200', 'unit_cost' => '1']);
-    $c = $case->tenderAwards()->create(['supplier_name' => 'C', 'quantity_awarded' => '0', 'unit_cost' => '1']);
+    $case->requisition()->create(['item_description' => 'Item', 'quantity_requested' => '3000']);
+    $case->tenderAwards()->create(['supplier_name' => 'A', 'quantity_awarded' => '2000', 'unit_cost' => '1', 'percentage_awarded' => '40']);
+    $case->tenderAwards()->create(['supplier_name' => 'B', 'quantity_awarded' => '500', 'unit_cost' => '1']);
 
-    expect($case->fresh()->tenderAwardPercentages())->toBe([$a->id => '70.00', $b->id => '30.00', $c->id => '0.00']);
-});
-
-it('returns no percentages when there are no awards or they sum to zero', function () {
-    $this->actingAs(caseUser(Role::Cmo));
-    $none = submittedCase();
-    $zero = submittedCase();
-    $zero->tenderAwards()->create(['supplier_name' => 'A', 'quantity_awarded' => '0', 'unit_cost' => '1']);
-
-    expect($none->tenderAwardPercentages())->toBe([])
-        ->and($zero->fresh()->tenderAwardPercentages())->toBe([]);
+    expect($case->fresh()->tenderAwards->pluck('percentage_awarded')->all())->toBe(['40.00', null])
+        ->and(method_exists(ProcurementCase::class, 'tenderAwardPercentages'))->toBeFalse();
 });
 
 // 7. Purchase orders ------------------------------------------------------------

@@ -134,6 +134,7 @@ function adHocPayload(): array
             'quantity_on_order' => '1800',
             'stock_location' => 'Central stores',
             'average_monthly_consumption' => '500',
+            'quantity_on_hand' => '200.5', // 2026-11-24: typed (the batches' old total)
             'rfq_audience' => 'ALL_REGISTERED',
             'quantity_to_purchase' => '2800',
             'tender_price' => '1.2500',
@@ -142,8 +143,8 @@ function adHocPayload(): array
             'price_note' => 'Within the expected range.',
         ],
         'tender_awards' => [
-            ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '3000', 'unit_cost' => '1.2500', 'country_of_origin' => 'Country A'],
-            ['supplier_name' => 'Supplier B', 'quantity_awarded' => '1000', 'unit_cost' => '1.3000'],
+            ['supplier_name' => 'Supplier A', 'manufacturer' => 'Generic Manufacturer', 'brand' => 'Generic Brand', 'quantity_awarded' => '2100', 'unit_cost' => '1.2500', 'country_of_origin' => 'Country A', 'percentage_awarded' => '75'],
+            ['supplier_name' => 'Supplier B', 'quantity_awarded' => '700', 'unit_cost' => '1.3000', 'percentage_awarded' => '25'],
         ],
         'stock_expiries' => [
             // Relative to today (slice V2-1), so the expiry warning never fires on the fixture.

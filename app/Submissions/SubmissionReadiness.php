@@ -105,7 +105,7 @@ final class SubmissionReadiness
      */
     private function expiryWarnings(CaseRequisition $requisition, Collection $batches, CarbonImmutable $today): void
     {
-        $risk = ExpiryRisk::compute($requisition->average_monthly_consumption, false, $batches, $today);
+        $risk = ExpiryRisk::compute($requisition->average_monthly_consumption, $requisition->quantity_on_hand, $batches, $today);
 
         foreach ($batches->values() as $i => $batch) {
             $warning = $risk['expiry_warnings'][(int) $batch->getKey()] ?? null;

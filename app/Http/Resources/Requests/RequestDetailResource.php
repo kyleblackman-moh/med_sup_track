@@ -119,7 +119,6 @@ class RequestDetailResource extends JsonResource
     public static function requisitionContent(ProcurementCase $case, bool $forStaff = false): array
     {
         $requisition = $case->requisition;
-        $percentages = $case->tenderAwardPercentages();
         $code = $case->procurementType?->code;
         $adHoc = ProcurementTypeProfile::for((string) $code)->isAdHocForm();
 
@@ -127,8 +126,8 @@ class RequestDetailResource extends JsonResource
             'requisition' => [
                 ...self::values($requisition, array_keys(RequisitionRules::requisitionFields($code))),
                 'derived' => $adHoc
-                    // Slice F1: stock is the sum of the batches; coverage is staff-side only.
-                    ? ['stock_on_hand' => $case->batchStockOnHand(), ...($forStaff ? ['coverage_months' => $case->batchCoverageMonths()] : [])]
+                    // Kyle, 2026-11-24: stock is the typed quantity on hand; coverage is staff-side only.
+                    ? ['stock_on_hand' => $case->quantityOnHand(), ...($forStaff ? ['coverage_months' => $case->batchCoverageMonths()] : [])]
                     : [
                         'stock_on_hand' => $requisition?->stockOnHand(),
                         'coverage_months' => $requisition?->coverageMonths(),
@@ -147,7 +146,7 @@ class RequestDetailResource extends JsonResource
                 ...self::row($a, 'tender_awards', $code),
                 'derived' => [
                     'total' => $a->total(),
-                    'percentage' => $percentages[$a->id] ?? null,
+                    'percentage' => $a->percentage_awarded, // Kyle, 2026-11-24: typed by the vendor, not calculated
                 ],
             ])->values()->all(),
             'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [

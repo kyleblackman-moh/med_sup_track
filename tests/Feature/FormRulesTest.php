@@ -3,6 +3,7 @@
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Models\CaseRequisition;
+use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Submissions\Exceptions\SubmissionNotReady;
 use App\Submissions\RequestSections;
@@ -93,11 +94,76 @@ it('does not check the quantity to purchase', function () {
     expect(frErrors($case))->not->toHaveKey('requisition.quantity_to_purchase');
 });
 
-it('lets awarded supplier quantities exceed the quantity requested (tender quantities)', function () {
-    [$case] = frDraft(); // the fixture awards 3000 against 2800 requested
+// Kyle, 2026-11-24: no supplier's quantity awarded may be above the quantity
+// requested (replaces the 2026-11-23 rule that award quantities may exceed it).
+it('refuses an awarded supplier quantity above the quantity requested', function () {
+    [$case] = frDraft(mutate: function ($p) {
+        $p['tender_awards'][1]['quantity_awarded'] = '2800.01';
+
+        return $p;
+    });
+
+    expect(frErrors($case))->toHaveKey('tender_awards.1.quantity_awarded', 'Supplier Row 2: Quantity cannot be more than the quantity requested (2,800).')
+        ->and(frErrors($case))->not->toHaveKey('tender_awards.0.quantity_awarded');
+});
+
+it('blocks submit while an awarded supplier quantity is above the quantity requested', function () {
+    [$case, $vendor] = readyDraft();
+    $awards = fn (string $first) => ['tender_awards' => CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->id)
+        ->orderBy('sort_order')->orderBy('id')->get()
+        ->map(fn (CaseTenderAward $a, int $i) => [
+            'id' => $a->id, 'supplier_name' => $a->supplier_name, 'unit_cost' => $a->unit_cost,
+            'quantity_awarded' => $i === 0 ? $first : $a->quantity_awarded,
+        ])->all()];
+
+    saveDraft($case, $vendor, $awards('3000'));
+    expect(frErrors($case))->toHaveKey('tender_awards.0.quantity_awarded')
+        ->and(fn () => app(SubmitCase::class)->handle($case, $vendor))->toThrow(SubmissionNotReady::class)
+        ->and(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->status)->toBe(CaseStatus::DRAFT);
+
+    saveDraft($case, $vendor, $awards('2100'));
+    app(SubmitCase::class)->handle($case, $vendor);
+
+    expect(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->status)->toBe(CaseStatus::SUBMITTED);
+});
+
+it('accepts awarded supplier quantities up to the quantity requested, each row on its own', function () {
+    [$case] = frDraft(mutate: function ($p) {
+        $p['tender_awards'][0]['quantity_awarded'] = '2800'; // equal; with row 2 the total is above 2800
+
+        return $p;
+    });
 
     expect(collect(array_keys(frErrors($case)))->filter(fn ($k) => str_starts_with($k, 'tender_awards')))->toBeEmpty();
 });
+
+// Kyle, 2026-11-24: % awarded is a typed, optional field (0 to 100, up to 2 decimals).
+it('saves the typed % awarded as entered, and never requires it', function (?string $value, ?string $stored) {
+    [$case] = frDraft(mutate: function ($p) use ($value) {
+        $p['tender_awards'][0]['percentage_awarded'] = $value;
+
+        return $p;
+    });
+
+    $saved = DB::table('case_tender_awards')->where('case_id', $case->id)->orderBy('sort_order')->orderBy('id')->value('percentage_awarded');
+
+    // SQL Server returns 0 as ".00": compared as numbers.
+    expect($saved === null ? null : bcadd((string) $saved, '0', 2))->toBe($stored)
+        ->and(collect(array_keys(frErrors($case)))->filter(fn ($k) => str_contains($k, 'percentage_awarded')))->toBeEmpty();
+})->with([
+    'blank' => [null, null],
+    'whole' => ['60', '60.00'],
+    'two decimals' => ['33.33', '33.33'],
+    'zero' => ['0', '0.00'],
+]);
+
+it('refuses a % awarded outside 0 to 100 or with more than 2 decimals', function (string $value) {
+    expect(fn () => frDraft(mutate: function ($p) use ($value) {
+        $p['tender_awards'][0]['percentage_awarded'] = $value;
+
+        return $p;
+    }))->toThrow(ValidationException::class, '% Awarded');
+})->with(['above 100' => '100.01', 'three decimals' => '12.345', 'negative' => '-1']);
 
 it('still saves a draft with a quantity above the quantity requested', function () {
     [$case] = frDraft(mutate: function ($p) {
@@ -113,7 +179,7 @@ it('still saves a draft with a quantity above the quantity requested', function 
 
 it('refuses a date ordered after today and accepts today', function () {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-23 15:00', 'UTC'));
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     frOrder($case, $vendor, ['ordered_on' => '2026-11-24', 'delivery_state' => 'NOT_DELIVERED', 'quantity_delivered' => '0', 'delivery_date' => null]);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.ordered_on', 'Order Row 1: Date ordered must be today or earlier.');
@@ -123,7 +189,7 @@ it('refuses a date ordered after today and accepts today', function () {
 });
 
 it('uses the Port of Spain date for today, at 23:30 UTC and just after midnight UTC', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     // 23:30 UTC = 19:30 in Port of Spain, the same date: the 24th is still the future.
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-23 23:30', 'UTC'));
@@ -140,7 +206,7 @@ it('uses the Port of Spain date for today, at 23:30 UTC and just after midnight 
 });
 
 it('refuses a quantity delivered above the quantity ordered', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     frOrder($case, $vendor, ['quantity_ordered' => '3000', 'quantity_delivered' => '3001']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.quantity_delivered', 'Order Row 1: Quantity delivered cannot be more than quantity ordered.');
@@ -150,14 +216,14 @@ it('refuses a quantity delivered above the quantity ordered', function () {
 });
 
 it('requires the delivery status on an entered order row', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
     frOrder($case, $vendor, ['delivery_state' => null]);
 
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_state', 'Order Row 1: Delivery Status is required.');
 });
 
 it('requires the delivery date unless the status is Not delivered', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     frOrder($case, $vendor, ['delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => null]);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery Date is required.');
@@ -168,7 +234,7 @@ it('requires the delivery date unless the status is Not delivered', function () 
 
 it('refuses a delivery date after today (Port of Spain) and accepts today', function () {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-24 02:00', 'UTC')); // 22:00 on the 23rd locally
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     frOrder($case, $vendor, ['delivery_date' => '2026-11-24']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery date must be today or earlier.');
@@ -178,7 +244,7 @@ it('refuses a delivery date after today (Port of Spain) and accepts today', func
 });
 
 it('refuses a delivery date before the date ordered and accepts the same day', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     frOrder($case, $vendor, ['ordered_on' => '2026-06-01', 'delivery_date' => '2026-05-31']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery date cannot be before the date ordered.');
@@ -188,7 +254,7 @@ it('refuses a delivery date before the date ordered and accepts the same day', f
 });
 
 it('checks the delivery status against the quantities', function (string $state, string $delivered, ?string $message) {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
     frOrder($case, $vendor, [
         'quantity_ordered' => '3000',
         'quantity_delivered' => $delivered,
@@ -211,44 +277,73 @@ it('checks the delivery status against the quantities', function (string $state,
 ]);
 
 it('no longer accepts the old delivery date and free-text status on the request form', function () {
-    [$case, $vendor] = frDraft();
+    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
 
     expect(fn () => frOrder($case, $vendor, ['delivery_eta' => '2026-07-01', 'delivery_status' => 'Delivered']))
         ->toThrow(ValidationException::class);
 });
 
+// Kyle, 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
+it('shows Existing Approved Arrangement for Tender Variation only', function (string $code, bool $shown) {
+    expect(in_array('existing_arrangement', array_column(RequestSections::visible($code, previousRequest: true), 'key'), true))->toBe($shown)
+        ->and(in_array('tender_issue_explanation', RequestSections::hiddenFields($code), true))->toBe(! $shown);
+})->with([
+    'AD_HOC_EMERGENCY' => ['AD_HOC_EMERGENCY', false],
+    'AD_HOC_TENDER_UNABLE' => ['AD_HOC_TENDER_UNABLE', false],
+    'AD_HOC_NOT_AWARDED' => ['AD_HOC_NOT_AWARDED', false],
+    'TENDER_EXCESS' => ['TENDER_EXCESS', false],
+    'TENDER_VARIATION' => ['TENDER_VARIATION', true],
+    'no type yet' => ['NOT_SELECTED', false],
+]);
+
+it('does not check orders on a type that hides them, and discards them at submit', function () {
+    [$case, $vendor] = readyDraft('AD_HOC_TENDER_UNABLE');
+    frOrder($case, $vendor, ['quantity_delivered' => '999999']); // broken, but hidden for this type
+
+    expect(collect(array_keys(frErrors($case)))->filter(fn ($k) => str_starts_with($k, 'purchase_orders')))->toBeEmpty();
+
+    app(SubmitCase::class)->handle($case, $vendor);
+
+    expect(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(0)
+        ->and(json_decode(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->value('metadata'), true))
+        ->toBe(['reason' => 'section_hidden', 'counts' => ['variation_details' => 0, 'existing_arrangement' => 1]]);
+});
+
+it('keeps and checks orders on a Tender Variation', function () {
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
+    frOrder($case, $vendor, ['quantity_ordered' => '3000', 'quantity_delivered' => '3001']);
+
+    expect(frErrors($case))->toHaveKey('purchase_orders.0.quantity_delivered');
+});
+
 // --- C. Stock ---------------------------------------------------------------
 
-it('sets no stock on hand from the batch total, never from the form', function (array $batches, bool $none) {
-    [$case] = frDraft(mutate: function ($p) use ($batches) {
-        $p['stock_expiries'] = $batches;
+// Kyle, 2026-11-24: the quantity on hand is one typed quantity (no longer the batch
+// total); "no stock on hand" shows when it is entered as 0.
+it('sets no stock on hand from the typed quantity on hand, never from the form', function (?string $onHand, bool $none) {
+    [$case] = frDraft(mutate: function ($p) use ($onHand) {
+        $p['requisition']['quantity_on_hand'] = $onHand;
 
         return $p;
     });
 
-    expect((bool) CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('no_stock_on_hand'))->toBe($none)
-        ->and(collect(array_keys(frErrors($case)))->filter(fn ($k) => str_starts_with($k, 'stock_expiries')))->toBeEmpty();
+    expect((bool) CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('no_stock_on_hand'))->toBe($none);
 })->with([
-    'no batches' => [[], true],
-    'batches of 0' => [[['quantity' => '0', 'expiry_date' => null]], true],
-    'stock on hand' => [[['quantity' => '10', 'expiry_date' => '2027-06-30']], false],
+    'not entered' => [null, false],
+    'zero' => ['0', true],
+    'stock on hand' => ['10', false],
 ]);
 
-it('is not "no stock on hand" until the average monthly consumption is entered', function () {
+it('reads the quantity on hand from the typed field, not the batches', function () {
     [$case, $vendor] = newDraft();
     actAs($vendor); // the requisition relation is scoped to the viewer
-    saveDraft($case, $vendor, ['requisition' => ['stock_location' => 'Central stores'], 'stock_expiries' => []]);
+    saveDraft($case, $vendor, ['requisition' => ['stock_location' => 'Central stores'], 'stock_expiries' => [['quantity' => '50', 'expiry_date' => '2027-06-30']]]);
 
-    $flag = fn () => (bool) CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('no_stock_on_hand');
-    $total = fn () => ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->batchStockOnHand();
+    $onHand = fn () => ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)->quantityOnHand();
+    expect($onHand())->toBeNull(); // the form shows "—"; the batch quantity is not read
 
-    expect($flag())->toBeFalse()->and($total())->toBeNull(); // the form shows "—"
-
-    saveDraft($case, $vendor, ['requisition' => ['average_monthly_consumption' => '0']]);
-    expect($flag())->toBeTrue()->and($total())->toBe('0.00');
-
-    saveDraft($case, $vendor, ['requisition' => ['average_monthly_consumption' => null]]);
-    expect($flag())->toBeFalse()->and($total())->toBeNull();
+    saveDraft($case, $vendor, ['requisition' => ['quantity_on_hand' => '120.5']]);
+    expect($onHand())->toBe('120.50');
 });
 
 it('refuses the old No stock on hand tick from the form', function () {
@@ -258,16 +353,26 @@ it('refuses the old No stock on hand tick from the form', function () {
         ->toThrow(ValidationException::class);
 });
 
-it('needs an expiry date on a batch with a quantity, and a quantity on every batch', function () {
+it('needs an expiry date on every batch, and no batch quantity', function () {
     [$case] = frDraft(mutate: function ($p) {
-        $p['stock_expiries'] = [['quantity' => '10', 'expiry_date' => null], ['quantity' => null, 'expiry_date' => '2027-06-30']];
+        $p['stock_expiries'] = [['quantity' => '10', 'expiry_date' => null], ['expiry_date' => '2027-06-30']];
 
         return $p;
     });
 
     expect(frErrors($case))
         ->toHaveKey('stock_expiries.0.expiry_date', 'Batch 1: Expiry Date is required.')
-        ->toHaveKey('stock_expiries.1.quantity', 'Batch 2: Quantity is required.');
+        ->not->toHaveKey('stock_expiries.1.quantity');
+});
+
+it('leaves the quantity on hand optional for now', function () {
+    [$case] = frDraft(mutate: function ($p) {
+        $p['requisition']['quantity_on_hand'] = null;
+
+        return $p;
+    });
+
+    expect(frErrors($case))->not->toHaveKey('requisition.quantity_on_hand');
 });
 
 it('still requires the average monthly consumption', function () {
@@ -283,7 +388,7 @@ it('still requires the average monthly consumption', function () {
 
 it('corrects a stale no stock flag at submit', function () {
     [$case, $vendor] = readyDraft();
-    DB::table('case_requisitions')->where('case_id', $case->id)->update(['no_stock_on_hand' => true]); // batches total 200.5
+    DB::table('case_requisitions')->where('case_id', $case->id)->update(['no_stock_on_hand' => true]); // quantity on hand 200.5
 
     app(SubmitCase::class)->handle($case, $vendor);
 
@@ -317,13 +422,11 @@ it('keeps hidden prices in the draft and clears them at submit, auditing names o
     $after = $prices();
     expect($after->tender_price !== null)->toBe($kept)->and($after->previous_price !== null)->toBe($kept);
 
+    // 2026-11-24: the tender issues text is cleared too outside Tender Variation (Existing Approved Arrangement).
+    $fields = [...($kept ? [] : ['tender_price', 'previous_price']), ...($code === 'TENDER_VARIATION' ? [] : ['tender_issue_explanation'])];
     $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftFieldsDiscarded->value)->first();
-    if ($kept) {
-        expect($audit)->toBeNull();
-    } else {
-        expect(json_decode($audit->metadata, true))->toBe(['reason' => 'field_hidden', 'fields' => ['tender_price', 'previous_price']])
-            ->and((string) $audit->metadata)->not->toContain('1.25');
-    }
+    expect(json_decode($audit->metadata, true))->toBe(['reason' => 'field_hidden', 'fields' => $fields])
+        ->and((string) $audit->metadata)->not->toContain('1.25')->not->toContain('delivered part');
 })->with([
     'AD_HOC_EMERGENCY' => ['AD_HOC_EMERGENCY', false],
     'AD_HOC_TENDER_UNABLE' => ['AD_HOC_TENDER_UNABLE', false],

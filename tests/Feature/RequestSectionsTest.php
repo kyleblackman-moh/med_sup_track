@@ -97,12 +97,16 @@ function withRequisition(array $payload, array $fields): array
 // 1. Visible sections ------------------------------------------------------------
 
 it('shows Details of Variation Requested only when the previous-request answer is Yes, for every type', function (string $code, ?bool $answer) {
-    $expected = $answer === true
-        ? ['request_type', 'item_tender', 'variation_details', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents']
-        : ['request_type', 'item_tender', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents'];
+    // 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
+    $arrangement = $code === 'TENDER_VARIATION';
+    $expected = array_values(array_filter([
+        'request_type', 'item_tender', $answer === true ? 'variation_details' : null, 'awarded_supplier',
+        $arrangement ? 'existing_arrangement' : null, 'stock', 'quotation_comparison', 'documents',
+    ]));
+    $discarded = array_values(array_filter([$answer === true ? null : 'variation_details', $arrangement ? null : 'existing_arrangement']));
 
     expect(array_column(RequestSections::visible($code, true, $answer), 'key'))->toBe($expected)
-        ->and(RequestSections::discardedAtSubmit($code, $answer))->toBe($answer === true ? [] : ['variation_details'])
+        ->and(RequestSections::discardedAtSubmit($code, $answer))->toBe($discarded)
         ->and(RequestSections::LABELS['variation_details'])->toBe('Details of Variation Requested');
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
 
@@ -113,7 +117,7 @@ it('marks a section optional exactly when the type requires nothing in it', func
     expect($optional['request_type'])->toBeFalse()
         ->and($optional['item_tender'])->toBeFalse()
         ->and($optional['awarded_supplier'])->toBe(! $r['awards'])
-        ->and($optional['existing_arrangement'])->toBeTrue()
+        ->and($optional['existing_arrangement'] ?? null)->toBe($code === 'TENDER_VARIATION' ? true : null) // 2026-11-24: Tender Variation only
         ->and($optional['stock'])->toBe(! $r['stock'])
         ->and($optional['quotation_comparison'])->toBe(! $r['quotes'])
         ->and($optional['variation_details'] ?? null)->toBeNull() // hidden until the answer is Yes
@@ -133,9 +137,12 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
         ->and(collect($byKey['request_type']['issues'])->pluck('key')->all())
         ->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'previous_request_in_cycle')
         ->and($byKey['item_tender']['complete'])->toBeFalse()
+        ->and($byKey->has('existing_arrangement'))->toBe($code === 'TENDER_VARIATION'); // 2026-11-24
+    if ($code === 'TENDER_VARIATION') {
         // Optional and empty: optional, never complete.
-        ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
-        ->and($byKey['existing_arrangement']['state'])->toBe('optional');
+        expect($byKey['existing_arrangement']['complete'])->toBeFalse()
+            ->and($byKey['existing_arrangement']['state'])->toBe('optional');
+    }
 
     // V2-5: unanswered, so Details of Variation Requested is hidden for every type.
     expect($byKey->has('variation_details'))->toBeFalse();
@@ -214,7 +221,10 @@ it('needs every saved row complete, whatever the type', function (string $code, 
         saveDraft($case, $vendor, $orders($case));
     }
 
-    expect(v2Keys(v2Report($case)))->toBe($keys);
+    // 2026-11-24: orders are checked on a Tender Variation only (hidden for the other types).
+    $checked = array_values(array_filter($keys, fn (string $k) => $code === 'TENDER_VARIATION' || ! str_starts_with($k, 'purchase_orders')));
+
+    expect(v2Keys(v2Report($case)))->toBe($checked);
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with([
     'a partly filled award row' => [fn ($p) => [...$p, 'tender_awards' => [...$p['tender_awards'], ['brand' => 'Generic Brand']]],
         ['tender_awards.2.supplier_name', 'tender_awards.2.quantity_awarded', 'tender_awards.2.unit_cost']],
@@ -238,9 +248,10 @@ it('accepts the optional parts left out', function (string $code, Closure $mutat
         'strength' => null, 'dosage_form' => null, 'clinical_note' => null, 'stock_location' => null, 'quantity_on_order' => null,
         'tender_price' => null, 'previous_price' => null, 'quoted_price_acceptable' => null, 'price_note' => null, 'rfq_audience' => null,
     ])],
-    // 2026-11-23: a batch total of 0 is "no stock on hand" (set by the server); no batch is needed.
+    // 2026-11-24: no batch is needed, and the typed quantity on hand is optional for now.
     'no batches' => [fn ($p) => [...$p, 'stock_expiries' => []]],
-    'a batch of 0 without an expiry date' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '0']]]],
+    'no quantity on hand' => [fn ($p) => withRequisition($p, ['quantity_on_hand' => null])],
+    'quantity on hand 0' => [fn ($p) => withRequisition($p, ['quantity_on_hand' => '0'])],
     'average monthly consumption 0' => [fn ($p) => withRequisition($p, ['average_monthly_consumption' => '0'])],
     'tender cycle of one day' => [fn ($p) => withRequisition($p, ['tender_cycle_start' => '2026-05-01', 'tender_cycle_end' => '2026-05-01'])],
     'the tender outcome is not read' => [fn ($p) => withRequisition($p, ['tender_outcome' => 'NOT_AWARDED'])],
@@ -401,19 +412,19 @@ it('refuses a draft that was submitted after it was loaded', function () {
  */
 const SECTION_STATES_WHEN_EMPTY = [
     'AD_HOC_EMERGENCY' => [
-        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional', 'existing_arrangement' => 'optional',
+        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional',
         'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'AD_HOC_TENDER_UNABLE' => [
-        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete', 'existing_arrangement' => 'optional',
+        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete',
         'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'AD_HOC_NOT_AWARDED' => [
-        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional', 'existing_arrangement' => 'optional',
+        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional',
         'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'TENDER_EXCESS' => [
-        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete', 'existing_arrangement' => 'optional',
+        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete',
         'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'optional',
     ],
     'TENDER_VARIATION' => [

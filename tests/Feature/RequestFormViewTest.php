@@ -47,15 +47,22 @@ it('lists every section in form order, numbering only the visible ones', functio
     $form = formProp($this, $case, $vendor);
 
     // V2-5: Details of Variation Requested shows only when the answer is Yes, whatever the type.
+    // 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
     $variation = $answer === true;
+    $arrangement = $code === 'TENDER_VARIATION';
+    $visible = [
+        'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => $arrangement,
+        'stock' => true, 'quotation_comparison' => true, 'documents' => true,
+    ];
+    $n = 0;
+    $numbers = [];
+    foreach ($visible as $key => $shown) {
+        $numbers[$key] = $shown ? ++$n : null;
+    }
+
     expect(array_column($form['sections'], 'key'))->toBe(RequestSections::ORDER)
-        ->and(array_column($form['sections'], 'number', 'key'))->toBe($variation
-            ? ['request_type' => 1, 'item_tender' => 2, 'variation_details' => 3, 'awarded_supplier' => 4, 'existing_arrangement' => 5, 'stock' => 6, 'quotation_comparison' => 7, 'documents' => 8]
-            : ['request_type' => 1, 'item_tender' => 2, 'variation_details' => null, 'awarded_supplier' => 3, 'existing_arrangement' => 4, 'stock' => 5, 'quotation_comparison' => 6, 'documents' => 7])
-        ->and(array_column($form['sections'], 'visible', 'key'))->toBe([
-            'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => true,
-            'stock' => true, 'quotation_comparison' => true, 'documents' => true,
-        ])
+        ->and(array_column($form['sections'], 'number', 'key'))->toBe($numbers)
+        ->and(array_column($form['sections'], 'visible', 'key'))->toBe($visible)
         ->and(array_column($form['sections'], 'label', 'key'))->toBe(RequestSections::LABELS)
         ->and($form['sections'][0]['label'])->toBe('Request Type');
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
@@ -106,7 +113,7 @@ it('marks the complete sections complete', function () {
         'request_type' => 'complete',
         'item_tender' => 'complete',
         'awarded_supplier' => 'complete',
-        'existing_arrangement' => 'complete', // optional, and it holds a valid order
+        // 2026-11-24: Existing Approved Arrangement is hidden outside Tender Variation.
         'stock' => 'complete',
         'quotation_comparison' => 'complete',
         'documents' => 'complete',
@@ -158,6 +165,7 @@ it('sends the field-level required flags of each type from the section rules', f
         ->and($sections['awarded_supplier']['required'])->toBe([
             'tender_awards.supplier_name' => true, 'tender_awards.manufacturer' => false, 'tender_awards.brand' => false,
             'tender_awards.country_of_origin' => false, 'tender_awards.quantity_awarded' => true, 'tender_awards.unit_cost' => true,
+            'tender_awards.percentage_awarded' => false, // 2026-11-24: typed, optional
         ])
         ->and($sections['existing_arrangement']['required']['purchase_orders.award_id'])->toBeTrue()
         ->and($sections['existing_arrangement']['required']['purchase_orders.ordered_on'])->toBeFalse()
@@ -177,14 +185,14 @@ it('formats the computed values on the server', function () {
 
     expect($display['stock_total'])->toBe('200.5')
         ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
-        ->and($display['awards_total'])->toBe('$5,050.00')
+        ->and($display['awards_total'])->toBe('$3,535.00')
         ->and($display['total_cost'])->toBe('$5,032.13') // 2800 x 1.5975 = 4,473.00, plus 12.5% VAT 559.13
         // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
         ->and($display['price_change_vs_tender'])->toBe('27.80%')
         ->and($display['price_change_vs_previous'])->toBe('6.50%')
         ->and($display['rows']['tender_awards'])->toBe([
-            ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '$3,750.00'],
-            ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '$1,300.00'],
+            ['id' => $awards[0]->id, 'percentage' => '75.00%', 'line_cost' => '$2,625.00'],
+            ['id' => $awards[1]->id, 'percentage' => '25.00%', 'line_cost' => '$910.00'],
         ])
         ->and($display['rows']['purchase_orders'])->toBe([['id' => $case->purchaseOrders->first()->id, 'quantity_outstanding' => '1,800']])
         ->and(array_column($display['rows']['stock_expiries'], 'expiry_date'))
@@ -225,11 +233,12 @@ it('sends the at-risk and expired batches as structured items', function () {
     [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
     $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
     saveDraft($case, $vendor, [
-        'requisition' => ['average_monthly_consumption' => '30'],
+        // 2026-11-24: the quantity on hand is typed; a batch is its expiry date.
+        'requisition' => ['average_monthly_consumption' => '30', 'quantity_on_hand' => '115'],
         'stock_expiries' => [
-            ['quantity' => '100', 'expiry_date' => $today->addDays(10)->toDateString()],  // earliest unexpired: 115 days on hand, expires in 10: at risk
-            ['quantity' => '5', 'expiry_date' => $today->subDay()->toDateString()],       // expired
-            ['quantity' => '10', 'expiry_date' => $today->addYears(2)->toDateString()],   // fine
+            ['expiry_date' => $today->addDays(10)->toDateString()],  // earliest unexpired: 115 days on hand, expires in 10: at risk
+            ['expiry_date' => $today->subDay()->toDateString()],     // expired
+            ['expiry_date' => $today->addYears(2)->toDateString()],  // fine
         ],
     ]);
 
@@ -239,14 +248,12 @@ it('sends the at-risk and expired batches as structured items', function () {
         'days_on_hand' => '115', // 115 x 30 / 30
         'at_risk' => [[
             'batch' => 'Batch 2', // batches are listed earliest expiry first, as on the form
-            'quantity' => '100',
             'expiry_date' => $today->addDays(10)->format('j M Y'),
             'cover_days' => '115', // days on hand (all stock), Kyle 2026-11-23
             'days_to_expiry' => '10',
         ]],
         'expired' => [[
             'batch' => 'Batch 1',
-            'quantity' => '5',
             'expiry_date' => $today->subDay()->format('j M Y'),
         ]],
     ]);

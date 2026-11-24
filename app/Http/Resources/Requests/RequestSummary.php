@@ -150,7 +150,6 @@ final class RequestSummary
 
     private static function awards(ProcurementCase $case): array
     {
-        $percentages = $case->tenderAwardPercentages();
         $totals = $case->tenderAwards->map(fn (CaseTenderAward $a) => $a->total())->filter(fn ($t) => $t !== null);
 
         $table = self::table('Awarded Suppliers', 'Supplier Row', [
@@ -169,7 +168,7 @@ final class RequestSummary
             'country_of_origin' => Display::text($a->country_of_origin),
             'quantity_awarded' => Display::quantity($a->quantity_awarded),
             'unit_cost' => Display::price($a->unit_cost),
-            'percentage' => Display::percent($percentages[$a->getKey()] ?? null),
+            'percentage' => Display::percent($a->percentage_awarded), // typed by the vendor (2026-11-24)
             'line_cost' => Display::money($a->total()),
         ])->values()->all());
 
@@ -223,10 +222,11 @@ final class RequestSummary
 
         $blocks = [self::fields([
             'Location' => Display::text($r?->stock_location),
-            'Average Monthly Consumption' => self::withUnit(Display::quantity($r?->average_monthly_consumption), $unit),
+            // Kyle, 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
+            'Average Monthly Consumption' => Display::quantity($r?->average_monthly_consumption),
             'Quantity on Order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
             'No Stock on Hand' => Display::yesNo($noStock),
-            'Stock Total' => self::withUnit(Display::quantity($case->batchStockOnHand()), $unit),
+            'Quantity on Hand' => Display::quantity($case->quantityOnHand()),
             'Days on Hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
         ])];
 
@@ -237,10 +237,9 @@ final class RequestSummary
 
         if (! $noStock) {
             $blocks[] = self::table('Stock Batches', 'Batch', [
-                'quantity' => 'Quantity',
+                // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is typed above).
                 'expiry_date' => 'Expiry Date',
             ], $case->stockExpiries->map(fn (CaseStockExpiry $b) => [
-                'quantity' => Display::quantity($b->quantity),
                 'expiry_date' => self::date($b->expiry_date),
             ])->values()->all());
         }

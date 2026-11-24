@@ -46,6 +46,7 @@ const SLICE_6B_COLUMNS = [
         'price_note' => 'nvarchar(max)',
         // V2
         'tender_cycle_start' => 'date', 'tender_cycle_end' => 'date', 'quantity_on_order' => 'decimal(14,2)',
+        'quantity_on_hand' => 'decimal(14,2)', // 2026-11-24
     ],
     'case_quotations' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
@@ -65,6 +66,7 @@ const SLICE_6B_COLUMNS = [
         'manufacturer' => 'nvarchar(200)', 'brand' => 'nvarchar(200)', 'quantity_awarded' => 'decimal(14,2)',
         'unit_cost' => 'decimal(14,4)', 'created_at' => 'datetime', 'updated_at' => 'datetime',
         'country_of_origin' => 'nvarchar(100)', // V2
+        'percentage_awarded' => 'decimal(5,2)', // 2026-11-24
     ],
     'case_purchase_orders' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',

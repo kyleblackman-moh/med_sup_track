@@ -46,7 +46,8 @@ final class RequisitionMessages
         'tender_issue_explanation' => 'Issues Affecting the Tender Quantity',
         'tender_cycle_start' => 'Tender Cycle Start',
         'tender_cycle_end' => 'Tender Cycle End',
-        'quantity_on_order' => 'Quantity on Hand', // the label on screen (Stock)
+        'quantity_on_order' => 'Quantity on Order',
+        'quantity_on_hand' => 'Quantity on Hand', // Kyle, 2026-11-24: typed (was the batch total)
         'stock_location' => 'Location',
         'average_monthly_consumption' => 'Average Monthly Consumption',
         'rfq_audience' => 'RFQ Sent To',
@@ -71,6 +72,7 @@ final class RequisitionMessages
         ],
         'tender_awards' => [
             'supplier_name' => 'Supplier',
+            'percentage_awarded' => '% Awarded', // 2026-11-24: typed
         ],
         'purchase_orders' => [
             'award_id' => 'Supplier',

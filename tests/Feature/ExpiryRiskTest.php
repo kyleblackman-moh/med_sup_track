@@ -42,9 +42,15 @@ function riskBatch(int $id, string $quantity, int $days): CaseStockExpiry
     ]);
 }
 
+/**
+ * Kyle, 2026-11-24: the quantity on hand is typed, not the batch total. These rule tests
+ * pass the batches' quantities summed as that typed quantity (0 for "no stock on hand").
+ */
 function risk(?string $amc, array $batches, bool $noStock = false): array
 {
-    return ExpiryRisk::compute($amc, $noStock, collect($batches), CarbonImmutable::parse(RISK_TODAY));
+    $onHand = $noStock ? '0' : collect($batches)->reduce(fn (string $sum, CaseStockExpiry $b) => bcadd($sum, (string) ($b->quantity ?? '0'), 2), '0');
+
+    return ExpiryRisk::compute($amc, $onHand, collect($batches), CarbonImmutable::parse(RISK_TODAY));
 }
 
 // 1. The rule --------------------------------------------------------------------------
@@ -95,19 +101,19 @@ it('does not flag exact equality, and compares exactly', function (string $amc, 
     'expires today with stock left' => ['300', '1', 0, true],
 ]);
 
-it('marks a batch past its expiry date as expired, and still counts it in days on hand', function () {
+it('marks a batch past its expiry date as expired', function () {
     // 10 a day. Expired: 100 units (yesterday). Next: 50 units in 10 days.
     // Days on hand counts all stock: 150 units = 15 days > 10 days to the earliest unexpired batch.
     $result = risk('300', [riskBatch(1, '100', -1), riskBatch(2, '50', 10)]);
 
     expect($result['expiry_warnings'])->toBe([
-        1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '10.00'],
+        1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '15.00'], // 2026-11-24: the whole stock
         2 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '15.00'],
     ])->and($result['days_on_hand'])->toBe(15);
 
     // With only 5 days on hand in all, only the expired batch is reported.
     expect(risk('300', [riskBatch(1, '20', -1), riskBatch(2, '30', 10)])['expiry_warnings'])
-        ->toBe([1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '2.00']]);
+        ->toBe([1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '5.00']]);
 });
 
 it('gives no warning and no days on hand when AMC is 0 or missing, or there is no stock', function (?string $amc, bool $noStock) {
@@ -129,7 +135,7 @@ it('rounds days on hand down to whole days, null without stock', function (Closu
     'zero stock' => [fn () => [riskBatch(1, '0', 400)], null],
 ]);
 
-it('never flags a batch without an expiry date, but counts it in days on hand', function () {
+it('never flags a batch without an expiry date', function () {
     $undated = (new CaseStockExpiry)->forceFill(['id' => 9, 'quantity' => '100', 'expiry_date' => null]);
 
     // 110 units = 11 days on hand > 0 days to the earliest dated expiry.
@@ -146,7 +152,7 @@ it('uses today for a draft and the submission date once submitted', function () 
     $this->travelTo(CarbonImmutable::parse('2026-11-17 12:00', 'America/Port_of_Spain'));
     [$case, $vendor] = readyDraft();
     // 500 a month: 300 units = 18 days of cover; expires in 20 days.
-    saveDraft($case, $vendor, ['stock_expiries' => [['quantity' => '300', 'expiry_date' => '2026-12-07']]]);
+    saveDraft($case, $vendor, ['requisition' => ['quantity_on_hand' => '300'], 'stock_expiries' => [['expiry_date' => '2026-12-07']]]);
     $case = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
 
     expect(ExpiryRisk::for($case)['expiry_warnings'])->toBe([]);
@@ -161,7 +167,7 @@ it('uses today for a draft and the submission date once submitted', function () 
         ->and(ExpiryRisk::referenceDate($submitted)->toDateString())->toBe('2026-11-17')
         ->and(ExpiryRisk::for($submitted)['expiry_warnings'])->toBe([]);
 
-    $asDraft = ExpiryRisk::compute('500', false, $submitted->stockExpiries, CarbonImmutable::parse('2026-11-27'));
+    $asDraft = ExpiryRisk::compute('500', '300', $submitted->stockExpiries, CarbonImmutable::parse('2026-11-27'));
     expect(array_column($asDraft['expiry_warnings'], 'state'))->toBe(['at_risk']);
 });
 
@@ -177,9 +183,9 @@ it('uses the submission date in Trinidad time, not UTC', function () {
 it('reports the risk as readiness warnings and never blocks the submit', function () {
     [$case, $vendor] = readyDraft();
     $today = CarbonImmutable::now('America/Port_of_Spain');
-    saveDraft($case, $vendor, ['stock_expiries' => [
-        ['quantity' => '50', 'expiry_date' => $today->subDay()->toDateString()],   // expired
-        ['quantity' => '300', 'expiry_date' => $today->addDays(5)->toDateString()], // 21 days on hand in all, 5 left
+    saveDraft($case, $vendor, ['requisition' => ['quantity_on_hand' => '350'], 'stock_expiries' => [
+        ['expiry_date' => $today->subDay()->toDateString()],   // expired
+        ['expiry_date' => $today->addDays(5)->toDateString()], // 21 days on hand in all, 5 left
     ]]);
     $case = ProcurementCase::withoutGlobalScopes()->findOrFail($case->id);
 
@@ -198,7 +204,7 @@ it('reports the risk as readiness warnings and never blocks the submit', functio
 it('returns days on hand and the warnings with the save result and on both pages', function () {
     [$case, $vendor] = readyDraft();
     $today = CarbonImmutable::now('America/Port_of_Spain');
-    $payload = ['stock_expiries' => [['quantity' => '300', 'expiry_date' => $today->addDays(5)->toDateString()]]];
+    $payload = ['requisition' => ['quantity_on_hand' => '300'], 'stock_expiries' => [['expiry_date' => $today->addDays(5)->toDateString()]]];
 
     $saved = app(SaveRequisition::class)->handle($case, $vendor, RequisitionData::validate($payload, $case->procurementType));
     $batchId = (int) CaseStockExpiry::withoutGlobalScopes()->where('case_id', $case->id)->value('id');

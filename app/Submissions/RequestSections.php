@@ -62,6 +62,17 @@ final class RequestSections
     private const ONLY_WHEN_PREVIOUS_REQUEST = ['variation_details'];
 
     /**
+     * Kyle, 2026-11-24: sections shown only for some types. Hidden ones are not
+     * checked, stay in the draft (the type may change back) and are discarded at
+     * submit, like the variation details.
+     *
+     * @var array<string, list<string>> section => the types that show it
+     */
+    public const SECTIONS_FOR_TYPES = [
+        'existing_arrangement' => [ProcurementTypeProfile::TENDER_VARIATION],
+    ];
+
+    /**
      * What each type requires beyond the rules every type shares.
      * Documents are configured per type in procurement_type_documents.
      *
@@ -90,7 +101,7 @@ final class RequestSections
         'variation_details' => ['variation_rows'],
         'awarded_supplier' => ['tender_awards'],
         'existing_arrangement' => ['purchase_orders', 'quantity_on_order'],
-        'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
+        'stock' => ['stock_location', 'average_monthly_consumption', 'quantity_on_hand', 'no_stock_on_hand', 'stock_expiries'],
         'quotation_comparison' => [
             'rfq_audience', 'quotations', 'quantity_to_purchase',
             'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
@@ -117,9 +128,8 @@ final class RequestSections
             'quantity_ordered' => 'enter the quantity ordered',
             'delivery_state' => 'choose the delivery status',
         ]],
-        // The expiry date is required only on a batch with a quantity above 0 (stock()).
+        // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is one typed field).
         'stock_expiries' => ['Stock batch', [
-            'quantity' => 'enter the quantity',
             'expiry_date' => 'enter the expiry date',
         ]],
         'quotations' => ['Quotation', [
@@ -176,6 +186,8 @@ final class RequestSections
     public const FIELDS_FOR_TYPES = [
         'tender_price' => [ProcurementTypeProfile::TENDER_EXCESS],
         'previous_price' => [ProcurementTypeProfile::TENDER_EXCESS],
+        // Kyle, 2026-11-24: shown in Existing Approved Arrangement, which is Tender Variation only.
+        'tender_issue_explanation' => [ProcurementTypeProfile::TENDER_VARIATION],
     ];
 
     /* Kyle, 2026-11-23: the quantity and date rules. ":n" and ":x" are filled with display quantities. */
@@ -290,7 +302,7 @@ final class RequestSections
             ],
             // V2-5: shown only when the answer is Yes; every column of an entered row is required.
             'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
-            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost']),
+            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost', 'percentage_awarded']),
             'existing_arrangement' => [
                 // The delivery date is required unless the status is Not delivered (false here: conditional).
                 ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_date']),
@@ -300,7 +312,8 @@ final class RequestSections
                 'stock_location' => false,
                 'average_monthly_consumption' => $byType('stock'),
                 'quantity_on_order' => false,
-                ...$rows('stock_expiries', ['quantity', 'expiry_date']),
+                'quantity_on_hand' => false, // Kyle, 2026-11-24: typed; optional until the CMO's office says otherwise
+                ...$rows('stock_expiries', ['expiry_date']),
             ],
             'quotation_comparison' => [
                 'rfq_audience' => false,
@@ -322,9 +335,16 @@ final class RequestSections
         return ! isset(self::REQUIRES[$code]) && in_array($section, self::TYPE_DEPENDENT, true);
     }
 
-    /** V2-5: the variation section depends on the previous-request answer only, never on the type. */
+    /**
+     * V2-5: the variation section depends on the previous-request answer only, never on the type.
+     * Kyle, 2026-11-24: Existing Approved Arrangement shows for Tender Variation only (SECTIONS_FOR_TYPES).
+     */
     public static function isVisible(string $code, string $section, ?bool $previousRequest = null): bool
     {
+        if (isset(self::SECTIONS_FOR_TYPES[$section])) {
+            return in_array($code, self::SECTIONS_FOR_TYPES[$section], true);
+        }
+
         return ! in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true) || $previousRequest === true;
     }
 
@@ -336,7 +356,10 @@ final class RequestSections
      */
     public static function discardedAtSubmit(string $code, ?bool $previousRequest = null): array
     {
-        return array_values(array_filter(self::ONLY_WHEN_PREVIOUS_REQUEST, fn (string $s) => ! self::isVisible($code, $s, $previousRequest)));
+        return array_values(array_filter(
+            [...self::ONLY_WHEN_PREVIOUS_REQUEST, ...array_keys(self::SECTIONS_FOR_TYPES)],
+            fn (string $s) => ! self::isVisible($code, $s, $previousRequest),
+        ));
     }
 
     /**
@@ -414,7 +437,7 @@ final class RequestSections
             'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
             // Not no_stock_on_hand: the server sets it from the batch total (an empty draft has it).
             'stock' => $case->stockExpiries->isNotEmpty()
-                || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_order']),
+                || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_hand', 'quantity_on_order']),
             'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
                 'rfq_audience', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
             ]),
@@ -481,11 +504,15 @@ final class RequestSections
             $add('tender_awards', self::AWARD_ROW_NEEDED);
         }
         self::checkRows('tender_awards', $rows['tender_awards'], $add);
+        $this->awardQuantities($r, $rows['tender_awards'], $add);
 
-        // Existing arrangement: orders are optional; an order that exists must be complete and consistent.
-        $today = now(self::LOCAL_TIMEZONE)->toDateString();
-        self::checkRows('purchase_orders', $rows['purchase_orders'], $add);
-        $this->orders($rows['purchase_orders'], $today, $add);
+        // Existing arrangement (Tender Variation only, 2026-11-24): orders are optional; an order
+        // that exists must be complete and consistent. Hidden for other types: not checked.
+        if (self::isVisible($code, 'existing_arrangement', $previousRequest)) {
+            $today = now(self::LOCAL_TIMEZONE)->toDateString();
+            self::checkRows('purchase_orders', $rows['purchase_orders'], $add);
+            $this->orders($rows['purchase_orders'], $today, $add);
+        }
 
         $this->stock($r, $rows['stock_expiries'], $requires['stock'], $add);
         $this->quotations($r, $rows['quotations'], $requires['quotations'], $add);
@@ -594,10 +621,10 @@ final class RequestSections
 
     /**
      * Kyle, 2026-11-23: required, the average monthly consumption (0 allowed).
-     * Quantity on hand is the batch total: with a total of 0 (no batches, or
-     * every quantity 0) the case has no stock on hand (set by the server, see
-     * StockOnHand) and no batch is needed. Every batch that is entered needs its
-     * quantity, and an expiry date when its quantity is above 0.
+     * Kyle, 2026-11-24: the quantity on hand is one typed quantity (optional for
+     * now; 0 means no stock on hand, set by the server, see StockOnHand) and a
+     * batch is its expiry date, required on every batch entered (checkRows).
+     * Stock expiring before it is used stays a warning (ExpiryRisk), never an error.
      */
     private function stock(CaseRequisition $r, Collection $batches, bool $required, callable $add): void
     {
@@ -605,14 +632,7 @@ final class RequestSections
             $add('requisition.average_monthly_consumption', 'Enter the average monthly consumption (0 if none).');
         }
 
-        foreach ($batches as $i => $batch) {
-            $label = RequisitionMessages::rowLabel('stock_expiries', (int) $i).': ';
-            if ($batch->quantity === null) {
-                $add("stock_expiries.{$i}.quantity", $label.RequisitionMessages::columnLabel('stock_expiries', 'quantity').' is required.');
-            } elseif (Decimal::compare($batch->quantity, '0') > 0 && $batch->expiry_date === null) {
-                $add("stock_expiries.{$i}.expiry_date", $label.RequisitionMessages::columnLabel('stock_expiries', 'expiry_date').' is required.');
-            }
-        }
+        self::checkRows('stock_expiries', $batches, $add);
     }
 
     /**
@@ -636,8 +656,8 @@ final class RequestSections
         }
 
         // Kyle, 2026-11-23: no quotation row may be above the quantity requested.
-        // Quotation comparison only: award quantities are tender quantities and may
-        // exceed it. (2026-11-24: Quantity to Purchase left the form, and its checks.)
+        // (2026-11-24: Quantity to Purchase left the form, and its checks. Award rows
+        // have the same limit since 2026-11-24, see awardQuantities.)
         $requested = $r->quantity_requested;
         if ($requested !== null && Decimal::compare($requested, '0') > 0) {
             $n = Display::quantity($requested);
@@ -651,6 +671,26 @@ final class RequestSections
         foreach ($quotations as $i => $q) {
             if (! $q->considered && self::blank($q->reason_accepted_excluded)) {
                 $add("quotations.{$i}.reason_accepted_excluded", RequisitionMessages::rowLabel('quotations', (int) $i).': Reason Not Considered is required.');
+            }
+        }
+    }
+
+    /**
+     * Kyle, 2026-11-24: no supplier's quantity awarded may be above the quantity
+     * requested (each row on its own; replaces the 2026-11-23 rule that award
+     * quantities may exceed it). Checked once the quantity requested is above 0.
+     */
+    private function awardQuantities(CaseRequisition $r, Collection $awards, callable $add): void
+    {
+        $requested = $r->quantity_requested;
+        if ($requested === null || Decimal::compare($requested, '0') <= 0) {
+            return;
+        }
+
+        $n = Display::quantity($requested);
+        foreach ($awards as $i => $a) {
+            if ($a->quantity_awarded !== null && Decimal::compare($a->quantity_awarded, $requested) > 0) {
+                $add("tender_awards.{$i}.quantity_awarded", RequisitionMessages::rowLabel('tender_awards', (int) $i).': '.strtr(self::QUANTITY_OVER_REQUESTED, [':n' => $n]));
             }
         }
     }

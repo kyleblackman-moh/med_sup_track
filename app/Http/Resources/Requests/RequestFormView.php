@@ -99,11 +99,10 @@ final class RequestFormView
     /** @return array<string, mixed> */
     private static function display(ProcurementCase $case, ?int $daysOnHand): array
     {
-        $percentages = $case->tenderAwardPercentages();
         $awardTotals = $case->tenderAwards->map(fn (CaseTenderAward $a) => $a->total())->filter(fn ($t) => $t !== null);
 
         return [
-            'stock_total' => Display::quantity($case->batchStockOnHand()),
+            'stock_total' => Display::quantity($case->quantityOnHand()),
             'days_on_hand' => $daysOnHand === null ? Display::EMPTY : (string) $daysOnHand,
             'awards_total' => $awardTotals->isEmpty()
                 ? Display::EMPTY
@@ -117,7 +116,7 @@ final class RequestFormView
             'rows' => [
                 'tender_awards' => $case->tenderAwards->map(fn (CaseTenderAward $a) => [
                     'id' => $a->getKey(),
-                    'percentage' => Display::percent($percentages[$a->getKey()] ?? null),
+                    'percentage' => Display::percent($a->percentage_awarded), // typed by the vendor (2026-11-24)
                     'line_cost' => Display::money($a->total()),
                 ])->values()->all(),
                 'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
@@ -158,7 +157,7 @@ final class RequestFormView
             $batch = $batches->get($index);
             $item = [
                 'batch' => 'Batch '.($index + 1),
-                'quantity' => Display::quantity($batch?->quantity),
+                // 2026-11-24: no batch quantity (the quantity on hand is one typed field).
                 'expiry_date' => Display::date($batch?->expiry_date),
             ];
 

@@ -29,8 +29,10 @@ afterEach(function () {
 });
 
 it('names Quantity on Hand as the Stock section shows it', function () {
-    expect(RequisitionMessages::fieldLabel('quantity_on_order'))->toBe('Quantity on Hand')
-        // 2026-11-24: on screen it is the read-only batch total, "Quantity on Hand (Total)".
+    // 2026-11-24: Quantity on Hand is its own typed field; quantity_on_order is the quantity on order.
+    expect(RequisitionMessages::fieldLabel('quantity_on_hand'))->toBe('Quantity on Hand')
+        ->and(RequisitionMessages::fieldLabel('quantity_on_order'))->toBe('Quantity on Order')
+        // The screen still shows the read-only figure until the Stock section is rebuilt (UI).
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/stock-section.tsx')))->toContain('label="Quantity on Hand (Total)"');
 });
 

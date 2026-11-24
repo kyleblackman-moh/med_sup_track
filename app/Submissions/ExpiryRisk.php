@@ -15,23 +15,23 @@ use Illuminate\Support\Collection;
  * batches. Computed on the server, never stored. Advisory only: readiness
  * reports it as warnings and never blocks a submit on it.
  *
- * - Days on hand = stock total / (AMC / 30), in whole days (rounded down).
- *   Null when AMC is missing or 0, "No stock on hand" is ticked, or there is
- *   no stock.
+ * - Days on hand = quantity on hand / (AMC / 30), in whole days (rounded down).
+ *   Kyle, 2026-11-24: the quantity on hand is the one quantity the vendor types
+ *   (case_requisitions.quantity_on_hand), no longer the batch total; a batch is
+ *   its expiry date. Null when AMC or the quantity on hand is missing or 0.
  * - Expiry rule (Kyle, 2026-11-23; replaces the per-batch rule): the request
- *   is "at_risk" when days on hand (the whole stock total / (AMC / 30), as
+ *   is "at_risk" when days on hand (quantity on hand / (AMC / 30), as
  *   shown) > the days until the earliest expiry date that has not passed
  *   (strictly). The warning sits on that earliest batch, with cover days =
  *   days on hand. A batch already past its expiry date is "expired" (its own
- *   warning); like every batch, it still counts in the stock total. No
- *   warning at all when AMC is missing or 0, or "No stock on hand" is ticked.
+ *   warning). No warning at all when AMC or the quantity on hand is missing or 0.
  * - The rule is exact (compared as total x 30 against days x AMC); cover
  *   days are reported to 2 decimal places.
  * - Reference date: today (Trinidad time) while the case is a DRAFT; the
  *   submission date afterwards.
  *
- * A batch with no expiry date is left out of the expiry rule (it still counts
- * in the stock total); a batch with no quantity is left out of both.
+ * A batch with no expiry date is left out of the expiry rule. A batch's own
+ * quantity column (kept from before 2026-11-24) is never read.
  */
 final class ExpiryRisk
 {
@@ -50,16 +50,16 @@ final class ExpiryRisk
 
         return self::compute(
             $requisition?->average_monthly_consumption,
-            (bool) $requisition?->no_stock_on_hand,
+            $requisition?->quantity_on_hand,
             $case->stockExpiries,
             self::referenceDate($case),
         );
     }
 
     /** Columns the flag needs when a list eager loads the requisition and the batches. */
-    public const REQUISITION_COLUMNS = ['average_monthly_consumption', 'no_stock_on_hand'];
+    public const REQUISITION_COLUMNS = ['average_monthly_consumption', 'quantity_on_hand'];
 
-    public const BATCH_COLUMNS = ['id', 'case_id', 'quantity', 'expiry_date'];
+    public const BATCH_COLUMNS = ['id', 'case_id', 'expiry_date'];
 
     /**
      * Kyle, 2026-11-23: the flag staff see on the case page, the Cases list
@@ -91,7 +91,7 @@ final class ExpiryRisk
 
         return [
             'label' => $atRisk !== null ? 'Stock may expire before use' : 'Expired stock reported',
-            'tone' => 'warning',
+            'tone' => 'danger', // Kyle, 2026-11-24: shown as an error; still advisory, never blocks submit
             'detail' => implode(' ', $parts),
         ];
     }
@@ -126,25 +126,23 @@ final class ExpiryRisk
      * @param  Collection<int, CaseStockExpiry>  $batches
      * @return array{days_on_hand: int|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}
      */
-    public static function compute(?string $amc, bool $noStockOnHand, Collection $batches, CarbonInterface $today): array
+    public static function compute(?string $amc, ?string $quantityOnHand, Collection $batches, CarbonInterface $today): array
     {
         $none = ['days_on_hand' => null, 'expiry_warnings' => []];
 
-        if ($noStockOnHand || $amc === null || Decimal::compare($amc, '0') <= 0) {
+        if ($amc === null || Decimal::compare($amc, '0') <= 0
+            || $quantityOnHand === null || Decimal::compare($quantityOnHand, '0') <= 0) {
             return $none;
         }
 
         $usable = $batches
-            ->filter(fn (CaseStockExpiry $b) => $b->quantity !== null && $b->expiry_date !== null)
+            ->filter(fn (CaseStockExpiry $b) => $b->expiry_date !== null)
             ->sortBy([fn ($a, $b) => $a->expiry_date <=> $b->expiry_date, fn ($a, $b) => $a->getKey() <=> $b->getKey()])
             ->values();
 
-        // The stock total is every batch's quantity (as ProcurementCase::batchStockOnHand).
-        $total = $batches->filter(fn (CaseStockExpiry $b) => $b->quantity !== null)
-            ->reduce(fn (string $sum, CaseStockExpiry $b) => Decimal::add($sum, $b->quantity), '0');
-        $daysOnHand = Decimal::compare($total, '0') > 0
-            ? (int) bcdiv(Decimal::mul($total, '30'), $amc, 0) // whole days, rounded down
-            : null;
+        // Kyle, 2026-11-24: the typed quantity on hand (no longer the batch total).
+        $total = $quantityOnHand;
+        $daysOnHand = (int) bcdiv(Decimal::mul($total, '30'), $amc, 0); // whole days, rounded down
 
         $warnings = [];
         $earliest = null;
@@ -157,7 +155,8 @@ final class ExpiryRisk
                 $warnings[(int) $batch->getKey()] = [
                     'state' => self::EXPIRED,
                     'days_until_expiry' => $daysUntil,
-                    'cover_days' => Decimal::round2(Decimal::div(Decimal::mul($batch->quantity, '30'), $amc)),
+                    // A batch has no quantity of its own now: the cover of the whole stock.
+                    'cover_days' => Decimal::round2(Decimal::div(Decimal::mul($total, '30'), $amc)),
                 ];
 
                 continue;
@@ -168,7 +167,7 @@ final class ExpiryRisk
 
         // Kyle, 2026-11-23: days on hand (the whole stock total) > days until the earliest
         // expiry that has not passed  <=>  total x 30 > days x AMC (exact).
-        if ($earliest !== null && Decimal::compare($total, '0') > 0) {
+        if ($earliest !== null) {
             [$batch, $daysUntil] = $earliest;
 
             if (Decimal::compare(Decimal::mul($total, '30'), Decimal::mul((string) $daysUntil, $amc)) > 0) {

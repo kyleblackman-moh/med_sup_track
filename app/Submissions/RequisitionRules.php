@@ -297,7 +297,9 @@ final class RequisitionRules
             // 3 Stock
             'stock_location' => self::str(200),
             'average_monthly_consumption' => ['type' => 'qty'],
-            // no_stock_on_hand is set by the server from the batch total (Kyle, 2026-11-23); never sent.
+            // Kyle, 2026-11-24: one quantity the vendor types (was the batch total).
+            'quantity_on_hand' => ['type' => 'qty'],
+            // no_stock_on_hand is set by the server from the quantity on hand (StockOnHand); never sent.
             // 4 Quotations
             'rfq_audience' => ['type' => 'enum', 'enum' => RfqAudience::class],
             // Kyle, 2026-11-24: no longer on the form or checked; still accepted so an older
@@ -393,6 +395,8 @@ final class RequisitionRules
                 'quantity_awarded' => ['type' => 'qty'],
                 'unit_cost' => ['type' => 'price'],
                 'country_of_origin' => self::str(100), // V2-1
+                // Kyle, 2026-11-24: typed, optional; 0 to 100 with up to 2 decimals.
+                'percentage_awarded' => ['type' => 'rate'],
             ],
             'purchase_orders' => [
                 'id' => $id,
@@ -408,6 +412,8 @@ final class RequisitionRules
             ],
             'stock_expiries' => [
                 'id' => $id,
+                // Kyle, 2026-11-24: the quantity on hand is typed (requisition.quantity_on_hand); a
+                // batch is its expiry date. Still accepted so the current screen saves; never read.
                 'quantity' => ['type' => 'qty'],
                 'expiry_date' => ['type' => 'date'],
             ],

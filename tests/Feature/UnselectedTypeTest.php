@@ -266,7 +266,8 @@ it('never reports a type-dependent section as Complete or Optional on an empty u
     [$request, $screen] = sectionStates($this, $case, $vendor);
 
     $dependent = $request->only(RequestSections::TYPE_DEPENDENT);
-    expect($dependent->keys()->all())->toBe(['awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents']);
+    // 2026-11-24: Existing Approved Arrangement is hidden until the type is Tender Variation.
+    expect($dependent->keys()->all())->toBe(['awarded_supplier', 'stock', 'quotation_comparison', 'documents']);
     foreach ($dependent as $key => $section) {
         expect($section['complete'])->toBeFalse($key)
             ->and($section['optional'])->toBeFalse($key)
@@ -295,9 +296,9 @@ it('applies the Emergency rules once chosen: stock, quotations and documents are
             ->and($request[$key]['optional'])->toBeFalse($key)
             ->and($request[$key]['note'])->toBeNull();
     }
-    // Emergency: awarded supplier optional, orders always optional (nothing entered, so complete).
+    // Emergency: awarded supplier optional; no orders section (Tender Variation only, 2026-11-24).
     expect($request['awarded_supplier']['optional'])->toBeTrue()
-        ->and($request['existing_arrangement']['optional'])->toBeTrue()
+        ->and($request)->not->toHaveKey('existing_arrangement')
         ->and($request)->not->toHaveKey('variation_details');
     foreach (['stock', 'quotations', 'documents'] as $key) {
         expect($screen[$key]['complete'])->toBeFalse($key);

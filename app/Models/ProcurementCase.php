@@ -171,28 +171,10 @@ class ProcurementCase extends Model
         return $this->hasMany(CaseVariationRow::class, 'case_id')->orderBy('sort_order')->orderBy('id');
     }
 
-    /**
-     * Each award's share of the total awarded quantity, as a 2-decimal percentage
-     * string keyed by award id. Empty when there are no awards or they sum to zero.
-     * Rows without a quantity (a partial draft row) are left out of the sum and
-     * get no percentage. Computed from the awards the current user can see
-     * (VisibleViaCaseScope).
-     *
-     * @return array<int, string>
+    /*
+     * Kyle, 2026-11-24: an award's % awarded is no longer calculated; the vendor
+     * types it (case_tender_awards.percentage_awarded, optional).
      */
-    public function tenderAwardPercentages(): array
-    {
-        $awards = $this->tenderAwards->filter(fn (CaseTenderAward $a) => $a->quantity_awarded !== null);
-        $sum = $awards->reduce(fn (string $carry, CaseTenderAward $a) => Decimal::add($carry, $a->quantity_awarded), '0');
-
-        if (Decimal::compare($sum, '0') <= 0) {
-            return [];
-        }
-
-        return $awards->mapWithKeys(fn (CaseTenderAward $a) => [
-            $a->id => Decimal::round2(Decimal::div(Decimal::mul($a->quantity_awarded, '100'), $sum)),
-        ])->all();
-    }
 
     /*
      * AD_HOC figures (slice F1). Computed on the server from the saved rows,
@@ -211,26 +193,21 @@ class ProcurementCase extends Model
     }
 
     /**
-     * Stock on hand for AD_HOC: 0 when "no stock on hand" is ticked, else the
-     * sum of the batch quantities; null when neither is given.
+     * Stock on hand for the request form. Kyle, 2026-11-24: the quantity the
+     * vendor types (case_requisitions.quantity_on_hand), no longer the total of
+     * the stock batches; null until entered.
      */
-    public function batchStockOnHand(): ?string
+    public function quantityOnHand(): ?string
     {
-        if ($this->requisition?->no_stock_on_hand) {
-            return '0.00';
-        }
+        $quantity = $this->requisition?->quantity_on_hand;
 
-        $quantities = $this->stockExpiries->pluck('quantity')->filter(fn ($q) => $q !== null);
-
-        return $quantities->isEmpty()
-            ? null
-            : Decimal::round2($quantities->reduce(fn (string $carry, string $q) => Decimal::add($carry, $q), '0'));
+        return $quantity === null ? null : Decimal::round2($quantity);
     }
 
-    /** batchStockOnHand / average monthly consumption, in months; null if not computable. Staff only. */
+    /** quantityOnHand / average monthly consumption, in months; null if not computable. Staff only. */
     public function batchCoverageMonths(): ?string
     {
-        $stock = $this->batchStockOnHand();
+        $stock = $this->quantityOnHand();
         $consumption = $this->requisition?->average_monthly_consumption;
 
         if ($stock === null || $consumption === null || Decimal::compare($consumption, '0') <= 0) {

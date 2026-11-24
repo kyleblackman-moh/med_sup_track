@@ -142,7 +142,7 @@ final class SaveRequisition
         $requisition = CaseRequisition::withoutGlobalScopes()->where('case_id', $fresh->getKey())->first();
         $risk = ExpiryRisk::compute(
             $requisition?->average_monthly_consumption,
-            (bool) $requisition?->no_stock_on_hand,
+            $requisition?->quantity_on_hand,
             CaseStockExpiry::withoutGlobalScopes()->where('case_id', $fresh->getKey())->get(),
             ExpiryRisk::referenceDate($fresh),
         );

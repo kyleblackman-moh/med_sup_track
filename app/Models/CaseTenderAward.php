@@ -20,6 +20,7 @@ class CaseTenderAward extends Model
         'quantity_awarded',
         'unit_cost',
         'country_of_origin', // slice V2-1
+        'percentage_awarded', // Kyle, 2026-11-24: typed by the vendor, optional (no longer calculated)
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class CaseTenderAward extends Model
             'sort_order' => 'integer',
             'quantity_awarded' => 'decimal:2',
             'unit_cost' => 'decimal:4',
+            'percentage_awarded' => 'decimal:2',
         ];
     }
 

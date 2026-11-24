@@ -395,8 +395,9 @@ it('shows exact server-computed values', function () {
         ->where('case.quotations.2.derived.recommended_vat_amount', '559.13')
         ->where('case.quotations.2.derived.recommended_total_including_vat', '5032.13')
         ->where('case.quotations.0.derived.recommended_total', null)
-        ->where('case.tender_awards.0.derived.percentage', '70.00')
-        ->where('case.tender_awards.1.derived.percentage', '30.00')
+        // Kyle, 2026-11-24: % awarded is typed, never calculated; the old form has no such field.
+        ->where('case.tender_awards.0.derived.percentage', null)
+        ->where('case.tender_awards.1.derived.percentage', null)
         ->where('case.tender_awards.0.derived.total', '3500.00')
         ->where('case.purchase_orders.0.derived.quantity_outstanding', '1800.00')
         ->where('case.requisition.derived.stock_on_hand', '1500.00')

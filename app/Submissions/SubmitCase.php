@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Models\CaseAssignment;
+use App\Models\CasePurchaseOrder;
 use App\Models\CaseRequisition;
 use App\Models\CaseTransition;
 use App\Models\CaseVariationRow;
@@ -108,6 +109,8 @@ final class SubmitCase
         foreach (RequestSections::discardedAtSubmit($code, SubmissionReadiness::previousRequest($case)) as $section) {
             $counts[$section] = match ($section) {
                 'variation_details' => CaseVariationRow::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
+                // Kyle, 2026-11-24: Existing Approved Arrangement is Tender Variation only.
+                'existing_arrangement' => CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
             };
         }
 

@@ -246,9 +246,7 @@ it('refuses a row id that is not a row of this case and section, and saves nothi
 // 4. Orders and awards -------------------------------------------------------------
 
 it('sets award_id to null on the orders of a removed award, and readiness then flags them', function () {
-    [$case, $vendor] = newDraft();
-    saveCompleteAdHoc($case, $vendor);
-    attachRequiredDocuments($case);
+    [$case, $vendor] = readyDraft('TENDER_VARIATION'); // 2026-11-24: the only type that shows orders
     [$awardA, $awardB] = array_keys(rowsOf(CaseTenderAward::class, $case));
     $order = CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->id)->sole();
     expect($order->award_id)->toBe($awardA);
@@ -326,8 +324,8 @@ it('computes the AD_HOC figures on the server', function () {
         'price_change_vs_previous_percent' => '6.50',       // (1.5975 - 1.50) / 1.50
     ])
         ->and(collect($detail['tender_awards'])->pluck('derived.percentage')->all())->toBe(['75.00', '25.00'])
-        ->and(collect($detail['tender_awards'])->pluck('derived.total')->all())->toBe(['3750.00', '1300.00'])
-        ->and($detail['totals']['tender_awards'])->toBe(['quantity_awarded' => '4000.00', 'total' => '5050.00'])
+        ->and(collect($detail['tender_awards'])->pluck('derived.total')->all())->toBe(['2625.00', '910.00'])
+        ->and($detail['totals']['tender_awards'])->toBe(['quantity_awarded' => '2800.00', 'total' => '3535.00'])
         ->and($detail['purchase_orders'][0]['derived']['quantity_outstanding'])->toBe('1800.00')
         ->and(collect($detail['quotations'])->pluck('derived.offered_total')->all())->toBe(['3920.00', '4473.00']) // 2800 offered (not above the quantity requested)
         ->and($detail['requisition']['derived'])->toBe(['stock_on_hand' => '200.50']); // 120 + 80.5; no coverage for the vendor
@@ -357,11 +355,10 @@ it('computes each figure from the saved rows only, null when not computable', fu
 
     expect($values[$figure])->toBe($expected);
 })->with([
-    // 2026-11-23: "no stock on hand" is set by the server: a batch total of 0 once the consumption is entered.
-    'batches of 0 with consumption' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '0']]], 'stock_on_hand', '0.00'],
-    'no batches with consumption' => [fn ($p) => [...$p, 'stock_expiries' => []], 'stock_on_hand', '0.00'],
-    'no batches, no consumption' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => null], 'stock_expiries' => []], 'stock_on_hand', null],
-    'batch without quantity skipped' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '10'], ['expiry_date' => '2027-01-31']]], 'stock_on_hand', '10.00'],
+    // 2026-11-24: the quantity on hand is typed; batch quantities are never read.
+    'typed 0' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_on_hand' => '0']], 'stock_on_hand', '0.00'],
+    'not typed' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_on_hand' => null]], 'stock_on_hand', null],
+    'batch quantities not read' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'quantity_on_hand' => '10'], 'stock_expiries' => [['quantity' => '999', 'expiry_date' => '2027-01-31']]], 'stock_on_hand', '10.00'],
     'coverage needs consumption' => [fn ($p) => [...$p, 'requisition' => [...$p['requisition'], 'average_monthly_consumption' => null]], 'coverage_months', null],
     'same supplier twice counts once' => [fn ($p) => [...$p, 'tender_awards' => [['supplier_name' => 'Supplier A'], ['supplier_name' => ' supplier a '], ['supplier_name' => null]]], 'suppliers_awarded', 1],
     'blank quotation rows are not received' => [fn ($p) => [...$p, 'quotations' => [...$p['quotations'], [], ['supplier_name' => '  ']]], 'quotations_received', 2],
@@ -561,7 +558,7 @@ it('accepts an average monthly consumption of 0, with no coverage', function () 
 // kept at submit whatever it says (the "not awarded" discard was removed; the
 // only discard now is of hidden sections, RequestSectionsTest).
 it('keeps the award and order rows at submit, whatever the old tender outcome says', function () {
-    [$case, $vendor] = readyDraft();
+    [$case, $vendor] = readyDraft('TENDER_VARIATION'); // 2026-11-24: orders show for Tender Variation only
     saveDraft($case, $vendor, ['requisition' => ['tender_outcome' => 'NOT_AWARDED']]);
 
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);

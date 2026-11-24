@@ -56,6 +56,7 @@ class CaseRequisition extends Model
         'tender_cycle_start',
         'tender_cycle_end',
         'quantity_on_order',
+        'quantity_on_hand', // Kyle, 2026-11-24: typed by the vendor (was the batch total)
     ];
 
     /** Mirrors the database default. */
@@ -85,12 +86,13 @@ class CaseRequisition extends Model
             'tender_cycle_start' => 'date',
             'tender_cycle_end' => 'date',
             'quantity_on_order' => 'decimal:2',
+            'quantity_on_hand' => 'decimal:2',
         ];
     }
 
     /**
      * Old types: central_stores_stock + rha_stock; null if either is missing.
-     * AD_HOC uses ProcurementCase::batchStockOnHand() instead.
+     * The request form uses ProcurementCase::quantityOnHand() instead.
      */
     public function stockOnHand(): ?string
     {
