@@ -118,7 +118,7 @@ final class RequestSummary
 
         return [self::fields([
             'DIN' => Display::text($r?->din),
-            'Item Description' => Display::text($r?->item_description),
+            'Item Name' => Display::text($r?->item_description),
             'Strength' => Display::text($r?->strength),
             'Dosage Form' => Display::text($r?->dosage_form),
             'Quantity Requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),

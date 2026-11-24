@@ -99,6 +99,9 @@ interface TextFieldProps {
     error?: string;
     inputMode?: 'decimal' | 'numeric' | 'text';
     type?: 'text' | 'date';
+    /** Date fields: the earliest and latest days that can be chosen ('YYYY-MM-DD'). */
+    min?: string;
+    max?: string;
     maxLength?: number;
     /** Static text after the control, for example the unit of measure. */
     suffix?: ReactNode;
@@ -117,6 +120,8 @@ export function TextField({
     error,
     inputMode,
     type = 'text',
+    min,
+    max,
     maxLength,
     suffix,
     width,
@@ -151,6 +156,8 @@ export function TextField({
                     id={id}
                     value={value}
                     onChange={onChange}
+                    min={min}
+                    max={max}
                     invalid={Boolean(error)}
                     required={optional === false}
                     describedBy={describedBy(hint && hintId, error && errorId)}
@@ -243,13 +250,15 @@ interface RadioGroupFieldProps {
     error?: string;
     /** FORM-COMPACT-1: the field's width on the scale. */
     width?: FieldWidth;
+    /** Kyle, 2026-11-24: a short list side by side from sm (RFQ Sent To). */
+    inline?: boolean;
 }
 
 /**
  * A native radio group in a fieldset with a legend: the shared RadioGroup
  * (RADIO-1, options stacked). The first radio carries the id suffix "-0".
  */
-export function RadioGroupField({ id, legend, options, value, onChange, error, width }: RadioGroupFieldProps) {
+export function RadioGroupField({ id, legend, options, value, onChange, error, width, inline }: RadioGroupFieldProps) {
     const errorId = `${id}-error`;
 
     return (
@@ -263,6 +272,7 @@ export function RadioGroupField({ id, legend, options, value, onChange, error, w
             optionId={(_option, i) => `${id}-${i}`}
             describedBy={error ? errorId : undefined}
             className={span(width)}
+            stackClassName={inline ? 'grid grid-cols-1 sm:grid-cols-2' : undefined}
         >
             <FieldError id={errorId} message={error} />
         </RadioGroup>

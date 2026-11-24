@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils';
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
 /** One field of a sheet line: its column header and its control (or a worked-out figure, with no htmlFor). */
 export interface SheetField {
@@ -10,77 +9,94 @@ export interface SheetField {
     content: ReactNode;
 }
 
-/**
- * The sheet's table lines: hairline cell borders (1px gaps over base-300). Once
- * the block is 40rem wide a line of five shares 15 tracks 3 each and a line of
- * three 5 each; narrower, two fields a row, and the last field of an odd line
- * spans both (a container query: never a sideways scroll).
- */
-const SHEET_LINE = 'bg-base-300 grid grid-cols-2 gap-px @min-[40rem]:grid-cols-15';
-const SPAN: Record<number, { cell: string; last: string }> = {
-    3: { cell: '@min-[40rem]:col-span-5', last: 'col-span-2 @min-[40rem]:col-span-5' },
-    5: { cell: '@min-[40rem]:col-span-3', last: 'col-span-2 @min-[40rem]:col-span-3' },
-};
-
-function SheetCell({ field, className }: { field: SheetField; className?: string }) {
-    return (
-        <div className={cn('bg-base-100 flex min-w-0 flex-col', className)}>
-            <div className="bg-base-200 text-base-content/70 px-3 py-1.5 text-xs font-medium capitalize">
-                {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : <span>{field.label}</span>}
-            </div>
-            <div className="flex min-h-12 min-w-0 items-center px-2 py-1.5">{field.content}</div>
-        </div>
-    );
-}
+/** The table's tracks: a line of five takes 3 each, a line of three 5 each (15 equal columns, table-fixed). */
+const TRACKS = 15;
 
 interface EntrySheetProps {
     /** The entry's name for assistive technology ("Quotation Row 1"). */
     label: string;
-    /** The small tag at the start of the header ("Quotation 1"). */
-    tag: ReactNode;
+    /** The collapsed bar: what the entry is at a glance (tag, supplier, status, total). The whole bar opens it. */
+    summary: ReactNode;
     /** The header's main field (the Supplier label and input). */
     title: ReactNode;
     /** Small controls after it (Considered, Recommended). */
     controls?: ReactNode;
-    /** The remove icon button: top right on a phone, at the end of the header line once wide. */
+    /** The remove icon button, at the end of the header line. */
     remove?: ReactNode;
-    /** The table lines (3 or 5 fields each), column headers over their fields. */
+    /** The table lines (3 or 5 fields each): a row of column headers over a row of cells. */
     lines: SheetField[][];
     /** Under the table, full width (a reason, the entry's error list); nothing is drawn when empty. */
     below?: ReactNode;
+    /** Open on first render (default true). */
+    defaultOpen?: boolean;
 }
 
 /**
- * Kyle, 2026-11-24: one entry as a small table grouped under its header (the
- * quotation's supplier block). The header holds the title field, the controls
- * and remove; under it each line is a row of column headers over a row of
- * fields. Presentational only: no data.
+ * Kyle, 2026-11-24: one entry as a collapsible block (Blueprint collapse,
+ * details/summary) holding a small bordered table. The bar shows the entry at
+ * a glance and opens or closes it; inside, the header line holds the title
+ * field, the controls and remove, then each table line is a row of column
+ * headers over a row of cells. On a narrow screen the table scrolls inside its
+ * block, never the page. A jump to a field inside a closed block opens it
+ * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, tag, title, controls, remove, lines, below }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, below, defaultOpen = true }: EntrySheetProps) {
+    const [open, setOpen] = useState(defaultOpen);
+
     return (
-        <div role="group" aria-label={label} className="bg-base-100 border-base-300 rounded-box @container overflow-hidden border">
-            <div className="bg-base-200 border-base-300 flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-3 py-2">
-                <span className="badge badge-ghost badge-sm order-1 shrink-0 capitalize tabular-nums">{tag}</span>
-                <div className="order-3 flex min-w-0 flex-1 basis-full items-center gap-2 @min-[40rem]:order-2 @min-[40rem]:basis-64">{title}</div>
-                {controls && <div className="order-4 @min-[40rem]:order-3">{controls}</div>}
-                {remove && <div className="order-2 ms-auto @min-[40rem]:order-4 @min-[40rem]:ms-0">{remove}</div>}
-            </div>
+        <details
+            open={open}
+            onToggle={(e) => setOpen(e.currentTarget.open)}
+            aria-label={label}
+            className="collapse-arrow bg-base-100 border-base-300 rounded-box collapse min-w-0 border"
+        >
+            <summary className="collapse-title hover:bg-base-200 min-h-0 py-3 ps-4 pe-10 motion-safe:transition-colors">{summary}</summary>
 
-            <div className="grid gap-px">
-                {lines.map((line) => (
-                    <div key={line[0]?.key} className={SHEET_LINE}>
-                        {line.map((field, i) => (
-                            <SheetCell
-                                key={field.key}
-                                field={field}
-                                className={i === line.length - 1 && line.length % 2 === 1 ? SPAN[line.length]?.last : SPAN[line.length]?.cell}
-                            />
-                        ))}
+            <div className="collapse-content min-w-0 space-y-3 px-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <div className="flex min-w-0 flex-1 basis-64 items-center gap-2">{title}</div>
+                    {/* The choices and remove stay together on one line, at the end. */}
+                    <div className="ms-auto flex items-center gap-x-4">
+                        {controls}
+                        {remove}
                     </div>
-                ))}
-            </div>
+                </div>
 
-            {below && <div className="border-base-300 grid gap-3 border-t px-3 py-3">{below}</div>}
-        </div>
+                <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
+                    <table className="table-sm table min-w-[40rem] table-fixed">
+                        <caption className="sr-only">{label}</caption>
+                        <tbody>
+                            {lines.map((line) => {
+                                const span = TRACKS / line.length;
+
+                                return [
+                                    <tr key={`${line[0]?.key}-head`} className="bg-base-200">
+                                        {line.map((field) => (
+                                            <th
+                                                key={field.key}
+                                                scope="col"
+                                                colSpan={span}
+                                                className="border-base-300 text-base-content/70 border text-xs font-medium capitalize"
+                                            >
+                                                {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : field.label}
+                                            </th>
+                                        ))}
+                                    </tr>,
+                                    <tr key={`${line[0]?.key}-cells`}>
+                                        {line.map((field) => (
+                                            <td key={field.key} colSpan={span} className="border-base-300 border p-1.5">
+                                                {field.content}
+                                            </td>
+                                        ))}
+                                    </tr>,
+                                ];
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {below && <div className="grid gap-3">{below}</div>}
+            </div>
+        </details>
     );
 }

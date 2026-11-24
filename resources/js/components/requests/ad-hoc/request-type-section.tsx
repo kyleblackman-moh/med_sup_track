@@ -1,3 +1,4 @@
+import { todayInPortOfSpain } from '@/components/ui/date-picker';
 import { FIELD_WIDTH, type FieldWidth } from '@/components/ui/field-width';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { type RequestTypeOption } from '@/types/requests';
@@ -46,6 +47,7 @@ export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }:
         error: api.fieldError(name),
         optional: api.optional('request_type', name),
     });
+    const today = todayInPortOfSpain();
 
     return (
         <div className="grid grid-cols-1 gap-4">
@@ -53,8 +55,9 @@ export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }:
 
             {/* FORM-COMPACT-1: the two dates (xs) and the question (lg) share one row from a 56rem card. */}
             <FieldGrid>
-                <TextField {...field('tender_cycle_start')} width="xs" label="Tender Cycle Start" type="date" />
-                <TextField {...field('tender_cycle_end')} width="xs" label="Tender Cycle End" type="date" hint="Not before the start." />
+                {/* Kyle, 2026-11-24: the cycle must include today (the server checks it too). */}
+                <TextField {...field('tender_cycle_start')} width="xs" label="Tender Cycle Start" type="date" max={today} hint="Today or earlier." />
+                <TextField {...field('tender_cycle_end')} width="xs" label="Tender Cycle End" type="date" min={today} hint="Today or later." />
                 <PreviousRequestQuestion
                     width="lg"
                     value={api.state.previousRequest}

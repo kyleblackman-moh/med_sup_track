@@ -31,7 +31,7 @@ export const REQUISITION_GROUPS: FieldGroup[] = [
             { name: 'vendor_reference', label: 'Your Reference', kind: 'text' },
             { name: 'request_date', label: 'Request Date', kind: 'date' },
             { name: 'need_classification', label: 'Need Classification', kind: 'select', options: 'need_classification' },
-            { name: 'item_description', label: 'Item Description', kind: 'text' },
+            { name: 'item_description', label: 'Item Name', kind: 'text' },
             { name: 'din', label: 'DIN', kind: 'text', pharmOnly: true },
             { name: 'item_code', label: 'Item Code', kind: 'text' },
             { name: 'unit_of_measure', label: 'Unit of Measure', kind: 'text' },

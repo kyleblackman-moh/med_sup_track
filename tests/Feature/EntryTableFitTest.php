@@ -81,9 +81,19 @@ it('lays each quotation out as a supplier block of three table lines in the agre
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
         ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
-        // The block is the shared EntrySheet: a line of five shares 15 tracks 3 each, a line of three 5 each, once 40rem wide.
+        // The block is the shared EntrySheet: a collapsible block (details) holding a real bordered table,
+        // a line of five 3 tracks each and a line of three 5 each (15, table-fixed), scrolling inside the block.
         ->and($source)->toContain('<EntrySheet')
-        ->and(file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain("'bg-base-300 grid grid-cols-2 gap-px @min-[40rem]:grid-cols-15'")
+        ->and($sheet = file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain('const TRACKS = 15;')
+        ->and($sheet)->toContain('<details')
+        ->and($sheet)->toContain('collapse-arrow')
+        ->and($sheet)->toContain('<summary className="collapse-title')
+        ->and($sheet)->toContain('max-w-full overflow-x-auto')
+        ->and($sheet)->toMatch('/<table className="[^"]*\\btable-fixed\\b/')
+        ->and($sheet)->toContain('scope="col"')
+        // Kyle, 2026-11-24: Considered OR Recommended, never both ticked; Recommended is stored as considered.
+        ->and($source)->toContain('checked={considered && !recommended}')
+        ->and($source)->toMatch("/api\\.chooseRecommended\\(row\\.key\\);\\s*api\\.setCell\\('quotations', row\\.key, 'considered', true\\);/")
         // The reason renders only for a quotation that is not considered.
         ->and($source)->toMatch('/!considered && \(\s*<TextAreaField/')
         ->and($source)->toContain('label="Reason Quotation Wasn\'t Considered"')

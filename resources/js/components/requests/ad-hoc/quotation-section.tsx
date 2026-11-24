@@ -85,7 +85,8 @@ export function QuotationSection({ api }: { api: FormApi }) {
     return (
         <FieldGrid>
             <RadioGroupField
-                width="md"
+                width="lg"
+                inline
                 id={fieldId.requisition('rfq_audience')}
                 legend={'RFQ Sent To'}
                 options={config.options.rfq_audience}
@@ -96,7 +97,10 @@ export function QuotationSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <FieldHint>One block per supplier. Choose one recommended quotation. Give a reason for any quotation not considered.</FieldHint>
+                    <FieldHint>
+                        One block per supplier. Mark each quotation Considered or Recommended (one recommended in all); give a reason for any that is
+                        neither.
+                    </FieldHint>
                     <TableError message={tableError || undefined} />
                     <div role="group" aria-label="Quotations Received" className="grid gap-3">
                         {rows.length === 0 && (
@@ -140,6 +144,11 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 </span>
                             );
                             const considered = row.values.considered === true;
+                            const recommended = row.values.is_recommended === true;
+                            // Kyle, 2026-11-24: Considered OR Recommended, never both ticked. Recommended is stored as
+                            // considered too (the server counts it as considered and asks no reason for it).
+                            const status = recommended ? 'Recommended' : considered ? 'Considered' : 'Not Considered';
+                            const supplier = text(row.values.supplier_name).trim();
                             // Live as the vendor types: the server's rule and rate (quotation-price.ts, form.display.vat_rate).
                             const price = quotationPrice(text(row.values.quantity_offered), text(row.values.unit_price), form.display.vat_rate);
                             const cells: Record<string, ReactNode> = {
@@ -160,7 +169,33 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 <EntrySheet
                                     key={row.key}
                                     label={rowLabel}
-                                    tag={`Quotation ${index + 1}`}
+                                    summary={
+                                        <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                                            <span className="badge badge-ghost badge-sm shrink-0 capitalize tabular-nums">Quotation {index + 1}</span>
+                                            <span
+                                                className={
+                                                    supplier ? 'min-w-0 flex-1 truncate font-medium' : 'text-base-content/70 min-w-0 flex-1 truncate'
+                                                }
+                                            >
+                                                {supplier || 'No supplier yet'}
+                                            </span>
+                                            <span className="text-base-content/70 flex flex-wrap items-center gap-2 text-sm">
+                                                {errors.length > 0 && (
+                                                    <span className="badge badge-soft badge-error badge-sm capitalize">{errors.length} to fix</span>
+                                                )}
+                                                <span
+                                                    className={
+                                                        recommended
+                                                            ? 'badge badge-soft badge-primary badge-sm capitalize'
+                                                            : 'badge badge-ghost badge-sm capitalize'
+                                                    }
+                                                >
+                                                    {status}
+                                                </span>
+                                                {price && <span className="tabular-nums">Total {money(price.total)}</span>}
+                                            </span>
+                                        </span>
+                                    }
                                     title={
                                         <>
                                             <label htmlFor={id('supplier_name')} className="shrink-0 text-sm font-semibold capitalize">
@@ -176,8 +211,14 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                                 label="Considered"
                                                 rowLabel={rowLabel}
                                                 type="checkbox"
-                                                checked={considered}
-                                                onChange={(checked) => api.setCell('quotations', row.key, 'considered', checked)}
+                                                checked={considered && !recommended}
+                                                onChange={(checked) => {
+                                                    // Ticking Considered on the recommended quotation takes the recommendation off it.
+                                                    if (checked && recommended) {
+                                                        api.setCell('quotations', row.key, 'is_recommended', false);
+                                                    }
+                                                    api.setCell('quotations', row.key, 'considered', checked);
+                                                }}
                                             />
                                             <EntryInlineCheck
                                                 id={id('is_recommended')}
@@ -185,8 +226,11 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                                 rowLabel={rowLabel}
                                                 type="radio"
                                                 name="recommended-quotation"
-                                                checked={row.values.is_recommended === true}
-                                                onChange={() => api.chooseRecommended(row.key)}
+                                                checked={recommended}
+                                                onChange={() => {
+                                                    api.chooseRecommended(row.key);
+                                                    api.setCell('quotations', row.key, 'considered', true);
+                                                }}
                                             />
                                         </div>
                                     }

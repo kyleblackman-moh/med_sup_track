@@ -6,6 +6,7 @@ use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
 use App\Submissions\RequisitionData;
 use App\Submissions\SubmissionReadiness;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +103,30 @@ it('completes section 1 only when a type is chosen, the cycle is valid and the q
         'number' => 1, 'visible' => true, 'state' => 'complete', 'label' => 'Request Type',
     ]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
+
+it('requires the tender cycle to include today (Port of Spain)', function () {
+    [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
+    $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
+    $messages = function () use ($case): array {
+        $errors = app(SubmissionReadiness::class)->evaluate(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->errors;
+
+        return collect($errors)->filter(fn ($e) => str_starts_with($e['key'], 'requisition.tender_cycle'))->pluck('message', 'key')->all();
+    };
+
+    // Starts tomorrow: not yet the current cycle.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->addDay()->toDateString(), 'tender_cycle_end' => $today->addYear()->toDateString()]]);
+    expect($messages())->toBe(['requisition.tender_cycle_start' => RequestSections::CYCLE_START_AFTER_TODAY]);
+
+    // Ended yesterday: a past cycle.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->subYear()->toDateString(), 'tender_cycle_end' => $today->subDay()->toDateString()]]);
+    expect($messages())->toBe(['requisition.tender_cycle_end' => RequestSections::CYCLE_END_BEFORE_TODAY]);
+
+    // Starting and ending today counts.
+    saveDraft($case, $vendor, ['requisition' => ['tender_cycle_start' => $today->toDateString(), 'tender_cycle_end' => $today->toDateString()]]);
+    expect($messages())->toBe([])
+        ->and(RequestSections::CYCLE_START_AFTER_TODAY)->toBe('The tender cycle cannot start after today.')
+        ->and(RequestSections::CYCLE_END_BEFORE_TODAY)->toBe('The tender cycle cannot end before today.');
+});
 
 it('keeps section 1 incomplete while no type is chosen', function () {
     $vendor = vendorUser(vendorOrg());

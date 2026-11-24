@@ -11,6 +11,7 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementTypeDocument;
 use App\Support\Decimal;
 use App\Support\Display;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -206,6 +207,11 @@ final class RequestSections
     public const RECOMMEND_ONLY_ONE = 'Recommend only one quotation.';
 
     public const CYCLE_END_BEFORE_START = 'The tender cycle end cannot be before its start.';
+
+    /** Kyle, 2026-11-24: the tender cycle must include today (Port of Spain). */
+    public const CYCLE_START_AFTER_TODAY = 'The tender cycle cannot start after today.';
+
+    public const CYCLE_END_BEFORE_TODAY = 'The tender cycle cannot end before today.';
 
     /**
      * The sections a type shows, in form order, with whether each is optional
@@ -492,14 +498,21 @@ final class RequestSections
     /** V2-5: the tender cycle and the previous-request answer, required for every type. */
     private function requestType(CaseRequisition $r, ?bool $previousRequest, callable $add): void
     {
+        // Kyle, 2026-11-24: the cycle must include today, so the start is not after it and the end not before it.
+        $today = CarbonImmutable::now('America/Port_of_Spain')->toDateString();
+
         if ($r->tender_cycle_start === null) {
             $add('requisition.tender_cycle_start', 'Enter the start of the tender cycle.');
+        } elseif ($r->tender_cycle_start->toDateString() > $today) {
+            $add('requisition.tender_cycle_start', self::CYCLE_START_AFTER_TODAY);
         }
 
         if ($r->tender_cycle_end === null) {
             $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
         } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
             $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
+        } elseif ($r->tender_cycle_end->toDateString() < $today) {
+            $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_TODAY);
         }
 
         if ($previousRequest === null) {

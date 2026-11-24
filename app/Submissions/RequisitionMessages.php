@@ -38,7 +38,7 @@ final class RequisitionMessages
     /** Request field labels, as the form shows them. Anything not listed is named from its key (label()). */
     public const FIELD_LABELS = [
         'din' => 'DIN',
-        'item_description' => 'Item Description',
+        'item_description' => 'Item Name', // Kyle, 2026-11-24 (the column keeps its name)
         'quantity_requested' => 'Quantity Requested',
         'unit_of_measure' => 'Unit of Measure',
         'clinical_note' => 'Clinical Importance',

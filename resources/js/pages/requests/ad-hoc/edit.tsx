@@ -49,6 +49,10 @@ function focusTarget(id: string) {
     if (!target) {
         return;
     }
+    // A field inside a collapsed block (a quotation's supplier block): open it first so the field can take focus.
+    for (let closed = target.closest('details:not([open])'); closed; closed = closed.parentElement?.closest('details:not([open])') ?? null) {
+        (closed as HTMLDetailsElement).open = true;
+    }
     const control = target.matches('input, select, textarea, button, [tabindex]')
         ? target
         : target.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea, button');

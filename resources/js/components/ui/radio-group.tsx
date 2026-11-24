@@ -3,8 +3,9 @@ import { type ReactNode } from 'react';
 
 /**
  * RADIO-1: the one radio pattern for the whole app (Blueprint: fieldset +
- * radio). A fieldset with a legend, then the options as a vertical stack,
- * never side by side at any width. Each option is a full-width clickable row:
+ * radio). A fieldset with a legend, then the options as a vertical stack;
+ * a caller may lay a short list out side by side (stackClassName, as the
+ * request type cards and RFQ Sent To do). Each option is a full-width clickable row:
  * a native `radio radio-sm`, its label and an optional description. The
  * checked row gets a subtle primary border and wash; the radio's own dot
  * shows the choice too (never colour alone). Native radios, so the arrow keys
@@ -90,6 +91,8 @@ interface RadioGroupProps {
     intro?: ReactNode;
     /** Shown after the options (the error, a note). */
     children?: ReactNode;
+    /** Classes for the options' stack (for example two columns for a short list). */
+    stackClassName?: string;
 }
 
 /** A labelled group of radios: fieldset, legend, the vertical option stack, then the caller's error and notes. */
@@ -110,6 +113,7 @@ export function RadioGroup({
     className,
     intro,
     children,
+    stackClassName,
 }: RadioGroupProps) {
     return (
         <fieldset
@@ -123,7 +127,7 @@ export function RadioGroup({
                 {legend}
             </legend>
             {intro}
-            <RadioStack>
+            <RadioStack className={stackClassName}>
                 {options.map((option, index) => (
                     <RadioOption
                         key={option.value}
