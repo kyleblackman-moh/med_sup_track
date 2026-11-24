@@ -57,7 +57,7 @@ final class RequestSummary
     private const TIMEZONE = 'America/Port_of_Spain';
 
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
-    public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true): ?array
+    public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true, bool $forPrint = false): ?array
     {
         $case->loadMissing(['procurementType', 'requisition', 'variationRows', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
         $code = (string) $case->procurementType?->code;
@@ -85,7 +85,7 @@ final class RequestSummary
                     'existing_arrangement' => self::orders($case),
                     'stock' => self::stock($case),
                     'quotation_comparison' => self::quotations($case),
-                    'documents' => self::documents($case, $viewer, $forStaff),
+                    'documents' => self::documents($case, $viewer, $forStaff, $forPrint),
                 },
             ];
         }
@@ -321,15 +321,18 @@ final class RequestSummary
     }
 
     /** Current documents the viewer may see (vendor: the document gate; staff: CLEAN only too, as StaffCaseDetail). */
-    private static function documents(ProcurementCase $case, User $viewer, bool $forStaff): array
+    /** $forPrint (2026-11-24): the request as filled, so external documents only, for staff too, and no Visibility column. */
+    private static function documents(ProcurementCase $case, User $viewer, bool $forStaff, bool $forPrint = false): array
     {
         $gate = Gate::forUser($viewer);
         $labels = ProcurementTypeDocument::where('procurement_type_id', $case->procurement_type_id)
             ->get(['purpose', 'label'])
             ->mapWithKeys(fn (ProcurementTypeDocument $d) => [$d->purpose->value => $d->label]);
+        $forStaff = $forStaff && ! $forPrint; // the Visibility column and the CLEAN filter below
 
         $documents = Document::withoutGlobalScopes()->current()
             ->where('case_id', $case->getKey())
+            ->when($forPrint, fn ($q) => $q->where('visibility', DocumentVisibility::EXTERNAL->value)->where('scan_status', ScanStatus::CLEAN->value))
             ->when($forStaff, fn ($q) => $q->where('scan_status', ScanStatus::CLEAN->value))
             ->orderBy('uploaded_at')->orderBy('id')
             ->get()

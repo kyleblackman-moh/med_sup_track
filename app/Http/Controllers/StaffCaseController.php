@@ -10,6 +10,7 @@ use App\Enums\ScanStatus;
 use App\Enums\TrackStatus;
 use App\Http\Resources\Cases\StaffCaseDetail;
 use App\Http\Resources\Cases\StaffCaseSummary;
+use App\Http\Resources\Requests\PrintForm;
 use App\Models\Document;
 use App\Models\Organisation;
 use App\Models\ProcurementCase;
@@ -17,6 +18,7 @@ use App\Models\ProcurementType;
 use App\Notifications\Bell;
 use App\Submissions\ExpiryRisk;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -157,6 +159,18 @@ class StaffCaseController extends Controller
      * signed for this user. The document is bound through the case, so a
      * document of another case is 404.
      */
+    /**
+     * 2026-11-24: the printable form for anyone who can view the case (hidden
+     * and DRAFT cases are 404 through the scope). The request form only: no
+     * internal notes, CAB reasons or query messages (PrintForm).
+     */
+    public function print(Request $request, ProcurementCase $procurementCase): JsonResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        return response()->json(['print' => PrintForm::for($procurementCase, $request->user(), PrintForm::STAFF) ?? abort(404)]);
+    }
+
     public function download(Request $request, ProcurementCase $procurementCase, Document $document, DocumentDownloadLinks $links): RedirectResponse
     {
         abort_unless($request->user()->can(Permission::DocumentDownload->value), 403);

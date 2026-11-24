@@ -84,6 +84,8 @@ Route::middleware(['auth', 'case.area', 'can:'.Permission::CaseSubmit->value])
         Route::delete('{procurementCase}', 'destroy')->middleware('throttle:20,1')->name('destroy')
             ->missing(fn (Request $request) => RequestController::missingDraft($request));
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
+        // 2026-11-24: the printable form (any status, own organisation; others 404 through the scope).
+        Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
         // TERMINAL-1 (T15V): the vendor withdraws its own request (DRAFT or SUBMITTED).
         Route::post('{procurementCase}/withdraw', 'withdraw')->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
@@ -125,6 +127,8 @@ Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::c
         Route::get('{queryCase}', 'show')->name('show');
         Route::get('{procurementCase}/documents/{document}/download', 'download')
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
+        // 2026-11-24: the printable form, for anyone who can view the case (hidden and DRAFT: 404).
+        Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
 
         // Slice 9b actions. 20 a minute per user.
         Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {

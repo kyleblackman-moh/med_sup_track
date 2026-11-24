@@ -25,7 +25,8 @@ enum AuditAction: string
     case CaseCreated = 'case.created';
     case CaseDraftSaved = 'case.draft_saved';
     case CaseDraftRowsDiscarded = 'case.draft_rows_discarded';
-    case CaseDraftFieldsDiscarded = 'case.draft_fields_discarded'; // 2026-11-23: fields the type hides, cleared at submit (names only)
+    case CaseDraftFieldsDiscarded = 'case.draft_fields_discarded';
+    case CasePrinted = 'case.printed'; // 2026-11-24: the printable request form was opened (audience only) // 2026-11-23: fields the type hides, cleared at submit (names only)
     case DraftDeleted = 'draft.deleted'; // LIST-1: a vendor erased its own DRAFT (CaseEraser)
     case DraftTypeChanged = 'draft.type_changed'; // V2-1: a vendor changed its DRAFT's request type (ChangeRequestType)
     case CaseReferenceAssigned = 'case.reference_assigned';

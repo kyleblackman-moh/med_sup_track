@@ -8,6 +8,7 @@ use App\Enums\Permission;
 use App\Http\Resources\Requests\AdHocFormConfig;
 use App\Http\Resources\Requests\AdHocSections;
 use App\Http\Resources\Requests\FormConfig;
+use App\Http\Resources\Requests\PrintForm;
 use App\Http\Resources\Requests\ReadinessResource;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestDocuments;
@@ -37,6 +38,7 @@ use App\Support\SqlLike;
 use App\Workflow\Actions\EndCase;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -212,6 +214,18 @@ class RequestController extends Controller
         return Inertia::render('requests/receipt', [
             'receipt' => RequestReceipt::for($procurementCase),
         ]);
+    }
+
+    /**
+     * 2026-11-24: the printable form, any status (a draft too). Another
+     * organisation's case is 404 (route model binding scope). JSON until the
+     * print page comes with the UI; the payload is PrintForm.
+     */
+    public function print(Request $request, ProcurementCase $procurementCase): JsonResponse
+    {
+        Gate::authorize('view', $procurementCase);
+
+        return response()->json(['print' => PrintForm::for($procurementCase, $request->user(), PrintForm::VENDOR) ?? abort(404)]);
     }
 
     public function edit(Request $request, ProcurementCase $procurementCase, SubmissionReadiness $readiness): Response|RedirectResponse
