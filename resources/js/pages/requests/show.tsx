@@ -14,7 +14,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
-import { BadgeCheck, Ban, FileDown, FilePen, Mailbox, PackageCheck, Printer, ReceiptText } from 'lucide-react';
+import { BadgeCheck, Ban, FileDown, FilePen, Mailbox, PackageCheck, Printer, QrCode, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -75,10 +75,17 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
                             </Link>
                         )}
                         {detail.reference_no && (
-                            <Link href={route('requests.receipt', detail.id)} className="btn btn-sm capitalize">
-                                <ReceiptText className="size-4" aria-hidden="true" />
-                                Receipt
-                            </Link>
+                            <>
+                                <Link href={route('requests.receipt', detail.id)} className="btn btn-sm capitalize">
+                                    <ReceiptText className="size-4" aria-hidden="true" />
+                                    Receipt
+                                </Link>
+                                {/* FR-03: the printable cover sheet for the hardcopy (QR of the reference). */}
+                                <Link href={route('requests.cover-sheet', detail.id)} className="btn btn-sm capitalize">
+                                    <QrCode className="size-4" aria-hidden="true" />
+                                    Cover Sheet
+                                </Link>
+                            </>
                         )}
                         {/* The printable form: request-form types only (summary is null for the old types, as is the print route). */}
                         {summary && (

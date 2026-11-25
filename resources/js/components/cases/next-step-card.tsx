@@ -19,8 +19,8 @@ import {
     type ReviewForm,
     type RouteDestination,
 } from '@/types/cases';
-import { useForm } from '@inertiajs/react';
-import { Circle, CircleCheck, FileDown, Info, MessagesSquare, Signpost } from 'lucide-react';
+import { Link, useForm } from '@inertiajs/react';
+import { Circle, CircleCheck, FileDown, Info, MessagesSquare, QrCode, Signpost } from 'lucide-react';
 import { useState } from 'react';
 
 /** Actions that post with no input: the card's own confirmation dialog, then the route. */
@@ -212,6 +212,13 @@ export function NextStepCard({
                             <FileDown className="size-4" aria-hidden="true" />
                             Export PDF
                         </a>
+                        {/* FR-03: the printable hardcopy cover sheet (QR of the reference); every case past draft has a reference. */}
+                        {reference && (
+                            <Link href={route('cases.cover-sheet', caseId)} className="btn btn-outline btn-sm">
+                                <QrCode className="size-4" aria-hidden="true" />
+                                Cover Sheet
+                            </Link>
+                        )}
                         {ordered.map((action) => (
                             <Button
                                 key={action.key}

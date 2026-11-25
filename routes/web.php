@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CaseQueryController;
+use App\Http\Controllers\CoverSheetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FileTrackingController;
@@ -101,6 +102,8 @@ Route::middleware(['auth', 'case.area', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
         // 2026-11-24: the request letter PDF (own organisation, any status; a draft is watermarked).
         Route::get('{procurementCase}/letter.pdf', [RequestLetterController::class, 'vendor'])->middleware('throttle:30,1')->name('letter');
+        // FR-03 (ported from blackman/mfa-withdraw-hardcopy, 2026-11-25): the printable hardcopy cover sheet (QR of the reference).
+        Route::get('{procurementCase}/cover-sheet', [CoverSheetController::class, 'vendor'])->middleware('throttle:30,1')->name('cover-sheet');
         // TERMINAL-1 (T15V): the vendor withdraws its own request (DRAFT or SUBMITTED).
         Route::post('{procurementCase}/withdraw', 'withdraw')->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
@@ -146,6 +149,8 @@ Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::c
         Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
         // 2026-11-24: the request letter PDF, for anyone who can view the case (hidden and DRAFT: 404).
         Route::get('{procurementCase}/letter.pdf', [RequestLetterController::class, 'staff'])->middleware('throttle:30,1')->name('letter');
+        // FR-03: the printable hardcopy cover sheet, for anyone who can view the case (hidden and DRAFT: 404).
+        Route::get('{procurementCase}/cover-sheet', [CoverSheetController::class, 'staff'])->middleware('throttle:30,1')->name('cover-sheet');
 
         // Slice 9b actions. 20 a minute per user.
         Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {
