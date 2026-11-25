@@ -62,7 +62,13 @@ class UserPolicy
         return $role->userType() === UserType::Vendor ? $policy->inviteVendor($actor) : $policy->createStaff($actor);
     }
 
-    /** Never your own role. */
+    /** Backlog, 2026-11-25: job title and division (the letter's sign-off). Same permission as the role; yourself included. */
+    public function updateDetails(User $actor, User $user): bool
+    {
+        return $this->viewAny($actor) && $actor->can(Permission::UsersUpdateRole->value);
+    }
+
+    /** Never your own role.
     public function changeRole(User $actor, User $user): bool
     {
         return $this->viewAny($actor) && $actor->can(Permission::UsersUpdateRole->value) && ! $actor->is($user);

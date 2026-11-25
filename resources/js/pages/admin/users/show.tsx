@@ -1,5 +1,5 @@
 import { type AdminUserDetail, type RoleOption, type UserAbilities } from '@/components/admin/users/types';
-import { AccessActions, MfaPanel, RoleForm } from '@/components/admin/users/user-actions';
+import { AccessActions, DetailsForm, MfaPanel, RoleForm } from '@/components/admin/users/user-actions';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import { StatusPill } from '@/components/ui/status-pill';
@@ -28,6 +28,8 @@ export default function AdminUserShow({ user, role_options, abilities, reason_ma
         ['Type', user.type],
         ['Organisation', user.organisation],
         ['Role', user.role],
+        ['Job Title', user.job_title ?? '—'],
+        ['Division', user.division ?? '—'],
         ['MFA', <StatusPill key="mfa" label={user.mfa_label} tone={user.mfa_tone} />],
         ['Last Sign-In', user.last_sign_in],
         ['Created On', user.created_on],
@@ -67,6 +69,7 @@ export default function AdminUserShow({ user, role_options, abilities, reason_ma
                 </section>
 
                 <div className="grid gap-5 xl:grid-cols-2">
+                    {abilities.update_details && <DetailsForm key={`${user.job_title}|${user.division}`} user={user} />}
                     {abilities.change_role && <RoleForm key={user.role_value ?? ''} user={user} options={role_options} reasonMax={reason_max} />}
                     <AccessActions user={user} abilities={abilities} reasonMax={reason_max} />
                     <MfaPanel user={user} canReset={abilities.mfa_reset} reasonMax={reason_max} />

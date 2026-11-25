@@ -1,6 +1,6 @@
 import InputError from '@/components/input-error';
-import { router, usePage } from '@inertiajs/react';
-import { Ban, Mail, RotateCcw, ShieldOff, UserCog } from 'lucide-react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { Ban, IdCard, Mail, RotateCcw, ShieldOff, UserCog } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { ReasonDialog } from './reason-dialog';
 import { type AdminUserDetail, type RoleOption, type UserAbilities } from './types';
@@ -33,6 +33,66 @@ function Panel({
             </div>
             <div className="card-actions border-base-300 bg-base-200 rounded-b-box justify-end border-t px-4 py-3 md:px-6">{footer}</div>
         </section>
+    );
+}
+
+/** Backlog, 2026-11-25: the job title and division printed under the user's name on the request letter. */
+export function DetailsForm({ user }: { user: AdminUserDetail }) {
+    const initial = { job_title: user.job_title ?? '', division: user.division ?? '' };
+    const form = useForm(initial);
+    const changed = form.data.job_title !== initial.job_title || form.data.division !== initial.division;
+
+    const field = (key: 'job_title' | 'division', label: string, max: number) => (
+        <fieldset className="fieldset py-0">
+            <label htmlFor={`user-${key}`} className="label text-base-content text-sm font-medium capitalize">
+                {label}
+            </label>
+            <input
+                id={`user-${key}`}
+                className="input input-sm w-full"
+                value={form.data[key]}
+                maxLength={max}
+                autoComplete="off"
+                onChange={(e) => form.setData(key, e.target.value)}
+                aria-invalid={form.errors[key] ? true : undefined}
+                aria-describedby={form.errors[key] ? `user-${key}-error` : undefined}
+            />
+            <InputError id={`user-${key}-error`} message={form.errors[key]} />
+        </fieldset>
+    );
+
+    return (
+        <Panel
+            id="user-details-form-heading"
+            title="Letter Sign-Off"
+            icon={<IdCard className="size-5" aria-hidden="true" />}
+            description="Printed under the user's name when they sign a request letter."
+            footer={
+                <>
+                    <button
+                        type="button"
+                        className="btn btn-sm capitalize"
+                        disabled={!changed || form.processing}
+                        onClick={() => form.setData(initial)}
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-primary btn-sm capitalize"
+                        disabled={!changed || form.processing}
+                        onClick={() => form.put(route('admin.users.details', user.id), { preserveScroll: true })}
+                    >
+                        {form.processing ? 'Saving…' : 'Save Details'}
+                    </button>
+                </>
+            }
+        >
+            <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+                {field('job_title', 'Job Title', 255)}
+                {field('division', 'Division', 150)}
+            </div>
+        </Panel>
     );
 }
 

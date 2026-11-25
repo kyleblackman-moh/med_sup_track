@@ -46,16 +46,18 @@ final class UserAdministration
      *
      * @throws ValidationException
      */
-    public function create(User $actor, string $name, string $email, Role $role, ?string $organisationId): array
+    public function create(User $actor, string $name, string $email, Role $role, ?string $organisationId, ?string $jobTitle = null, ?string $division = null): array
     {
         self::refuseSystemAdmin($role);
         $organisation = $this->organisationFor($role, $organisationId);
 
-        $user = DB::transaction(function () use ($actor, $name, $email, $role, $organisation) {
+        $user = DB::transaction(function () use ($actor, $name, $email, $role, $organisation, $jobTitle, $division) {
             $user = new User;
             $user->forceFill([
                 'name' => $name,
                 'email' => $email,
+                'job_title' => $jobTitle,
+                'division' => $division,
                 // Unknown to everyone: the person sets their own through the emailed link.
                 'password' => Hash::make(Str::password(self::PASSWORD_LENGTH)),
                 'org_id' => $organisation->id,
@@ -80,6 +82,31 @@ final class UserAdministration
         });
 
         return [$user, $this->activations->send($user, $actor)];
+    }
+
+    /**
+     * Backlog, 2026-11-25: the job title and division printed under the name
+     * on the request letter. The audit holds which changed, never the text.
+     * Nothing happens when neither changed.
+     */
+    public function updateDetails(User $actor, User $user, ?string $jobTitle, ?string $division): void
+    {
+        $changed = [
+            'job_title_changed' => $user->job_title !== $jobTitle,
+            'division_changed' => $user->division !== $division,
+        ];
+        if (! in_array(true, $changed, true)) {
+            return;
+        }
+
+        DB::transaction(function () use ($actor, $user, $jobTitle, $division, $changed) {
+            $user->forceFill(['job_title' => $jobTitle, 'division' => $division])->save();
+
+            Audit::record(AuditAction::UserDetailsChanged, ['type' => 'user', 'id' => $user->id], null, [
+                'user_id' => $user->id,
+                ...$changed,
+            ], $actor);
+        });
     }
 
     /**

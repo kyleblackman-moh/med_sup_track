@@ -19,6 +19,9 @@ export interface AdminUserRow {
 /** The detail page (UserView::detail). */
 export interface AdminUserDetail extends AdminUserRow {
     role_value: string | null;
+    /** The request letter's sign-off lines under the name. */
+    job_title: string | null;
+    division: string | null;
     is_active: boolean;
     is_pending: boolean;
     is_locked: boolean;
@@ -65,6 +68,7 @@ export interface AdminUserOptions {
 /** Page-level hints from the server (UserController::show); every endpoint authorises itself. */
 export interface UserAbilities {
     change_role: boolean;
+    update_details: boolean;
     disable: boolean;
     enable: boolean;
     resend_activation: boolean;

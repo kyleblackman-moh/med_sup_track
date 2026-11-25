@@ -73,6 +73,7 @@ enum AuditAction: string
     // Accounts and organisations (console, and Admin > Users from ADMIN-1). Ids and fixed codes only.
     case UserCreated = 'user.created';
     case UserRoleChanged = 'user.role_changed';
+    case UserDetailsChanged = 'user.details_changed'; // Backlog, 2026-11-25: job title / division (flags only)
     case UserDisabled = 'user.disabled';
     case UserEnabled = 'user.enabled';
     case UserActivationResent = 'user.activation_resent';

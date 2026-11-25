@@ -30,7 +30,7 @@ const LABEL = 'label text-base-content text-sm font-medium capitalize';
  * password and then MFA. The server validates the role and organisation pairing.
  */
 export default function AdminUserCreate({ options }: Props) {
-    const { data, setData, post, processing, errors } = useForm({ name: '', email: '', role: '', organisation: '' });
+    const { data, setData, post, processing, errors } = useForm({ name: '', email: '', role: '', organisation: '', job_title: '', division: '' });
 
     const needsOrganisation = options.roles.find((r) => r.value === data.role)?.vendor ?? false;
 
@@ -155,6 +155,26 @@ export default function AdminUserCreate({ options }: Props) {
                             {/* A staff role: the server assigns the Ministry of Health. Errors still show. */}
                             <InputError id="organisation-error" message={errors.organisation} />
                         </fieldset>
+
+                        {/* Backlog, 2026-11-25: the request letter's sign-off lines under the name. */}
+                        {(['job_title', 'division'] as const).map((key) => (
+                            <fieldset key={key} className="fieldset py-0">
+                                <label htmlFor={key} className={LABEL}>
+                                    {key === 'job_title' ? 'Job Title' : 'Division'}
+                                </label>
+                                <input
+                                    id={key}
+                                    className="input input-sm w-full"
+                                    value={data[key]}
+                                    onChange={(e) => setData(key, e.target.value)}
+                                    maxLength={key === 'job_title' ? 255 : 150}
+                                    autoComplete="off"
+                                    aria-invalid={errors[key] ? true : undefined}
+                                    aria-describedby={describedBy(key)}
+                                />
+                                <InputError id={`${key}-error`} message={errors[key]} />
+                            </fieldset>
+                        ))}
                     </div>
 
                     <div className="card-actions border-base-300 bg-base-200 rounded-b-box justify-end border-t px-4 py-3 md:px-6">

@@ -113,6 +113,8 @@ final class UserView
         return [
             ...self::row($user),
             'role_value' => $user->getRoleNames()->first(),
+            'job_title' => $user->job_title,
+            'division' => $user->division,
             'is_active' => $user->isActive(),
             'is_pending' => $user->isPendingActivation(),
             'is_locked' => $user->isLocked(),

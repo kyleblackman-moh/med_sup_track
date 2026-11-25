@@ -142,6 +142,7 @@ class UserController extends Controller
             'name' => trim((string) $request->input('name')),
             'email' => Str::lower(trim((string) $request->input('email'))),
             'organisation' => $request->filled('organisation') ? (string) $request->input('organisation') : null,
+            ...self::trimmedDetails($request),
         ]);
 
         $data = $request->validate([
@@ -149,13 +150,14 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'role' => ['required', 'string', Rule::in(array_column(self::grantableRoles($actor), 'value'))],
             'organisation' => ['nullable', 'string', 'max:26'],
+            ...self::detailRules(),
         ], [
             'email.unique' => 'A user with this email already exists.',
             'role.required' => 'Choose a role.',
             'role.in' => 'Choose a role from the list.',
         ]);
 
-        [$user, $sent] = $admin->create($actor, $data['name'], $data['email'], Role::from($data['role']), $data['organisation']);
+        [$user, $sent] = $admin->create($actor, $data['name'], $data['email'], Role::from($data['role']), $data['organisation'], $data['job_title'], $data['division']);
 
         // The CMO (no access to the console) goes back to the form to invite the next one.
         $to = $actor->can('view', $user) ? to_route('admin.users.show', $user) : to_route('admin.users.create');
@@ -177,6 +179,7 @@ class UserController extends Controller
             // Page-level hints only (not 'can'); every action authorises itself.
             'abilities' => [
                 'change_role' => $actor->can('changeRole', $user),
+                'update_details' => $actor->can('updateDetails', $user),
                 'disable' => $user->status !== User::STATUS_DISABLED && $actor->can('disable', $user),
                 'enable' => $user->status === User::STATUS_DISABLED && $actor->can('enable', $user),
                 'resend_activation' => $user->isPendingActivation() && $actor->can('resendActivation', $user),
@@ -184,6 +187,36 @@ class UserController extends Controller
             ],
             'reason_max' => self::REASON_MAX,
         ]);
+    }
+
+    /** Backlog, 2026-11-25: job title and division (the letter's sign-off lines). Both optional. */
+    public function updateDetails(Request $request, User $user, UserAdministration $admin): RedirectResponse
+    {
+        Gate::authorize('updateDetails', $user);
+
+        $request->merge(self::trimmedDetails($request));
+        $data = $request->validate(self::detailRules());
+
+        $admin->updateDetails($request->user(), $user, $data['job_title'], $data['division']);
+
+        return to_route('admin.users.show', $user)->with('success', 'Details saved.');
+    }
+
+    /** @return array{job_title: string|null, division: string|null} blank is null */
+    private static function trimmedDetails(Request $request): array
+    {
+        $clean = fn (string $key) => trim((string) $request->input($key)) === '' ? null : trim((string) $request->input($key));
+
+        return ['job_title' => $clean('job_title'), 'division' => $clean('division')];
+    }
+
+    /** @return array<string, list<string>> */
+    private static function detailRules(): array
+    {
+        return [
+            'job_title' => ['nullable', 'string', 'max:255'],
+            'division' => ['nullable', 'string', 'max:150'],
+        ];
     }
 
     /** Change the role (same kind of account; never system_admin). A reason is required. */

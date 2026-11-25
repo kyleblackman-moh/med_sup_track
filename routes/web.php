@@ -202,6 +202,7 @@ Route::middleware(['auth', 'admin.console'])
             Route::get('{user}', 'show')->whereNumber('user')->middleware('admin.confirm')->name('show');
             Route::middleware(['admin.confirm', 'throttle:20,1'])->where(['user' => '[0-9]+'])->group(function () {
                 Route::put('{user}/role', 'updateRole')->name('role');
+                Route::put('{user}/details', 'updateDetails')->name('details'); // Backlog, 2026-11-25
                 Route::post('{user}/disable', 'disable')->name('disable');
                 Route::post('{user}/enable', 'enable')->name('enable');
                 Route::post('{user}/activation', 'resendActivation')->middleware('throttle:activation')->name('activation'); // SEC-1
