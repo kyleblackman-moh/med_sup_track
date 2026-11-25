@@ -305,10 +305,10 @@ final class RequestSections
             ],
             // V2-5: shown only when the answer is Yes; every column of an entered row is required.
             'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
-            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost', 'percentage_awarded']),
+            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'pack_size', 'unit_cost', 'percentage_awarded']),
             'existing_arrangement' => [
                 // The delivery date is required unless the status is Not delivered (false here: conditional).
-                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_date']),
+                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'pack_size', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_date', 'delivery_note']),
                 'tender_issue_explanation' => false,
             ],
             'stock' => [

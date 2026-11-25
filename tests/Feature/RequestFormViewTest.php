@@ -163,7 +163,9 @@ it('sends the field-level required flags of each type from the section rules', f
         // A row that is entered must be complete, whatever the type.
         ->and($sections['awarded_supplier']['required'])->toBe([
             'tender_awards.supplier_name' => true, 'tender_awards.manufacturer' => false, 'tender_awards.brand' => false,
-            'tender_awards.country_of_origin' => false, 'tender_awards.quantity_awarded' => true, 'tender_awards.unit_cost' => true,
+            'tender_awards.country_of_origin' => false, 'tender_awards.quantity_awarded' => true,
+            'tender_awards.pack_size' => false, // 2026-11-25: optional
+            'tender_awards.unit_cost' => true,
             'tender_awards.percentage_awarded' => false, // 2026-11-24: typed, optional
         ])
         ->and($sections['existing_arrangement']['required']['purchase_orders.award_id'])->toBeTrue()

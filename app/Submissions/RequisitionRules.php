@@ -397,6 +397,7 @@ final class RequisitionRules
                 'country_of_origin' => self::str(100), // V2-1
                 // Kyle, 2026-11-24: typed, optional; 0 to 100 with up to 2 decimals.
                 'percentage_awarded' => ['type' => 'rate'],
+                'pack_size' => self::str(100), // Kyle, 2026-11-25: optional
             ],
             'purchase_orders' => [
                 'id' => $id,
@@ -409,6 +410,9 @@ final class RequisitionRules
                 // old delivery_eta / free-text delivery_status (columns kept, no longer accepted).
                 'delivery_state' => ['type' => 'enum', 'enum' => DeliveryState::class],
                 'delivery_date' => ['type' => 'date'],
+                // Kyle, 2026-11-25: optional free text.
+                'pack_size' => self::str(100),
+                'delivery_note' => self::str(100),
             ],
             'stock_expiries' => [
                 'id' => $id,

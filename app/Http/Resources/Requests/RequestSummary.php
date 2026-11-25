@@ -158,6 +158,7 @@ final class RequestSummary
             'brand' => 'Brand',
             'country_of_origin' => 'Country of Origin',
             'quantity_awarded' => 'Quantity Awarded',
+            'pack_size' => 'Pack Size', // 2026-11-25
             'unit_cost' => 'Unit Cost',
             'percentage' => '% awarded',
             'line_cost' => 'Line Cost',
@@ -167,6 +168,7 @@ final class RequestSummary
             'brand' => Display::text($a->brand),
             'country_of_origin' => Display::text($a->country_of_origin),
             'quantity_awarded' => Display::quantity($a->quantity_awarded),
+            'pack_size' => Display::text($a->pack_size),
             'unit_cost' => Display::price($a->unit_cost),
             'percentage' => Display::percent($a->percentage_awarded), // typed by the vendor (2026-11-24)
             'line_cost' => Display::money($a->total()),
@@ -192,15 +194,19 @@ final class RequestSummary
                 'supplier' => 'Supplier',
                 'po_number' => 'PO Number',
                 'quantity_ordered' => 'Quantity Ordered',
+                'pack_size' => 'Pack Size', // 2026-11-25
                 'ordered_on' => 'Date Ordered',
                 'quantity_delivered' => 'Quantity Delivered',
                 'delivery_status' => 'Delivery Status',
                 'delivery_date' => 'Delivery Date',
+                'delivery_note' => 'Delivery Note', // 2026-11-25
                 'quantity_outstanding' => 'Quantity Outstanding',
             ], $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
                 'supplier' => Display::text($suppliers[$po->award_id] ?? null),
                 'po_number' => Display::text($po->po_number),
                 'quantity_ordered' => Display::quantity($po->quantity_ordered),
+                'pack_size' => Display::text($po->pack_size),
+                'delivery_note' => Display::text($po->delivery_note),
                 'ordered_on' => self::date($po->ordered_on),
                 'quantity_delivered' => Display::quantity($po->quantity_delivered),
                 // 2026-11-23: the status dropdown and delivery date; a row saved before them

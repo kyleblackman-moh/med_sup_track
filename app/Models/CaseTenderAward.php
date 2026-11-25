@@ -21,6 +21,7 @@ class CaseTenderAward extends Model
         'unit_cost',
         'country_of_origin', // slice V2-1
         'percentage_awarded', // Kyle, 2026-11-24: typed by the vendor, optional (no longer calculated)
+        'pack_size', // Kyle, 2026-11-25: optional free text, e.g. "Boxes of 28 Tablets"
     ];
 
     protected function casts(): array

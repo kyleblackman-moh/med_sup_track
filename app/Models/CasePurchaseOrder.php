@@ -31,6 +31,8 @@ class CasePurchaseOrder extends Model
         'delivery_status', // free text; kept, no longer written by the request form (2026-11-23)
         'delivery_state',  // Kyle, 2026-11-23: the Delivery Status dropdown
         'delivery_date',
+        'pack_size',     // Kyle, 2026-11-25: optional free text, e.g. "Boxes of 28 Tablets"
+        'delivery_note', // Kyle, 2026-11-25: optional free text, e.g. "Variation of tender in progress"
     ];
 
     protected function casts(): array

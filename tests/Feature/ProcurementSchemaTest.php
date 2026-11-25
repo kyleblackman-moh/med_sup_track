@@ -67,12 +67,14 @@ const SLICE_6B_COLUMNS = [
         'unit_cost' => 'decimal(14,4)', 'created_at' => 'datetime', 'updated_at' => 'datetime',
         'country_of_origin' => 'nvarchar(100)', // V2
         'percentage_awarded' => 'decimal(5,2)', // 2026-11-24
+        'pack_size' => 'nvarchar(100)', // 2026-11-25
     ],
     'case_purchase_orders' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'sort_order' => 'smallint', 'supplier_name' => 'nvarchar(200)',
         'po_number' => 'nvarchar(64)', 'quantity_ordered' => 'decimal(14,2)', 'ordered_on' => 'date',
         'quantity_delivered' => 'decimal(14,2)', 'delivery_eta' => 'date', 'delivery_status' => 'nvarchar(120)',
         'delivery_state' => 'nvarchar(32)', 'delivery_date' => 'date', // 2026-11-23
+        'pack_size' => 'nvarchar(100)', 'delivery_note' => 'nvarchar(100)', // 2026-11-25
         'created_at' => 'datetime', 'updated_at' => 'datetime',
         'award_id' => 'bigint', // F1
     ],
