@@ -27,6 +27,11 @@ interface EntrySheetProps {
     remove?: ReactNode;
     /** The table lines (3 or 5 fields each): a row of column headers over a row of cells. */
     lines: SheetField[][];
+    /**
+     * Kyle, 2026-11-25: fixed column widths, one per column ("10rem"); a column left undefined
+     * takes the rest. Fields then span one column each (span 1).
+     */
+    columns?: (string | undefined)[];
     /** Under the table, full width (a reason, the entry's error list); nothing is drawn when empty. */
     below?: ReactNode;
     /** Open on first render (default true). */
@@ -42,7 +47,7 @@ interface EntrySheetProps {
  * block, never the page. A jump to a field inside a closed block opens it
  * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, summary, title, controls, remove, lines, below, defaultOpen = true }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, columns, below, defaultOpen = true }: EntrySheetProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -67,6 +72,13 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                 <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
                     <table className="table-sm table min-w-[40rem] table-fixed">
                         <caption className="sr-only">{label}</caption>
+                        {columns && (
+                            <colgroup>
+                                {columns.map((width, column) => (
+                                    <col key={column} style={width ? { width } : undefined} />
+                                ))}
+                            </colgroup>
+                        )}
                         <tbody>
                             {lines.map((line) => {
                                 const share = TRACKS / line.length;

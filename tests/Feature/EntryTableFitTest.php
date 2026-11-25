@@ -76,8 +76,10 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days'],
         ['brand', 'manufacturer', 'country_of_origin', 'remarks'],
     ])
-        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 3 }")
-        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 4 }")
+        // Kyle, 2026-11-25: three narrow fixed columns; the fourth (Lead Time over Remarks) takes the rest.
+        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 1 }")
+        ->and($source)->toContain("const SHEET_COLUMNS = ['10rem', '10rem', '10rem', undefined];")
+        ->and($source)->toContain('columns={SHEET_COLUMNS}')
         ->and($source)->not->toContain("key: 'total_price'")
         ->and($source)->toMatch('/below=\{\s*<>\s*<QuotationTotals label=\{rowLabel\} price=\{price\} \/>/')
         ->and($source)->toContain('<dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>')
@@ -85,10 +87,8 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         // The Quoted Price figure is gone from the price comparison (the totals show it).
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.
-        ->and($source)->toContain("input('quantity_available_now', 'decimal', undefined, SHORT_BOX.number)")
-        // Kyle, 2026-11-25: short boxes for the short fields; Supplier and Remarks stay full width.
-        ->and($source)->toContain("const SHORT_BOX = { number: 'max-w-28', text: 'max-w-44' } as const;")
-        ->and($source)->toContain("input('country_of_origin', 'text', 100, SHORT_BOX.text)")
+        ->and($source)->toContain("input('quantity_available_now', 'decimal')")
+        ->and($source)->toContain("input('lead_time_days', 'integer', undefined, SHORT_BOX)")
         ->and($source)->toContain("input('remarks', 'text', 255)")
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
@@ -104,6 +104,7 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ->and($sheet)->toMatch('/<table className="[^"]*\\btable-fixed\\b/')
         ->and($sheet)->toContain('scope="col"')
         ->and($sheet)->toContain('colSpan={field.span ?? share}')
+        ->and($sheet)->toContain('<col key={column} style={width ? { width } : undefined} />')
         // Kyle, 2026-11-24: Considered OR Recommended, never both ticked; Recommended is stored as considered.
         ->and($source)->toContain('checked={considered && !recommended}')
         ->and($source)->toMatch("/api\\.chooseRecommended\\(row\\.key\\);\\s*api\\.setCell\\('quotations', row\\.key, 'considered', true\\);/")
