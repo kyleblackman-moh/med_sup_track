@@ -69,41 +69,42 @@ it('lays each quotation out as a supplier block of two table lines over its tota
     preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
     $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then Quantity, Unit Price,
-    // Ex Stock, Lead Time; then Brand to Remarks. Kyle, 2026-11-25: Subtotal, VAT and Total Price
-    // Incl. VAT are the block's totals under the table, read-only, worked out live by lib/quotation-price.ts.
+    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then two short lines:
+    // Quantity, Unit Price, Ex Stock, Lead Time; Brand, Manufacturer, Country of Origin. Kyle,
+    // 2026-11-25: Remarks is a column at the right as tall as both lines, taking the width the
+    // fixed tracks leave; Subtotal, VAT and Total Price Incl. VAT are the totals under the table.
     expect($keys)->toBe([
         ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days'],
-        ['brand', 'manufacturer', 'country_of_origin', 'remarks'],
+        ['brand', 'manufacturer', 'country_of_origin'],
     ])
         ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 3 }")
-        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 4 }")
+        ->and($source)->toContain("{ key: 'country_of_origin', label: 'Country of Origin', span: 4 }")
+        ->and($source)->toContain("const TRACK_WIDTH = '2.5rem';")
+        ->and($source)->toMatch("/trackWidth=\\{TRACK_WIDTH\\}\\s*aside=\\{\\{\\s*key: 'remarks'/")
         ->and($source)->not->toContain("key: 'total_price'")
-        ->and($source)->toMatch('/below=\{\s*<>\s*<QuotationTotals label=\{rowLabel\} price=\{price\} \/>/')
+        ->and($source)->toMatch('/below=\\{\\s*<>\\s*<QuotationTotals label=\\{rowLabel\\} price=\\{price\\} \\/>/')
         ->and($source)->toContain('<dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>')
         ->and($source)->toContain("import { quotationPrice } from '@/lib/quotation-price';")
         // The Quoted Price figure is gone from the price comparison (the totals show it).
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.
-        ->and($source)->toContain("input('quantity_available_now', 'decimal', undefined, SHORT_BOX.number)")
-        // Kyle, 2026-11-25: short boxes for the short fields; Supplier and Remarks stay full width.
-        ->and($source)->toContain("const SHORT_BOX = { number: 'max-w-28', text: 'max-w-44' } as const;")
-        ->and($source)->toContain("input('country_of_origin', 'text', 100, SHORT_BOX.text)")
-        ->and($source)->toContain("input('remarks', 'text', 255)")
+        ->and($source)->toContain("input('quantity_available_now', 'decimal')")
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
         ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
         // The block is the shared EntrySheet: a collapsible block (details) holding a real bordered table
-        // of 15 tracks (table-fixed), each field its span of them, scrolling inside the block.
+        // of 12 tracks (table-fixed), each field its span of them, scrolling inside the block.
         ->and($source)->toContain('<EntrySheet')
-        ->and($sheet = file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain('const TRACKS = 15;')
+        ->and($sheet = file_get_contents(resource_path('js/components/ui/entry-sheet.tsx')))->toContain('const TRACKS = 12;')
         ->and($sheet)->toContain('<details')
         ->and($sheet)->toContain('collapse-arrow')
         ->and($sheet)->toContain('<summary className="collapse-title')
         ->and($sheet)->toContain('max-w-full overflow-x-auto')
-        ->and($sheet)->toMatch('/<table className="[^"]*\\btable-fixed\\b/')
+        ->and($sheet)->toMatch('/<table\\s+className="[^"]*\\btable-fixed\\b/')
         ->and($sheet)->toContain('scope="col"')
         ->and($sheet)->toContain('colSpan={field.span ?? share}')
+        ->and($sheet)->toContain('<td rowSpan={lines.length * 2 - 1}')
+        ->and($sheet)->toContain('<col key={track} style={{ width: trackWidth }} />')
         // Kyle, 2026-11-24: Considered OR Recommended, never both ticked; Recommended is stored as considered.
         ->and($source)->toContain('checked={considered && !recommended}')
         ->and($source)->toMatch("/api\\.chooseRecommended\\(row\\.key\\);\\s*api\\.setCell\\('quotations', row\\.key, 'considered', true\\);/")

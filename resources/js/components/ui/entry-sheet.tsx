@@ -11,8 +11,8 @@ export interface SheetField {
     span?: number;
 }
 
-/** The table's tracks: 15 equal columns (table-fixed); a field spans its `span`, else an equal share of its line. */
-const TRACKS = 15;
+/** The table's tracks: 12 equal columns (table-fixed); a field spans its `span`, else an equal share of its line. */
+const TRACKS = 12;
 
 interface EntrySheetProps {
     /** The entry's name for assistive technology ("Quotation Row 1"). */
@@ -27,6 +27,13 @@ interface EntrySheetProps {
     remove?: ReactNode;
     /** The table lines (3 or 5 fields each): a row of column headers over a row of cells. */
     lines: SheetField[][];
+    /**
+     * Kyle, 2026-11-25: a field in its own column at the right, as tall as every line (Remarks).
+     * It takes whatever width the fixed tracks leave.
+     */
+    aside?: SheetField;
+    /** With an aside: the fixed width of one track ("2.5rem"), so the lines stay short. */
+    trackWidth?: string;
     /** Under the table, full width (a reason, the entry's error list); nothing is drawn when empty. */
     below?: ReactNode;
     /** Open on first render (default true). */
@@ -42,7 +49,7 @@ interface EntrySheetProps {
  * block, never the page. A jump to a field inside a closed block opens it
  * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, summary, title, controls, remove, lines, below, defaultOpen = true }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, aside, trackWidth, below, defaultOpen = true }: EntrySheetProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -65,11 +72,24 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                 </div>
 
                 <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
-                    <table className="table-sm table min-w-[40rem] table-fixed">
+                    <table
+                        className="table-sm table min-w-[40rem] table-fixed"
+                        // The fixed tracks plus room for the aside (at least 12rem) before the block scrolls.
+                        style={trackWidth ? { minWidth: `calc(${TRACKS} * ${trackWidth} + 12rem)` } : undefined}
+                    >
                         <caption className="sr-only">{label}</caption>
+                        {trackWidth && (
+                            <colgroup>
+                                {Array.from({ length: TRACKS }, (_, track) => (
+                                    <col key={track} style={{ width: trackWidth }} />
+                                ))}
+                                {aside && <col />}
+                            </colgroup>
+                        )}
                         <tbody>
-                            {lines.map((line) => {
+                            {lines.map((line, lineIndex) => {
                                 const share = TRACKS / line.length;
+                                const first = lineIndex === 0 && aside;
 
                                 return [
                                     <tr key={`${line[0]?.key}-head`} className="bg-base-200">
@@ -83,6 +103,11 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                                                 {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : field.label}
                                             </th>
                                         ))}
+                                        {first && (
+                                            <th scope="col" className="border-base-300 text-base-content/70 border text-xs font-medium capitalize">
+                                                {aside.htmlFor ? <label htmlFor={aside.htmlFor}>{aside.label}</label> : aside.label}
+                                            </th>
+                                        )}
                                     </tr>,
                                     <tr key={`${line[0]?.key}-cells`}>
                                         {line.map((field) => (
@@ -90,6 +115,12 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, bel
                                                 {field.content}
                                             </td>
                                         ))}
+                                        {first && (
+                                            // Down to the last cell row: past this line's cells, every later header and cell row.
+                                            <td rowSpan={lines.length * 2 - 1} className="border-base-300 border p-1.5 align-top">
+                                                {aside.content}
+                                            </td>
+                                        )}
                                     </tr>,
                                 ];
                             })}
