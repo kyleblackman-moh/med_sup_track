@@ -234,3 +234,12 @@ function caseHistory(ProcurementCase $case, CaseStatus $status): void
         ])->save();
     }
 }
+
+/**
+ * The page a user lands on: a vendor's dashboard redirects to its Requests
+ * list (Kyle, 2026-11-24), so shared props are read there; staff use /dashboard.
+ */
+function homeUrl(User $user): string
+{
+    return $user->isVendor() ? route('requests.index') : route('dashboard');
+}

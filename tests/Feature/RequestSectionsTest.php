@@ -265,7 +265,7 @@ it('accepts a draft with no orders', function (string $code) {
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('fails a tender cycle that ends before it starts', function (string $code) {
-    [$case] = v2Draft($code, fn ($p) => withRequisition($p, ['tender_cycle_start' => '2027-01-01', 'tender_cycle_end' => '2026-12-31']));
+    [$case] = v2Draft($code, fn ($p) => withRequisition($p, ['tender_cycle_start' => '2025-01-01', 'tender_cycle_end' => '2024-12-31']));
 
     expect(v2Report($case)->errors)->toBe([['key' => 'requisition.tender_cycle_end', 'message' => RequestSections::CYCLE_END_BEFORE_START]]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);

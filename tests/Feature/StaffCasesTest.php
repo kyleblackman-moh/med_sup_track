@@ -81,7 +81,10 @@ it('refuses vendors, system_admin, auditor and users without a case permission',
     // IT-ADMIN: accounts with no case work at all (System Admin, Auditor, no role) get 404 on the case area; a vendor 403.
     $response = $this->actingAs($user)->get(route('cases.index'));
     $who === 'vendor' ? $response->assertForbidden() : $response->assertNotFound();
-    expect(pageProps($this->actingAs($user)->get('/dashboard'))['can']['cases'])->toBeFalse();
+    // A vendor lands on its Requests list, whose page `can` replaces the shared one: read the nav flag there.
+    $who === 'vendor'
+        ? expect(pageProps($this->actingAs($user)->get(homeUrl($user)))['nav']['cases'])->toBeFalse()
+        : expect(pageProps($this->actingAs($user)->get('/dashboard'))['can']['cases'])->toBeFalse();
 })->with(['vendor', 'system_admin', 'auditor', 'no_role']);
 
 it('refuses a vendor on the staff view of its own submitted case (403)', function () {
@@ -537,7 +540,7 @@ it('keeps the staff case pages free of ad hoc network and storage calls', functi
         resource_path('js/types/cases.ts'),
     ];
 
-    expect($files)->toHaveCount(4);
+    expect($files)->toHaveCount(5); // pages/cases: index, show and print (2026-11-24)
 
     foreach ($files as $file) {
         $source = file_get_contents($file);

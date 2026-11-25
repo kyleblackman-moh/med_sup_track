@@ -172,7 +172,7 @@ it('gives staff no drafts card', function (Role $role) {
 
 it('shares nav.analytics only with case.view_all holders, never under can', function (Role $role, bool $expected) {
     $user = $role === Role::VendorApplicant ? vendorUser(vendorOrg()) : caseUser($role);
-    $props = pageProps($this->actingAs($user)->get(route('dashboard'))->assertOk());
+    $props = pageProps($this->actingAs($user)->get(homeUrl($user))->assertOk());
 
     expect($props['nav']['analytics'])->toBe($expected)
         ->and($props['can'])->not->toHaveKey('analytics');

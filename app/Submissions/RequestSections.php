@@ -536,7 +536,9 @@ final class RequestSections
             $add('requisition.tender_cycle_end', 'Enter the end of the tender cycle.');
         } elseif ($r->tender_cycle_start !== null && $r->tender_cycle_end->lt($r->tender_cycle_start)) {
             $add('requisition.tender_cycle_end', self::CYCLE_END_BEFORE_START);
-        } elseif ($r->tender_cycle_end->toDateString() > $today) {
+        } elseif ($r->tender_cycle_end->toDateString() > $today
+            // A start after today already says it: the end (not before the start) is then in the future too.
+            && ! ($r->tender_cycle_start !== null && $r->tender_cycle_start->toDateString() > $today)) {
             $add('requisition.tender_cycle_end', self::CYCLE_END_AFTER_TODAY);
         }
 

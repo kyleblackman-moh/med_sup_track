@@ -105,7 +105,9 @@ it('gives a vendor neither panel, and no Analytics page', function () {
     expect(DashboardView::pipeline($vendor))->toBeNull()
         ->and(DashboardView::gateTracker($vendor))->toBeNull();
 
-    $this->actingAs($vendor)->get(route('dashboard'))->assertOk()
+    // A vendor's dashboard is its Requests list (Kyle, 2026-11-24).
+    $this->actingAs($vendor)->get(route('dashboard'))->assertRedirect(route('requests.index'));
+    $this->actingAs($vendor)->get(route('requests.index'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->missing('pipeline')->missing('gateTracker'));
     $this->actingAs($vendor)->get(route('analytics'))->assertForbidden();
 });

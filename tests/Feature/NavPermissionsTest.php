@@ -35,7 +35,7 @@ it('grants the sidebar permissions to the roles that could open each page', func
 
 it('shares a nav flag per sidebar item, matching the routes', function (string $role, array $flags) {
     $user = $role === 'vendor_applicant' ? vendorUser(vendorOrg()) : caseUser(Role::from($role));
-    $nav = pageProps($this->actingAs($user)->get(route('dashboard'))->assertOk())['nav'];
+    $nav = pageProps($this->actingAs($user)->get(homeUrl($user))->assertOk())['nav'];
 
     expect(collect($nav)->only(['cases', 'tracking', 'queries', 'analytics', 'audit', 'users', 'it_health'])->all())->toEqual($flags);
 

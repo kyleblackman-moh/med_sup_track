@@ -505,7 +505,8 @@ it('throttles write requests at 30 a minute', function () {
 });
 
 it('shares can.requests only with users who hold the vendor permission', function (Closure $user, bool $expected) {
-    $this->actingAs($user())->get('/dashboard')->assertInertia(fn (Assert $page) => $page->where('can.requests', $expected));
+    $user = $user();
+    $this->actingAs($user)->get(homeUrl($user))->assertInertia(fn (Assert $page) => $page->where('can.requests', $expected));
 })->with([
     'vendor' => [fn () => vendorUser(vendorOrg()), true],
     'cmo' => [fn () => caseUser(Role::Cmo), false],

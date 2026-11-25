@@ -205,7 +205,8 @@ it('shares nav.cmo_office with the CMO on every page, including the case page wi
 
 it('does not share nav.cmo_office with other users', function (string $who) {
     $user = $who === 'vendor' ? vendorUser(vendorOrg()) : caseUser($who);
-    $urls = $who === 'vendor' ? [route('dashboard'), route('requests.index')] : [route('dashboard'), route('cases.index')];
+    // A vendor's dashboard redirects to its Requests list (Kyle, 2026-11-24).
+    $urls = $who === 'vendor' ? [route('requests.index')] : [route('dashboard'), route('cases.index')];
 
     foreach ($urls as $url) {
         expect(pageProps($this->actingAs($user)->get($url)->assertOk())['nav']['cmo_office'])->toBeFalse();
