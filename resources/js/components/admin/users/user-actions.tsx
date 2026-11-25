@@ -49,6 +49,7 @@ export function DetailsForm({ user }: { user: AdminUserDetail }) {
             </label>
             <input
                 id={`user-${key}`}
+                aria-label={label}
                 className="input input-sm w-full"
                 value={form.data[key]}
                 maxLength={max}

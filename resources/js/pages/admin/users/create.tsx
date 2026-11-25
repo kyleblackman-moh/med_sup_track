@@ -164,6 +164,7 @@ export default function AdminUserCreate({ options }: Props) {
                                 </label>
                                 <input
                                     id={key}
+                                    aria-label={key === 'job_title' ? 'Job Title' : 'Division'}
                                     className="input input-sm w-full"
                                     value={data[key]}
                                     onChange={(e) => setData(key, e.target.value)}
