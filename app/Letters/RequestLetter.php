@@ -113,7 +113,7 @@ final class RequestLetter
         $data = $this->data();
         $pdf = Pdf::loadHTML(view('letters.request', ['letter' => $data])->render())
             ->setPaper((string) config('procurement.letter.paper', 'letter'), 'portrait')
-            ->setOption(['default_font' => 'DejaVu Serif', 'enable_remote' => false, 'enable_font_subsetting' => true]);
+            ->setOption(['default_font' => 'Times-Roman', 'enable_remote' => false, 'enable_font_subsetting' => true]);
 
         $dompdf = $pdf->getDomPDF();
         $dompdf->render();
@@ -124,7 +124,7 @@ final class RequestLetter
                 return;
             }
             $canvas->set_opacity(1.0); // the draft watermark's opacity must not carry over
-            $canvas->text(100, 28, "Page {$page} – {$header}", $metrics->getFont('DejaVu Serif'), 9);
+            $canvas->text(100, 28, "Page {$page} – {$header}", $metrics->getFont('Times-Roman'), 9);
         });
 
         return $dompdf->output();

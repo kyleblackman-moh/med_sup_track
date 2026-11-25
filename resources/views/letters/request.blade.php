@@ -10,7 +10,7 @@
 <title>{{ $letter['subject'] }}</title>
 <style>
     @page { margin: 54pt 54pt 64pt 100pt; }
-    body { font-family: 'DejaVu Serif', 'Times New Roman', serif; font-size: 11pt; line-height: 1.45; color: #000; margin: 0; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.3; color: #000; margin: 0; }
     .band { position: fixed; top: -54pt; bottom: -64pt; left: -100pt; width: 60pt; background: {{ $letter['band_colour'] }}; }
     .letterhead { margin: -30pt 0 18pt 0; border-bottom: 1.5pt solid #555; padding-bottom: 3pt; }
     .letterhead .logo { display: inline-block; width: 52pt; height: 40pt; vertical-align: bottom; }
@@ -20,7 +20,7 @@
     .lines p, .lines div { margin: 0; }
     .subject { font-weight: bold; }
     table.grid { width: 100%; border-collapse: collapse; margin: 0 0 12pt 0; page-break-inside: auto; }
-    table.grid th, table.grid td { border: 1pt solid #000; font-size: 10pt; line-height: 1.3; padding: 2pt 3pt; text-align: center; vertical-align: top; }
+    table.grid th, table.grid td { border: 1pt solid #000; font-size: 11pt; line-height: 1.3; padding: 2pt 3pt; text-align: center; vertical-align: middle; }
     table.grid th { font-weight: bold; }
     table.grid tr { page-break-inside: avoid; }
     table.small th, table.small td { font-size: 6.5pt; line-height: 1.2; padding: 2pt 1.5pt; }
