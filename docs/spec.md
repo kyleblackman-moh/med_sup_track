@@ -588,7 +588,8 @@ On submission the system generates a **cover sheet PDF** containing the case ref
 The vendor's request letter is generated as a PDF from the saved application (`App\Letters\RequestLetter`, Blade `letters/request`, dompdf). It follows the layout and wording of NIPDEC's paper letters. It is the request's print and export output.
 
 - **Routes.** `GET /requests/{case}/letter.pdf` (vendor: own organisation, any status) and `GET /cases/{case}/letter.pdf` (staff: anyone who can view the case). Another organisation's case, a DRAFT for staff, and a type with no letter (old Pharm / Non-Pharm, no type chosen) return 404. Downloaded as `{reference} – {item}.pdf` (`Draft – {item}.pdf` before submission).
-- **Audit.** Each export writes `case.letter_exported` with the audience, the draft flag and the letter kind. No letter text.
+- **Audit.** Each export writes `case.letter_exported` with the audience, the draft flag, the letter kind and the count of appended documents. No letter text.
+- **Appended documents [Decided 2026-11-25].** The vendor's current, external, clean documents (uploads are PDF only) follow the letter as its pages, in upload order, after the annex. qpdf does the merge (`App\Support\Qpdf`; path in `config/procurement.php` `letter.qpdf`, env `QPDF_PATH`). A draft's appended pages carry the watermark. A document qpdf cannot open (damaged, password-protected), or every document while qpdf is not installed, is listed under "/Attach (not appended)" instead. Nothing is stored: the merged file is built per download.
 - **Drafts.** Dated today and watermarked "DRAFT – NOT SUBMITTED". A submitted letter is dated with the submission date (Port of Spain).
 - **Vendor-safe.** The request as filled, the external clean documents and the vendor's own sign-off. No internal notes, review outcomes, CAB reasons, query messages or staff names, for any audience.
 - **Nothing typed into the letter.** A value that was not entered leaves its sentence or table out; there are no placeholders. Sections and fields the type hides (§ RequestSections) are left out as the form leaves them out.
@@ -617,7 +618,8 @@ The vendor's request letter is generated as a PDF from the saved application (`A
 | Price comparison | Tender price, previous price | Tender Excess only |
 | Lead time | The recommended quotation's lead time | Ad Hoc, Tender Excess |
 | Sign-off | Organisation name (capitals); the submitter's name, job title (`users.job_title`) and division (`users.division`) | All |
-| /Attach | Current external, clean documents: file name and category | All |
+| /Attach (not appended) | Only a current external, clean document that could not be appended as pages: file name and category | All |
+| Appended pages | Every other current external, clean document, in upload order, after the annex | All |
 | Quotation Comparison Sheet (annex page) | Every quotation with a supplier: quantity, unit price, subtotal, VAT, total price, ex stock (the quantity available from stock), lead time, brand, manufacturer, country of origin, remarks, status (Recommended / Considered / Not considered) | Ad Hoc, Tender Excess |
 | Running header (pages 2+) | "Page n – {item} – DIN {din}" | All |
 | Footer | Organisation name, the submitter's division ("Pharmaceutical Division" while none is stored), organisation address / phone / email | All |

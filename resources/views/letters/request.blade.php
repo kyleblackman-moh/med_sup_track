@@ -137,9 +137,10 @@
         </div>
     </div>
 
+    {{-- The uploaded documents follow the letter as pages. Only one that could not be appended is listed. --}}
     @if ($letter['attachments'] !== [])
         <div class="attach lines">
-            <div>/Attach</div>
+            <div>/Attach (not appended)</div>
             @foreach ($letter['attachments'] as $doc)
                 <div>{{ $doc['title'] }} ({{ $doc['category'] }})</div>
             @endforeach

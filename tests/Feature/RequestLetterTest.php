@@ -11,6 +11,7 @@ use App\Models\Organisation;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\SubmitCase;
+use App\Support\Qpdf;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ProcurementTypeSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\PermissionRegistrar;
+use Symfony\Component\Process\Process;
 
 // Kyle, 2026-11-24: the request letter PDF (App\Letters\RequestLetter), in the
 // wording of NIPDEC's paper letters. Three fixtures match the reference letters:
@@ -229,7 +231,8 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
         // Pack size with the quantity (2026-11-25); Ex Stock is the quantity available from stock.
         ->toContain('6,250 Boxes of 28 Tablets')->toContain('2,500 Boxes of 30 Tablets')->toContain('<td>500 Each</td>')
         ->toContain('Quotation Comparison Sheet')->toContain('$68,972.40')
-        ->toContain('/Attach')->toContain('bids.pdf (Bids)')
+        // The documents follow as pages (2026-11-25): no /Attach list.
+        ->not->toContain('/Attach')->not->toContain('bids.pdf')
         // The issues text shows for every type (2026-11-25). No orders entered: no orders table.
         // Hidden for Ad Hoc: the variation table and the tender price.
         ->toContain('The awarded suppliers were unable to supply the full tender quantity.')->not->toContain('Orders were placed')
@@ -262,8 +265,9 @@ it('downloads a PDF for the vendor at any status and audits it', function () {
         ->and($response->headers->get('Content-Disposition'))->toContain('attachment')->toContain('.pdf');
 
     $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseLetterExported->value)->sole();
-    expect(json_decode($audit->metadata, true))->toBe(['audience' => 'vendor', 'draft' => false, 'kind' => 'ad_hoc']);
-});
+    expect(json_decode($audit->metadata, true))
+        ->toBe(['audience' => 'vendor', 'draft' => false, 'kind' => 'ad_hoc', 'attached' => count(requiredPurposes($case))]);
+})->skip(rlNoQpdf(...), 'qpdf is not installed (QPDF_PATH).');
 
 it('is 404 for another organisation, and for staff on a draft or an unassigned case', function () {
     [$case] = rlRivaroxaban();
@@ -303,6 +307,90 @@ it('never carries internal data', function () {
         ->not->toContain('Not confirmed');
 });
 
+// ---- Appended documents (Kyle, 2026-11-25): the uploads follow the letter as pages, through qpdf.
+
+function rlTempPdf(string $bytes): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'rl').'.pdf';
+    file_put_contents($path, $bytes);
+
+    return $path;
+}
+
+function rlPages(string $bytes): ?int
+{
+    return Qpdf::pages(rlTempPdf($bytes));
+}
+
+/** The PDF rewritten by qpdf in QDF form: uncompressed, so page content can be read. */
+function rlQdf(string $bytes): string
+{
+    $process = new Process([Qpdf::binary(), '--qdf', '--object-streams=disable', rlTempPdf($bytes), '-']);
+    $process->mustRun();
+
+    return $process->getOutput();
+}
+
+function rlNoQpdf(): bool
+{
+    return rlPages(onePagePdfBytes()) !== 1;
+}
+
+it('appends the current external clean documents as pages, in upload order', function () {
+    [$case] = rlRivaroxaban();
+    $purposes = requiredPurposes($case);
+    $before = rlPages(RequestLetter::for($case)->pdf());
+
+    makeDocument($case, $purposes[0], ['_bytes' => onePagePdfBytes('Attachment one'), 'original_name' => 'bid.pdf', 'uploaded_at' => now()->addMinute()]);
+    makeDocument($case, $purposes[1] ?? $purposes[0], ['_bytes' => onePagePdfBytes('Attachment two'), 'original_name' => 'evidence.pdf', 'uploaded_at' => now()->addMinutes(2)]);
+    makeDocument($case, $purposes[0], ['_bytes' => onePagePdfBytes('Internal memo'), 'visibility' => 'INTERNAL']);
+    makeDocument($case, $purposes[0], ['_bytes' => onePagePdfBytes('Infected file'), 'scan_status' => 'INFECTED']);
+    makeDocument($case, $purposes[0], ['_bytes' => onePagePdfBytes('Withdrawn file'), 'withdrawn_at' => now()]);
+
+    $letter = RequestLetter::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id));
+    $bytes = $letter->pdf();
+    $qdf = rlQdf($bytes);
+
+    expect(rlPages($bytes))->toBe($before + 2);
+    expect($qdf)->toContain('Attachment one')->toContain('Attachment two')
+        ->not->toContain('Internal memo')->not->toContain('Infected file')->not->toContain('Withdrawn file');
+    expect(strpos($qdf, 'Attachment one'))->toBeLessThan(strpos($qdf, 'Attachment two'));
+    expect($letter->html())->not->toContain('/Attach')->not->toContain('bid.pdf');
+})->skip(rlNoQpdf(...), 'qpdf is not installed (QPDF_PATH).');
+
+it('lists a document it cannot append', function () {
+    [$case] = rlRivaroxaban();
+    $before = rlPages(RequestLetter::for($case)->pdf());
+    makeDocument($case, requiredPurposes($case)[0], ['_bytes' => '%PDF-1.4 damaged', 'original_name' => 'scan.pdf']);
+
+    $letter = RequestLetter::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id));
+
+    expect($letter->html())->toContain('/Attach (not appended)')->toContain('scan.pdf');
+    expect(rlPages($letter->pdf()))->toBe($before);
+})->skip(rlNoQpdf(...), 'qpdf is not installed (QPDF_PATH).');
+
+it('watermarks the appended pages of a draft', function () {
+    [$case] = rlChlorpromazine(submit: false);
+    makeDocument($case, requiredPurposes($case)[0] ?? DocumentPurpose::cases()[0]->value, ['_bytes' => onePagePdfBytes('Attachment one')]);
+
+    $bytes = RequestLetter::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->pdf();
+
+    expect(rlPages($bytes))->toBeGreaterThanOrEqual(2);
+    // qpdf lays the stamp page over each appended page as a form XObject.
+    expect(rlQdf($bytes))->toContain('/Fx1');
+})->skip(rlNoQpdf(...), 'qpdf is not installed (QPDF_PATH).');
+
+it('lists the documents when qpdf is not installed', function () {
+    config(['procurement.letter.qpdf' => 'C:/not-installed/qpdf.exe']);
+    [$case] = rlRivaroxaban();
+    makeDocument($case, requiredPurposes($case)[0], ['_bytes' => onePagePdfBytes(), 'original_name' => 'bid.pdf']);
+
+    $letter = RequestLetter::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id));
+
+    expect($letter->html())->toContain('/Attach (not appended)')->toContain('bid.pdf');
+    expect($letter->pdf())->toStartWith('%PDF');
+});
+
 it('has no letter for the old Pharm / Non-Pharm types', function () {
     [$case] = legacyDraft('AD_HOC_NON_PHARM');
 
@@ -324,6 +412,9 @@ it('saves the sample PDFs', function () {
 
     foreach ($fixtures as $name => $fixture) {
         [$case] = $fixture();
+        if ($name === 'chlorpromazine-draft') { // a submitted fixture carries its required documents already
+            makeDocument($case, requiredPurposes($case)[0] ?? DocumentPurpose::cases()[0]->value, ['_bytes' => onePagePdfBytes('Uploaded document'), 'original_name' => 'bid.pdf']);
+        }
         file_put_contents("{$dir}/{$name}.pdf", RequestLetter::for($case)->pdf());
         file_put_contents("{$dir}/{$name}.html", RequestLetter::for($case)->html());
     }

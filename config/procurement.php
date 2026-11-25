@@ -30,6 +30,11 @@ return [
 
         // The letterhead's left band. Until organisations carry their own colour.
         'band_colour' => '#ee8b5e',
+
+        // qpdf appends the vendor's uploaded PDFs to the letter. The binary's
+        // path, or its name when it is on PATH. Without it the letter lists the
+        // documents instead.
+        'qpdf' => env('QPDF_PATH', 'qpdf'),
     ],
 
 ];

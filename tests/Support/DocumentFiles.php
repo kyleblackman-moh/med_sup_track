@@ -22,7 +22,21 @@ const EICAR = 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H
 
 function pdfBytes(): string
 {
-    return "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n";
+    return onePagePdfBytes('Document');
+}
+
+/** A one-page PDF that qpdf can open, showing $text (for the letter's appended pages). */
+function onePagePdfBytes(string $text = 'Attachment'): string
+{
+    $content = "BT /F1 24 Tf 72 700 Td ({$text}) Tj ET";
+
+    return "%PDF-1.4\n"
+        ."1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+        ."2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
+        ."3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
+        .'4 0 obj<</Length '.strlen($content).">>stream\n{$content}\nendstream\nendobj\n"
+        ."5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+        ."trailer<</Root 1 0 R>>\n%%EOF\n";
 }
 
 function pngBytes(): string

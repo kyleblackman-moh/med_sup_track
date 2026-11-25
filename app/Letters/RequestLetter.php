@@ -21,11 +21,13 @@ use App\Submissions\RequestSections;
 use App\Support\Audit;
 use App\Support\Display;
 use App\Support\NumberWords;
+use App\Support\Qpdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Dompdf\Canvas;
 use Dompdf\FontMetrics;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -44,6 +46,11 @@ use Illuminate\Support\Str;
  * Vendor-safe for every audience: the request as filled, the external clean
  * documents and the vendor's own sign-off. No internal notes, review outcomes,
  * CAB reasons, query messages or staff names. The CALLER authorises.
+ *
+ * The vendor's current external clean documents (all PDFs) follow the letter as
+ * its pages, in upload order, through qpdf (Kyle, 2026-11-25); a draft's
+ * appended pages carry the watermark too. A document qpdf cannot open, or every
+ * document while qpdf is not installed, is listed under /Attach instead.
  */
 final class RequestLetter
 {
@@ -72,6 +79,9 @@ final class RequestLetter
 
     /** The footer's division while the submitter has none (Kyle, 2026-11-25). */
     public const FOOTER_DIVISION = 'Pharmaceutical Division';
+
+    /** @var list<string> Absolute paths of the documents pdf() appends; set by attachments(). */
+    private array $appended = [];
 
     private function __construct(
         private readonly ProcurementCase $case,
@@ -107,12 +117,16 @@ final class RequestLetter
         return view('letters.request', ['letter' => $this->data()])->render();
     }
 
-    /** Renders the PDF bytes, with the running header on pages 2+. */
+    /**
+     * Renders the PDF bytes, with the running header on pages 2+, followed by
+     * the appended documents. Should the merge itself fail, the letter alone is
+     * returned (and the failure logged by Qpdf).
+     */
     public function pdf(): string
     {
         $data = $this->data();
         $pdf = Pdf::loadHTML(view('letters.request', ['letter' => $data])->render())
-            ->setPaper((string) config('procurement.letter.paper', 'letter'), 'portrait')
+            ->setPaper($this->paper(), 'portrait')
             ->setOption(['default_font' => 'Times-Roman', 'enable_remote' => false, 'enable_font_subsetting' => true]);
 
         $dompdf = $pdf->getDomPDF();
@@ -127,7 +141,26 @@ final class RequestLetter
             $canvas->text(100, 28, "Page {$page} – {$header}", $metrics->getFont('Times-Roman'), 9);
         });
 
-        return $dompdf->output();
+        $letter = $dompdf->output();
+        if ($this->appended === []) {
+            return $letter;
+        }
+
+        return Qpdf::append($letter, $this->appended, $data['draft'] ? $this->stamp() : null) ?? $letter;
+    }
+
+    /** A one-page PDF of the draft watermark alone, laid over each appended page. */
+    private function stamp(): string
+    {
+        return Pdf::loadHTML(view('letters.stamp', ['watermark' => self::DRAFT_WATERMARK])->render())
+            ->setPaper($this->paper(), 'portrait')
+            ->setOption(['enable_remote' => false])
+            ->output();
+    }
+
+    private function paper(): string
+    {
+        return (string) config('procurement.letter.paper', 'letter');
     }
 
     /** "{reference} – {item}.pdf"; a draft has no reference yet. */
@@ -146,7 +179,7 @@ final class RequestLetter
             AuditAction::CaseLetterExported,
             ['type' => 'case', 'id' => $this->case->getKey()],
             $this->case->getKey(),
-            ['audience' => $audience, 'draft' => $this->isDraft(), 'kind' => $this->kind],
+            ['audience' => $audience, 'draft' => $this->isDraft(), 'kind' => $this->kind, 'attached' => count($this->appended)],
             $viewer,
         );
     }
@@ -533,23 +566,43 @@ final class RequestLetter
         return $rows === [] ? null : $rows;
     }
 
-    /** @return list<array{title: string, category: string}> External, clean, current documents (as the printed form). */
+    /**
+     * External, clean, current documents. Those qpdf can open are queued for
+     * pdf() to append ($this->appended) and are not listed; the rest are listed
+     * under /Attach (file name and category), as the printed form lists them.
+     *
+     * @return list<array{title: string, category: string}>
+     */
     private function attachments(): array
     {
         $labels = ProcurementTypeDocument::where('procurement_type_id', $this->case->procurement_type_id)
             ->get(['purpose', 'label'])
             ->mapWithKeys(fn (ProcurementTypeDocument $d) => [$d->purpose->value => $d->label]);
+        $disk = Storage::disk('documents');
 
-        return Document::withoutGlobalScopes()->current()
+        $this->appended = [];
+        $listed = [];
+        $documents = Document::withoutGlobalScopes()->current()
             ->where('case_id', $this->case->getKey())
             ->where('visibility', DocumentVisibility::EXTERNAL->value)
             ->where('scan_status', ScanStatus::CLEAN->value)
             ->orderBy('uploaded_at')->orderBy('id')
-            ->get()
-            ->map(fn (Document $d) => [
-                'title' => (string) $d->original_name,
-                'category' => $labels[$d->purpose->value] ?? Str::headline($d->purpose->value),
-            ])->all();
+            ->get();
+
+        foreach ($documents as $document) {
+            $path = $disk->path((string) $document->storage_key);
+            if (Qpdf::pages($path) > 0) {
+                $this->appended[] = $path;
+
+                continue;
+            }
+            $listed[] = [
+                'title' => (string) $document->original_name,
+                'category' => $labels[$document->purpose->value] ?? Str::headline($document->purpose->value),
+            ];
+        }
+
+        return $listed;
     }
 
     private function contact(): ?string
