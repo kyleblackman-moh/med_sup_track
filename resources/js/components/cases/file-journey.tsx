@@ -12,7 +12,7 @@ const UNIT_FILL: Record<string, string> = {
 };
 const NO_UNIT_FILL = 'bg-base-content/30';
 
-function holdersText(stage: TrackingStage): string {
+export function holdersText(stage: TrackingStage): string {
     if (stage.holders.length === 0) {
         return 'No one';
     }

@@ -224,3 +224,51 @@ it('hides the Dashboard item from vendors, whose home is Requests', function () 
     expect($nav(vendorUser(vendorOrg()))['dashboard'])->toBeFalse()
         ->and($nav(caseUser(Role::Cmo))['dashboard'])->toBeTrue();
 });
+
+// Backlog, 2026-11-25: the File Tracking page ---------------------------------------------
+
+/** A partial reload of the File Tracking page asking for just the timeline. */
+function ftTimeline($test, User $user, array $query): mixed
+{
+    $version = $test->actingAs($user)->get(route('tracking.index'))->viewData('page')['version'];
+
+    return $test->actingAs($user)->get(route('tracking.index', $query), [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $version,
+        'X-Inertia-Partial-Component' => 'tracking/index',
+        'X-Inertia-Partial-Data' => 'timeline',
+    ])->assertOk()->json('props.timeline');
+}
+
+it('renders the File Tracking page with the rows and no timeline until one is opened', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    $props = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('tracking.index'))->assertOk());
+    $row = collect($props['rows'])->firstWhere('id', $case->id);
+
+    expect($row['stage'])->toBe('With Legal')
+        ->and($row['gate'])->toBeNull() // not in review
+        ->and($props)->not->toHaveKey('timeline');
+});
+
+it('gives a row in review the gate ticks, one per desk plus the hardcopy', function () {
+    $case = ftCase(S::IN_REVIEW, [[S::DRAFT, S::SUBMITTED, '2026-11-01 12:00'], [S::SUBMITTED, S::IN_REVIEW, '2026-11-02 12:00']]);
+
+    $row = collect(pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('tracking.index')))['rows'])->firstWhere('id', $case->id);
+
+    expect(collect($row['gate'])->pluck('key')->last())->toBe('hardcopy')
+        ->and(collect($row['gate'])->pluck('done')->unique()->all())->toBe([false]);
+});
+
+it('sends the opened row\'s timeline on the partial reload, and null for a case the user cannot see', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    [$case] = ftLoop();
+
+    $open = ftTimeline($this, caseUser(Role::Cmo), ['open' => $case->id]);
+    expect($open['id'])->toBe((string) $case->id)
+        ->and(count($open['stages']))->toBe(8);
+
+    expect(ftTimeline($this, caseUser(Role::Technocrat), ['open' => $case->id]))->toBeNull()
+        ->and(ftTimeline($this, caseUser(Role::Cmo), ['open' => 'not-a-ulid']))->toBeNull();
+});

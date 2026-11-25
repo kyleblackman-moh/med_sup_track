@@ -19,6 +19,7 @@ use App\Notifications\Bell;
 use App\Submissions\ExpiryRisk;
 use App\Support\SqlLike;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,7 +77,17 @@ class StaffCaseController extends Controller
             ? ['submitted_at', $dir === 'asc' ? 'desc' : 'asc']
             : [$sort, $dir];
 
-        $page = ProcurementCase::query()
+        // Every filter except the status ones (status, awaiting): the page and the status chips' counts share it.
+        $base = fn () => ProcurementCase::query()
+            ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
+            ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
+            ->when($filters['ref'] ?? null, fn ($q, $v) => $q->where('cases.reference_no', 'like', "%{$v}%"))
+            ->when(trim((string) ($filters['q'] ?? '')) !== '' ? trim($filters['q']) : null, fn ($q, $v) => $q->where(fn ($w) => $w
+                ->whereRaw(...SqlLike::contains('cases.reference_no', $v))
+                ->orWhereHas('requisition', fn ($r) => $r->whereRaw(...SqlLike::contains('case_requisitions.item_description', $v)))
+                ->orWhereHas('organisation', fn ($o) => $o->whereRaw(...SqlLike::contains('organisations.name', $v)))));
+
+        $page = $base()
             ->with([
                 'organisation:id,name', 'procurementType:id,name',
                 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS),
@@ -86,16 +97,7 @@ class StaffCaseController extends Controller
                 'assignments.user:id,name',
             ])
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('cases.status', $v))
-            ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('cases.procurement_type_id', $v))
-            ->when($filters['org'] ?? null, fn ($q, $v) => $q->where('cases.org_id', $v))
-            ->when($filters['ref'] ?? null, fn ($q, $v) => $q->where('cases.reference_no', 'like', "%{$v}%"))
-            ->when(trim((string) ($filters['q'] ?? '')) !== '' ? trim($filters['q']) : null, fn ($q, $v) => $q->where(fn ($w) => $w
-                ->whereRaw(...SqlLike::contains('cases.reference_no', $v))
-                ->orWhereHas('requisition', fn ($r) => $r->whereRaw(...SqlLike::contains('case_requisitions.item_description', $v)))
-                ->orWhereHas('organisation', fn ($o) => $o->whereRaw(...SqlLike::contains('organisations.name', $v)))))
-            ->when(($filters['awaiting'] ?? null) === 'funding', fn ($q) => $q
-                ->where('cases.status', CaseStatus::IN_REVIEW->value)
-                ->whereIn('cases.funding_track', [TrackStatus::PENDING->value, TrackStatus::NOT_CONFIRMED->value, TrackStatus::QUERY_OPEN->value]))
+            ->when(($filters['awaiting'] ?? null) === 'funding', fn ($q) => self::awaitingFunding($q))
             ->orderBy("cases.{$column}", $columnDir)
             ->orderBy('cases.id', $columnDir)
             ->paginate(self::PER_PAGE)
@@ -104,6 +106,7 @@ class StaffCaseController extends Controller
         $today = CarbonImmutable::now(StaffCaseSummary::TIMEZONE)->startOfDay();
 
         return Inertia::render('cases/index', [
+            'chips' => self::statusChips($base, $filters),
             'cases' => [
                 'data' => $page->getCollection()->map(fn (ProcurementCase $c) => StaffCaseSummary::fields($c, $today))->values()->all(),
                 'current_page' => $page->currentPage(),
@@ -138,6 +141,54 @@ class StaffCaseController extends Controller
                 'see_organisation' => ! $request->user()->isVendor(),
             ],
         ]);
+    }
+
+    /**
+     * Backlog, 2026-11-25: the status chips over the case list, in place of the
+     * old sidebar shortcuts (To Review, CAB, PS File, Drafts). Each is a real
+     * link: the current search and filters with that status (page 1). Counts
+     * use the same filters, scoped to the cases the user can see.
+     *
+     * @param  callable(): Builder<ProcurementCase>  $base
+     * @param  array<string, mixed>  $filters
+     * @return list<array{key: string, label: string, count: int, href: string, active: bool}>
+     */
+    private static function statusChips(callable $base, array $filters): array
+    {
+        $keep = array_filter(
+            array_intersect_key($filters, array_flip(['type', 'org', 'ref', 'q', 'sort', 'dir'])),
+            fn ($v) => $v !== null && $v !== '',
+        );
+        $status = $filters['status'] ?? null;
+        $awaiting = $filters['awaiting'] ?? null;
+
+        $chips = [
+            ['key' => 'all', 'label' => 'All', 'query' => [], 'active' => $status === null && $awaiting === null, 'count' => fn ($q) => $q],
+            ['key' => 'in_review', 'label' => 'In Review', 'query' => ['status' => CaseStatus::IN_REVIEW->value],
+                'active' => $status === CaseStatus::IN_REVIEW->value && $awaiting === null, 'count' => fn ($q) => $q->where('cases.status', CaseStatus::IN_REVIEW->value)],
+            ['key' => 'awaiting_funding', 'label' => 'Awaiting CAB Funding', 'query' => ['awaiting' => 'funding'],
+                'active' => $awaiting === 'funding', 'count' => fn ($q) => self::awaitingFunding($q)],
+            ['key' => 'with_ps', 'label' => 'With PS', 'query' => ['status' => CaseStatus::WITH_PS->value],
+                'active' => $status === CaseStatus::WITH_PS->value && $awaiting === null, 'count' => fn ($q) => $q->where('cases.status', CaseStatus::WITH_PS->value)],
+            ['key' => 'awaiting_letter', 'label' => 'Awaiting Letter', 'query' => ['status' => CaseStatus::NON_OBJECTION_GRANTED->value],
+                'active' => $status === CaseStatus::NON_OBJECTION_GRANTED->value && $awaiting === null, 'count' => fn ($q) => $q->where('cases.status', CaseStatus::NON_OBJECTION_GRANTED->value)],
+        ];
+
+        return array_map(fn (array $chip) => [
+            'key' => $chip['key'],
+            'label' => $chip['label'],
+            'count' => ($chip['count'])($base())->count(),
+            'href' => route('cases.index', [...$keep, ...$chip['query']], false),
+            'active' => $chip['active'],
+        ], $chips);
+    }
+
+    /** CAB view: in review with funding not yet confirmed. */
+    private static function awaitingFunding($query)
+    {
+        return $query
+            ->where('cases.status', CaseStatus::IN_REVIEW->value)
+            ->whereIn('cases.funding_track', [TrackStatus::PENDING->value, TrackStatus::NOT_CONFIRMED->value, TrackStatus::QUERY_OPEN->value]);
     }
 
     /**

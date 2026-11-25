@@ -34,6 +34,7 @@ it('matches the section by URL prefix', function (string $path, ?string $section
     ['/requests/01jabcdefghjkmnpqrstvwxyz0/receipt', 'requests'],
     ['/cases', 'cases'],
     ['/cases/01jabcdefghjkmnpqrstvwxyz0', 'cases'],
+    ['/tracking', 'tracking'], // backlog 2026-11-25: the File Tracking page
     ['/settings/profile', null],
     ['/requestsx', null],
     ['/', null],

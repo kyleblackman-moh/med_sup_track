@@ -168,7 +168,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** The sidebar sections, by the first segment of the URL path. */
-    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'queries', 'admin', 'audit'];
+    private const NAV_SECTIONS = ['dashboard', 'analytics', 'requests', 'cases', 'tracking', 'queries', 'admin', 'audit'];
 
     /** QUERIES-1: show the Queries item (display only; the route authorises itself). */
     public static function queriesNav(?User $user): bool

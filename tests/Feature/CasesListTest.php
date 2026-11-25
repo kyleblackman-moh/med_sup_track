@@ -107,3 +107,28 @@ it('never lists a vendor draft for staff, through any filter or the Awaiting Let
     $this->actingAs($cmo)->get(route('cases.index', ['status' => 'DRAFT']))->assertRedirect(route('cases.index'));
     $this->actingAs($cmo)->get(route('cases.show', $draft))->assertNotFound();
 });
+
+// Backlog, 2026-11-25: status chips in place of the old sidebar shortcuts.
+it('sends the status chips with counts under the current search, each a real link', function () {
+    $org = vendorOrg();
+    $tag = 'Chipcheck '.Str::random(6);
+    clCase($org, CaseStatus::IN_REVIEW, "{$tag} gauze");
+    clCase($org, CaseStatus::WITH_PS, "{$tag} gloves");
+    clCase($org, CaseStatus::NON_OBJECTION_GRANTED, "{$tag} masks");
+    clCase($org, CaseStatus::SUBMITTED, 'Something else entirely');
+    $cmo = caseUser(Role::Cmo);
+
+    $chips = collect(pageProps($this->actingAs($cmo)->get(route('cases.index', ['q' => $tag, 'status' => 'WITH_PS']))->assertOk())['chips'])->keyBy('key');
+
+    expect($chips->keys()->all())->toBe(['all', 'in_review', 'awaiting_funding', 'with_ps', 'awaiting_letter'])
+        ->and($chips['all']['count'])->toBe(3)
+        ->and($chips['in_review']['count'])->toBe(1)
+        ->and($chips['with_ps']['count'])->toBe(1)
+        ->and($chips['awaiting_letter']['count'])->toBe(1)
+        ->and($chips['with_ps']['active'])->toBeTrue()
+        ->and($chips['all']['active'])->toBeFalse()
+        // The search stays; the status changes; no page.
+        ->and($chips['in_review']['href'])->toBe(route('cases.index', ['q' => $tag, 'status' => 'IN_REVIEW'], false))
+        ->and($chips['all']['href'])->toBe(route('cases.index', ['q' => $tag], false))
+        ->and($chips['awaiting_funding']['href'])->toBe(route('cases.index', ['q' => $tag, 'awaiting' => 'funding'], false));
+});

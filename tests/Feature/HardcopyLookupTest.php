@@ -62,7 +62,8 @@ it('finds nothing for a partial reference or a case out of scope', function () {
         ->assertSessionHasErrors(['reference' => HardcopyLookupController::NOT_FOUND]);
 });
 
-// Kyle, 2026-11-24: the reference box left the dashboard (the case page records the hardcopy).
-it('no longer shows the lookup on the dashboard', function () {
-    expect(pageProps($this->actingAs(caseUser(Role::CmoRegistry))->get(route('dashboard'))))->not->toHaveKey('hardcopyLookup');
+// Backlog, 2026-11-25: the reference box is back on the dashboard, for hardcopy.confirm holders only.
+it('shows the lookup on the dashboard only for hardcopy.confirm holders', function () {
+    expect(pageProps($this->actingAs(caseUser(Role::CmoRegistry))->get(route('dashboard')))['hardcopyLookup'])->toBeTrue()
+        ->and(pageProps($this->actingAs(caseUser(Role::Technocrat))->get(route('dashboard')))['hardcopyLookup'])->toBeFalse();
 });

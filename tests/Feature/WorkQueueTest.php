@@ -96,12 +96,14 @@ it('gives the registry only the steps its permissions allow', function () {
     expect(queueSteps(caseUser(Role::CmoRegistry), $case))->toBe(['hardcopy', 'intake']);
 });
 
-it('sends no queue to users without queue permissions', function (string $role) {
+// Backlog, 2026-11-25: "Needs My Action" for every staff user; without queue permissions it is empty.
+it('sends an empty queue to staff without queue permissions', function (string $role) {
     queueCase();
 
     $props = pageProps($this->actingAs(caseUser($role))->get(route('dashboard'))->assertOk());
 
-    expect($props['workQueue'])->toBeNull();
+    expect($props['workQueue'])->toBe(['groups' => [], 'items' => [], 'truncated' => false])
+        ->and($props['summary'])->toBe('No items waiting on you');
 })->with(['auditor', 'system_admin']);
 
 it('sends every staff role with queue steps a queue, empty when nothing is theirs', function (string $role) {

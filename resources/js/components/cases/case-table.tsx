@@ -41,14 +41,14 @@ const formatDate = (iso: string | null) =>
 
 export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, filtersActive, onClearFilters }: Props) {
     const columns: Column[] = [
+        // Backlog, 2026-11-25: Reference, Item, Organisation, Type, Status, Current Holder, Submitted.
         { key: 'ref', label: 'Reference', sort: 'reference_no' },
-        { key: 'type', label: 'Type' },
         { key: 'item', label: 'Item', className: 'w-full' },
         ...(showOrganisation ? [{ key: 'org', label: 'Organisation', className: 'max-lg:hidden' }] : []),
+        { key: 'type', label: 'Type' },
         { key: 'status', label: 'Status' },
-        { key: 'holder', label: 'Holder', className: 'max-lg:hidden' },
+        { key: 'holder', label: 'Current Holder', className: 'max-lg:hidden' },
         { key: 'submitted', label: 'Submitted', sort: 'submitted_at' },
-        { key: 'days', label: 'Days', sort: 'days', className: 'text-right' },
     ];
 
     const rows = page.data;
@@ -135,12 +135,12 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                                       {row.reference_no ?? '—'}
                                                   </Link>
                                               </td>
-                                              <td className="whitespace-nowrap">{typeLabel(row.procurement_type)}</td>
                                               <td className="max-w-0" title={row.item_description ?? undefined}>
                                                   <span className="block truncate">{row.item_description ?? '—'}</span>
                                                   <ExpiryFlag flag={row.expiry_flag} className="mt-1" />
                                               </td>
                                               {showOrganisation && <td className="whitespace-nowrap max-lg:hidden">{row.organisation ?? '—'}</td>}
+                                              <td className="whitespace-nowrap">{typeLabel(row.procurement_type)}</td>
                                               <td className="whitespace-nowrap">
                                                   <StatusPill
                                                       label={row.status_label}
@@ -151,7 +151,6 @@ export function CaseTable({ page, sort, dir, onSort, showOrganisation, loading, 
                                               </td>
                                               <td className="whitespace-nowrap max-lg:hidden">{row.holder_label ?? '—'}</td>
                                               <td className="whitespace-nowrap tabular-nums">{formatDate(row.submitted_at)}</td>
-                                              <td className="text-right whitespace-nowrap tabular-nums">{row.days_since_submitted ?? '—'}</td>
                                           </tr>
                                       ))}
                             </tbody>

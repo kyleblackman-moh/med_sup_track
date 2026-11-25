@@ -2,6 +2,7 @@ import { CaseFilters, hasActiveFilters } from '@/components/cases/case-filters';
 import { CaseTable } from '@/components/cases/case-table';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { NewRequestButton } from '@/components/requests/new-request-button';
+import { FilterChips, type FilterChip } from '@/components/ui/filter-chips';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type CaseListCan, type CaseListOptions, type CaseListPage, type CaseFilters as Filters } from '@/types/cases';
@@ -9,6 +10,8 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Props {
+    /** Backlog, 2026-11-25: the status chips (All, In Review, Awaiting CAB Funding, With PS, Awaiting Letter), built by the server. */
+    chips: FilterChip[];
     cases: CaseListPage;
     filters: Filters;
     options: CaseListOptions;
@@ -18,7 +21,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Cases', href: '/cases' }];
 
 /** Staff case register (slice 9a). Read-only; filters, sorting and paging are server-side and live in the URL. */
-export default function CasesIndex({ cases, filters, options, abilities }: Props) {
+export default function CasesIndex({ chips, cases, filters, options, abilities }: Props) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [loading, setLoading] = useState(false);
 
@@ -67,6 +70,8 @@ export default function CasesIndex({ cases, filters, options, abilities }: Props
                     }
                     actions={abilities.create && <NewRequestButton />}
                 />
+
+                <FilterChips label="Filter cases by status" chips={chips} />
 
                 <CaseFilters filters={filters} options={options} showOrganisation={abilities.see_organisation} errors={errors} onChange={visit} />
 

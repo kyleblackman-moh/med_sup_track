@@ -1,23 +1,16 @@
 import { FileTrackingBoard } from '@/components/dashboard/file-tracking-board';
 import { RISE } from '@/components/dashboard/motion';
+import { ReferenceLookup } from '@/components/dashboard/reference-lookup';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageHeader } from '@/components/page-header';
-import { EmptyState } from '@/components/ui/empty-state';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { type TrackingBoard } from '@/types/tracking';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, FileText, FolderOpen, type LucideIcon } from 'lucide-react';
-
-interface Destination {
-    title: string;
-    description: string;
-    href: string;
-    icon: LucideIcon;
-}
+import { FolderOpen } from 'lucide-react';
 
 interface Props {
-    /** Null for users with no queue permissions (vendors, auditors, ...). */
+    /** Every staff user's queue (empty without queue permissions); null only for a vendor. */
     workQueue: WorkQueueData | null;
     /** "3 items waiting on you" (server); null without a queue. The greeting lives in the top bar. */
     summary: string | null;
@@ -27,40 +20,23 @@ interface Props {
     queue: DashboardQueue | null;
     /** Kyle, 2026-11-24: the File Tracking board (File Tracking holders); null otherwise. */
     tracking: TrackingBoard | null;
+    /** HARDCOPY-1 (restored 2026-11-25): the reference box, for hardcopy.confirm holders; the lookup authorises itself. */
+    hardcopyLookup?: boolean;
 }
 
 const PRIMARY_ACTION = 'btn btn-primary btn-sm capitalize transition-transform active:scale-[0.97]';
 
 /**
- * Landing page for staff (Kyle, 2026-11-24: vendors land on their Requests
- * list; the greeting and clock sit in the top bar). What needs the user's
- * action comes first (the work queue), then the File Tracking board: where
- * every open file is and its days at each unit. Anyone else gets the places
- * they can go, driven by the shared `can` flags. Charts live on Analytics.
+ * Landing page for staff (vendors land on their Requests list; the greeting
+ * and clock sit in the top bar). Backlog, 2026-11-25: "Needs My Action" for
+ * every staff user, oldest first (empty when nothing is theirs); the hardcopy
+ * reference box for those who record hardcopies; then the File Tracking board.
  * Never shows permission or role names; the routes authorise again.
  */
-export default function Dashboard({ workQueue, summary, queue, tracking }: Props) {
+export default function Dashboard({ summary, queue, tracking, hardcopyLookup = false }: Props) {
     const { can } = usePage<SharedData>().props;
     // DASH-1: the one crumb is the page itself, from the named route.
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: route('dashboard') }];
-
-    const destinations: Destination[] = [
-        ...(can?.requests
-            ? [
-                  {
-                      title: 'My Requests',
-                      description: 'Start, continue and track your non-objection requests.',
-                      href: route('requests.index'),
-                      icon: FileText,
-                  },
-              ]
-            : []),
-        ...(can?.cases
-            ? [{ title: 'File Tracking', description: 'Find any case and see where it is.', href: route('cases.index'), icon: FolderOpen }]
-            : []),
-    ];
-    // The header's one primary action: the case list for staff, else the user's first destination.
-    const primary = destinations.at(-1) ?? null;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -72,52 +48,26 @@ export default function Dashboard({ workQueue, summary, queue, tracking }: Props
                     titleClassName="capitalize"
                     subtitle={summary ?? undefined}
                     actions={
-                        primary && (
-                            <Link href={primary.href} className={PRIMARY_ACTION}>
-                                <primary.icon className="size-4" aria-hidden="true" />
-                                {primary.title}
+                        can?.cases && (
+                            <Link href={route('cases.index')} className={PRIMARY_ACTION}>
+                                <FolderOpen className="size-4" aria-hidden="true" />
+                                Cases
                             </Link>
                         )
                     }
                 />
 
-                <div className={RISE[1]}>
-                    {queue && <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />}
-                    {/* For users without a queue: the places they can go, as cards; else the empty state. */}
-                    {!workQueue &&
-                        (destinations.length === 0 ? (
-                            <div className="card bg-base-100 border-base-300 border">
-                                <EmptyState message="There is nothing for you to work on here yet." />
-                            </div>
-                        ) : (
-                            <nav aria-label="Where to go">
-                                <ul className="grid gap-4 md:grid-cols-2">
-                                    {destinations.map((d) => (
-                                        <li key={d.title} className="h-full">
-                                            <Link
-                                                href={d.href}
-                                                className="card card-sm bg-base-100 border-base-300 h-full border transition-shadow duration-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.99]"
-                                            >
-                                                <span className="card-body flex-row items-center gap-3">
-                                                    <span
-                                                        className="bg-primary/10 text-primary rounded-field flex size-9 shrink-0 items-center justify-center"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <d.icon className="size-5" />
-                                                    </span>
-                                                    <span className="min-w-0 flex-1">
-                                                        <span className="card-title text-base capitalize">{d.title}</span>
-                                                        <span className="text-base-content/70 block text-sm">{d.description}</span>
-                                                    </span>
-                                                    <ChevronRight className="text-base-content/50 size-4 shrink-0" aria-hidden="true" />
-                                                </span>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </nav>
-                        ))}
-                </div>
+                {hardcopyLookup && (
+                    <div className={RISE[1]}>
+                        <ReferenceLookup />
+                    </div>
+                )}
+
+                {queue && (
+                    <div className={RISE[1]}>
+                        <WorkQueue queue={queue} casesHref={can?.cases ? route('cases.index') : null} />
+                    </div>
+                )}
 
                 {tracking && (
                     <div className={RISE[2]}>

@@ -66,3 +66,35 @@ export interface TrackingBoard {
     units: Record<string, string>;
     more_href: string | null;
 }
+
+/** Backlog, 2026-11-25: one of the gate's three ticks (StaffCaseDetail::gateTicks), for a case in review. */
+export interface GateTick {
+    key: string;
+    label: string;
+    done: boolean;
+    state: string;
+}
+
+/** Backlog, 2026-11-25: one row of the File Tracking page (FileTracking::rows plus the gate ticks). */
+export interface FileTrackingRow {
+    id: string;
+    reference: string | null;
+    item: string | null;
+    stage: string;
+    status_tone: StatusTone;
+    holders: { role: string; label: string; name: string | null }[];
+    holder_label: string | null;
+    at_stage_seconds: number | null;
+    at_stage: string;
+    since_submission_seconds: number | null;
+    since_submission: string;
+    times_returned: number;
+    /** Null outside In Review. */
+    gate: GateTick[] | null;
+}
+
+/** The opened row's stage timeline (the optional `timeline` prop). */
+export interface FileTrackingTimeline {
+    id: string;
+    stages: TrackingStage[];
+}

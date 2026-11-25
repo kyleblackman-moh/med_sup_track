@@ -478,6 +478,41 @@ final class StaffCaseDetail
     }
 
     /**
+     * Backlog (File Tracking page), 2026-11-25: the gate as three ticks for a
+     * case in review: technical, funding and hardcopy, each done or not with
+     * its state. No reviewers, reasons or dates (see gate() for the case page).
+     * Null outside IN_REVIEW.
+     *
+     * @return list<array{key: string, label: string, done: bool, state: string}>|null
+     */
+    public static function gateTicks(ProcurementCase $case): ?array
+    {
+        if ($case->status !== CaseStatus::IN_REVIEW) {
+            return null;
+        }
+
+        $ticks = array_map(function (ReviewDesk $desk) use ($case) {
+            $track = $case->{$desk->track()};
+
+            return [
+                'key' => $desk->value,
+                'label' => $desk->label(),
+                'done' => $track === $desk->positiveTrack(),
+                'state' => $track instanceof TrackStatus ? $track->label() : 'Not started',
+            ];
+        }, ReviewDesk::cases());
+
+        $ticks[] = [
+            'key' => 'hardcopy',
+            'label' => 'Hardcopy Received',
+            'done' => $case->hardcopyReceived(),
+            'state' => $case->hardcopyReceived() ? 'Received' : 'Not received',
+        ];
+
+        return $ticks;
+    }
+
+    /**
      * The outcome forms this user may use: one per desk where they hold the
      * permission (CasePolicy::act) AND an active assignment, while IN_REVIEW.
      * The same checks RecordReviewOutcome runs. Includes their current outcome.

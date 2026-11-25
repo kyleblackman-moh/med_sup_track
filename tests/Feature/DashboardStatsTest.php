@@ -86,9 +86,9 @@ it('no longer sends tiles, the pipeline or the gate tracker with the dashboard',
     expect($props)->not->toHaveKey('stats')
         ->and($props)->not->toHaveKey('pipeline')
         ->and($props)->not->toHaveKey('gateTracker')
-        ->and($props)->toHaveKeys(['workQueue', 'summary', 'requestTypes', 'queue', 'tracking'])
-        // Kyle, 2026-11-24: the greeting moved to the top bar; the hardcopy box and the drafts card left.
-        ->and($props)->not->toHaveKeys(['header', 'drafts', 'hardcopyLookup']);
+        ->and($props)->toHaveKeys(['workQueue', 'summary', 'requestTypes', 'queue', 'tracking', 'hardcopyLookup'])
+        // Kyle, 2026-11-24: the greeting moved to the top bar; the drafts card left.
+        ->and($props)->not->toHaveKeys(['header', 'drafts']);
 })->with([Role::Cmo->value, Role::PsOffice->value, Role::Technocrat->value]);
 
 it('never counts cases a role without case.view_all cannot see', function () {

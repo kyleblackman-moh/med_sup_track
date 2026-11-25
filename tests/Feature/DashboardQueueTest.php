@@ -274,8 +274,13 @@ it('trims the search and cuts it at 100 characters', function () {
     expect($queue['search'])->toBe(str_repeat('x', DashboardView::SEARCH_MAX));
 });
 
-it('sends no queue card to users without a queue', function (string $role) {
-    expect(queueProp($this, caseUser($role)))->toBeNull();
+// Backlog, 2026-11-25: every staff user gets the card; without queue permissions it is empty.
+it('sends an empty queue card to staff without queue permissions', function (string $role) {
+    $queue = queueProp($this, caseUser($role));
+
+    expect($queue['items'])->toBe([])
+        ->and($queue['total'])->toBe(0)
+        ->and(array_column($queue['filters'], 'key'))->toBe(['all']);
 })->with([Role::Auditor->value, Role::SystemAdmin->value]);
 
 // 3. Rows, tags and empty states ----------------------------------------------------------------

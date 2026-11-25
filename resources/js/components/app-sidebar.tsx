@@ -1,24 +1,9 @@
 import { useAppDrawer } from '@/components/app-shell';
-import { isViewActive, NavMain } from '@/components/nav-main';
+import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import {
-    Activity,
-    ChartColumn,
-    ClipboardList,
-    FileSignature,
-    FileText,
-    FolderOpen,
-    Landmark,
-    LayoutGrid,
-    Mail,
-    MessageSquareText,
-    Route,
-    ScrollText,
-    UsersRound,
-    X,
-} from 'lucide-react';
+import { Activity, ChartColumn, FileText, FolderOpen, LayoutGrid, MessageSquareText, Route, ScrollText, UsersRound, X } from 'lucide-react';
 import { AppLogoMark, SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -46,22 +31,14 @@ const casesNavItem: NavItem = {
     section: 'cases',
 };
 
-// 2026-11-24: shown when the server shares nav.tracking. /tracking is JSON only, so the
-// item opens the File Tracking board on the dashboard (same checks as the board).
+// Backlog, 2026-11-25: shown when the server shares nav.tracking; the File Tracking page.
+// (The old CMO shortcuts To Review, CAB, PS File and Drafts are now status chips on Cases.)
 const trackingNavItem: NavItem = {
     title: 'File Tracking',
-    url: '/dashboard#file-tracking',
+    url: '/tracking',
     icon: Route,
+    section: 'tracking',
 };
-
-// Office of the CMO shortcuts: saved views of the case register. Shown when the
-// server shares nav.cmo_office; the /cases routes authorise as usual.
-const cmoNavItems: NavItem[] = [
-    { title: 'To Review', url: '/cases?status=IN_REVIEW', icon: ClipboardList },
-    { title: 'CAB', url: '/cases?awaiting=funding', icon: Landmark },
-    { title: 'PS File', url: '/cases?status=WITH_PS', icon: FileSignature },
-    { title: 'Awaiting Letter', url: '/cases?status=NON_OBJECTION_GRANTED', icon: Mail },
-];
 
 // ADMIN-1: shown when the server shares nav.users.
 const usersNavItem: NavItem = { title: 'Users', url: '/admin/users', icon: UsersRound, section: 'admin' };
@@ -82,8 +59,7 @@ function longestPrefixItem(items: NavItem[], pageUrl: string): NavItem | undefin
  * it in drawer-side. White, below the top bar from lg: full width when open,
  * an icon rail with tooltips when collapsed. On phones an overlay above the
  * top bar with its own header row (pill tile, "Menu", close). One active item for the whole
- * sidebar: a matching CMO saved view, else the item for the server's
- * nav.section.
+ * sidebar: the item for the server's nav.section (the longest matching path in Administration).
  */
 export function AppSidebar() {
     const { can, nav, brand, openQueriesCount } = usePage<SharedData>().props;
@@ -97,27 +73,26 @@ export function AppSidebar() {
     const queriesItems: NavItem[] = nav?.queries
         ? [{ title: 'Queries', url: route('queries.index'), icon: MessageSquareText, section: 'queries', count: openQueriesCount ?? 0 }]
         : [];
+    // Backlog, 2026-11-25: Dashboard, Cases, File Tracking, Queries, Analytics; each item only when the
+    // server shares its flag (permissions, never roles). Vendors: Requests (their home) and Queries.
     const navItems = [
         // Kyle, 2026-11-24: vendors' home is Requests, so the server hides Dashboard for them.
         ...(nav?.dashboard === false ? [] : mainNavItems),
-        ...analyticsItems,
         ...(can?.requests ? [requestsNavItem] : []),
         ...(nav?.cases ? [casesNavItem] : []),
         ...(nav?.tracking ? [trackingNavItem] : []),
         ...queriesItems,
+        ...analyticsItems,
     ];
-    const showCmo = Boolean(nav?.cmo_office);
-    // IT-ADMIN: Health (the console home) and Audit, each shown only when the server shares its flag.
+    // Administration: Audit, then Users and Health (ICT), each shown only when the server shares its flag.
     const adminItems: NavItem[] = [
-        ...(nav?.it_health ? [{ title: 'Health', url: route('admin.dashboard'), icon: Activity }] : []),
-        ...(nav?.users ? [usersNavItem] : []),
         ...(nav?.audit_url ? [{ title: 'Audit', url: nav.audit_url, icon: ScrollText }] : []),
+        ...(nav?.users ? [usersNavItem] : []),
+        ...(nav?.it_health ? [{ title: 'Health', url: route('admin.dashboard'), icon: Activity }] : []),
     ];
 
-    const activeView = showCmo ? cmoNavItems.find((item) => isViewActive(item.url, page.url)) : undefined;
     const activeAdmin = nav?.section === 'admin' || nav?.section === 'audit' ? longestPrefixItem(adminItems, page.url) : undefined;
-    const activeUrl =
-        activeView?.url ?? activeAdmin?.url ?? navItems.find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
+    const activeUrl = activeAdmin?.url ?? navItems.find((item) => item.section !== undefined && item.section === nav?.section)?.url ?? null;
 
     return (
         <aside className="bg-base-100 border-base-300 is-drawer-close:w-16 flex min-h-full w-64 flex-col border-r motion-safe:transition-[width] motion-safe:duration-200">
@@ -139,7 +114,6 @@ export function AppSidebar() {
             </Link>
             <nav aria-label="Main" className="flex grow flex-col">
                 <NavMain items={navItems} activeUrl={activeUrl} />
-                {showCmo && <NavMain label="Office of the CMO" items={cmoNavItems} activeUrl={activeUrl} />}
                 <NavMain label="Administration" items={adminItems} activeUrl={activeUrl} />
             </nav>
             <div className="border-base-300 border-t p-2">

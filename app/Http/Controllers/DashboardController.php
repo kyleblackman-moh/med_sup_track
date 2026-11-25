@@ -41,8 +41,10 @@ class DashboardController extends Controller
         $filter = (string) $request->query('filter', '');
         $search = mb_substr(trim((string) $request->query('q', '')), 0, DashboardView::SEARCH_MAX);
         $queue = null;
+        // Backlog, 2026-11-25: "Needs My Action" for every staff user; one with no queue
+        // permission gets an empty queue (its empty state), never the old destination cards.
         $loadQueue = function () use (&$queue, $user) {
-            return $queue ??= ['value' => WorkQueue::for($user)];
+            return $queue ??= ['value' => WorkQueue::for($user) ?? ($user->isVendor() ? null : ['groups' => [], 'items' => [], 'truncated' => false])];
         };
 
         return Inertia::render('dashboard', [
@@ -51,6 +53,9 @@ class DashboardController extends Controller
             'requestTypes' => fn () => DashboardView::requestTypes($loadQueue()['value']),
             'queue' => fn () => DashboardView::queue($user, $loadQueue()['value'], $filter, $search),
             'tracking' => fn () => self::tracking($user),
+            // Backlog, 2026-11-25 (HARDCOPY-1 restored): the "Hardcopy received" reference box for
+            // hardcopy.confirm holders (show/hide only; the lookup and the mark authorise).
+            'hardcopyLookup' => ! $user->isVendor() && $user->can(Permission::HardcopyConfirm->value),
         ]);
     }
 
