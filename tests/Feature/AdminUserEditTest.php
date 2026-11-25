@@ -257,9 +257,9 @@ it('sends the detail page the actions the admin may take', function () {
     $disabled = pageProps($this->actingAs($admin)->get(route('admin.users.show', caseUser(Role::Cmo, ['status' => User::STATUS_DISABLED]))))['abilities'];
     $pending = pageProps($this->actingAs($admin)->get(route('admin.users.show', pendingUser())))['abilities'];
 
-    expect($active)->toBe(['change_role' => true, 'disable' => true, 'enable' => false, 'resend_activation' => false, 'mfa_reset' => true])
-        ->and($disabled)->toBe(['change_role' => true, 'disable' => false, 'enable' => true, 'resend_activation' => false, 'mfa_reset' => true])
-        ->and($pending)->toBe(['change_role' => true, 'disable' => true, 'enable' => false, 'resend_activation' => true, 'mfa_reset' => true]);
+    expect($active)->toBe(['change_role' => true, 'update_details' => true, 'disable' => true, 'enable' => false, 'resend_activation' => false, 'mfa_reset' => true])
+        ->and($disabled)->toBe(['change_role' => true, 'update_details' => true, 'disable' => false, 'enable' => true, 'resend_activation' => false, 'mfa_reset' => true])
+        ->and($pending)->toBe(['change_role' => true, 'update_details' => true, 'disable' => true, 'enable' => false, 'resend_activation' => true, 'mfa_reset' => true]);
 });
 
 it('answers 404 for an action on a user that does not exist', function () {

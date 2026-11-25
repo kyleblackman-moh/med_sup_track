@@ -439,9 +439,9 @@ it('shows review progress after the case is sent', function () {
     expect($props['can']['forward_for_review'])->toBeFalse()
         ->and($props['reviewers'])->toBeNull()
         ->and($props['gate']['rows'])->toBe([
-            ['key' => 'technical', 'label' => 'Technical Review', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($tech)], ...$none],
-            ['key' => 'funding', 'label' => 'Funding Confirmation', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($cab)], ...$none],
-            ['key' => 'hardcopy', 'label' => 'Hardcopy Received', 'done' => false, 'state' => 'Not received', 'reviewers' => [], ...$none],
+            ['key' => 'technical', 'label' => 'Technical Review', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($tech)], 'history' => [], ...$none],
+            ['key' => 'funding', 'label' => 'Funding Confirmation', 'done' => false, 'state' => 'Pending', 'reviewers' => [$pending($cab)], 'history' => [], ...$none],
+            ['key' => 'hardcopy', 'label' => 'Hardcopy Received', 'done' => false, 'state' => 'Not received', 'reviewers' => [], 'history' => [], ...$none],
         ]);
 
     $this->actingAs($cmo)->post(route('cases.hardcopy.store', $case), ['received_on' => CarbonImmutable::now('America/Port_of_Spain')->toDateString()])

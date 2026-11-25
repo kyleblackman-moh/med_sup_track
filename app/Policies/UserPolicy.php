@@ -68,7 +68,7 @@ class UserPolicy
         return $this->viewAny($actor) && $actor->can(Permission::UsersUpdateRole->value);
     }
 
-    /** Never your own role.
+    /** Never your own role. */
     public function changeRole(User $actor, User $user): bool
     {
         return $this->viewAny($actor) && $actor->can(Permission::UsersUpdateRole->value) && ! $actor->is($user);
