@@ -69,8 +69,11 @@ final class RequestSections
      * @var array<string, list<string>> section => the types that show it
      */
     public const SECTIONS_FOR_TYPES = [
-        'existing_arrangement' => [ProcurementTypeProfile::TENDER_VARIATION],
+        // Kyle, 2026-11-25: Existing Approved Arrangement shows for every type again (as the spec).
     ];
+
+    /** Kyle, 2026-11-25: types whose variation details are always shown and required, whatever the previous-request answer. */
+    private const ALWAYS_VARIATION_DETAILS = [ProcurementTypeProfile::TENDER_VARIATION];
 
     /**
      * What each type requires beyond the rules every type shares.
@@ -186,8 +189,8 @@ final class RequestSections
     public const FIELDS_FOR_TYPES = [
         'tender_price' => [ProcurementTypeProfile::TENDER_EXCESS],
         'previous_price' => [ProcurementTypeProfile::TENDER_EXCESS],
-        // Kyle, 2026-11-24: shown in Existing Approved Arrangement, which is Tender Variation only.
-        'tender_issue_explanation' => [ProcurementTypeProfile::TENDER_VARIATION],
+        // Kyle, 2026-11-25: tender_issue_explanation lives in Existing Approved Arrangement, which
+        // shows for every type again, so it is no longer limited.
     ];
 
     /* Kyle, 2026-11-23: the quantity and date rules. ":n" and ":x" are filled with display quantities. */
@@ -336,8 +339,10 @@ final class RequestSections
     }
 
     /**
-     * V2-5: the variation section depends on the previous-request answer only, never on the type.
-     * Kyle, 2026-11-24: Existing Approved Arrangement shows for Tender Variation only (SECTIONS_FOR_TYPES).
+     * V2-5: the variation section shows when the previous-request answer is Yes.
+     * Kyle, 2026-11-25: a Tender Variation always shows it (and so always
+     * requires it), whatever the answer. Existing Approved Arrangement shows for
+     * every type again (SECTIONS_FOR_TYPES is empty).
      */
     public static function isVisible(string $code, string $section, ?bool $previousRequest = null): bool
     {
@@ -345,7 +350,11 @@ final class RequestSections
             return in_array($code, self::SECTIONS_FOR_TYPES[$section], true);
         }
 
-        return ! in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true) || $previousRequest === true;
+        if (in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true)) {
+            return $previousRequest === true || in_array($code, self::ALWAYS_VARIATION_DETAILS, true);
+        }
+
+        return true;
     }
 
     /**

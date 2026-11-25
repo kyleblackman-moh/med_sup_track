@@ -92,12 +92,12 @@ it('carries every visible section in order, every value and the computed figures
     $print = pfProp($this->actingAs($vendor)->get(route('requests.print', $case))->assertOk());
     $text = pfText($print);
 
-    // 2026-11-24: Existing Approved Arrangement is Tender Variation only (its orders are discarded at submit).
-    expect(array_column($print['sections'], 'key'))->toBe(['request_type', 'item_tender', 'awarded_supplier', 'stock', 'quotation_comparison', 'documents'])
-        ->and(array_column($print['sections'], 'number'))->toBe([1, 2, 3, 4, 5, 6])
+    // 2026-11-25: Existing Approved Arrangement shows for every type, with its orders.
+    expect(array_column($print['sections'], 'key'))->toBe(['request_type', 'item_tender', 'awarded_supplier', 'existing_arrangement', 'stock', 'quotation_comparison', 'documents'])
+        ->and(array_column($print['sections'], 'number'))->toBe([1, 2, 3, 4, 5, 6, 7])
         ->and($print['header'])->toMatchArray(['type' => $print['type_label'], 'printed_at' => '23 Nov 2026, 10:30 pm'])
         // Values as filled.
-        ->and($text)->toContain('Infant feeding tube, size 6Fr')->toContain('Supplier D')->not->toContain('PO-1001')
+        ->and($text)->toContain('Infant feeding tube, size 6Fr')->toContain('Supplier D')->toContain('PO-1001')
         // The typed % awarded, days on hand, Subtotal / VAT / Total Price, total cost.
         ->and($text)->toContain('75.00%')->toContain('1,800')->toContain('Days on Hand')
         ->toContain('Subtotal')->toContain('$4,473.00')->toContain('$559.13')->toContain('$5,032.13');

@@ -6,6 +6,7 @@ use App\Models\CaseRequisition;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
 use App\Submissions\Exceptions\SubmissionNotReady;
+use App\Submissions\ProcurementTypeProfile;
 use App\Submissions\RequestSections;
 use App\Submissions\SubmissionReadiness;
 use App\Submissions\SubmitCase;
@@ -179,7 +180,7 @@ it('still saves a draft with a quantity above the quantity requested', function 
 
 it('refuses a date ordered after today and accepts today', function () {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-23 15:00', 'UTC'));
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     frOrder($case, $vendor, ['ordered_on' => '2026-11-24', 'delivery_state' => 'NOT_DELIVERED', 'quantity_delivered' => '0', 'delivery_date' => null]);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.ordered_on', 'Order Row 1: Date ordered must be today or earlier.');
@@ -189,7 +190,7 @@ it('refuses a date ordered after today and accepts today', function () {
 });
 
 it('uses the Port of Spain date for today, at 23:30 UTC and just after midnight UTC', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     // 23:30 UTC = 19:30 in Port of Spain, the same date: the 24th is still the future.
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-23 23:30', 'UTC'));
@@ -206,7 +207,7 @@ it('uses the Port of Spain date for today, at 23:30 UTC and just after midnight 
 });
 
 it('refuses a quantity delivered above the quantity ordered', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     frOrder($case, $vendor, ['quantity_ordered' => '3000', 'quantity_delivered' => '3001']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.quantity_delivered', 'Order Row 1: Quantity delivered cannot be more than quantity ordered.');
@@ -216,14 +217,14 @@ it('refuses a quantity delivered above the quantity ordered', function () {
 });
 
 it('requires the delivery status on an entered order row', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
     frOrder($case, $vendor, ['delivery_state' => null]);
 
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_state', 'Order Row 1: Delivery Status is required.');
 });
 
 it('requires the delivery date unless the status is Not delivered', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     frOrder($case, $vendor, ['delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => null]);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery Date is required.');
@@ -234,7 +235,7 @@ it('requires the delivery date unless the status is Not delivered', function () 
 
 it('refuses a delivery date after today (Port of Spain) and accepts today', function () {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-24 02:00', 'UTC')); // 22:00 on the 23rd locally
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     frOrder($case, $vendor, ['delivery_date' => '2026-11-24']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery date must be today or earlier.');
@@ -244,7 +245,7 @@ it('refuses a delivery date after today (Port of Spain) and accepts today', func
 });
 
 it('refuses a delivery date before the date ordered and accepts the same day', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     frOrder($case, $vendor, ['ordered_on' => '2026-06-01', 'delivery_date' => '2026-05-31']);
     expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_date', 'Order Row 1: Delivery date cannot be before the date ordered.');
@@ -254,7 +255,7 @@ it('refuses a delivery date before the date ordered and accepts the same day', f
 });
 
 it('checks the delivery status against the quantities', function (string $state, string $delivered, ?string $message) {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
     frOrder($case, $vendor, [
         'quantity_ordered' => '3000',
         'quantity_delivered' => $delivered,
@@ -277,36 +278,29 @@ it('checks the delivery status against the quantities', function (string $state,
 ]);
 
 it('no longer accepts the old delivery date and free-text status on the request form', function () {
-    [$case, $vendor] = frDraft('TENDER_VARIATION'); // the only type that shows orders (2026-11-24)
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
 
     expect(fn () => frOrder($case, $vendor, ['delivery_eta' => '2026-07-01', 'delivery_status' => 'Delivered']))
         ->toThrow(ValidationException::class);
 });
 
-// Kyle, 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
-it('shows Existing Approved Arrangement for Tender Variation only', function (string $code, bool $shown) {
-    expect(in_array('existing_arrangement', array_column(RequestSections::visible($code, previousRequest: true), 'key'), true))->toBe($shown)
-        ->and(in_array('tender_issue_explanation', RequestSections::hiddenFields($code), true))->toBe(! $shown);
-})->with([
-    'AD_HOC_EMERGENCY' => ['AD_HOC_EMERGENCY', false],
-    'AD_HOC_TENDER_UNABLE' => ['AD_HOC_TENDER_UNABLE', false],
-    'AD_HOC_NOT_AWARDED' => ['AD_HOC_NOT_AWARDED', false],
-    'TENDER_EXCESS' => ['TENDER_EXCESS', false],
-    'TENDER_VARIATION' => ['TENDER_VARIATION', true],
-    'no type yet' => ['NOT_SELECTED', false],
-]);
+// Kyle, 2026-11-25: Existing Approved Arrangement (and its tender issues text) shows for every type again.
+it('shows Existing Approved Arrangement for every type', function (string $code) {
+    expect(in_array('existing_arrangement', array_column(RequestSections::visible($code, previousRequest: true), 'key'), true))->toBeTrue()
+        ->and(RequestSections::hiddenFields($code))->not->toContain('tender_issue_explanation');
+})->with([...ProcurementTypeProfile::REQUEST_TYPES, 'NOT_SELECTED']);
 
-it('does not check orders on a type that hides them, and discards them at submit', function () {
+it('checks orders on every type and keeps them at submit', function () {
     [$case, $vendor] = readyDraft('AD_HOC_TENDER_UNABLE');
-    frOrder($case, $vendor, ['quantity_delivered' => '999999']); // broken, but hidden for this type
+    frOrder($case, $vendor, ['quantity_delivered' => '999999']);
 
-    expect(collect(array_keys(frErrors($case)))->filter(fn ($k) => str_starts_with($k, 'purchase_orders')))->toBeEmpty();
+    expect(frErrors($case))->toHaveKey('purchase_orders.0.quantity_delivered');
 
+    frOrder($case, $vendor, ['quantity_delivered' => '100']);
     app(SubmitCase::class)->handle($case, $vendor);
 
-    expect(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(0)
-        ->and(json_decode(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->value('metadata'), true))
-        ->toBe(['reason' => 'section_hidden', 'counts' => ['variation_details' => 0, 'existing_arrangement' => 1]]);
+    expect(DB::table('case_purchase_orders')->where('case_id', $case->id)->count())->toBe(1)
+        ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->exists())->toBeFalse();
 });
 
 it('keeps and checks orders on a Tender Variation', function () {
@@ -422,10 +416,14 @@ it('keeps hidden prices in the draft and clears them at submit, auditing names o
     $after = $prices();
     expect($after->tender_price !== null)->toBe($kept)->and($after->previous_price !== null)->toBe($kept);
 
-    // 2026-11-24: the tender issues text is cleared too outside Tender Variation (Existing Approved Arrangement).
-    $fields = [...($kept ? [] : ['tender_price', 'previous_price']), ...($code === 'TENDER_VARIATION' ? [] : ['tender_issue_explanation'])];
+    // 2026-11-25: the tender issues text shows for every type again, so only the prices are cleared.
     $audit = DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftFieldsDiscarded->value)->first();
-    expect(json_decode($audit->metadata, true))->toBe(['reason' => 'field_hidden', 'fields' => $fields])
+    if ($kept) {
+        expect($audit)->toBeNull();
+
+        return;
+    }
+    expect(json_decode($audit->metadata, true))->toBe(['reason' => 'field_hidden', 'fields' => ['tender_price', 'previous_price']])
         ->and((string) $audit->metadata)->not->toContain('1.25')->not->toContain('delivered part');
 })->with([
     'AD_HOC_EMERGENCY' => ['AD_HOC_EMERGENCY', false],

@@ -188,17 +188,18 @@ it('saves the rows through the same route and throttle as the award rows', funct
 
 // 4. Shown only when the answer is Yes ------------------------------------------------------------
 
-it('shows the section only when the answer is Yes, whatever the type', function (string $code, ?bool $answer) {
+it('shows the section when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
     [$case, $vendor] = newDraft($code);
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'variation_rows' => [variationEntry()]]);
 
     $props = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk());
     $section = collect($props['form']['sections'])->firstWhere('key', 'variation_details');
+    $shown = $answer === true || $code === 'TENDER_VARIATION'; // Kyle, 2026-11-25
 
-    expect($section['visible'])->toBe($answer === true)
-        ->and($section['number'])->toBe($answer === true ? 3 : null)
+    expect($section['visible'])->toBe($shown)
+        ->and($section['number'])->toBe($shown ? 3 : null)
         ->and($section['label'])->toBe('Details of Variation Requested')
-        ->and(collect($props['request_sections'])->pluck('key')->contains('variation_details'))->toBe($answer === true)
+        ->and(collect($props['request_sections'])->pluck('key')->contains('variation_details'))->toBe($shown)
         // The rows are kept in the draft while hidden.
         ->and($props['case']['variation_rows'])->toHaveCount(1);
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
@@ -263,8 +264,15 @@ it('submits a Yes with a complete row and keeps the rows', function () {
         ->and(DB::table('audit_logs')->where('case_id', $case->id)->where('action', AuditAction::CaseDraftRowsDiscarded->value)->exists())->toBeFalse();
 });
 
-it('submits a No with no rows', function (string $code) {
+it('submits a No with no rows, except a Tender Variation', function (string $code) {
     [$case, $vendor] = readyWithAnswer($code, false, []);
+
+    if ($code === 'TENDER_VARIATION') {
+        // Kyle, 2026-11-25: a Tender Variation always needs its variation details.
+        expect(fn () => app(SubmitCase::class)->handle($case, $vendor))->toThrow(SubmissionNotReady::class);
+
+        return;
+    }
 
     app(SubmitCase::class)->handle($case, $vendor);
 
@@ -272,7 +280,7 @@ it('submits a No with no rows', function (string $code) {
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('discards hidden rows at submit when the answer is No, and audits the count only', function () {
-    [$case, $vendor] = readyWithAnswer('TENDER_VARIATION', false, [variationEntry(), ['variation_type' => 'Partial']]);
+    [$case, $vendor] = readyWithAnswer('TENDER_EXCESS', false, [variationEntry(), ['variation_type' => 'Partial']]);
 
     app(SubmitCase::class)->handle($case, $vendor);
 
@@ -282,13 +290,15 @@ it('discards hidden rows at submit when the answer is No, and audits the count o
         ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2);
 });
 
-it('no longer ties the variation section to the Tender Variation type', function () {
-    // A Tender Variation that answers No needs no variation row; an Excess that answers Yes does.
+it('always needs the variation details on a Tender Variation, and on any type that answers Yes', function () {
+    // Kyle, 2026-11-25: a Tender Variation needs a row whatever the answer; an Excess only when it answers Yes.
     [$variation] = readyWithAnswer('TENDER_VARIATION', false, []);
-    [$excess] = readyWithAnswer('TENDER_EXCESS', true, []);
+    [$excessYes] = readyWithAnswer('TENDER_EXCESS', true, []);
+    [$excessNo] = readyWithAnswer('TENDER_EXCESS', false, []);
 
-    expect(variationKeys($variation))->toBe([])
-        ->and(variationKeys($excess))->toBe(['variation_rows']);
+    expect(variationKeys($variation))->toBe(['variation_rows'])
+        ->and(variationKeys($excessYes))->toBe(['variation_rows'])
+        ->and(variationKeys($excessNo))->toBe([]);
 });
 
 // 6. The form (static) --------------------------------------------------------------------------

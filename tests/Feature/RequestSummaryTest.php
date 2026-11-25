@@ -81,8 +81,8 @@ it('lists the type\'s visible sections in form order, numbered among the visible
     expect(array_column($summary['sections'], 'key'))->toBe(array_column($visible, 'key'))
         ->and(array_column($summary['sections'], 'label'))->toBe(array_column($visible, 'label'))
         ->and(array_column($summary['sections'], 'number'))->toBe(range(1, count($visible)))
-        // 2026-11-24: Existing Approved Arrangement is Tender Variation only.
-        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 8 : 6)
+        // 2026-11-25: Existing Approved Arrangement shows for every type; variation details on a Tender Variation.
+        ->and(count($visible))->toBe($code === 'TENDER_VARIATION' ? 8 : 7)
         ->and($summary['sections'][0]['key'])->toBe('request_type')
         ->and($summary['type_label'])->toBe(procurementTypeByCode($code)->name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
@@ -151,7 +151,7 @@ it('says "None entered" for a Yes with no variation rows', function () {
 });
 
 it('never shows the variation rows when the answer is not Yes, even if hidden rows exist', function (?bool $answer) {
-    [$case, $vendor] = newDraft('TENDER_VARIATION');
+    [$case, $vendor] = newDraft('TENDER_EXCESS'); // a Tender Variation always shows them (2026-11-25)
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'variation_rows' => [variationEntry()]]);
     $summary = summaryOf($case, $vendor);
 
@@ -168,7 +168,7 @@ it('is null for a case that is not on the request form', function () {
 // 2. Awards and orders never depend on the tender outcome ---------------------------------
 
 it('shows awards and orders without a tender outcome, and never the outcome', function () {
-    [$case, $vendor] = summaryDraft('TENDER_VARIATION'); // 2026-11-24: orders show for Tender Variation only
+    [$case, $vendor] = summaryDraft('TENDER_VARIATION');
     expect(DB::table('case_requisitions')->where('case_id', $case->id)->value('tender_outcome'))->toBeNull();
 
     $summary = summaryOf($case, $vendor);
@@ -187,7 +187,7 @@ it('says "None entered" for a table with no rows and a dash for empty optional v
     $summary = summaryOf($case, $vendor);
 
     expect(summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers')['empty'])->toBe(RequestSummary::NONE)
-        ->and(summarySection($summary, 'existing_arrangement'))->toBeNull() // 2026-11-24: Tender Variation only
+        ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['empty'])->toBe(RequestSummary::NONE) // 2026-11-25: every type
         ->and(summaryTable($summary, 'quotation_comparison', 'Quotations')['rows'])->toBe([])
         ->and(summaryFields($summary, 'item_tender')['Strength'])->toBe(Display::EMPTY)
         ->and(summaryFields($summary, 'stock')['Days on Hand'])->toBe(Display::EMPTY);
@@ -237,7 +237,7 @@ it('computes and formats every figure on the server', function () {
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
         ->toBe([['75.00%', '$2,625.00', '$1.25'], ['25.00%', '$910.00', '$1.30']])
-        ->and(summarySection($summary, 'existing_arrangement'))->toBeNull() // 2026-11-24: Tender Variation only
+        ->and(array_column(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'], 'label'))->toBe(['Order Row 1']) // 2026-11-25: every type
         // 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
         ->and(summaryFields($summary, 'stock'))->toMatchArray([
             'Average Monthly Consumption' => '500', 'Quantity on Hand' => '200.5', 'Days on Hand' => '12', 'No Stock on Hand' => 'No',

@@ -136,8 +136,7 @@ function rlRivaroxaban(): array
             'quantity_requested' => '29988', 'unit_of_measure' => 'Each',
             'tender_reference' => 'NIPDEC Tender 2023/2025',
             'tender_cycle_start' => '2023-10-01', 'tender_cycle_end' => '2025-09-30',
-            // Hidden for Ad Hoc (Tender Variation only): never printed.
-            'tender_issue_explanation' => 'Hidden issues text that must not print.',
+            'tender_issue_explanation' => 'The awarded suppliers were unable to supply the full tender quantity.',
             'stock_location' => 'the Central Stores', 'average_monthly_consumption' => '2499', 'quantity_on_hand' => '1200',
             'rfq_audience' => 'ALL_REGISTERED',
         ],
@@ -226,8 +225,9 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
         ->toContain('The lead time for delivery is thirty (30) days.')
         ->toContain('Quotation Comparison Sheet')->toContain('$68,972.40')
         ->toContain('/Attach')->toContain('bids.pdf (Bids)')
-        // Hidden for Ad Hoc: the issues text, the orders (Tender Variation only), the variation table, the tender price.
-        ->not->toContain('Hidden issues text')->not->toContain('Orders were placed')
+        // The issues text shows for every type (2026-11-25). No orders entered: no orders table.
+        // Hidden for Ad Hoc: the variation table and the tender price.
+        ->toContain('The awarded suppliers were unable to supply the full tender quantity.')->not->toContain('Orders were placed')
         ->not->toContain('Variation Type')->not->toContain('tender unit cost');
 });
 

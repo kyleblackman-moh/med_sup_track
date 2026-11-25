@@ -605,10 +605,10 @@ The vendor's request letter is generated as a PDF from the saved application (`A
 | Opening sentence | Quantity requested, unit, item, DIN; Variation: variation types | All (wording per kind) |
 | Award sentence | Tender cycle start and end years; number of distinct awarded suppliers | All, when there are award rows |
 | Award table | Awarded Supplier rows: supplier, manufacturer (country of origin in brackets), brand, quantity awarded + unit, % awarded (whole number), unit cost, total (quantity × unit cost) | All, when there are award rows |
-| Orders sentence and table | Existing Approved Arrangement rows: supplier (from the award row), PO number, quantity ordered, date ordered, quantity delivered, outstanding (ordered − delivered), delivery status ("Delivered" + delivery date when fully delivered) | Tender Variation only (the section is Variation only) |
-| Issues paragraph | Issues affecting the tender quantity | Tender Variation only (the field is Variation only) |
+| Orders sentence and table | Existing Approved Arrangement rows: supplier (from the award row), PO number, quantity ordered, date ordered, quantity delivered, outstanding (ordered − delivered), delivery status ("Delivered" + delivery date when fully delivered) | All, when there are orders |
+| Issues paragraph | Issues affecting the tender quantity | All, when entered |
 | Clinical note | Clinical note | All |
-| Variation table | Details of Variation Requested: type, existing detail, proposed detail, effective date / application P.O. | Tender Variation, when the previous-request answer is Yes |
+| Variation table | Details of Variation Requested: type, existing detail, proposed detail, effective date / application P.O. | Tender Variation (always shown and required on the form, whatever the previous-request answer) |
 | Stock paragraph | Quantity on hand (or "no stock on hand"), stock location, average monthly consumption | Ad Hoc, Tender Excess |
 | Expiry table | Stock batches: expiry date (and quantity, where an old batch has one) | Ad Hoc, Tender Excess |
 | RFQ paragraph | RFQ sent to; number of quotations with a supplier | Ad Hoc, Tender Excess |

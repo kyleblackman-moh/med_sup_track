@@ -46,12 +46,11 @@ it('lists every section in form order, numbering only the visible ones', functio
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer]);
     $form = formProp($this, $case, $vendor);
 
-    // V2-5: Details of Variation Requested shows only when the answer is Yes, whatever the type.
-    // 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
-    $variation = $answer === true;
-    $arrangement = $code === 'TENDER_VARIATION';
+    // V2-5: Details of Variation Requested shows when the answer is Yes; Kyle, 2026-11-25: always
+    // on a Tender Variation. Existing Approved Arrangement shows for every type.
+    $variation = $answer === true || $code === 'TENDER_VARIATION';
     $visible = [
-        'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => $arrangement,
+        'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => true,
         'stock' => true, 'quotation_comparison' => true, 'documents' => true,
     ];
     $n = 0;
@@ -96,7 +95,7 @@ it('gives an empty draft incomplete required sections and optional ones per type
     expect(collect($sections)->map(fn ($s) => $s['state'])->all())->toBe([
         'request_type' => 'incomplete', // no cycle dates, the question not answered
         'item_tender' => 'incomplete',
-        'variation_details' => 'optional', // hidden until the answer is Yes
+        'variation_details' => 'incomplete', // 2026-11-25: always shown and required on a Tender Variation
         'awarded_supplier' => 'incomplete',
         'existing_arrangement' => 'optional',
         'stock' => 'optional',
@@ -113,7 +112,7 @@ it('marks the complete sections complete', function () {
         'request_type' => 'complete',
         'item_tender' => 'complete',
         'awarded_supplier' => 'complete',
-        // 2026-11-24: Existing Approved Arrangement is hidden outside Tender Variation.
+        'existing_arrangement' => 'complete', // 2026-11-25: every type; the draft has an order
         'stock' => 'complete',
         'quotation_comparison' => 'complete',
         'documents' => 'complete',

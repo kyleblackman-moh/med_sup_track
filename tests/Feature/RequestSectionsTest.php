@@ -96,14 +96,15 @@ function withRequisition(array $payload, array $fields): array
 
 // 1. Visible sections ------------------------------------------------------------
 
-it('shows Details of Variation Requested only when the previous-request answer is Yes, for every type', function (string $code, ?bool $answer) {
-    // 2026-11-24: Existing Approved Arrangement shows for Tender Variation only.
-    $arrangement = $code === 'TENDER_VARIATION';
+it('shows Details of Variation Requested when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
+    // 2026-11-25: Existing Approved Arrangement shows for every type; a Tender Variation
+    // always shows its variation details, whatever the answer.
+    $variation = $answer === true || $code === 'TENDER_VARIATION';
     $expected = array_values(array_filter([
-        'request_type', 'item_tender', $answer === true ? 'variation_details' : null, 'awarded_supplier',
-        $arrangement ? 'existing_arrangement' : null, 'stock', 'quotation_comparison', 'documents',
+        'request_type', 'item_tender', $variation ? 'variation_details' : null, 'awarded_supplier',
+        'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
     ]));
-    $discarded = array_values(array_filter([$answer === true ? null : 'variation_details', $arrangement ? null : 'existing_arrangement']));
+    $discarded = $variation ? [] : ['variation_details'];
 
     expect(array_column(RequestSections::visible($code, true, $answer), 'key'))->toBe($expected)
         ->and(RequestSections::discardedAtSubmit($code, $answer))->toBe($discarded)
@@ -117,10 +118,11 @@ it('marks a section optional exactly when the type requires nothing in it', func
     expect($optional['request_type'])->toBeFalse()
         ->and($optional['item_tender'])->toBeFalse()
         ->and($optional['awarded_supplier'])->toBe(! $r['awards'])
-        ->and($optional['existing_arrangement'] ?? null)->toBe($code === 'TENDER_VARIATION' ? true : null) // 2026-11-24: Tender Variation only
+        ->and($optional['existing_arrangement'])->toBeTrue() // 2026-11-25: every type, always optional
         ->and($optional['stock'])->toBe(! $r['stock'])
         ->and($optional['quotation_comparison'])->toBe(! $r['quotes'])
-        ->and($optional['variation_details'] ?? null)->toBeNull() // hidden until the answer is Yes
+        // Hidden until the answer is Yes; always shown (and required) for a Tender Variation.
+        ->and($optional['variation_details'] ?? null)->toBe($code === 'TENDER_VARIATION' ? false : null)
         ->and(collect(RequestSections::visible($code, true, true))->pluck('optional', 'key')['variation_details'])->toBeFalse();
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
@@ -137,15 +139,12 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
         ->and(collect($byKey['request_type']['issues'])->pluck('key')->all())
         ->toContain('requisition.tender_cycle_start', 'requisition.tender_cycle_end', 'previous_request_in_cycle')
         ->and($byKey['item_tender']['complete'])->toBeFalse()
-        ->and($byKey->has('existing_arrangement'))->toBe($code === 'TENDER_VARIATION'); // 2026-11-24
-    if ($code === 'TENDER_VARIATION') {
-        // Optional and empty: optional, never complete.
-        expect($byKey['existing_arrangement']['complete'])->toBeFalse()
-            ->and($byKey['existing_arrangement']['state'])->toBe('optional');
-    }
+        // 2026-11-25: every type. Optional and empty: optional, never complete.
+        ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
+        ->and($byKey['existing_arrangement']['state'])->toBe('optional');
 
-    // V2-5: unanswered, so Details of Variation Requested is hidden for every type.
-    expect($byKey->has('variation_details'))->toBeFalse();
+    // Unanswered: Details of Variation Requested is hidden, except on a Tender Variation (always shown).
+    expect($byKey->has('variation_details'))->toBe($code === 'TENDER_VARIATION');
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('puts every readiness key in a section', function (string $key, string $section) {
@@ -221,10 +220,8 @@ it('needs every saved row complete, whatever the type', function (string $code, 
         saveDraft($case, $vendor, $orders($case));
     }
 
-    // 2026-11-24: orders are checked on a Tender Variation only (hidden for the other types).
-    $checked = array_values(array_filter($keys, fn (string $k) => $code === 'TENDER_VARIATION' || ! str_starts_with($k, 'purchase_orders')));
-
-    expect(v2Keys(v2Report($case)))->toBe($checked);
+    // 2026-11-25: orders are checked on every type again.
+    expect(v2Keys(v2Report($case)))->toBe($keys);
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with([
     'a partly filled award row' => [fn ($p) => [...$p, 'tender_awards' => [...$p['tender_awards'], ['brand' => 'Generic Brand']]],
         ['tender_awards.2.supplier_name', 'tender_awards.2.quantity_awarded', 'tender_awards.2.unit_cost']],
@@ -411,24 +408,26 @@ it('refuses a draft that was submitted after it was loaded', function () {
  * (and nothing entered) is "optional", never complete.
  */
 const SECTION_STATES_WHEN_EMPTY = [
+    // 2026-11-25: Existing Approved Arrangement shows (optional) for every type; a Tender
+    // Variation always shows its variation details, required.
     'AD_HOC_EMERGENCY' => [
         'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional',
-        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+        'existing_arrangement' => 'optional', 'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'AD_HOC_TENDER_UNABLE' => [
         'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete',
-        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+        'existing_arrangement' => 'optional', 'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'AD_HOC_NOT_AWARDED' => [
         'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'optional',
-        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
+        'existing_arrangement' => 'optional', 'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'incomplete',
     ],
     'TENDER_EXCESS' => [
         'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete',
-        'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'optional',
+        'existing_arrangement' => 'optional', 'stock' => 'incomplete', 'quotation_comparison' => 'incomplete', 'documents' => 'optional',
     ],
     'TENDER_VARIATION' => [
-        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'awarded_supplier' => 'incomplete',
+        'request_type' => 'incomplete', 'item_tender' => 'incomplete', 'variation_details' => 'incomplete', 'awarded_supplier' => 'incomplete',
         'existing_arrangement' => 'optional', 'stock' => 'optional', 'quotation_comparison' => 'optional',
         'documents' => 'optional',
     ],
@@ -447,11 +446,7 @@ it('reports each section state per type, empty and filled', function (string $co
     $form = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk())['form'];
     $states = collect($form['sections'])->where('visible', true)->pluck('state', 'key')->all();
 
-    // V2-5: a complete Tender Variation answers Yes, so it also shows Details of Variation Requested.
     $keys = array_keys(SECTION_STATES_WHEN_EMPTY[$code]);
-    if ($filled && $code === 'TENDER_VARIATION') {
-        array_splice($keys, 2, 0, ['variation_details']);
-    }
 
     expect($states)->toBe($filled ? array_fill_keys($keys, 'complete') : SECTION_STATES_WHEN_EMPTY[$code]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['empty' => false, 'filled' => true]);
