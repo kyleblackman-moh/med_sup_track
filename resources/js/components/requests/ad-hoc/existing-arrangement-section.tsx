@@ -25,10 +25,13 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
     const columns: EntryColumn[] = [
         { key: 'award_id', label: 'Supplier', width: 'sm' },
         { key: 'po_number', label: 'PO Number' },
+        { key: 'pack_size', label: 'Pack Size' },
         { key: 'quantity_ordered', label: 'Quantity Ordered', width: 'xs' },
         { key: 'ordered_on', label: 'Date Ordered', width: 'sm' },
         { key: 'quantity_delivered', label: 'Quantity Delivered', width: 'xs' },
-        { key: 'delivery', label: 'Delivery Status / Date', width: 'sm' },
+        { key: 'delivery_state', label: 'Delivery Status', width: 'sm' },
+        { key: 'delivery_date', label: 'Delivery Date', width: 'sm' },
+        { key: 'delivery_note', label: 'Delivery Note' },
         { key: 'quantity_outstanding', label: 'Quantity Outstanding', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
@@ -42,7 +45,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                     <EntryTable
                         caption="Orders"
                         columns={columns}
-                        breakpoint="66rem"
+                        breakpoint="90rem"
                         narrowRowLabel
                         empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                         addAction={
@@ -59,11 +62,13 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     'id',
                                     'award_id',
                                     'po_number',
+                                    'pack_size',
                                     'quantity_ordered',
                                     'ordered_on',
                                     'quantity_delivered',
                                     'delivery_state',
                                     'delivery_date',
+                                    'delivery_note',
                                 ],
                                 errorOf,
                             );
@@ -93,6 +98,8 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                             const current = text(row.values.award_id);
                             const valid = choosable.some((award) => String(award.id) === current);
                             const deliveryId = fieldId.cell('purchase_orders', row.key, 'delivery_state');
+                            // Its own cell id, so a jump to a delivery date error lands on the picker.
+                            const deliveryDateId = fieldId.cell('purchase_orders', row.key, 'delivery_date');
 
                             return (
                                 <EntryRow
@@ -138,43 +145,45 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                         )}
                                     </EntryCell>
                                     {input('po_number', 'text', 64)}
+                                    {input('pack_size', 'text', 100)}
                                     {input('quantity_ordered', 'decimal')}
                                     {input('ordered_on', 'date')}
                                     {input('quantity_delivered', 'decimal')}
-                                    <EntryCell label={label('delivery')} htmlFor={deliveryId} width="sm">
-                                        <div className="grid gap-1">
-                                            <select
-                                                id={deliveryId}
-                                                className={selectClass(Boolean(stateError))}
-                                                value={deliveryState}
-                                                aria-label={`Delivery Status, ${rowLabel}`}
-                                                aria-required={optional('purchase_orders.delivery_state') === false ? true : undefined}
-                                                aria-invalid={stateError ? true : undefined}
-                                                aria-describedby={stateError ? errorsId : undefined}
-                                                onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_state', e.target.value)}
-                                            >
-                                                <option value="">Status…</option>
-                                                {api.config.options.delivery_state.map((option) => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <DatePicker
-                                                id={`${deliveryId}-date`}
-                                                value={text(row.values.delivery_date)}
-                                                placeholder="Delivery date"
-                                                ariaLabel={`Delivery Date, ${rowLabel}`}
-                                                // Required once something has been delivered (server: unless Not delivered).
-                                                required={deliveryState !== '' && deliveryState !== 'NOT_DELIVERED'}
-                                                min={text(row.values.ordered_on) || undefined}
-                                                max={today}
-                                                invalid={Boolean(dateError)}
-                                                describedBy={dateError ? errorsId : undefined}
-                                                onChange={(next) => api.setCell('purchase_orders', row.key, 'delivery_date', next)}
-                                            />
-                                        </div>
+                                    <EntryCell label={label('delivery_state')} htmlFor={deliveryId} width="sm">
+                                        <select
+                                            id={deliveryId}
+                                            className={selectClass(Boolean(stateError))}
+                                            value={deliveryState}
+                                            aria-label={`Delivery Status, ${rowLabel}`}
+                                            aria-required={optional('purchase_orders.delivery_state') === false ? true : undefined}
+                                            aria-invalid={stateError ? true : undefined}
+                                            aria-describedby={stateError ? errorsId : undefined}
+                                            onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_state', e.target.value)}
+                                        >
+                                            <option value="">Status…</option>
+                                            {api.config.options.delivery_state.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </EntryCell>
+                                    <EntryCell label={label('delivery_date')} htmlFor={deliveryDateId} width="sm">
+                                        <DatePicker
+                                            id={deliveryDateId}
+                                            value={text(row.values.delivery_date)}
+                                            placeholder="Choose a date"
+                                            ariaLabel={`Delivery Date, ${rowLabel}`}
+                                            // Required once something has been delivered (server: unless Not delivered).
+                                            required={deliveryState !== '' && deliveryState !== 'NOT_DELIVERED'}
+                                            min={text(row.values.ordered_on) || undefined}
+                                            max={today}
+                                            invalid={Boolean(dateError)}
+                                            describedBy={dateError ? errorsId : undefined}
+                                            onChange={(next) => api.setCell('purchase_orders', row.key, 'delivery_date', next)}
+                                        />
+                                    </EntryCell>
+                                    {input('delivery_note', 'text', 100)}
                                     <EntryValue
                                         label="Quantity Outstanding"
                                         rowLabel={rowLabel}

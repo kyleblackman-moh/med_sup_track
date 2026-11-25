@@ -10,7 +10,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * % Awarded is typed (optional, 0 to 100, up to 2 decimals; the server checks
  * it). The line cost is the server's (shown once the row is saved); the total
  * is at the foot. A quantity awarded above the quantity requested is reported
- * on its Quantity Awarded cell. One line per entry once the card is 66rem wide (FORM-ERR-1); narrower, each entry wraps.
+ * on its Quantity Awarded cell. Pack Size is optional free text (2026-11-25). One line per entry once the card is 88rem wide (FORM-ERR-1); narrower, each entry wraps.
  */
 export function AwardedSupplierSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.tender_awards;
@@ -23,6 +23,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'brand', label: 'Brand' },
         { key: 'country_of_origin', label: 'Country of Origin' },
+        { key: 'pack_size', label: 'Pack Size' },
         { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'xs' },
         { key: 'unit_cost', label: 'Unit Cost', width: 'xs' },
         { key: 'percentage_awarded', label: '% Awarded', width: 'xs' },
@@ -36,7 +37,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
             <EntryTable
                 caption="Awarded Suppliers"
                 columns={columns}
-                breakpoint="66rem"
+                breakpoint="88rem"
                 narrowRowLabel
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
@@ -86,6 +87,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('manufacturer', 'text', 200)}
                             {input('brand', 'text', 200)}
                             {input('country_of_origin', 'text', 100)}
+                            {input('pack_size', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
                             {input('percentage_awarded', 'decimal')}

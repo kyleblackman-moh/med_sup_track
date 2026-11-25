@@ -57,8 +57,8 @@ it('switches each table to one line only where every column fits at its minimum'
     expect((int) $m[1])->toBe($expectedRem)
         ->and(oneLineWidth($source))->toBeLessThanOrEqual($breakpointPx, "{$file}: needs ".oneLineWidth($source)."px, breaks at {$breakpointPx}px");
 })->with([
-    'awarded suppliers' => ['awarded-supplier-section.tsx', 66],
-    'orders' => ['existing-arrangement-section.tsx', 66],
+    'awarded suppliers' => ['awarded-supplier-section.tsx', 88],
+    'orders' => ['existing-arrangement-section.tsx', 90],
     'stock batches' => ['stock-section.tsx', 32],
     'variations' => ['variation-section.tsx', 45],
 ]);
@@ -69,16 +69,18 @@ it('lays each quotation out as a supplier block of three table lines in the agre
     preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
     $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // Kyle, 2026-11-24 (second pass): the supplier in the block's header, then two lines with
-    // the short numbers in narrow cells; Subtotal, VAT and Total Price under the table as a total.
+    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then the comparison order:
+    // Quantity, Unit Price, Subtotal, VAT, Total Price; then Ex Stock to Remarks. The three
+    // money figures are read-only (no control), worked out live by lib/quotation-price.ts.
     expect($keys)->toBe([
-        ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand'],
-        ['manufacturer', 'country_of_origin', 'remarks'],
+        ['quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'],
+        ['quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks'],
     ])
+        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price', span: 3, computed: true }")
         ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 2 }")
-        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 7 }")
-        ->and($source)->toContain('foot={')
-        ->and($source)->toContain('Total Price')
+        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 3 }")
+        ->and($source)->toContain('htmlFor: computed ? undefined : id(column.key)')
+        ->and($source)->toContain("import { quotationPrice } from '@/lib/quotation-price';")
         // Ex Stock is a number, not a checkbox.
         ->and($source)->toContain("input('quantity_available_now', 'decimal')")
         ->and($source)->not->toContain("'ex_stock'")

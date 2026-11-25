@@ -65,6 +65,7 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         unit_cost: '',
         // Kyle, 2026-11-24: typed (was the server's figure).
         percentage_awarded: '',
+        pack_size: '',
     },
     purchase_orders: {
         award_id: '',
@@ -75,6 +76,8 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         // 2026-11-23: the Delivery Status dropdown and the delivery date (delivery_eta / free-text status retired).
         delivery_state: '',
         delivery_date: '',
+        delivery_note: '',
+        pack_size: '',
     },
     // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is one typed field).
     stock_expiries: { expiry_date: '' },

@@ -14,7 +14,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type DocumentGroup, type ProgressMilestone, type Readiness, type RequestDetail, type VendorQuery } from '@/types/requests';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link } from '@inertiajs/react';
-import { BadgeCheck, Ban, FilePen, Mailbox, PackageCheck, Printer, ReceiptText } from 'lucide-react';
+import { BadgeCheck, Ban, FileDown, FilePen, Mailbox, PackageCheck, Printer, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -82,10 +82,17 @@ export default function Show({ case: detail, documents, readiness, can, ended, s
                         )}
                         {/* The printable form: request-form types only (summary is null for the old types, as is the print route). */}
                         {summary && (
-                            <Link href={route('requests.print', detail.id)} className="btn btn-sm capitalize">
-                                <Printer className="size-4" aria-hidden="true" />
-                                Print
-                            </Link>
+                            <>
+                                <Link href={route('requests.print', detail.id)} className="btn btn-sm capitalize">
+                                    <Printer className="size-4" aria-hidden="true" />
+                                    Print
+                                </Link>
+                                {/* Backlog v0.4: the same form as a PDF download. */}
+                                <a href={route('requests.letter', detail.id)} className="btn btn-sm capitalize" download>
+                                    <FileDown className="size-4" aria-hidden="true" />
+                                    Export PDF
+                                </a>
+                            </>
                         )}
                     </div>
                 )}

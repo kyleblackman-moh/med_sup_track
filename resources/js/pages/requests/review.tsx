@@ -9,7 +9,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type AdHocDetail } from '@/types/ad-hoc';
 import { type RequestSummaryView } from '@/types/summary';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, FileDown, Send } from 'lucide-react';
 import { useState } from 'react';
 
 /** OVERNIGHT-3 (A1): one line of what still blocks a submit, built by the server (RequestReview::blockers). */
@@ -100,6 +100,13 @@ export default function Review({ case: detail, summary, blockers, issue_heading,
                     }
                     right={
                         <>
+                            {/* Backlog v0.4: the form as a PDF download (a file, so a plain link, not an Inertia visit). */}
+                            {summary && (
+                                <a href={route('requests.letter', detail.id)} className="btn btn-outline capitalize max-md:h-11" download>
+                                    <FileDown className="size-4" aria-hidden="true" />
+                                    Export PDF
+                                </a>
+                            )}
                             {!can.submit && not_ready_reason && (
                                 <p id="submit-disabled-reason" className="text-base-content/70 text-sm">
                                     {not_ready_reason}

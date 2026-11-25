@@ -27,8 +27,6 @@ interface EntrySheetProps {
     remove?: ReactNode;
     /** The table lines (3 or 5 fields each): a row of column headers over a row of cells. */
     lines: SheetField[][];
-    /** Right under the table, at its end: worked-out totals (Subtotal, VAT, Total Price). */
-    foot?: ReactNode;
     /** Under the table, full width (a reason, the entry's error list); nothing is drawn when empty. */
     below?: ReactNode;
     /** Open on first render (default true). */
@@ -44,7 +42,7 @@ interface EntrySheetProps {
  * block, never the page. A jump to a field inside a closed block opens it
  * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, summary, title, controls, remove, lines, foot, below, defaultOpen = true }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, below, defaultOpen = true }: EntrySheetProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -98,8 +96,6 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, foo
                         </tbody>
                     </table>
                 </div>
-
-                {foot}
 
                 {below && <div className="grid gap-3">{below}</div>}
             </div>

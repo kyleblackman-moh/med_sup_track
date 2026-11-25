@@ -73,6 +73,7 @@ final class RequisitionMessages
         'tender_awards' => [
             'supplier_name' => 'Supplier',
             'percentage_awarded' => '% Awarded', // 2026-11-24: typed
+            'pack_size' => 'Pack Size', // 2026-11-25
         ],
         'purchase_orders' => [
             'award_id' => 'Supplier',
@@ -81,6 +82,8 @@ final class RequisitionMessages
             'delivery_eta' => 'Delivery Date',
             'delivery_state' => 'Delivery Status',
             'delivery_date' => 'Delivery Date',
+            'delivery_note' => 'Delivery Note', // 2026-11-25
+            'pack_size' => 'Pack Size',
         ],
         'stock_expiries' => [],
         'variation_rows' => [
