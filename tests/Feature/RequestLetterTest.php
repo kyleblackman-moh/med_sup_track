@@ -122,7 +122,8 @@ function rlBimatoprost(): array
         ['award_id' => $ids[0], 'po_number' => '076547', 'quantity_ordered' => '7000', 'ordered_on' => '2024-01-31', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-03-01'],
         ['award_id' => $ids[0], 'po_number' => '077439', 'quantity_ordered' => '7000', 'ordered_on' => '2024-06-04', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-07-15'],
         ['award_id' => $ids[0], 'po_number' => '078421', 'quantity_ordered' => '10000', 'ordered_on' => '2024-07-03', 'quantity_delivered' => '10000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-08-20'],
-        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => '2026-07-10'],
+        // The paper letter's "Variation of tender in progress" is the delivery note (2026-11-25); 079209 has none.
+        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => '2026-07-10', 'delivery_note' => 'Variation of tender in progress'],
         ['award_id' => $ids[0], 'po_number' => '079209', 'quantity_ordered' => '10000', 'ordered_on' => '2026-06-18', 'quantity_delivered' => '0', 'delivery_state' => 'NOT_DELIVERED'],
     ]);
 }
@@ -141,12 +142,12 @@ function rlRivaroxaban(): array
             'rfq_audience' => 'ALL_REGISTERED',
         ],
         'tender_awards' => [
-            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
-            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
+            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'pack_size' => 'Boxes of 28 Tablets', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
+            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'pack_size' => 'Boxes of 30 Tablets', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
         ],
         'stock_expiries' => [['expiry_date' => '2027-03-31']],
         'quotations' => [
-            adHocQuoteRow('Alstons Marketing Company Limited', '2.30', ['quantity_offered' => '29988', 'is_recommended' => true, 'lead_time_days' => 30, 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
+            adHocQuoteRow('Alstons Marketing Company Limited', '2.30', ['quantity_offered' => '29988', 'is_recommended' => true, 'lead_time_days' => 30, 'quantity_available_now' => '500', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
             adHocQuoteRow('Supplier X Limited', '1.90', ['quantity_offered' => '29988', 'considered' => false, 'reason_accepted_excluded' => 'Product not registered with the Drug Inspectorate']),
         ],
     ]);
@@ -167,15 +168,17 @@ it('writes the Tender Excess letter (Chlorpromazine)', function () {
         ->toContain('Dr. Jeanine St. Bernard')->toContain('Chief Medical Officer (Ag)')->toContain('4-6 Queen\'s Park East')
         ->toContain('Dear Dr. St. Bernard,')
         ->toContain('Re: Request for the Approval to Purchase in Excess of Tender- Chlorpromazine HCL 25mg – DIN 90000195')
-        ->toContain('Your approval is sought to purchase in excess of tender eight hundred thousand (800,000) each of Chlorpromazine HCL 25mg – DIN 90000195.')
+        // No full stop, as the paper letter (2026-11-25).
+        ->toContain('Your approval is sought to purchase in excess of tender eight hundred thousand (800,000) each of Chlorpromazine HCL 25mg – DIN 90000195</p>')
         ->toContain('At the 2023/2025 Tender, Chlorpromazine HCL 25mg was awarded to one (1) supplier. The details of this award are summarized in the table below:')
         ->toContain('Remedica Ltd.<br>(Cyprus)')
         ->toContain('800,000 Each')->toContain('100%')->toContain('$0.22 Each')->toContain('$176,000.00')
         ->toContain('At present, there are eighty thousand (80,000) each in stock at the Central Stores. The average monthly consumption is approximately 70,000 each per month.')
         ->toContain('a Request for Quotations (RFQ) was issued to all registered suppliers, and one (1) quotation was received.')
-        ->toContain('it is recommended that approval be granted to purchase 800,000 each of Chlorpromazine HCL 25mg – DIN 90000195 from Alstons Marketing Company Limited at a unit cost of $0.22 and a total cost of $198,000.00.')
+        ->toContain('To mitigate the risk of a stock-out and ensure continuity of supply, it is recommended that approval be granted to purchase 800,000 each of Chlorpromazine HCL 25mg – DIN 90000195 from Alstons Marketing Company Limited at a unit cost of $0.22 and a total cost of $198,000.00 (VAT inclusive).')
         ->toContain('For comparison, the tender unit cost was $0.22 and the previous purchase unit cost was $0.24.')
-        ->toContain('The lead time for delivery is sixty (60) days.')
+        ->toContain('The anticipated lead time for this request is sixty (60) days.')
+        ->toContain('| Pharmaceutical Division |') // the footer's fallback while the submitter has no division
         ->toContain('Quotation Comparison Sheet')
         ->toContain('Submitted for your consideration and approval.')->toContain('Yours faithfully,')
         ->toContain('NATIONAL INSURANCE PROPERTY DEVELOPMENT COMPANY LIMITED')
@@ -198,7 +201,7 @@ it('writes the Tender Variation letter (Bimatoprost) with its orders', function 
         ->toContain('60,000 Each')->toContain('100%')->toContain('$95.00 Each')->toContain('$5,700,000.00')
         ->toContain('Orders were placed with the awarded supplier. The details are summarized in the table below:')
         ->toContain('076547')->toContain('January 31, 2024')->toContain('Delivered March 1, 2024')
-        ->toContain('079128')->toContain('8,000 Each')->toContain('4,000 Each')->toContain('Partially delivered')
+        ->toContain('079128')->toContain('8,000 Each')->toContain('4,000 Each')->toContain('Variation of tender in progress')->not->toContain('Partially delivered')
         ->toContain('079209')->toContain('10,000 Each')->toContain('Not delivered')
         ->toContain('Bimatoprost is used for the reduction of elevated intraocular pressure')
         ->toContain('Variation Type')->toContain('AbbVie Ltd. (Ireland)')->toContain('PO 079128 and PO 079209')
@@ -221,8 +224,10 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
         ->toContain('March 31, 2027')
         ->toContain('and two (2) quotations were received. The details are summarised in the quotation comparison sheet.')
         ->toContain('The quotation from Supplier X Limited was not considered: Product not registered with the Drug Inspectorate.')
-        ->toContain('it is recommended to procure twenty-nine thousand nine hundred eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95. The unit cost is $2.30.')
-        ->toContain('The lead time for delivery is thirty (30) days.')
+        ->toContain('Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure twenty-nine thousand nine hundred eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95 (VAT inclusive). The unit cost is $2.30.')
+        ->toContain('The anticipated lead time for this request is thirty (30) days.')
+        // Pack size with the quantity (2026-11-25); Ex Stock is the quantity available from stock.
+        ->toContain('6,250 Boxes of 28 Tablets')->toContain('2,500 Boxes of 30 Tablets')->toContain('<td>500 Each</td>')
         ->toContain('Quotation Comparison Sheet')->toContain('$68,972.40')
         ->toContain('/Attach')->toContain('bids.pdf (Bids)')
         // The issues text shows for every type (2026-11-25). No orders entered: no orders table.

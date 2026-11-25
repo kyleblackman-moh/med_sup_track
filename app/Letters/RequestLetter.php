@@ -70,6 +70,9 @@ final class RequestLetter
 
     public const DRAFT_WATERMARK = 'DRAFT – NOT SUBMITTED';
 
+    /** The footer's division while the submitter has none (Kyle, 2026-11-25). */
+    public const FOOTER_DIVISION = 'Pharmaceutical Division';
+
     private function __construct(
         private readonly ProcurementCase $case,
         private readonly string $kind,
@@ -187,7 +190,7 @@ final class RequestLetter
             'running_header' => $this->itemWithDin(' – '),
             'footer' => implode(' | ', array_filter([
                 (string) $org?->name,
-                $this->text($signer?->division),
+                $this->text($signer?->division) ?? self::FOOTER_DIVISION,
                 $this->contact(),
             ])),
         ];
@@ -243,7 +246,8 @@ final class RequestLetter
         $quantity = $this->quantityPhrase($this->req('quantity_requested'));
 
         return match ($this->kind) {
-            self::EXCESS => 'Your approval is sought to purchase in excess of tender '.$quantity.$this->itemWithDin(' – ').'.',
+            // No full stop: as the Tender Excess paper letter (Kyle, 2026-11-25).
+            self::EXCESS => 'Your approval is sought to purchase in excess of tender '.$quantity.$this->itemWithDin(' – '),
             self::VARIATION => 'Your approval is sought for the Request for Variation of Tender'.$this->variationPhrase().' for '.$this->itemWithDin(' – '),
             default => 'Your approval is sought for the Ad Hoc Purchase of '.$quantity.$this->itemWithDin(' - ').'.',
         };
@@ -281,7 +285,7 @@ final class RequestLetter
                 'manufacturer' => $this->text($a->manufacturer),
                 'country' => $this->text($a->country_of_origin),
                 'brand' => $this->text($a->brand),
-                'quantity' => $this->withUnit($a->quantity_awarded),
+                'quantity' => $this->withUnit($a->quantity_awarded, $a->pack_size),
                 'percentage' => $a->percentage_awarded === null ? null : bcadd((string) $a->percentage_awarded, '0.5', 0).'%',
                 'unit_cost' => $this->unitCost($a->unit_cost),
                 'total' => $a->total() === null ? null : Display::money($a->total()),
@@ -308,18 +312,25 @@ final class RequestLetter
             'rows' => $orders->map(fn (CasePurchaseOrder $o) => [
                 'supplier' => $this->text($o->award?->supplier_name ?? $o->supplier_name),
                 'po' => $this->text($o->po_number),
-                'ordered' => $this->withUnit($o->quantity_ordered),
+                'ordered' => $this->withUnit($o->quantity_ordered, $o->pack_size),
                 'ordered_on' => $o->ordered_on?->format('F j, Y'),
-                'delivered' => $this->withUnit($o->quantity_delivered),
-                'outstanding' => $this->withUnit($o->quantityOutstanding()),
+                'delivered' => $this->withUnit($o->quantity_delivered, $o->pack_size),
+                'outstanding' => $this->withUnit($o->quantityOutstanding(), $o->pack_size),
                 'delivery' => $this->deliveryCell($o),
             ])->all(),
         ];
     }
 
-    /** "Delivered" (with the date when entered) when fully delivered; otherwise the status label. */
+    /**
+     * The delivery note when entered (Kyle, 2026-11-25, e.g. "Variation of tender in
+     * progress"); else "Delivered" (with the date) when fully delivered; else the status label.
+     */
     private function deliveryCell(CasePurchaseOrder $o): ?string
     {
+        if (($note = $this->text($o->delivery_note)) !== null) {
+            return $note;
+        }
+
         if ($o->delivery_state === DeliveryState::FULLY_DELIVERED) {
             return $o->delivery_date === null ? 'Delivered' : 'Delivered '.$o->delivery_date->format('F j, Y');
         }
@@ -448,12 +459,15 @@ final class RequestLetter
                 $total === null ? null : "a total cost of {$total}",
             ])));
 
-            return "Based on the above, it is recommended that approval be granted to purchase {$quantity}{$item} from {$supplier}"
-                .($costs === '' ? '' : " at {$costs}").'.';
+            // The Tender Excess template's wording (Kyle, 2026-11-25).
+            return 'To mitigate the risk of a stock-out and ensure continuity of supply, it is recommended that approval be granted to purchase '
+                ."{$quantity}{$item} from {$supplier}".($costs === '' ? '' : " at {$costs}").($total === null ? '' : ' (VAT inclusive)').'.';
         }
 
-        return 'Based on the above, it is recommended to procure '.$this->quantityPhrase($q->quantity_offered === null ? null : (string) $q->quantity_offered)
-            ."{$item} from {$supplier}".($total === null ? '' : " at a total cost of {$total}").'.'
+        // The Ad Hoc template's wording (Kyle, 2026-11-25).
+        return 'Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure '
+            .$this->quantityPhrase($q->quantity_offered === null ? null : (string) $q->quantity_offered)
+            ."{$item} from {$supplier}".($total === null ? '' : " at a total cost of {$total} (VAT inclusive)").'.'
             .($unit === null ? '' : " The unit cost is {$unit}.");
     }
 
@@ -472,18 +486,24 @@ final class RequestLetter
         return $parts === [] ? null : 'For comparison, '.$this->joinList($parts).'.';
     }
 
+    /** The templates' lead time sentence (Kyle, 2026-11-25). */
     private function leadTime(CaseQuotation $q): ?string
     {
-        $sentences = [];
-        if ($q->lead_time_days !== null) {
-            $days = (int) $q->lead_time_days;
-            $sentences[] = 'The lead time for delivery is '.$this->counted($days, 'day', 'days').'.';
-        }
-        if ($q->ex_stock === true) {
-            $sentences[] = 'The item is available ex stock.';
+        if ($q->lead_time_days === null) {
+            return null;
         }
 
-        return $sentences === [] ? null : implode(' ', $sentences);
+        return 'The anticipated lead time for this request is '.$this->counted((int) $q->lead_time_days, 'day', 'days').'.';
+    }
+
+    /** Ex Stock: the quantity available from stock (Kyle, 2026-11-24); an older row's Yes/No. */
+    private function exStock(CaseQuotation $q): ?string
+    {
+        if ($q->quantity_available_now !== null) {
+            return $this->withUnit((string) $q->quantity_available_now);
+        }
+
+        return $q->ex_stock === null ? null : ($q->ex_stock ? 'Yes' : 'No');
     }
 
     /** @return list<array<string, string|null>>|null The Quotation Comparison Sheet (Ad Hoc, Tender Excess). */
@@ -496,7 +516,7 @@ final class RequestLetter
             'subtotal' => $q->subtotal() === null ? null : Display::money($q->subtotal()),
             'vat' => $q->vatAmount() === null ? null : Display::money($q->vatAmount()),
             'total' => $q->totalPrice() === null ? null : Display::money($q->totalPrice()),
-            'ex_stock' => $q->ex_stock === null ? null : ($q->ex_stock ? 'Yes' : 'No'),
+            'ex_stock' => $this->exStock($q),
             'lead_time' => $q->lead_time_days === null ? null : $q->lead_time_days.' '.($q->lead_time_days === 1 ? 'day' : 'days'),
             'brand' => $this->text($q->brand),
             'manufacturer' => $this->text($q->manufacturer),
@@ -619,15 +639,18 @@ final class RequestLetter
         return $unit === null ? '' : ' '.mb_strtolower($unit);
     }
 
-    /** "60,000 Each" in the tables; "0" stays bare, as the paper letters show it. */
-    private function withUnit(?string $quantity): ?string
+    /**
+     * "60,000 Each" in the tables, or "6,250 Boxes of 28 Tablets" when the row
+     * has a pack size (Kyle, 2026-11-25); "0" stays bare, as the paper letters show it.
+     */
+    private function withUnit(?string $quantity, ?string $packSize = null): ?string
     {
         if ($quantity === null || ! is_numeric($quantity)) {
             return null;
         }
 
         $figures = Display::quantity($quantity);
-        $unit = $this->text($this->req('unit_of_measure'));
+        $unit = $this->text($packSize) ?? $this->text($this->req('unit_of_measure'));
 
         return $figures === '0' || $unit === null ? $figures : "{$figures} {$unit}";
     }

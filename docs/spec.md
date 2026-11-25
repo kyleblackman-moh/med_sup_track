@@ -604,8 +604,8 @@ The vendor's request letter is generated as a PDF from the saved application (`A
 | Subject | Type; item; DIN; Variation: the variation types of Details of Variation Requested | All (wording per kind) |
 | Opening sentence | Quantity requested, unit, item, DIN; Variation: variation types | All (wording per kind) |
 | Award sentence | Tender cycle start and end years; number of distinct awarded suppliers | All, when there are award rows |
-| Award table | Awarded Supplier rows: supplier, manufacturer (country of origin in brackets), brand, quantity awarded + unit, % awarded (whole number), unit cost, total (quantity × unit cost) | All, when there are award rows |
-| Orders sentence and table | Existing Approved Arrangement rows: supplier (from the award row), PO number, quantity ordered, date ordered, quantity delivered, outstanding (ordered − delivered), delivery status ("Delivered" + delivery date when fully delivered) | All, when there are orders |
+| Award table | Awarded Supplier rows: supplier, manufacturer (country of origin in brackets), brand, quantity awarded + pack size (the unit of measure when the row has none), % awarded (whole number), unit cost, total (quantity × unit cost) | All, when there are award rows |
+| Orders sentence and table | Existing Approved Arrangement rows: supplier (from the award row), PO number, quantity ordered (+ pack size), date ordered, quantity delivered, outstanding (ordered − delivered), Delivery Date cell = the delivery note when entered, else "Delivered" + delivery date when fully delivered, else the status label | All, when there are orders |
 | Issues paragraph | Issues affecting the tender quantity | All, when entered |
 | Clinical note | Clinical note | All |
 | Variation table | Details of Variation Requested: type, existing detail, proposed detail, effective date / application P.O. | Tender Variation (always shown and required on the form, whatever the previous-request answer) |
@@ -618,9 +618,9 @@ The vendor's request letter is generated as a PDF from the saved application (`A
 | Lead time | The recommended quotation's lead time | Ad Hoc, Tender Excess |
 | Sign-off | Organisation name (capitals); the submitter's name, job title (`users.job_title`) and division (`users.division`) | All |
 | /Attach | Current external, clean documents: file name and category | All |
-| Quotation Comparison Sheet (annex page) | Every quotation with a supplier: quantity, unit price, subtotal, VAT, total price, ex stock, lead time, brand, manufacturer, country of origin, remarks, status (Recommended / Considered / Not considered) | Ad Hoc, Tender Excess |
+| Quotation Comparison Sheet (annex page) | Every quotation with a supplier: quantity, unit price, subtotal, VAT, total price, ex stock (the quantity available from stock), lead time, brand, manufacturer, country of origin, remarks, status (Recommended / Considered / Not considered) | Ad Hoc, Tender Excess |
 | Running header (pages 2+) | "Page n – {item} – DIN {din}" | All |
-| Footer | Organisation name, the submitter's division, organisation address / phone / email | All |
+| Footer | Organisation name, the submitter's division ("Pharmaceutical Division" while none is stored), organisation address / phone / email | All |
 
 ---
 
