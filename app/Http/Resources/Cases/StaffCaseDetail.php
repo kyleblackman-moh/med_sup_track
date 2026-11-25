@@ -14,6 +14,7 @@ use App\Enums\TrackStatus;
 use App\Http\Resources\Requests\RequestDetailResource;
 use App\Http\Resources\Requests\RequestSummary;
 use App\Models\CaseAssignment;
+use App\Models\CaseTrackEvent;
 use App\Models\CaseTransition;
 use App\Models\Document;
 use App\Models\ProcurementCase;
@@ -449,6 +450,8 @@ final class StaffCaseDetail
                     'recorded_at' => $r['latest']?->created_at?->copy()->utc()->toIso8601ZuluString(),
                     'reason' => $r['latest'] !== null && ! $r['latest']->outcome->isPositive() ? $r['latest']->reason : null,
                 ])->values()->all(),
+                // Backlog, 2026-11-25: every outcome recorded on this desk, oldest first (the CAB status history).
+                'history' => self::trackHistory($case, $desk),
                 'received_on' => null,
                 'recorded_by' => null,
                 'recorded_at' => null,
@@ -462,6 +465,7 @@ final class StaffCaseDetail
             'done' => $case->hardcopyReceived(),
             'state' => $case->hardcopyReceived() ? 'Received' : 'Not received',
             'reviewers' => [],
+            'history' => [],
             'received_on' => $hardcopy['received_on'] ?? null,
             'recorded_by' => $hardcopy['recorded_by'] ?? null,
             'recorded_at' => $hardcopy['recorded_at'] ?? null,
@@ -485,6 +489,33 @@ final class StaffCaseDetail
      *
      * @return list<array{key: string, label: string, done: bool, state: string}>|null
      */
+    /**
+     * Every outcome on one desk, oldest first, from the insert-only
+     * case_track_events (a changed outcome is a new row, so this is the full
+     * history). Staff-only DTO: the reason of a negative outcome is included,
+     * as on the reviewer rows.
+     *
+     * @return list<array{outcome: string, by: string|null, at: string|null, reason: string|null}>
+     */
+    private static function trackHistory(ProcurementCase $case, ReviewDesk $desk): array
+    {
+        return CaseTrackEvent::query()
+            ->where('case_id', $case->getKey())
+            ->where('track', $desk->value)
+            ->with('actor:id,name')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (CaseTrackEvent $e) => [
+                'outcome' => $e->outcome->label(),
+                'by' => $e->actor?->name,
+                'at' => $e->created_at?->copy()->utc()->toIso8601ZuluString(),
+                'reason' => $e->outcome->isPositive() ? null : $e->reason,
+            ])
+            ->values()
+            ->all();
+    }
+
     public static function gateTicks(ProcurementCase $case): ?array
     {
         if ($case->status !== CaseStatus::IN_REVIEW) {

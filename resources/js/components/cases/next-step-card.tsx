@@ -20,7 +20,7 @@ import {
     type RouteDestination,
 } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
-import { Circle, CircleCheck, Info, MessagesSquare, Signpost } from 'lucide-react';
+import { Circle, CircleCheck, FileDown, Info, MessagesSquare, Signpost } from 'lucide-react';
 import { useState } from 'react';
 
 /** Actions that post with no input: the card's own confirmation dialog, then the route. */
@@ -206,25 +206,28 @@ export function NextStepCard({
                     </>
                 }
                 actions={
-                    ordered.length > 0 ? (
-                        <>
-                            {ordered.map((action) => (
-                                <Button
-                                    key={action.key}
-                                    type="button"
-                                    size="sm"
-                                    variant={action.primary ? 'default' : 'outline'}
-                                    className="active:scale-[0.97]"
-                                    disabled={!action.enabled}
-                                    aria-expanded={INLINE.includes(action.key) ? expanded === action.key : undefined}
-                                    aria-describedby={action.disabled_reason ? `next-step-${action.key}-reason` : undefined}
-                                    onClick={() => open(action)}
-                                >
-                                    {action.label}
-                                </Button>
-                            ))}
-                        </>
-                    ) : undefined
+                    <>
+                        {/* Backlog, 2026-11-25: the request letter, for anyone who can see the case (the route checks it). */}
+                        <a href={route('cases.letter', caseId)} className="btn btn-outline btn-sm" download>
+                            <FileDown className="size-4" aria-hidden="true" />
+                            Export PDF
+                        </a>
+                        {ordered.map((action) => (
+                            <Button
+                                key={action.key}
+                                type="button"
+                                size="sm"
+                                variant={action.primary ? 'default' : 'outline'}
+                                className="active:scale-[0.97]"
+                                disabled={!action.enabled}
+                                aria-expanded={INLINE.includes(action.key) ? expanded === action.key : undefined}
+                                aria-describedby={action.disabled_reason ? `next-step-${action.key}-reason` : undefined}
+                                onClick={() => open(action)}
+                            >
+                                {action.label}
+                            </Button>
+                        ))}
+                    </>
                 }
             >
                 <p className="text-sm">{next.instruction}</p>

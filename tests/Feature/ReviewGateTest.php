@@ -519,3 +519,23 @@ it('throttles the new routes at 20 a minute per user', function () {
 
     $this->actingAs($tech)->post(route('cases.funding', $case), [])->assertStatus(429);
 });
+
+// Backlog, 2026-11-25: the CAB status history ----------------------------------------
+
+it('sends every funding outcome on the case page, oldest first, not just the latest', function () {
+    [$case, , $cab] = reviewCase10b();
+
+    $this->actingAs($cab)->post(route('cases.funding', $case), ['outcome' => 'not_confirmed', 'reason' => 'A virement is needed.'])->assertSessionHasNoErrors();
+    $this->actingAs($cab)->post(route('cases.funding', $case), ['outcome' => 'confirmed'])->assertSessionHasNoErrors();
+
+    $rows = collect(pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case))->assertOk())['gate']['rows'])->keyBy('key');
+    $history = $rows['funding']['history'];
+
+    expect(array_map(fn ($h) => [$h['outcome'], $h['by'], $h['reason']], $history))->toBe([
+        ['Virement Required', $cab->name, 'A virement is needed.'],
+        ['Availability of Funds', $cab->name, null],
+    ])
+        ->and($history[0]['at'])->toEndWith('Z')
+        ->and($rows['funding']['reviewers'])->toHaveCount(1) // still the latest per reviewer
+        ->and($rows['hardcopy']['history'])->toBe([]);
+});

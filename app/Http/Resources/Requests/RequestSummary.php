@@ -289,7 +289,7 @@ final class RequestSummary
                 // 2026-11-23: computed, in the form's column order.
                 'subtotal' => 'Subtotal',
                 'vat' => 'VAT',
-                'total_price' => 'Total Price',
+                'total_price' => 'Total Price Incl. VAT',
                 'ex_stock' => 'Ex Stock',
                 'lead_time_days' => 'Lead Time (Days)',
                 'brand' => 'Brand',

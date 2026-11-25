@@ -71,6 +71,26 @@ export function GateTracker({ gate }: { gate: GateState | null }) {
                                     ))}
                                 </ul>
                             )}
+
+                            {row.history.length > 1 && (
+                                <details className="group">
+                                    <summary className="text-base-content/70 hover:text-base-content cursor-pointer capitalize">
+                                        Status History ({row.history.length})
+                                    </summary>
+                                    <ol aria-label={`${row.label} status history`} className="border-base-300 mt-2 space-y-1.5 border-l pl-3">
+                                        {row.history.map((h, i) => (
+                                            <li key={`${row.key}-history-${i}`}>
+                                                <span className="font-medium">{h.outcome}</span>
+                                                <span className="text-base-content/70">
+                                                    {h.by && ` · ${h.by}`}
+                                                    {h.at && ` on ${formatDateTime(h.at)}`}
+                                                </span>
+                                                {h.reason && <p className="text-base-content/70 mt-0.5 whitespace-pre-line">Reason: {h.reason}</p>}
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </details>
+                            )}
                         </div>
                     </li>
                 ))}

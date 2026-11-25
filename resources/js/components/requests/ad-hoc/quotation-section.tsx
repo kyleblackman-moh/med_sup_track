@@ -26,7 +26,7 @@ const SHEET_LINES: { key: string; label: string; span: number; computed?: true }
         { key: 'unit_price', label: 'Unit Price', span: 3 },
         { key: 'subtotal', label: 'Subtotal', span: 3, computed: true },
         { key: 'vat', label: 'VAT', span: 3, computed: true },
-        { key: 'total_price', label: 'Total Price', span: 3, computed: true },
+        { key: 'total_price', label: 'Total Price Incl. VAT', span: 3, computed: true },
     ],
     [
         { key: 'quantity_available_now', label: 'Ex Stock', span: 2 },

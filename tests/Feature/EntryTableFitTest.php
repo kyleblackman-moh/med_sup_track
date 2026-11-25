@@ -76,7 +76,7 @@ it('lays each quotation out as a supplier block of three table lines in the agre
         ['quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'],
         ['quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks'],
     ])
-        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price', span: 3, computed: true }")
+        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price Incl. VAT', span: 3, computed: true }")
         ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 2 }")
         ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 3 }")
         ->and($source)->toContain('htmlFor: computed ? undefined : id(column.key)')

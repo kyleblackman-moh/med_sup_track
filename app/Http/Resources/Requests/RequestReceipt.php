@@ -20,6 +20,9 @@ final class RequestReceipt
 {
     public const HARDCOPY_NOTICE = "Hardcopy needs to be delivered to the CMO's Office. Quote the reference number above.";
 
+    /** Backlog, 2026-11-25: the receipt's instruction, under the reference (wording from the backlog). */
+    public const RECEIPT_NOTICE = 'Write this reference on the front of your hardcopy submission and deliver it to the Office of the CMO within 24 hours.';
+
     public static function for(ProcurementCase $case): array
     {
         $submission = CaseTransition::query()
@@ -57,7 +60,7 @@ final class RequestReceipt
             'submitted_at' => $case->submitted_at?->copy()->utc()->toIso8601ZuluString(),
             'submitted_by' => $submission?->actor?->name,
             'documents' => $documents,
-            'hardcopy_notice' => self::HARDCOPY_NOTICE,
+            'hardcopy_notice' => self::RECEIPT_NOTICE,
         ];
     }
 }

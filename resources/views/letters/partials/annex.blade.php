@@ -4,7 +4,7 @@
     <table class="grid small">
         <thead>
             <tr>
-                <th>Supplier</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th><th>VAT</th><th>Total Price</th><th>Ex Stock</th>
+                <th>Supplier</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th><th>VAT</th><th>Total Price Incl. VAT</th><th>Ex Stock</th>
                 <th>Lead Time</th><th>Brand</th><th>Manufacturer</th><th>Country of Origin</th><th>Remarks</th><th>Status</th>
             </tr>
         </thead>

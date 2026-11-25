@@ -188,12 +188,23 @@ export interface GateReviewer {
     reason: string | null;
 }
 
+/** One recorded outcome on a review desk (insert-only history, oldest first). */
+export interface GateHistoryEntry {
+    outcome: string;
+    by: string | null;
+    at: string | null;
+    /** Only for a negative outcome (staff only). */
+    reason: string | null;
+}
+
 export interface GateRow {
     key: 'technical' | 'funding' | 'hardcopy';
     label: string;
     done: boolean;
     state: string;
     reviewers: GateReviewer[];
+    /** Every outcome on this desk, oldest first; empty for the hardcopy row. */
+    history: GateHistoryEntry[];
     received_on: string | null;
     recorded_by: string | null;
     recorded_at: string | null;
