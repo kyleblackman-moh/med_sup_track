@@ -1,6 +1,7 @@
 import { EntrySheet } from '@/components/ui/entry-sheet';
 import { RowErrorList } from '@/components/ui/entry-table';
 import { quotationPrice } from '@/lib/quotation-price';
+import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
 import { collectRowErrors, EntryInlineCheck } from './entry-fields';
 import { FieldGrid, FieldHint, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
@@ -51,6 +52,12 @@ function QuotationTotals({ label, price }: { label: string; price: { subtotal: s
         </dl>
     );
 }
+
+/**
+ * Kyle, 2026-11-25: the short fields get a short box, left in their cell;
+ * Supplier and Remarks keep the full width.
+ */
+const SHORT_BOX = { number: 'max-w-28', text: 'max-w-44' } as const;
 
 /** Every message of an entry in one list under it, in the order the block shows the fields. */
 const ERROR_ORDER = [
@@ -124,7 +131,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             const errorsId = fieldId.rowErrors('quotations', row.key);
                             const errors = collectRowErrors(ERROR_ORDER, (name) => api.cellError('quotations', row, index, name));
                             const labelOf = (name: string) => SHEET_LINES.flat().find((c) => c.key === name)?.label ?? 'Supplier';
-                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => {
+                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, box?: string) => {
                                 const error = api.cellError('quotations', row, index, name);
 
                                 return (
@@ -135,7 +142,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                                         maxLength={maxLength}
                                         value={text(row.values[name])}
-                                        className={inputClass(Boolean(error))}
+                                        className={cn(inputClass(Boolean(error)), box)}
                                         aria-label={`${labelOf(name)}, ${rowLabel}`}
                                         aria-required={optional(`quotations.${name}`) === false ? true : undefined}
                                         aria-invalid={error ? true : undefined}
@@ -153,13 +160,13 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             // Live as the vendor types: the server's rule and rate (quotation-price.ts, form.display.vat_rate).
                             const price = quotationPrice(text(row.values.quantity_offered), text(row.values.unit_price), form.display.vat_rate);
                             const cells: Record<string, ReactNode> = {
-                                quantity_offered: input('quantity_offered', 'decimal'),
-                                unit_price: input('unit_price', 'decimal'),
-                                quantity_available_now: input('quantity_available_now', 'decimal'),
-                                lead_time_days: input('lead_time_days', 'integer'),
-                                brand: input('brand', 'text', 200),
-                                manufacturer: input('manufacturer', 'text', 200),
-                                country_of_origin: input('country_of_origin', 'text', 100),
+                                quantity_offered: input('quantity_offered', 'decimal', undefined, SHORT_BOX.number),
+                                unit_price: input('unit_price', 'decimal', undefined, SHORT_BOX.number),
+                                quantity_available_now: input('quantity_available_now', 'decimal', undefined, SHORT_BOX.number),
+                                lead_time_days: input('lead_time_days', 'integer', undefined, SHORT_BOX.number),
+                                brand: input('brand', 'text', 200, SHORT_BOX.text),
+                                manufacturer: input('manufacturer', 'text', 200, SHORT_BOX.text),
+                                country_of_origin: input('country_of_origin', 'text', 100, SHORT_BOX.text),
                                 remarks: input('remarks', 'text', 255),
                             };
 

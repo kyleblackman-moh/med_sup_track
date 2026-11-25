@@ -85,7 +85,11 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         // The Quoted Price figure is gone from the price comparison (the totals show it).
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.
-        ->and($source)->toContain("input('quantity_available_now', 'decimal')")
+        ->and($source)->toContain("input('quantity_available_now', 'decimal', undefined, SHORT_BOX.number)")
+        // Kyle, 2026-11-25: short boxes for the short fields; Supplier and Remarks stay full width.
+        ->and($source)->toContain("const SHORT_BOX = { number: 'max-w-28', text: 'max-w-44' } as const;")
+        ->and($source)->toContain("input('country_of_origin', 'text', 100, SHORT_BOX.text)")
+        ->and($source)->toContain("input('remarks', 'text', 255)")
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
         ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
