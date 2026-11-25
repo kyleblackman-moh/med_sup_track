@@ -58,3 +58,39 @@ export function quotationPrice(quantity: string | null | undefined, unitPrice: s
 
     return { subtotal: format(subtotal), vat: format(vat), total: format(subtotal + vat) };
 }
+
+/**
+ * The recommended quotation's unit price against a reference price (tender or previous),
+ * live as the vendor types (Kyle, 2026-11-25): (quoted - reference) / reference x 100,
+ * half-up (away from zero) to 2 dp, as the server's QuotationPrice::changePercent
+ * ("12.50", "-3.00"). Null without both prices, or when the reference is zero.
+ */
+export function priceChange(quoted: string | null | undefined, reference: string | null | undefined): string | null {
+    const q = parse(quoted);
+    const r = parse(reference);
+    if (q === null || r === null || r.units === 0n) {
+        return null;
+    }
+
+    // Both at the same scale, so the scales cancel in the ratio.
+    const scale = Math.max(q.scale, r.scale);
+    const qUnits = q.units * 10n ** BigInt(scale - q.scale);
+    const rUnits = r.units * 10n ** BigInt(scale - r.scale);
+    // Hundredths of a percent: (q - r) x 100 x 100 / r.
+    const numerator = (qUnits - rUnits) * 10000n;
+    const negative = numerator < 0n;
+    const magnitude = negative ? -numerator : numerator;
+    let hundredths = magnitude / rUnits;
+    if ((magnitude % rUnits) * 2n >= rUnits) {
+        hundredths += 1n;
+    }
+
+    return `${negative && hundredths > 0n ? '-' : ''}${format(hundredths)}`;
+}
+
+/** "1234.5" to "$1,234.5": the dollar sign and thousands commas on an amount as given. */
+export function money(amount: string): string {
+    const [whole, fraction] = amount.split('.');
+
+    return `$${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${fraction === undefined ? '' : `.${fraction}`}`;
+}

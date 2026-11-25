@@ -12,8 +12,9 @@ it('gives every number-like request field a numeric keyboard hint', function (st
 })->with([
     'Quantity Requested' => ['item-tender-section.tsx', "/field\\('quantity_requested'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     'Average Monthly Consumption' => ['stock-section.tsx', "/field\\('average_monthly_consumption'\\)\\}[^>]*inputMode=\"decimal\"/s"],
-    'Tender Price' => ['price-section.tsx', "/requisition\\('tender_price'\\)[^>]*inputMode=\"decimal\"/s"],
-    'Previous Price' => ['price-section.tsx', "/requisition\\('previous_price'\\)[^>]*inputMode=\"decimal\"/s"],
+    // Kyle, 2026-11-25: both prices are lines of the comparison table (priceLine), one decimal input.
+    'Tender Price' => ['price-section.tsx', "/const priceLine = .*?<input\\s+id=\\{id\\}\\s+inputMode=\"decimal\".*?priceLine\\('tender_price'/s"],
+    'Previous Price' => ['price-section.tsx', "/const priceLine = .*?<input\\s+id=\\{id\\}\\s+inputMode=\"decimal\".*?priceLine\\('previous_price'/s"],
     'Quotation Quantity' => ['quotation-section.tsx', "/input\\('quantity_offered', 'decimal'\\)/"],
     'Quotation Unit Price' => ['quotation-section.tsx', "/input\\('unit_price', 'decimal'\\)/"],
     'Quotation Lead Time (Days)' => ['quotation-section.tsx', "/input\\('lead_time_days', 'integer'\\)/"],

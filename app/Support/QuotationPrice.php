@@ -28,6 +28,21 @@ final class QuotationPrice
         return ['subtotal' => $subtotal, 'vat' => $vat, 'total' => Decimal::round2(Decimal::add($subtotal, $vat))];
     }
 
+    /**
+     * The recommended quotation's unit price against a reference price (tender or previous):
+     * (quoted - reference) / reference x 100, half-up to 2 dp ("12.50", "-3.00"). Null without
+     * both prices, or when the reference is zero. The form shows the same live
+     * (priceChange in resources/js/lib/quotation-price.ts).
+     */
+    public static function changePercent(?string $quoted, ?string $reference): ?string
+    {
+        if ($quoted === null || $reference === null || ! is_numeric($quoted) || ! is_numeric($reference) || Decimal::compare($reference, '0') <= 0) {
+            return null;
+        }
+
+        return Decimal::round2(Decimal::div(Decimal::mul(Decimal::sub($quoted, $reference), '100'), $reference));
+    }
+
     /** The configured rate as a decimal string, for example "0.125". */
     public static function vatRate(): string
     {

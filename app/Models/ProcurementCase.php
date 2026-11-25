@@ -6,6 +6,7 @@ use App\Enums\CaseStatus;
 use App\Enums\TrackStatus;
 use App\Models\Scopes\VisibleToUserScope;
 use App\Support\Decimal;
+use App\Support\QuotationPrice;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -257,13 +258,7 @@ class ProcurementCase extends Model
      */
     public function priceChangePercent(?string $reference): ?string
     {
-        $quoted = $this->recommendedQuotation()?->unit_price;
-
-        if ($quoted === null || $reference === null || Decimal::compare($reference, '0') <= 0) {
-            return null;
-        }
-
-        return Decimal::round2(Decimal::div(Decimal::mul(Decimal::sub($quoted, $reference), '100'), $reference));
+        return QuotationPrice::changePercent($this->recommendedQuotation()?->unit_price, $reference);
     }
 
     /** @return Collection<int, CaseQuotation> */

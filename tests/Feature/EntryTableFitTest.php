@@ -82,8 +82,8 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ->and($source)->toContain('columns={SHEET_COLUMNS}')
         ->and($source)->not->toContain("key: 'total_price'")
         ->and($source)->toMatch('/below=\{\s*<>\s*<QuotationTotals label=\{rowLabel\} price=\{price\} \/>/')
-        ->and($source)->toContain('<dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>')
-        ->and($source)->toContain("import { quotationPrice } from '@/lib/quotation-price';")
+        ->and(file_get_contents(resource_path('js/components/ui/quotation-totals.tsx')))->toContain('<dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>')
+        ->and($source)->toContain("import { money, quotationPrice } from '@/lib/quotation-price';")
         // The Quoted Price figure is gone from the price comparison (the totals show it).
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.

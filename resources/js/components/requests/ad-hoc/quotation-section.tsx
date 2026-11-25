@@ -1,7 +1,7 @@
 import { EntrySheet } from '@/components/ui/entry-sheet';
 import { RowErrorList } from '@/components/ui/entry-table';
-import { quotationPrice } from '@/lib/quotation-price';
-import { cn } from '@/lib/utils';
+import { QuotationTotals } from '@/components/ui/quotation-totals';
+import { money, quotationPrice } from '@/lib/quotation-price';
 import { type ReactNode } from 'react';
 import { collectRowErrors, EntryInlineCheck } from './entry-fields';
 import { FieldGrid, FieldHint, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
@@ -41,22 +41,6 @@ const SHEET_LINES: { key: string; label: string; span: number }[][] = [
  */
 const SHEET_COLUMNS = ['7rem', '8rem', '7rem', '6rem', undefined, undefined, undefined];
 
-/** The block's totals under its table, right-aligned like an invoice: Subtotal, VAT, then the total. */
-function QuotationTotals({ label, price }: { label: string; price: { subtotal: string; vat: string; total: string } | null }) {
-    const figure = (amount: string | undefined) => (amount === undefined ? '—' : money(amount));
-
-    return (
-        <dl aria-label={`Totals, ${label}`} className="ms-auto grid w-full max-w-xs grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
-            <dt className="text-base-content/70">Subtotal</dt>
-            <dd className="text-end tabular-nums">{figure(price?.subtotal)}</dd>
-            <dt className="text-base-content/70">VAT</dt>
-            <dd className="text-end tabular-nums">{figure(price?.vat)}</dd>
-            <dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>
-            <dd className="border-base-300 border-t pt-1 text-end font-semibold tabular-nums">{figure(price?.total)}</dd>
-        </dl>
-    );
-}
-
 /** Every message of an entry in one list under it, in the order the block shows the fields. */
 const ERROR_ORDER = [
     'id',
@@ -73,13 +57,6 @@ const ERROR_ORDER = [
     'remarks',
     'reason_accepted_excluded',
 ];
-
-/** "1234.50" to "$1,234.50", as the server's Display::money. */
-function money(amount: string): string {
-    const [whole, fraction] = amount.split('.');
-
-    return `$${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction}`;
-}
 
 /**
  * V2-2 section "Quotation comparison": who received the RFQ, one supplier
@@ -129,7 +106,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             const errorsId = fieldId.rowErrors('quotations', row.key);
                             const errors = collectRowErrors(ERROR_ORDER, (name) => api.cellError('quotations', row, index, name));
                             const labelOf = (name: string) => SHEET_LINES.flat().find((c) => c.key === name)?.label ?? 'Supplier';
-                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, box?: string) => {
+                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => {
                                 const error = api.cellError('quotations', row, index, name);
 
                                 return (
@@ -140,7 +117,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                                         maxLength={maxLength}
                                         value={text(row.values[name])}
-                                        className={cn(inputClass(Boolean(error)), box)}
+                                        className={inputClass(Boolean(error))}
                                         aria-label={`${labelOf(name)}, ${rowLabel}`}
                                         aria-required={optional(`quotations.${name}`) === false ? true : undefined}
                                         aria-invalid={error ? true : undefined}
