@@ -583,6 +583,45 @@ The list of required documents per category is a business input not yet supplied
 
 On submission the system generates a **cover sheet PDF** containing the case reference and a QR code. The vendor prints it and attaches it to the hardcopy. Registry scans the QR, which opens the case and marks `hardcopy_received_at`. This links the physical file to the digital case without manual matching.
 
+### 10.2 Request letter
+
+The vendor's request letter is generated as a PDF from the saved application (`App\Letters\RequestLetter`, Blade `letters/request`, dompdf). It follows the layout and wording of NIPDEC's paper letters. It is the request's print and export output.
+
+- **Routes.** `GET /requests/{case}/letter.pdf` (vendor: own organisation, any status) and `GET /cases/{case}/letter.pdf` (staff: anyone who can view the case). Another organisation's case, a DRAFT for staff, and a type with no letter (old Pharm / Non-Pharm, no type chosen) return 404. Downloaded as `{reference} – {item}.pdf` (`Draft – {item}.pdf` before submission).
+- **Audit.** Each export writes `case.letter_exported` with the audience, the draft flag and the letter kind. No letter text.
+- **Drafts.** Dated today and watermarked "DRAFT – NOT SUBMITTED". A submitted letter is dated with the submission date (Port of Spain).
+- **Vendor-safe.** The request as filled, the external clean documents and the vendor's own sign-off. No internal notes, review outcomes, CAB reasons, query messages or staff names, for any audience.
+- **Nothing typed into the letter.** A value that was not entered leaves its sentence or table out; there are no placeholders. Sections and fields the type hides (§ RequestSections) are left out as the form leaves them out.
+- **Letter kinds.** Tender Excess, Tender Variation, and Ad Hoc (`AD_HOC_EMERGENCY`, `AD_HOC_TENDER_UNABLE`, `AD_HOC_NOT_AWARDED`, and the old single `AD_HOC`).
+
+**Fixed parts.** Recipient block and salutation: `config/procurement.php` `letter.recipient` and `letter.salutation`. Letterhead: the organisation's `short_name` (large) and `name`; the logo slot (`organisations.logo_path`) is empty for now. Left band colour: `letter.band_colour`. Paper size: `letter.paper` (default Letter).
+
+**Field mapping.** `{item}` = item description + strength + dosage form (a part the description already contains is not repeated). `{unit}` = unit of measure, lowercase in sentences. Quantities in sentences are written "words (figures)", e.g. "twenty-nine thousand nine hundred eighty-eight (29,988) each"; a quantity with a fraction is written in figures only.
+
+| Letter part | Source on the form | Kinds |
+|---|---|---|
+| Date | `cases.submitted_at` (draft: today) | All |
+| Subject | Type; item; DIN; Variation: the variation types of Details of Variation Requested | All (wording per kind) |
+| Opening sentence | Quantity requested, unit, item, DIN; Variation: variation types | All (wording per kind) |
+| Award sentence | Tender cycle start and end years; number of distinct awarded suppliers | All, when there are award rows |
+| Award table | Awarded Supplier rows: supplier, manufacturer (country of origin in brackets), brand, quantity awarded + unit, % awarded (whole number), unit cost, total (quantity × unit cost) | All, when there are award rows |
+| Orders sentence and table | Existing Approved Arrangement rows: supplier (from the award row), PO number, quantity ordered, date ordered, quantity delivered, outstanding (ordered − delivered), delivery status ("Delivered" + delivery date when fully delivered) | Tender Variation only (the section is Variation only) |
+| Issues paragraph | Issues affecting the tender quantity | Tender Variation only (the field is Variation only) |
+| Clinical note | Clinical note | All |
+| Variation table | Details of Variation Requested: type, existing detail, proposed detail, effective date / application P.O. | Tender Variation, when the previous-request answer is Yes |
+| Stock paragraph | Quantity on hand (or "no stock on hand"), stock location, average monthly consumption | Ad Hoc, Tender Excess |
+| Expiry table | Stock batches: expiry date (and quantity, where an old batch has one) | Ad Hoc, Tender Excess |
+| RFQ paragraph | RFQ sent to; number of quotations with a supplier | Ad Hoc, Tender Excess |
+| Not-considered reasons | Each quotation not considered, with its reason | Ad Hoc, Tender Excess |
+| Recommendation | The recommended quotation: quantity, supplier, unit price, Total Price (subtotal + VAT) | Ad Hoc, Tender Excess (wording per kind) |
+| Price comparison | Tender price, previous price | Tender Excess only |
+| Lead time | The recommended quotation's lead time | Ad Hoc, Tender Excess |
+| Sign-off | Organisation name (capitals); the submitter's name, job title (`users.job_title`) and division (`users.division`) | All |
+| /Attach | Current external, clean documents: file name and category | All |
+| Quotation Comparison Sheet (annex page) | Every quotation with a supplier: quantity, unit price, subtotal, VAT, total price, ex stock, lead time, brand, manufacturer, country of origin, remarks, status (Recommended / Considered / Not considered) | Ad Hoc, Tender Excess |
+| Running header (pages 2+) | "Page n – {item} – DIN {din}" | All |
+| Footer | Organisation name, the submitter's division, organisation address / phone / email | All |
+
 ---
 
 ## 11. Notifications

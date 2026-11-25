@@ -15,6 +15,7 @@ use App\Http\Controllers\HardcopyLookupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QueryInboxController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\RequestLetterController;
 use App\Http\Controllers\Security\MfaController;
 use App\Http\Controllers\StaffCaseActionController;
 use App\Http\Controllers\StaffCaseController;
@@ -98,6 +99,8 @@ Route::middleware(['auth', 'case.area', 'can:'.Permission::CaseSubmit->value])
         Route::get('{procurementCase}/receipt', 'receipt')->name('receipt');
         // 2026-11-24: the printable form (any status, own organisation; others 404 through the scope).
         Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
+        // 2026-11-24: the request letter PDF (own organisation, any status; a draft is watermarked).
+        Route::get('{procurementCase}/letter.pdf', [RequestLetterController::class, 'vendor'])->middleware('throttle:30,1')->name('letter');
         // TERMINAL-1 (T15V): the vendor withdraws its own request (DRAFT or SUBMITTED).
         Route::post('{procurementCase}/withdraw', 'withdraw')->middleware('throttle:10,1')->name('withdraw');
         Route::post('{procurementCase}/submit', SubmitRequestController::class)
@@ -141,6 +144,8 @@ Route::middleware(['auth', 'case.area', 'can:viewStaffCases,'.ProcurementCase::c
             ->scopeBindings()->middleware('throttle:60,1')->name('documents.download');
         // 2026-11-24: the printable form, for anyone who can view the case (hidden and DRAFT: 404).
         Route::get('{procurementCase}/print', 'print')->middleware('throttle:30,1')->name('print');
+        // 2026-11-24: the request letter PDF, for anyone who can view the case (hidden and DRAFT: 404).
+        Route::get('{procurementCase}/letter.pdf', [RequestLetterController::class, 'staff'])->middleware('throttle:30,1')->name('letter');
 
         // Slice 9b actions. 20 a minute per user.
         Route::controller(StaffCaseActionController::class)->middleware('throttle:20,1')->group(function () {
