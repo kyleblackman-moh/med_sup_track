@@ -14,36 +14,41 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * table, in the comparison order: the Supplier in the header (with the narrow
  * Considered and Recommended controls and remove), then two table lines, each
  * a row of column headers over a row of fields (spans of the 15 tracks):
- *   Quantity | Unit Price | Subtotal | VAT | Total Price
- *   Ex Stock | Lead Time (Days) | Brand | Manufacturer | Country of Origin | Remarks
- * Subtotal, VAT and Total Price are read-only, worked out live
+ *   Quantity | Unit Price | Ex Stock | Lead Time (Days)
+ *   Brand | Manufacturer | Country of Origin | Remarks
+ * Kyle, 2026-11-25: Subtotal, VAT and Total Price Incl. VAT sit under the
+ * table as the block's totals (QuotationTotals), read-only and worked out live
  * (lib/quotation-price.ts). The layout is EntrySheet
  * (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
  */
-const SHEET_LINES: { key: string; label: string; span: number; computed?: true }[][] = [
+const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
-        { key: 'quantity_offered', label: 'Quantity', span: 3 },
-        { key: 'unit_price', label: 'Unit Price', span: 3 },
-        { key: 'subtotal', label: 'Subtotal', span: 3, computed: true },
-        { key: 'vat', label: 'VAT', span: 3, computed: true },
-        { key: 'total_price', label: 'Total Price Incl. VAT', span: 3, computed: true },
+        { key: 'quantity_offered', label: 'Quantity', span: 4 },
+        { key: 'unit_price', label: 'Unit Price', span: 4 },
+        { key: 'quantity_available_now', label: 'Ex Stock', span: 3 },
+        { key: 'lead_time_days', label: 'Lead Time (Days)', span: 4 },
     ],
     [
-        { key: 'quantity_available_now', label: 'Ex Stock', span: 2 },
-        { key: 'lead_time_days', label: 'Lead Time (Days)', span: 2 },
-        { key: 'brand', label: 'Brand', span: 3 },
-        { key: 'manufacturer', label: 'Manufacturer', span: 3 },
-        { key: 'country_of_origin', label: 'Country of Origin', span: 2 },
-        { key: 'remarks', label: 'Remarks', span: 3 },
+        { key: 'brand', label: 'Brand', span: 4 },
+        { key: 'manufacturer', label: 'Manufacturer', span: 4 },
+        { key: 'country_of_origin', label: 'Country of Origin', span: 3 },
+        { key: 'remarks', label: 'Remarks', span: 4 },
     ],
 ];
 
-/** A read-only figure in a sheet cell, level with the inputs beside it. */
-function SheetFigure({ value, strong }: { value: string; strong?: boolean }) {
+/** The block's totals under its table, right-aligned like an invoice: Subtotal, VAT, then the total. */
+function QuotationTotals({ label, price }: { label: string; price: { subtotal: string; vat: string; total: string } | null }) {
+    const figure = (amount: string | undefined) => (amount === undefined ? '—' : money(amount));
+
     return (
-        <output className={strong ? 'flex min-h-8 items-center px-1 font-semibold tabular-nums' : 'flex min-h-8 items-center px-1 tabular-nums'}>
-            {value}
-        </output>
+        <dl aria-label={`Totals, ${label}`} className="ms-auto grid w-full max-w-xs grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
+            <dt className="text-base-content/70">Subtotal</dt>
+            <dd className="text-end tabular-nums">{figure(price?.subtotal)}</dd>
+            <dt className="text-base-content/70">VAT</dt>
+            <dd className="text-end tabular-nums">{figure(price?.vat)}</dd>
+            <dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>
+            <dd className="border-base-300 border-t pt-1 text-end font-semibold tabular-nums">{figure(price?.total)}</dd>
+        </dl>
     );
 }
 
@@ -156,9 +161,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 manufacturer: input('manufacturer', 'text', 200),
                                 country_of_origin: input('country_of_origin', 'text', 100),
                                 remarks: input('remarks', 'text', 255),
-                                subtotal: <SheetFigure value={price ? money(price.subtotal) : '—'} />,
-                                vat: <SheetFigure value={price ? money(price.vat) : '—'} />,
-                                total_price: <SheetFigure value={price ? money(price.total) : '—'} strong />,
                             };
 
                             return (
@@ -237,41 +239,37 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         />
                                     }
                                     lines={SHEET_LINES.map((line) =>
-                                        line.map(({ computed, ...column }) => ({
+                                        line.map((column) => ({
                                             ...column,
-                                            // A worked-out figure has no control, so its header is not a label.
-                                            htmlFor: computed ? undefined : id(column.key),
+                                            htmlFor: id(column.key),
                                             content: cells[column.key],
                                         })),
                                     )}
                                     below={
-                                        (!considered || errors.length > 0) && (
-                                            <>
-                                                {
-                                                    // Only for a quotation that was not considered; no space otherwise.
-                                                    !considered && (
-                                                        <TextAreaField
-                                                            width="full"
-                                                            id={id('reason_accepted_excluded')}
-                                                            label="Reason Quotation Wasn't Considered"
-                                                            srLabelSuffix={`, ${rowLabel}`}
-                                                            rows={2}
-                                                            maxLength={config.max_lengths.reason_accepted_excluded}
-                                                            value={text(row.values.reason_accepted_excluded)}
-                                                            onChange={(value) =>
-                                                                api.setCell('quotations', row.key, 'reason_accepted_excluded', value)
-                                                            }
-                                                            error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
-                                                            errorListId={errorsId}
-                                                            optional={optional('quotations.reason_accepted_excluded')}
-                                                            hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
-                                                        />
-                                                    )
-                                                }
-                                                {/* FORM-ERR-1 (A): the entry's one error list. */}
-                                                <RowErrorList id={errorsId} errors={errors} />
-                                            </>
-                                        )
+                                        <>
+                                            <QuotationTotals label={rowLabel} price={price} />
+                                            {
+                                                // Only for a quotation that was not considered; no space otherwise.
+                                                !considered && (
+                                                    <TextAreaField
+                                                        width="full"
+                                                        id={id('reason_accepted_excluded')}
+                                                        label="Reason Quotation Wasn't Considered"
+                                                        srLabelSuffix={`, ${rowLabel}`}
+                                                        rows={2}
+                                                        maxLength={config.max_lengths.reason_accepted_excluded}
+                                                        value={text(row.values.reason_accepted_excluded)}
+                                                        onChange={(value) => api.setCell('quotations', row.key, 'reason_accepted_excluded', value)}
+                                                        error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
+                                                        errorListId={errorsId}
+                                                        optional={optional('quotations.reason_accepted_excluded')}
+                                                        hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
+                                                    />
+                                                )
+                                            }
+                                            {/* FORM-ERR-1 (A): the entry's one error list. */}
+                                            <RowErrorList id={errorsId} errors={errors} />
+                                        </>
                                     }
                                 />
                             );

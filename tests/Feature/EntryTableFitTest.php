@@ -63,24 +63,27 @@ it('switches each table to one line only where every column fits at its minimum'
     'variations' => ['variation-section.tsx', 45],
 ]);
 
-it('lays each quotation out as a supplier block of three table lines in the agreed order', function () {
+it('lays each quotation out as a supplier block of two table lines over its totals in the agreed order', function () {
     $source = file_get_contents(resource_path('js/components/requests/ad-hoc/quotation-section.tsx'));
     preg_match('/const SHEET_LINES[^=]*= \[(.*?)\n\];/s', $source, $block);
     preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
     $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then the comparison order:
-    // Quantity, Unit Price, Subtotal, VAT, Total Price; then Ex Stock to Remarks. The three
-    // money figures are read-only (no control), worked out live by lib/quotation-price.ts.
+    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then Quantity, Unit Price,
+    // Ex Stock, Lead Time; then Brand to Remarks. Kyle, 2026-11-25: Subtotal, VAT and Total Price
+    // Incl. VAT are the block's totals under the table, read-only, worked out live by lib/quotation-price.ts.
     expect($keys)->toBe([
-        ['quantity_offered', 'unit_price', 'subtotal', 'vat', 'total_price'],
-        ['quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks'],
+        ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days'],
+        ['brand', 'manufacturer', 'country_of_origin', 'remarks'],
     ])
-        ->and($source)->toContain("{ key: 'total_price', label: 'Total Price Incl. VAT', span: 3, computed: true }")
-        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 2 }")
-        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 3 }")
-        ->and($source)->toContain('htmlFor: computed ? undefined : id(column.key)')
+        ->and($source)->toContain("{ key: 'quantity_available_now', label: 'Ex Stock', span: 3 }")
+        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 4 }")
+        ->and($source)->not->toContain("key: 'total_price'")
+        ->and($source)->toMatch('/below=\{\s*<>\s*<QuotationTotals label=\{rowLabel\} price=\{price\} \/>/')
+        ->and($source)->toContain('<dt className="border-base-300 border-t pt-1 font-semibold">Total Price Incl. VAT</dt>')
         ->and($source)->toContain("import { quotationPrice } from '@/lib/quotation-price';")
+        // The Quoted Price figure is gone from the price comparison (the totals show it).
+        ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.
         ->and($source)->toContain("input('quantity_available_now', 'decimal')")
         ->and($source)->not->toContain("'ex_stock'")

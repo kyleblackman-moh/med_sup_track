@@ -4,16 +4,15 @@ import { fieldId } from './form-state';
 
 /**
  * Section 5, Price comparison (optional). Kyle, 2026-11-24: always shown (no
- * "Add Price Comparison" button, no intro line). The quoted price and the change against each
- * entered price are computed and formatted by the server (V2-3: the "%" too).
+ * "Add Price Comparison" button, no intro line). 2026-11-25: no Quoted Price figure (the
+ * quotation's totals show it). The change against each entered price is computed and formatted by the server (V2-3: the "%" too).
  * 2026-11-23: the tender and previous price (and their changes) show only
  * where the server's section map names them (Tender Excess); hidden values
  * stay in the draft and the server clears them at submit.
  */
 export function PriceSection({ api }: { api: FormApi }) {
-    const { state, detail, config } = api;
+    const { state, config } = api;
     const showPrices = api.optional('quotation_comparison', 'tender_price') !== undefined;
-    const figures = detail.figures;
 
     return (
         <FieldGrid>
@@ -44,17 +43,14 @@ export function PriceSection({ api }: { api: FormApi }) {
                 </>
             )}
 
-            <GridRow>
-                <FieldGrid as="dl">
-                    <Figure width="md" label="Quoted Price (Recommended Quotation)" value={figures?.recommended_unit_price} />
-                    {showPrices && (
-                        <>
-                            <Figure width="md" label="Change Against Tender Price" value={api.form.display.price_change_vs_tender} />
-                            <Figure width="md" label="Change Against Previous Price" value={api.form.display.price_change_vs_previous} />
-                        </>
-                    )}
-                </FieldGrid>
-            </GridRow>
+            {showPrices && (
+                <GridRow>
+                    <FieldGrid as="dl">
+                        <Figure width="md" label="Change Against Tender Price" value={api.form.display.price_change_vs_tender} />
+                        <Figure width="md" label="Change Against Previous Price" value={api.form.display.price_change_vs_previous} />
+                    </FieldGrid>
+                </GridRow>
+            )}
 
             <CheckboxField
                 width="full"
