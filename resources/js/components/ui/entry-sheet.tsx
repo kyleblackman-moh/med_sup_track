@@ -70,7 +70,8 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
                 </div>
 
                 <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
-                    <table className="table-sm table min-w-[40rem] table-fixed">
+                    {/* Seven columns on one line: below 56rem the block scrolls rather than squeeze them. */}
+                    <table className="table-sm table min-w-[56rem] table-fixed">
                         <caption className="sr-only">{label}</caption>
                         {columns && (
                             <colgroup>

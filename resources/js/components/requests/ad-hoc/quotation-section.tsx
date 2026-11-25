@@ -14,9 +14,9 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * Backlog v0.4 (2026-11-25): each quotation is one supplier block, a small
  * table, in the comparison order: the Supplier in the header (with the narrow
  * Considered and Recommended controls and remove), then two table lines, each
- * a row of column headers over a row of fields, in four aligned columns:
- *   Quantity | Unit Price | Ex Stock | Lead Time (Days)
- *   Brand | Manufacturer | Country of Origin | Remarks
+ * a row of column headers over a row of fields:
+ *   Quantity | Unit Price | Ex Stock | Lead Time (Days) | Brand | Manufacturer | Country of Origin
+ *   Remarks (the whole line)
  * Kyle, 2026-11-25: Subtotal, VAT and Total Price Incl. VAT sit under the
  * table as the block's totals (QuotationTotals), read-only and worked out live
  * (lib/quotation-price.ts). The layout is EntrySheet
@@ -28,17 +28,18 @@ const SHEET_LINES: { key: string; label: string; span: number }[][] = [
         { key: 'unit_price', label: 'Unit Price', span: 1 },
         { key: 'quantity_available_now', label: 'Ex Stock', span: 1 },
         { key: 'lead_time_days', label: 'Lead Time (Days)', span: 1 },
-    ],
-    [
         { key: 'brand', label: 'Brand', span: 1 },
         { key: 'manufacturer', label: 'Manufacturer', span: 1 },
         { key: 'country_of_origin', label: 'Country of Origin', span: 1 },
-        { key: 'remarks', label: 'Remarks', span: 1 },
     ],
+    [{ key: 'remarks', label: 'Remarks', span: 7 }],
 ];
 
-/** Kyle, 2026-11-25: the first three columns are narrow and fixed; the fourth (Lead Time over Remarks) takes the rest. */
-const SHEET_COLUMNS = ['10rem', '10rem', '10rem', undefined];
+/**
+ * Kyle, 2026-11-25: the four number columns are narrow and fixed (Lead Time the narrowest);
+ * Brand, Manufacturer and Country of Origin share the rest. Remarks has the whole second line.
+ */
+const SHEET_COLUMNS = ['7rem', '8rem', '7rem', '6rem', undefined, undefined, undefined];
 
 /** The block's totals under its table, right-aligned like an invoice: Subtotal, VAT, then the total. */
 function QuotationTotals({ label, price }: { label: string; price: { subtotal: string; vat: string; total: string } | null }) {
@@ -55,9 +56,6 @@ function QuotationTotals({ label, price }: { label: string; price: { subtotal: s
         </dl>
     );
 }
-
-/** Kyle, 2026-11-25: Lead Time sits in the wide column, so its box stays short. */
-const SHORT_BOX = 'max-w-28';
 
 /** Every message of an entry in one list under it, in the order the block shows the fields. */
 const ERROR_ORDER = [
@@ -163,7 +161,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 quantity_offered: input('quantity_offered', 'decimal'),
                                 unit_price: input('unit_price', 'decimal'),
                                 quantity_available_now: input('quantity_available_now', 'decimal'),
-                                lead_time_days: input('lead_time_days', 'integer', undefined, SHORT_BOX),
+                                lead_time_days: input('lead_time_days', 'integer'),
                                 brand: input('brand', 'text', 200),
                                 manufacturer: input('manufacturer', 'text', 200),
                                 country_of_origin: input('country_of_origin', 'text', 100),

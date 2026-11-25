@@ -69,16 +69,16 @@ it('lays each quotation out as a supplier block of two table lines over its tota
     preg_match_all('/\[\s*(\{ key:.*?)\s*\],?/s', $block[1] ?? '', $lines);
     $keys = array_map(fn (string $line) => preg_match_all("/key: '(\\w+)'/", $line, $m) ? $m[1] : [], $lines[1]);
 
-    // Backlog v0.4 (2026-11-25): the supplier in the block's header, then Quantity, Unit Price,
-    // Ex Stock, Lead Time; then Brand to Remarks. Kyle, 2026-11-25: Subtotal, VAT and Total Price
+    // Backlog v0.4 (2026-11-25): the supplier in the block's header; Subtotal, VAT and Total Price
     // Incl. VAT are the block's totals under the table, read-only, worked out live by lib/quotation-price.ts.
+    // Kyle, 2026-11-25: one line of seven (narrow fixed number columns, Lead Time the narrowest;
+    // Brand, Manufacturer, Country of Origin share the rest), then Remarks across the whole line.
     expect($keys)->toBe([
-        ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days'],
-        ['brand', 'manufacturer', 'country_of_origin', 'remarks'],
+        ['quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin'],
+        ['remarks'],
     ])
-        // Kyle, 2026-11-25: three narrow fixed columns; the fourth (Lead Time over Remarks) takes the rest.
-        ->and($source)->toContain("{ key: 'remarks', label: 'Remarks', span: 1 }")
-        ->and($source)->toContain("const SHEET_COLUMNS = ['10rem', '10rem', '10rem', undefined];")
+        ->and($source)->toContain("[{ key: 'remarks', label: 'Remarks', span: 7 }],")
+        ->and($source)->toContain("const SHEET_COLUMNS = ['7rem', '8rem', '7rem', '6rem', undefined, undefined, undefined];")
         ->and($source)->toContain('columns={SHEET_COLUMNS}')
         ->and($source)->not->toContain("key: 'total_price'")
         ->and($source)->toMatch('/below=\{\s*<>\s*<QuotationTotals label=\{rowLabel\} price=\{price\} \/>/')
@@ -88,7 +88,6 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/price-section.tsx')))->not->toContain('Quoted Price (Recommended Quotation)')
         // Ex Stock is a number, not a checkbox.
         ->and($source)->toContain("input('quantity_available_now', 'decimal')")
-        ->and($source)->toContain("input('lead_time_days', 'integer', undefined, SHORT_BOX)")
         ->and($source)->toContain("input('remarks', 'text', 255)")
         ->and($source)->not->toContain("'ex_stock'")
         // The block's header: Supplier, then Considered and the one Recommended radio.
