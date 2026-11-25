@@ -1,9 +1,10 @@
 import { EntrySheet } from '@/components/ui/entry-sheet';
 import { RowErrorList } from '@/components/ui/entry-table';
 import { quotationPrice } from '@/lib/quotation-price';
+import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
 import { collectRowErrors, EntryInlineCheck } from './entry-fields';
-import { FieldGrid, FieldHint, GridRow, inputClass, RadioGroupField, TableError, textareaClass, TextAreaField } from './fields';
+import { FieldGrid, FieldHint, GridRow, inputClass, RadioGroupField, TableError, TextAreaField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
@@ -11,33 +12,30 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 /**
  * Backlog v0.4 (2026-11-25): each quotation is one supplier block, a small
- * table: the Supplier in the header (with the narrow Considered and
- * Recommended controls and remove), then two short table lines, each a row of
- * column headers over a row of fields (spans of the 12 fixed tracks):
+ * table, in the comparison order: the Supplier in the header (with the narrow
+ * Considered and Recommended controls and remove), then two table lines, each
+ * a row of column headers over a row of fields (spans of the 15 tracks):
  *   Quantity | Unit Price | Ex Stock | Lead Time (Days)
- *   Brand | Manufacturer | Country of Origin
- * Kyle, 2026-11-25: Remarks is a column at the right, as tall as both lines,
- * taking the width the short columns leave (EntrySheet aside). Subtotal, VAT
- * and Total Price Incl. VAT sit under the table as the block's totals
- * (QuotationTotals), read-only and worked out live (lib/quotation-price.ts).
- * The layout is EntrySheet (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
+ *   Brand | Manufacturer | Country of Origin | Remarks
+ * Kyle, 2026-11-25: Subtotal, VAT and Total Price Incl. VAT sit under the
+ * table as the block's totals (QuotationTotals), read-only and worked out live
+ * (lib/quotation-price.ts). The layout is EntrySheet
+ * (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
  */
 const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
-        { key: 'quantity_offered', label: 'Quantity', span: 3 },
-        { key: 'unit_price', label: 'Unit Price', span: 3 },
+        { key: 'quantity_offered', label: 'Quantity', span: 4 },
+        { key: 'unit_price', label: 'Unit Price', span: 4 },
         { key: 'quantity_available_now', label: 'Ex Stock', span: 3 },
-        { key: 'lead_time_days', label: 'Lead Time (Days)', span: 3 },
+        { key: 'lead_time_days', label: 'Lead Time (Days)', span: 4 },
     ],
     [
         { key: 'brand', label: 'Brand', span: 4 },
         { key: 'manufacturer', label: 'Manufacturer', span: 4 },
-        { key: 'country_of_origin', label: 'Country of Origin', span: 4 },
+        { key: 'country_of_origin', label: 'Country of Origin', span: 3 },
+        { key: 'remarks', label: 'Remarks', span: 4 },
     ],
 ];
-
-/** One track of the short columns: a number column is 7.5rem, a text column 10rem. */
-const TRACK_WIDTH = '2.5rem';
 
 /** The block's totals under its table, right-aligned like an invoice: Subtotal, VAT, then the total. */
 function QuotationTotals({ label, price }: { label: string; price: { subtotal: string; vat: string; total: string } | null }) {
@@ -54,6 +52,12 @@ function QuotationTotals({ label, price }: { label: string; price: { subtotal: s
         </dl>
     );
 }
+
+/**
+ * Kyle, 2026-11-25: the short fields get a short box, left in their cell;
+ * Supplier and Remarks keep the full width.
+ */
+const SHORT_BOX = { number: 'max-w-28', text: 'max-w-44' } as const;
 
 /** Every message of an entry in one list under it, in the order the block shows the fields. */
 const ERROR_ORDER = [
@@ -127,7 +131,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             const errorsId = fieldId.rowErrors('quotations', row.key);
                             const errors = collectRowErrors(ERROR_ORDER, (name) => api.cellError('quotations', row, index, name));
                             const labelOf = (name: string) => SHEET_LINES.flat().find((c) => c.key === name)?.label ?? 'Supplier';
-                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number) => {
+                            const input = (name: string, kind: 'text' | 'decimal' | 'integer' = 'text', maxLength?: number, box?: string) => {
                                 const error = api.cellError('quotations', row, index, name);
 
                                 return (
@@ -138,7 +142,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                                         maxLength={maxLength}
                                         value={text(row.values[name])}
-                                        className={inputClass(Boolean(error))}
+                                        className={cn(inputClass(Boolean(error)), box)}
                                         aria-label={`${labelOf(name)}, ${rowLabel}`}
                                         aria-required={optional(`quotations.${name}`) === false ? true : undefined}
                                         aria-invalid={error ? true : undefined}
@@ -147,7 +151,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     />
                                 );
                             };
-                            const remarksError = api.cellError('quotations', row, index, 'remarks');
                             const considered = row.values.considered === true;
                             const recommended = row.values.is_recommended === true;
                             // Kyle, 2026-11-24: Considered OR Recommended, never both ticked. Recommended is stored as
@@ -157,13 +160,14 @@ export function QuotationSection({ api }: { api: FormApi }) {
                             // Live as the vendor types: the server's rule and rate (quotation-price.ts, form.display.vat_rate).
                             const price = quotationPrice(text(row.values.quantity_offered), text(row.values.unit_price), form.display.vat_rate);
                             const cells: Record<string, ReactNode> = {
-                                quantity_offered: input('quantity_offered', 'decimal'),
-                                unit_price: input('unit_price', 'decimal'),
-                                quantity_available_now: input('quantity_available_now', 'decimal'),
-                                lead_time_days: input('lead_time_days', 'integer'),
-                                brand: input('brand', 'text', 200),
-                                manufacturer: input('manufacturer', 'text', 200),
-                                country_of_origin: input('country_of_origin', 'text', 100),
+                                quantity_offered: input('quantity_offered', 'decimal', undefined, SHORT_BOX.number),
+                                unit_price: input('unit_price', 'decimal', undefined, SHORT_BOX.number),
+                                quantity_available_now: input('quantity_available_now', 'decimal', undefined, SHORT_BOX.number),
+                                lead_time_days: input('lead_time_days', 'integer', undefined, SHORT_BOX.number),
+                                brand: input('brand', 'text', 200, SHORT_BOX.text),
+                                manufacturer: input('manufacturer', 'text', 200, SHORT_BOX.text),
+                                country_of_origin: input('country_of_origin', 'text', 100, SHORT_BOX.text),
+                                remarks: input('remarks', 'text', 255),
                             };
 
                             return (
@@ -248,26 +252,6 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                             content: cells[column.key],
                                         })),
                                     )}
-                                    trackWidth={TRACK_WIDTH}
-                                    aside={{
-                                        key: 'remarks',
-                                        label: 'Remarks',
-                                        htmlFor: id('remarks'),
-                                        content: (
-                                            <textarea
-                                                id={id('remarks')}
-                                                maxLength={255}
-                                                rows={4}
-                                                value={text(row.values.remarks)}
-                                                className={textareaClass(Boolean(remarksError))}
-                                                aria-label={`Remarks, ${rowLabel}`}
-                                                aria-required={optional('quotations.remarks') === false ? true : undefined}
-                                                aria-invalid={remarksError ? true : undefined}
-                                                aria-describedby={remarksError ? errorsId : undefined}
-                                                onChange={(e) => api.setCell('quotations', row.key, 'remarks', e.target.value)}
-                                            />
-                                        ),
-                                    }}
                                     below={
                                         <>
                                             <QuotationTotals label={rowLabel} price={price} />
