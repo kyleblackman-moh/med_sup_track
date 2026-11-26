@@ -198,8 +198,13 @@ export function EntryTable({
     return (
         <TableContext.Provider value={{ breakpoint, narrowRowLabel, cards }}>
             <div role="group" aria-label={caption} className={cn('bg-card @container overflow-hidden rounded-xl border shadow-xs', className)}>
+                {/* Kyle, 2026-11-26: the quotation table's header look (EntrySheet): a soft primary band,
+                    black semibold labels and a primary line under it. */}
                 {!cards && (
-                <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
+                <div
+                    aria-hidden="true"
+                    className={cn('bg-primary/8 text-base-content border-b-primary/40 gap-3 border-b px-4 py-2 text-[13px] font-semibold', layout.header)}
+                >
                     <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : rowHeading}</span>
                     {columns.map((column) => (
                         <span key={column.key} className={cn('break-words', ENTRY_WIDTH[column.width ?? 'md'])}>
