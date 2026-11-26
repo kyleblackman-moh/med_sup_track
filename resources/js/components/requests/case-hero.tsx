@@ -37,7 +37,9 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
     return (
         <section aria-label="Request overview" className="card bg-base-100 border-base-300 min-w-0 border px-5 py-5 md:px-7 md:py-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-0">
-                <div className="flex min-w-0 items-center gap-5 lg:flex-1 lg:pr-6">
+                {/* Kyle, 2026-11-26: the heading keeps room for whole words (a long drug name broke mid-word);
+                    the meta cells wrap their text instead. */}
+                <div className="flex min-w-0 items-center gap-5 lg:min-w-sm lg:flex-1 lg:pr-6">
                     {/* The icon tile: solid primary (Blueprint flat design: no gradient). */}
                     <span
                         aria-hidden="true"
@@ -49,14 +51,14 @@ export function CaseHero({ hero }: { hero: CaseHeroView }) {
                         <p className="text-base-content/70 tracking-caption text-xs font-medium uppercase">Request</p>
                         {/* Kyle, 2026-11-24: the page's one h1 is the drug and DIN (the server's heading, else
                             "New Request") in the large mono the reference used; the reference sits under it. */}
-                        <h1 className="text-hero-ref tracking-title leading-tight font-bold break-words">{hero.heading}</h1>
+                        <h1 className="text-hero-ref tracking-title leading-tight font-bold text-balance break-words">{hero.heading}</h1>
                         {hero.reference && (
                             <p className="text-base-content/70 text-hero-title leading-snug font-medium tabular-nums">{hero.reference}</p>
                         )}
                     </div>
                 </div>
 
-                <dl className="border-base-300 lg:divide-base-300 grid gap-4 border-t pt-5 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:divide-x lg:border-t-0 lg:border-l lg:pt-0">
+                <dl className="border-base-300 lg:divide-base-300 grid min-w-0 gap-4 border-t pt-5 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:shrink lg:divide-x lg:border-t-0 lg:border-l lg:pt-0">
                     <MetaCell icon={TypeIcon} label="Request Type">
                         {hero.type ? hero.type.label : <span className="text-base-content/70 font-medium">{hero.type_unset_label}</span>}
                     </MetaCell>

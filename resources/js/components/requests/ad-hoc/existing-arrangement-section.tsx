@@ -1,5 +1,7 @@
 import { DatePicker, todayInPortOfSpain } from '@/components/ui/date-picker';
 import { EntryCell, EntryRow, EntryTable, type EntryColumn, type EntryWidth } from '@/components/ui/entry-table';
+import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
 import { FieldGrid, FieldHint, GridRow, inputClass, selectClass, TableError, TextAreaField } from './fields';
 import { rowDisplay, text, type FormApi } from './form-api';
@@ -13,9 +15,12 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * for issues affecting the tender quantity.
  *
  * Kyle, 2026-11-25: the quantities and dates are narrow fixed columns (num,
- * date), so the text columns get the room; one line from an 88rem card. The
- * Delivery Status is Partial Delivery, Delivered, Not Delivered or Other; Other
- * opens a text box under the status for what it means (required by the server).
+ * date), so the text columns get the room. The
+ * Delivery Status is Partial Delivery, Delivered, Not Delivered or Other.
+ *
+ * Kyle, 2026-11-26: the whole order on one line from a 72rem card (P.O # and
+ * the quantities narrow), and Other turns the status list itself into a text
+ * box for what it means (required by the server); its X goes back to the list.
  */
 export function ExistingArrangementSection({ api }: { api: FormApi }) {
     const rows = api.state.rows.purchase_orders;
@@ -28,15 +33,15 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
     const today = todayInPortOfSpain();
 
     const columns: EntryColumn[] = [
-        { key: 'award_id', label: 'Supplier', width: 'sm' },
-        { key: 'po_number', label: 'P.O #' },
+        { key: 'award_id', label: 'Supplier' },
+        { key: 'po_number', label: 'P.O #', width: 'num' },
         { key: 'quantity_ordered', label: 'Qty Ordered', width: 'num' },
         { key: 'ordered_on', label: 'Date Ordered', width: 'date' },
         { key: 'quantity_delivered', label: 'Qty Delivered', width: 'num' },
-        { key: 'delivery_state', label: 'Delivery Status', width: 'sm' },
+        { key: 'delivery_state', label: 'Delivery Status' },
         { key: 'delivery_date', label: 'Delivery Date', width: 'date' },
-        { key: 'delivery_note', label: 'Delivery Note No.' },
-        { key: 'quantity_outstanding', label: 'Qty Outstanding', width: 'value' },
+        { key: 'delivery_note', label: 'Delivery Note No.', width: 'xs' },
+        { key: 'quantity_outstanding', label: 'Qty Outstanding', width: 'num' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
     const widthOf = (key: string): EntryWidth => columns.find((c) => c.key === key)?.width ?? 'md';
@@ -50,7 +55,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                     <EntryTable
                         caption="Orders"
                         columns={columns}
-                        breakpoint="88rem"
+                        breakpoint="72rem"
                         narrowRowLabel
                         empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                         addAction={
@@ -123,7 +128,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                         />
                                     }
                                 >
-                                    <EntryCell label={label('award_id')} htmlFor={supplierId} width="sm">
+                                    <EntryCell label={label('award_id')} htmlFor={supplierId} width={widthOf('award_id')}>
                                         <select
                                             id={supplierId}
                                             className={selectClass(Boolean(supplierError))}
@@ -156,44 +161,68 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     {input('quantity_ordered', 'decimal')}
                                     {input('ordered_on', 'date')}
                                     {input('quantity_delivered', 'decimal')}
-                                    <EntryCell label={label('delivery_state')} htmlFor={deliveryId} width="sm">
-                                        <select
-                                            id={deliveryId}
-                                            className={selectClass(Boolean(stateError))}
-                                            value={deliveryState}
-                                            aria-label={`Delivery Status, ${rowLabel}`}
-                                            aria-required={optional('purchase_orders.delivery_state') === false ? true : undefined}
-                                            aria-invalid={stateError ? true : undefined}
-                                            aria-describedby={stateError ? errorsId : undefined}
-                                            onChange={(e) => {
-                                                api.setCell('purchase_orders', row.key, 'delivery_state', e.target.value);
-                                                // The description belongs to Other only.
-                                                if (e.target.value !== 'OTHER' && text(row.values.delivery_status) !== '') {
-                                                    api.setCell('purchase_orders', row.key, 'delivery_status', '');
-                                                }
-                                            }}
-                                        >
-                                            <option value="">Status…</option>
-                                            {api.config.options.delivery_state.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {isOther && (
-                                            <input
-                                                id={otherId}
-                                                type="text"
-                                                maxLength={120}
-                                                placeholder="Describe the status"
-                                                value={text(row.values.delivery_status)}
-                                                className={inputClass(Boolean(otherError))}
-                                                aria-label={`Other Delivery Status, ${rowLabel}`}
-                                                aria-required="true"
-                                                aria-invalid={otherError ? true : undefined}
-                                                aria-describedby={otherError ? errorsId : undefined}
-                                                onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
-                                            />
+                                    <EntryCell
+                                        label={label('delivery_state')}
+                                        htmlFor={isOther ? otherId : deliveryId}
+                                        width={widthOf('delivery_state')}
+                                    >
+                                        {isOther ? (
+                                            <label className={cn(inputClass(Boolean(otherError)), 'pe-1')}>
+                                                <input
+                                                    id={otherId}
+                                                    type="text"
+                                                    maxLength={120}
+                                                    placeholder="Other: describe"
+                                                    value={text(row.values.delivery_status)}
+                                                    className="min-w-0 grow"
+                                                    aria-label={`Other Delivery Status, ${rowLabel}`}
+                                                    aria-required="true"
+                                                    aria-invalid={otherError ? true : undefined}
+                                                    aria-describedby={otherError ? errorsId : undefined}
+                                                    onChange={(e) => api.setCell('purchase_orders', row.key, 'delivery_status', e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs btn-square shrink-0"
+                                                    aria-label={`Back to the status list, ${rowLabel}`}
+                                                    title="Back to the status list"
+                                                    onClick={() => {
+                                                        api.setCell('purchase_orders', row.key, 'delivery_state', '');
+                                                        api.setCell('purchase_orders', row.key, 'delivery_status', '');
+                                                        requestAnimationFrame(() => document.getElementById(deliveryId)?.focus());
+                                                    }}
+                                                >
+                                                    <X aria-hidden="true" className="size-4" />
+                                                </button>
+                                            </label>
+                                        ) : (
+                                            <select
+                                                id={deliveryId}
+                                                className={selectClass(Boolean(stateError))}
+                                                value={deliveryState}
+                                                aria-label={`Delivery Status, ${rowLabel}`}
+                                                aria-required={optional('purchase_orders.delivery_state') === false ? true : undefined}
+                                                aria-invalid={stateError ? true : undefined}
+                                                aria-describedby={stateError ? errorsId : undefined}
+                                                onChange={(e) => {
+                                                    api.setCell('purchase_orders', row.key, 'delivery_state', e.target.value);
+                                                    // The description belongs to Other only.
+                                                    if (e.target.value !== 'OTHER' && text(row.values.delivery_status) !== '') {
+                                                        api.setCell('purchase_orders', row.key, 'delivery_status', '');
+                                                    }
+                                                    // Other: the list becomes the text box, ready to type in.
+                                                    if (e.target.value === 'OTHER') {
+                                                        requestAnimationFrame(() => document.getElementById(otherId)?.focus());
+                                                    }
+                                                }}
+                                            >
+                                                <option value="">Status…</option>
+                                                {api.config.options.delivery_state.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         )}
                                     </EntryCell>
                                     <EntryCell label={label('delivery_date')} htmlFor={deliveryDateId} width={widthOf('delivery_date')}>

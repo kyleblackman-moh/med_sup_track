@@ -59,7 +59,7 @@ it('switches each table to one line only where every column fits at its minimum'
         ->and(oneLineWidth($source))->toBeLessThanOrEqual($breakpointPx, "{$file}: needs ".oneLineWidth($source)."px, breaks at {$breakpointPx}px");
 })->with([
     'awarded suppliers' => ['awarded-supplier-section.tsx', 72],
-    'orders' => ['existing-arrangement-section.tsx', 88],
+    'orders' => ['existing-arrangement-section.tsx', 72], // Kyle, 2026-11-26: the whole order on one line
     'stock items' => ['stock-section.tsx', 45], // Kyle, 2026-11-26: Drug Name, Expiry Date, Note
     'variations' => ['variation-section.tsx', 45],
 ]);
@@ -160,14 +160,17 @@ it('gives the awarded suppliers TOTAL and TOTAL AWARD in capitals, and a prompt 
         ->and($source)->toMatch("/\\{awarded !== null && awarded !== '100\\.00' && \\(\\s*<div role=\"status\" className=\"alert alert-warning alert-soft/");
 });
 
-it('opens a text box under the delivery status for Other, and clears it for any other status', function () {
+it('turns the delivery status into a text box for Other, and clears it for any other status', function () {
     $source = file_get_contents(resource_path('js/components/requests/ad-hoc/existing-arrangement-section.tsx'));
 
-    expect($source)->toContain("{ key: 'delivery_note', label: 'Delivery Note No.' }")
+    expect($source)->toContain("{ key: 'delivery_note', label: 'Delivery Note No.', width: 'xs' }")
+        ->and($source)->toContain("{ key: 'po_number', label: 'P.O #', width: 'num' }")
         ->and($source)->toContain("{ key: 'quantity_ordered', label: 'Qty Ordered', width: 'num' }")
         ->and($source)->toContain("{ key: 'ordered_on', label: 'Date Ordered', width: 'date' }")
         ->and($source)->toContain("{ key: 'quantity_delivered', label: 'Qty Delivered', width: 'num' }")
         ->and($source)->toContain("const isOther = deliveryState === 'OTHER';")
-        ->and($source)->toMatch('/\\{isOther && \\(\\s*<input\\s+id=\\{otherId\\}/')
+        // Kyle, 2026-11-26: in place of the list, not a second field under it; its X goes back to the list.
+        ->and($source)->toMatch('/\\{isOther \\? \\(\\s*<label[^>]*>\\s*<input\\s+id=\\{otherId\\}.*?\\) : \\(\\s*<select/s')
+        ->and($source)->toContain('Back to the status list')
         ->and($source)->toContain("if (e.target.value !== 'OTHER' && text(row.values.delivery_status) !== '')");
 });

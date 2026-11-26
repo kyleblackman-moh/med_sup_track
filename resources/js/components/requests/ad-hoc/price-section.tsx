@@ -1,6 +1,6 @@
 import { money, priceChange } from '@/lib/quotation-price';
 import { cn } from '@/lib/utils';
-import { CheckboxField, FieldError, FieldGrid, FieldHint, fieldLabelClass, GridRow, inputClass, TextAreaField } from './fields';
+import { FieldError, FieldGrid, FieldHint, fieldLabelClass, GridRow, inputClass, TextAreaField } from './fields';
 import { text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 
@@ -15,6 +15,8 @@ import { fieldId } from './form-state';
  * Tender Price and Previous Price, each with how the recommended quotation
  * compares to it, worked out live as the vendor types (priceChange, the
  * server's rule in QuotationPrice::changePercent).
+ *
+ * Kyle, 2026-11-26: no "Quoted Price Is Acceptable" tick.
  */
 export function PriceSection({ api }: { api: FormApi }) {
     const { state, config } = api;
@@ -27,14 +29,6 @@ export function PriceSection({ api }: { api: FormApi }) {
                     <PriceComparison api={api} />
                 </GridRow>
             )}
-
-            <CheckboxField
-                width="full"
-                id={fieldId.requisition('quoted_price_acceptable')}
-                label="Quoted Price Is Acceptable"
-                checked={state.requisition.quoted_price_acceptable === true}
-                onChange={(checked) => api.setField('quoted_price_acceptable', checked)}
-            />
 
             <TextAreaField
                 width="full"
