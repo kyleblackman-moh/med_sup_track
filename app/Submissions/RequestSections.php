@@ -46,7 +46,7 @@ final class RequestSections
     public const LABELS = [
         'request_type' => 'Request Type',
         'item_tender' => 'Item and Tender Details',
-        'variation_details' => 'Details of Variation Requested',
+        'variation_details' => 'Subsequently Approved by MoH', // Kyle, 2026-11-26: was Details of Variation Requested
         'awarded_supplier' => 'Awarded Supplier',
         'existing_arrangement' => 'Existing Approved Arrangement',
         'stock' => 'Stock',
@@ -238,7 +238,7 @@ final class RequestSections
      * from procurement_type_documents: see documentsRequired()).
      *
      * V2-5: $previousRequest is the case's previous-request answer (null =
-     * not answered); Details of Variation Requested shows only when it is true.
+     * not answered); Subsequently Approved by MoH shows only when it is true.
      *
      * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */

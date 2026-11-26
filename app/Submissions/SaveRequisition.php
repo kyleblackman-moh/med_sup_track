@@ -47,7 +47,7 @@ final class SaveRequisition
         'purchase_orders' => [CasePurchaseOrder::class, true],
         'quotations' => [CaseQuotation::class, true],
         'stock_expiries' => [CaseStockExpiry::class, false],
-        // V2-5: Details of Variation Requested, saved exactly like the award rows.
+        // V2-5: Subsequently Approved by MoH, saved exactly like the award rows.
         'variation_rows' => [CaseVariationRow::class, true],
     ];
 

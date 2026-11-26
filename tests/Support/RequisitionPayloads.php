@@ -158,7 +158,7 @@ function adHocPayload(): array
     ];
 }
 
-/** A complete variation row (V2-5, Details of Variation Requested); $overrides replace or add fields. */
+/** A complete variation row (V2-5, Subsequently Approved by MoH); $overrides replace or add fields. */
 function variationEntry(array $overrides = []): array
 {
     return [

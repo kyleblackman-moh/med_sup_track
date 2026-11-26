@@ -161,7 +161,7 @@ class RequestDetailResource extends JsonResource
                 ->values()->all(),
             // V2-5: the previous-request answer (request form only); null = not answered.
             'previous_request_in_cycle' => $adHoc ? $case->previous_request_in_cycle : null,
-            // V2-5: Details of Variation Requested (request form only), in saved order.
+            // V2-5: Subsequently Approved by MoH (request form only), in saved order.
             'variation_rows' => $adHoc
                 ? $case->variationRows->map(fn (CaseVariationRow $v) => self::row($v, 'variation_rows', $code))->values()->all()
                 : [],

@@ -9,7 +9,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 const MAX = { variation_type: 100, existing_detail: 500, proposed_detail: 500, effective_detail: 100 };
 
 /**
- * V2-5 section "Details of Variation Requested", shown only when the server
+ * V2-5 section "Subsequently Approved by MoH", shown only when the server
  * marks it visible (the previous-request answer is Yes, any type). One entry
  * per variation, mirroring the awarded supplier table: one line per entry once
  * the card is 45rem wide (FORM-ERR-1), wrapping below; the existing and proposed details are 2-row textareas;
@@ -35,7 +35,7 @@ export function VariationSection({ api }: { api: FormApi }) {
         <div id={fieldId.table('variation_rows')} tabIndex={-1} className="grid gap-2 outline-none">
             <TableError message={tableError || undefined} />
             <EntryTable
-                caption="Details of Variation Requested"
+                caption="Subsequently Approved by MoH"
                 columns={columns}
                 breakpoint="45rem"
                 narrowRowLabel

@@ -31,7 +31,7 @@ export type AdHocDetail = Omit<RequestDetail, 'requisition'> & {
     figures: AdHocFigures | null;
     /** V2-5: "Was a request previously made for this drug in this current tender cycle?"; null = not answered. */
     previous_request_in_cycle: boolean | null;
-    /** V2-5: Details of Variation Requested, in saved order. */
+    /** V2-5: Subsequently Approved by MoH, in saved order. */
     variation_rows: Row[];
 };
 
