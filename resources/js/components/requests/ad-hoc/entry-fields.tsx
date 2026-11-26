@@ -1,5 +1,6 @@
 import { DatePicker } from '@/components/ui/date-picker';
 import { ENTRY_WIDTH, EntryCell, type EntryWidth, type RowError, useChecksOffset } from '@/components/ui/entry-table';
+import { ENTRY_INPUT_PAD } from '@/components/ui/field-width';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
 import { inputClass, textareaClass } from './fields';
@@ -69,6 +70,7 @@ export function EntryInput({
                     ariaLabel={`${label}, ${rowLabel}`}
                     max={max}
                     required={required}
+                    className={width ? ENTRY_INPUT_PAD[width] : undefined}
                     invalid={Boolean(error)}
                     describedBy={error ? errorListId : undefined}
                 />
@@ -80,7 +82,7 @@ export function EntryInput({
                     inputMode={kind === 'decimal' ? 'decimal' : kind === 'integer' ? 'numeric' : undefined}
                     maxLength={maxLength}
                     value={value}
-                    className={inputClass(Boolean(error))}
+                    className={cn(inputClass(Boolean(error)), width && ENTRY_INPUT_PAD[width])}
                     aria-label={`${label}, ${rowLabel}`}
                     aria-required={required ? true : undefined}
                     aria-invalid={error ? true : undefined}

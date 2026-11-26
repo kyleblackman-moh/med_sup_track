@@ -1,5 +1,6 @@
 import { DatePicker, todayInPortOfSpain } from '@/components/ui/date-picker';
 import { EntryCell, EntryRow, EntryTable, type EntryColumn, type EntryWidth } from '@/components/ui/entry-table';
+import { ENTRY_INPUT_PAD } from '@/components/ui/field-width';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
@@ -18,8 +19,8 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * date), so the text columns get the room. The
  * Delivery Status is Partial Delivery, Delivered, Not Delivered or Other.
  *
- * Kyle, 2026-11-26: the whole order on one line from a 72rem card (P.O # and
- * the quantities narrow), and Other turns the status list itself into a text
+ * Kyle, 2026-11-26: the whole order on one line from a 65rem card (P.O # and
+ * the quantities narrow, 8px gaps), and Other turns the status list itself into a text
  * box for what it means (required by the server); its X goes back to the list.
  */
 export function ExistingArrangementSection({ api }: { api: FormApi }) {
@@ -41,7 +42,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
         { key: 'delivery_state', label: 'Delivery Status' },
         { key: 'delivery_date', label: 'Delivery Date', width: 'date' },
         { key: 'delivery_note', label: 'Delivery Note No.', width: 'xs' },
-        { key: 'quantity_outstanding', label: 'Qty Outstanding', width: 'num' },
+        { key: 'quantity_outstanding', label: 'Qty Outstanding', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
     const widthOf = (key: string): EntryWidth => columns.find((c) => c.key === key)?.width ?? 'md';
@@ -55,7 +56,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                     <EntryTable
                         caption="Orders"
                         columns={columns}
-                        breakpoint="72rem"
+                        breakpoint="65rem"
                         narrowRowLabel
                         empty={rows.length === 0 && <RowsNote>No orders yet.</RowsNote>}
                         addAction={
@@ -231,6 +232,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                             value={text(row.values.delivery_date)}
                                             placeholder="Choose a date"
                                             ariaLabel={`Delivery Date, ${rowLabel}`}
+                                            className={ENTRY_INPUT_PAD.date}
                                             // Required once something has been delivered (server: unless Not Delivered or Other).
                                             required={deliveryState !== '' && deliveryState !== 'NOT_DELIVERED' && !isOther}
                                             min={text(row.values.ordered_on) || undefined}

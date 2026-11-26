@@ -44,6 +44,9 @@ export const FIELD_WIDTH: Record<FieldWidth, string> = {
  */
 export type EntryWidth = Exclude<FieldWidth, 'full'> | 'checks' | 'value' | 'num' | 'date';
 
+/** Kyle, 2026-11-26: the tighter side padding of the narrow cells' inputs (num) and date pickers (date). */
+export const ENTRY_INPUT_PAD: Partial<Record<EntryWidth, string>> = { num: 'px-2', date: 'px-2.5' };
+
 export const ENTRY_WIDTH: Record<EntryWidth, string> = {
     'xs': 'flex-1 min-w-24', // 96px minimum
     'sm': 'flex-1 min-w-36', // 144px minimum
@@ -52,7 +55,8 @@ export const ENTRY_WIDTH: Record<EntryWidth, string> = {
     'checks': 'flex-none basis-88', // 352px in the one-line layout only (no minimum, so the wrapped grid never overflows): Considered, Recommended and Ex Stock
     'value': 'flex-none basis-24 min-w-24', // 96px: a server figure (a dash until saved)
     // Kyle, 2026-11-25: fixed, so the text columns get the room. A short number (a quantity, a %).
-    'num': 'flex-none basis-20 min-w-20', // 80px
-    // A date picker: its day, month and year and the calendar icon, and no wider.
-    'date': 'flex-none basis-36 min-w-36', // 144px
+    // 2026-11-26: narrower (its input pads 8px, ENTRY_INPUT_PAD), so the orders and awards fit one line.
+    'num': 'flex-none basis-16 min-w-16', // 64px
+    // A date picker: "26 Nov 2026" and the calendar icon (its trigger pads 10px), and no wider.
+    'date': 'flex-none basis-30 min-w-30', // 120px
 };
