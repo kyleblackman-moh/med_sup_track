@@ -10,18 +10,7 @@ import { fieldId } from './form-state';
 import { PriceSection } from './price-section';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
-/**
- * Backlog v0.4 (2026-11-25): each quotation is one supplier block, a small
- * table, in the comparison order: the Supplier in the header (with the narrow
- * Considered and Recommended controls and remove), then two table lines, each
- * a row of column headers over a row of fields:
- *   Quantity | Unit Price | Ex Stock | Lead Time (Days) | Brand | Manufacturer | Country of Origin
- *   Remarks (the whole line)
- * Kyle, 2026-11-25: Subtotal, VAT and Total Price Incl. VAT sit under the
- * table as the block's totals (QuotationTotals), read-only and worked out live
- * (lib/quotation-price.ts). The layout is EntrySheet
- * (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
- */
+
 const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
         { key: 'quantity_offered', label: 'Quantity', span: 1 },

@@ -23,11 +23,10 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
         { key: 'manufacturer', label: 'Manufacturer' },
         { key: 'brand', label: 'Brand' },
         { key: 'country_of_origin', label: 'Country of Origin' },
-        { key: 'pack_size', label: 'Pack Size' },
         { key: 'quantity_awarded', label: 'Quantity Awarded', width: 'xs' },
         { key: 'unit_cost', label: 'Unit Cost', width: 'xs' },
         { key: 'percentage_awarded', label: '% Awarded', width: 'xs' },
-        { key: 'line_cost', label: 'Line Cost', width: 'value' },
+        { key: 'total_cost', label: 'Total Cost', width: 'value' },
     ];
     const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
 
@@ -87,11 +86,10 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                             {input('manufacturer', 'text', 200)}
                             {input('brand', 'text', 200)}
                             {input('country_of_origin', 'text', 100)}
-                            {input('pack_size', 'text', 100)}
                             {input('quantity_awarded', 'decimal')}
                             {input('unit_cost', 'decimal')}
                             {input('percentage_awarded', 'decimal')}
-                            <EntryValue label="Line Cost" rowLabel={rowLabel} value={shown?.line_cost ?? '—'} />
+                            <EntryValue label="Total Cost" rowLabel={rowLabel} value={shown?.total_cost ?? '—'} />
                         </EntryRow>
                     );
                 })}

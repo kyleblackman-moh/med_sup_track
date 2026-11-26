@@ -21,13 +21,11 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
     // grid on the width scale; from a 56rem card that is two rows of fields, then the text area.
     return (
         <FieldGrid>
-            <TextField {...field('din')} width="sm" label="DIN" maxLength={8} inputMode="numeric" hint="Exactly 8 digits, for example 02345678." />
+            <TextField {...field('din')} width="sm" label="DIN" maxLength={8} inputMode="numeric"/>
             <TextField {...field('item_description')} width="lg" label="Item Name" maxLength={500} />
             <TextField {...field('strength')} width="sm" label="Strength" maxLength={100} />
             <TextField {...field('dosage_form')} width="sm" label="Dosage Form" maxLength={100} />
-            <TextField
-                {...field('quantity_requested')}
-                width="xs"
+            <TextField {...field('quantity_requested')}width="xs"
                 label="Quantity Requested"
                 inputMode="decimal"
                 hint="In figures, for example 2800."
