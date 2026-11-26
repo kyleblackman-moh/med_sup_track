@@ -75,7 +75,7 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
                     </div>
                 </div>
 
-                {/* Kyle, 2026-11-26 (option B): a soft primary header band with primary labels and a
+                {/* Kyle, 2026-11-26 (option B): a soft primary header band with black labels (Kyle: not blue) and a
                     primary line under it, and slightly firmer outer lines, so the table reads clearly. */}
                 <div className="border-base-content/20 rounded-box max-w-full overflow-x-auto border">
                     {/* Seven columns on one line: below 56rem the block scrolls rather than squeeze them. */}
@@ -99,7 +99,7 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
                                                 key={field.key}
                                                 scope="col"
                                                 colSpan={field.span ?? share}
-                                                className="border-base-300 border-b-primary/40 text-primary border text-xs font-semibold capitalize"
+                                                className="border-base-300 border-b-primary/40 text-base-content border text-xs font-semibold capitalize"
                                             >
                                                 {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : field.label}
                                             </th>
