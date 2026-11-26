@@ -4,22 +4,25 @@ namespace App\Enums;
 
 /**
  * case_purchase_orders.delivery_state (Kyle, 2026-11-23): the order row's
- * Delivery Status dropdown. The list is an assumption to confirm with the
- * CMO's office. The older free-text delivery_status column is kept (dropped
- * fields keep their columns) and no longer written by the request form.
+ * Delivery Status dropdown. Kyle, 2026-11-25: Partial Delivery, Delivered,
+ * Not Delivered and Other, in that order; Other is described in the older
+ * free-text delivery_status column (up to 120 characters), which the form
+ * writes again for that status only. The stored values are unchanged.
  */
 enum DeliveryState: string
 {
-    case NOT_DELIVERED = 'NOT_DELIVERED';
     case PARTIALLY_DELIVERED = 'PARTIALLY_DELIVERED';
     case FULLY_DELIVERED = 'FULLY_DELIVERED';
+    case NOT_DELIVERED = 'NOT_DELIVERED';
+    case OTHER = 'OTHER';
 
     public function label(): string
     {
         return match ($this) {
-            self::NOT_DELIVERED => 'Not delivered',
-            self::PARTIALLY_DELIVERED => 'Partially delivered',
-            self::FULLY_DELIVERED => 'Fully delivered',
+            self::PARTIALLY_DELIVERED => 'Partial Delivery',
+            self::FULLY_DELIVERED => 'Delivered',
+            self::NOT_DELIVERED => 'Not Delivered',
+            self::OTHER => 'Other',
         };
     }
 }

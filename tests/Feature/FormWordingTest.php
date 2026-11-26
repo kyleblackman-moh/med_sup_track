@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
-// FORM-SAVE-1 (A5): wording. The on-screen label for Quantity on Hand, "needs"
+// FORM-SAVE-1 (A5): wording. The on-screen label for Qty on Hand, "needs"
 // not "must", readiness rows named as the tables show them, one error summary
 // with a server-made heading, and the staff forms on the same wording layer.
 
@@ -28,13 +28,13 @@ afterEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
-it('names Quantity on Hand as the Stock section shows it', function () {
-    // 2026-11-24: Quantity on Hand is its own typed field; quantity_on_order is the quantity on order.
-    expect(RequisitionMessages::fieldLabel('quantity_on_hand'))->toBe('Quantity on Hand')
-        ->and(RequisitionMessages::fieldLabel('quantity_on_order'))->toBe('Quantity on Order')
+it('names Qty on Hand as the Stock section shows it', function () {
+    // 2026-11-24: Qty on Hand is its own typed field; quantity_on_order is the quantity on order.
+    expect(RequisitionMessages::fieldLabel('quantity_on_hand'))->toBe('Qty on Hand')
+        ->and(RequisitionMessages::fieldLabel('quantity_on_order'))->toBe('Qty on Order')
         // The Stock section's typed field (the read-only total is gone).
-        ->and($stock = file_get_contents(resource_path('js/components/requests/ad-hoc/stock-section.tsx')))->toContain('label="Quantity on Hand"')
-        ->and($stock)->not->toContain('Quantity on Hand (Total)');
+        ->and($stock = file_get_contents(resource_path('js/components/requests/ad-hoc/stock-section.tsx')))->toContain('label="Qty on Hand"')
+        ->and($stock)->not->toContain('Qty on Hand (Total)');
 });
 
 it('says "needs", never "must" or "invalid", in every vendor form message', function () {

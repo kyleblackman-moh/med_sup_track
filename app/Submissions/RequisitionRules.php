@@ -409,6 +409,8 @@ final class RequisitionRules
                 // Kyle, 2026-11-23: the status dropdown and the delivery date replace the
                 // old delivery_eta / free-text delivery_status (columns kept, no longer accepted).
                 'delivery_state' => ['type' => 'enum', 'enum' => DeliveryState::class],
+                // Kyle, 2026-11-25: what "Other" means, in the older free-text column (required for Other: RequestSections::orders).
+                'delivery_status' => self::str(120),
                 'delivery_date' => ['type' => 'date'],
                 // Kyle, 2026-11-25: optional free text.
                 'pack_size' => self::str(100),

@@ -59,11 +59,11 @@ export default function CoverSheetPage({ sheet, back_url: backUrl }: { sheet: Sh
                         </header>
 
                         <section
-                            aria-label="Reference Number"
+                            aria-label="Reference No."
                             className="border-base-content rounded-box flex flex-wrap items-center justify-between gap-6 border-2 p-5"
                         >
                             <div className="space-y-1">
-                                <p className="text-sm capitalize">Reference Number</p>
+                                <p className="text-sm capitalize">Reference No.</p>
                                 <p className="font-mono text-4xl font-bold tracking-wide break-all">{sheet.reference_no}</p>
                                 <p className="text-base-content/70 text-helper">Scan the code to look the case up.</p>
                             </div>

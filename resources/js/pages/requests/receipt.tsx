@@ -73,8 +73,8 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                                 <h1 className="text-2xl font-semibold capitalize">Submission Receipt</h1>
                             </div>
 
-                            <section aria-label="Reference Number" className="border-base-content rounded-box border-2 px-5 py-3 text-center">
-                                <p className="text-sm capitalize">Reference Number</p>
+                            <section aria-label="Reference No." className="border-base-content rounded-box border-2 px-5 py-3 text-center">
+                                <p className="text-sm capitalize">Reference No.</p>
                                 <p className="font-mono text-3xl font-bold tracking-wide">{receipt.reference_no}</p>
                             </section>
                         </header>

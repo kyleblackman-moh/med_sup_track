@@ -51,3 +51,16 @@ it('gives the form the same change as the server (the TypeScript helper, run wit
     }
     expect(array_slice($ui, -3))->toBe([null, null, null]);
 });
+
+it('adds up the % Awarded as the form shows it (the TypeScript helper, run with Node)', function () {
+    if (Process::run(['node', '--version'])->failed()) {
+        $this->markTestSkipped('Node is not available.');
+    }
+
+    $file = 'file:///'.str_replace('\\', '/', resource_path('js/lib/quotation-price.ts'));
+    $script = "import { sumPercent } from '{$file}'; console.log(JSON.stringify([sumPercent(['60', '40']), sumPercent(['33.33', '33.33', '33.33']), sumPercent(['', 'abc']), sumPercent(['50', ''])]));";
+    $run = Process::run(['node', '--experimental-strip-types', '--no-warnings', '--input-type=module', '-e', $script]);
+
+    expect($run->successful())->toBeTrue($run->errorOutput())
+        ->and(json_decode(trim($run->output()), true))->toBe(['100.00', '99.99', null, '50.00']);
+});

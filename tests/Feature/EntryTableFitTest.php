@@ -11,6 +11,7 @@
 const ENTRY_WIDTH_PX = [
     'xs' => 96, 'sm' => 144, 'md' => 112, 'lg' => 160,
     'checks' => 352, 'value' => 96,
+    'num' => 80, 'date' => 144, // Kyle, 2026-11-25: fixed short numbers and dates
 ];
 
 /** Gaps, padding and borders: 12px between cells, 16px row padding each side, 1px table borders. */
@@ -57,8 +58,8 @@ it('switches each table to one line only where every column fits at its minimum'
     expect((int) $m[1])->toBe($expectedRem)
         ->and(oneLineWidth($source))->toBeLessThanOrEqual($breakpointPx, "{$file}: needs ".oneLineWidth($source)."px, breaks at {$breakpointPx}px");
 })->with([
-    'awarded suppliers' => ['awarded-supplier-section.tsx', 88],
-    'orders' => ['existing-arrangement-section.tsx', 90],
+    'awarded suppliers' => ['awarded-supplier-section.tsx', 72],
+    'orders' => ['existing-arrangement-section.tsx', 88],
     'stock batches' => ['stock-section.tsx', 32],
     'variations' => ['variation-section.tsx', 45],
 ]);
@@ -144,4 +145,28 @@ it('mirrors the width scale of field-width.ts', function () {
     expect($px)->toBe($expected)
         // A minimum never exceeds the wrapped grid's 10rem (160px) columns, so a wrapped entry never overflows.
         ->and(max(array_map(fn ($v) => (int) $v * 4, preg_match_all('/\bmin-w-(\d+)\b/', $block[1], $mins) ? $mins[1] : [0])))->toBeLessThanOrEqual(160);
+});
+
+it('gives the awarded suppliers TOTAL and TOTAL AWARD in capitals, and a prompt when the % Awarded is not 100', function () {
+    $source = file_get_contents(resource_path('js/components/requests/ad-hoc/awarded-supplier-section.tsx'));
+
+    // Kyle, 2026-11-25: Line Cost is Total Cost; the foot is bold capitals with colons.
+    expect($source)->toContain("{ key: 'line_cost', label: 'Total Cost', width: 'value' }")
+        ->and($source)->toContain('<dl className="flex flex-wrap justify-end gap-x-6 gap-y-1 font-bold uppercase">')
+        ->and($source)->toContain('<dt>Total:</dt>')
+        ->and($source)->toContain('<dt>Total Award:</dt>')
+        ->and($source)->toContain('const awarded = sumPercent(rows.map((row) => text(row.values.percentage_awarded)));')
+        ->and($source)->toMatch("/\\{awarded !== null && awarded !== '100\\.00' && \\(\\s*<div role=\"status\" className=\"alert alert-warning alert-soft/");
+});
+
+it('opens a text box under the delivery status for Other, and clears it for any other status', function () {
+    $source = file_get_contents(resource_path('js/components/requests/ad-hoc/existing-arrangement-section.tsx'));
+
+    expect($source)->toContain("{ key: 'delivery_note', label: 'Delivery Note No.' }")
+        ->and($source)->toContain("{ key: 'quantity_ordered', label: 'Qty Ordered', width: 'num' }")
+        ->and($source)->toContain("{ key: 'ordered_on', label: 'Date Ordered', width: 'date' }")
+        ->and($source)->toContain("{ key: 'quantity_delivered', label: 'Qty Delivered', width: 'num' }")
+        ->and($source)->toContain("const isOther = deliveryState === 'OTHER';")
+        ->and($source)->toMatch('/\\{isOther && \\(\\s*<input\\s+id=\\{otherId\\}/')
+        ->and($source)->toContain("if (e.target.value !== 'OTHER' && text(row.values.delivery_status) !== '')");
 });

@@ -75,6 +75,8 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         quantity_delivered: '',
         // 2026-11-23: the Delivery Status dropdown and the delivery date (delivery_eta / free-text status retired).
         delivery_state: '',
+        // Kyle, 2026-11-25: what "Other" means (the older free-text column, written for Other only).
+        delivery_status: '',
         delivery_date: '',
         delivery_note: '',
         pack_size: '',

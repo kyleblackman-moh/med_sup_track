@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Requests;
 
+use App\Enums\DeliveryState;
 use App\Enums\DocumentVisibility;
 use App\Enums\ScanStatus;
 use App\Models\CasePurchaseOrder;
@@ -121,10 +122,10 @@ final class RequestSummary
             'Item Name' => Display::text($r?->item_description),
             'Strength' => Display::text($r?->strength),
             'Dosage Form' => Display::text($r?->dosage_form),
-            'Quantity Requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),
+            'Qty Requested' => self::withUnit(Display::quantity($r?->quantity_requested), $unit),
             'Unit of Measure' => Display::text($r?->unit_of_measure),
             'Contract Reference' => Display::text($r?->tender_reference),
-            'Clinical Importance' => Display::text($r?->clinical_note),
+            'Clinical Importance (Purpose of Drugs)' => Display::text($r?->clinical_note),
         ])];
     }
 
@@ -157,11 +158,11 @@ final class RequestSummary
             'manufacturer' => 'Manufacturer',
             'brand' => 'Brand',
             'country_of_origin' => 'Country of Origin',
-            'quantity_awarded' => 'Quantity Awarded',
+            'quantity_awarded' => 'Qty Awarded',
             'pack_size' => 'Pack Size', // 2026-11-25
             'unit_cost' => 'Unit Cost',
             'percentage' => '% awarded',
-            'line_cost' => 'Line Cost',
+            'line_cost' => 'Total Cost',
         ], $case->tenderAwards->map(fn (CaseTenderAward $a) => [
             'supplier_name' => Display::text($a->supplier_name),
             'manufacturer' => Display::text($a->manufacturer),
@@ -176,7 +177,7 @@ final class RequestSummary
 
         return [
             self::fields([
-                'Number of Suppliers Awarded' => (string) $case->suppliersAwarded(),
+                'No. of Suppliers Awarded' => (string) $case->suppliersAwarded(),
                 'Total Cost of the Awards' => $totals->isEmpty()
                     ? Display::EMPTY
                     : Display::money($totals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
@@ -192,15 +193,15 @@ final class RequestSummary
         return [
             self::table('Orders', 'Order Row', [
                 'supplier' => 'Supplier',
-                'po_number' => 'PO Number',
-                'quantity_ordered' => 'Quantity Ordered',
+                'po_number' => 'PO No.',
+                'quantity_ordered' => 'Qty Ordered',
                 'pack_size' => 'Pack Size', // 2026-11-25
                 'ordered_on' => 'Date Ordered',
-                'quantity_delivered' => 'Quantity Delivered',
+                'quantity_delivered' => 'Qty Delivered',
                 'delivery_status' => 'Delivery Status',
                 'delivery_date' => 'Delivery Date',
-                'delivery_note' => 'Delivery Note', // 2026-11-25
-                'quantity_outstanding' => 'Quantity Outstanding',
+                'delivery_note' => 'Delivery Note No.', // 2026-11-25
+                'quantity_outstanding' => 'Qty Outstanding',
             ], $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
                 'supplier' => Display::text($suppliers[$po->award_id] ?? null),
                 'po_number' => Display::text($po->po_number),
@@ -211,11 +212,14 @@ final class RequestSummary
                 'quantity_delivered' => Display::quantity($po->quantity_delivered),
                 // 2026-11-23: the status dropdown and delivery date; a row saved before them
                 // (and not mapped by the migration) shows its old values instead.
-                'delivery_status' => $po->delivery_state?->label() ?? Display::text($po->delivery_status),
+                // 2026-11-25: Other shows what the vendor wrote for it.
+                'delivery_status' => $po->delivery_state === DeliveryState::OTHER
+                    ? Display::text($po->delivery_status)
+                    : ($po->delivery_state?->label() ?? Display::text($po->delivery_status)),
                 'delivery_date' => self::date($po->delivery_date ?? $po->delivery_eta),
                 'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
             ])->values()->all()),
-            self::fields(['Issues Affecting the Tender Quantity' => Display::text($case->requisition?->tender_issue_explanation)]),
+            self::fields(['Issues Affecting the Tender Qty' => Display::text($case->requisition?->tender_issue_explanation)]),
         ];
     }
 
@@ -230,9 +234,9 @@ final class RequestSummary
             'Location' => Display::text($r?->stock_location),
             // Kyle, 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
             'Average Monthly Consumption' => Display::quantity($r?->average_monthly_consumption),
-            'Quantity on Order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
+            'Qty on Order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
             'No Stock on Hand' => Display::yesNo($noStock),
-            'Quantity on Hand' => Display::quantity($case->quantityOnHand()),
+            'Qty on Hand' => Display::quantity($case->quantityOnHand()),
             'Days on Hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
         ])];
 
@@ -273,7 +277,7 @@ final class RequestSummary
         $blocks = [
             self::fields([
                 'RFQ Sent To' => self::enumLabel($r?->rfq_audience),
-                'Number of Quotations' => (string) $case->quotationsReceived(),
+                'No. of Quotations' => (string) $case->quotationsReceived(),
                 'Quotations Considered' => (string) $case->quotationsConsidered(),
                 'Recommended Quotation' => Display::text($recommended?->supplier_name),
                 'Recommended Unit Price' => Display::price($recommended?->unit_price),
@@ -284,7 +288,7 @@ final class RequestSummary
                 'considered' => 'Considered',
                 'recommended' => 'Recommended',
                 'supplier_name' => 'Supplier',
-                'quantity_offered' => 'Quantity',
+                'quantity_offered' => 'Qty',
                 'unit_price' => 'Unit Price',
                 // 2026-11-23: computed, in the form's column order.
                 'subtotal' => 'Subtotal',

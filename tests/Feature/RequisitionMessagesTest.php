@@ -71,7 +71,7 @@ it('returns three separate messages for three bad fields in one row, each with t
 it('gives one message per field, never two', function () {
     // "abc" breaks both numeric and the decimal pattern; only the first is reported (bail).
     expect(messagesFor('AD_HOC_TENDER_UNABLE', ['requisition' => ['quantity_requested' => 'abc']]))
-        ->toBe(['requisition.quantity_requested' => ['Quantity Requested needs to be a number, for example 2800.']]);
+        ->toBe(['requisition.quantity_requested' => ['Qty Requested needs to be a number, for example 2800.']]);
 });
 
 it('uses each table\'s own row label and column header', function (string $section, string $column, mixed $bad, string $message) {
