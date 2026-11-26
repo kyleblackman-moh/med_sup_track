@@ -127,12 +127,13 @@ final class RequestSections
         // the status is Not delivered: orders()).
         'purchase_orders' => ['Order row', [
             'award_id' => 'choose the supplier from the award rows',
-            'po_number' => 'enter the PO number',
+            'po_number' => 'enter the P.O #',
             'quantity_ordered' => 'enter the quantity ordered',
             'delivery_state' => 'choose the delivery status',
         ]],
-        // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is one typed field).
-        'stock_expiries' => ['Stock batch', [
+        // Kyle, 2026-11-26: a stock item is its drug name and expiry date (the quantity on hand is one typed field).
+        'stock_expiries' => ['Stock item', [
+            'item_name' => 'enter the drug name',
             'expiry_date' => 'enter the expiry date',
         ]],
         'quotations' => ['Quotation', [
@@ -305,11 +306,11 @@ final class RequestSections
             ],
             // V2-5: shown only when the answer is Yes; every column of an entered row is required.
             'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
-            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'pack_size', 'unit_cost', 'percentage_awarded']),
+            'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'unit_cost', 'percentage_awarded']),
             'existing_arrangement' => [
                 // The delivery date is required unless the status is Not delivered (false here: conditional).
                 // The Other status's description is required for Other only (false here: conditional).
-                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'pack_size', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_status', 'delivery_date', 'delivery_note']),
+                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_status', 'delivery_date', 'delivery_note']),
                 'tender_issue_explanation' => false,
             ],
             'stock' => [
@@ -317,12 +318,12 @@ final class RequestSections
                 'average_monthly_consumption' => $byType('stock'),
                 'quantity_on_order' => false,
                 'quantity_on_hand' => false, // Kyle, 2026-11-24: typed; optional until the CMO's office says otherwise
-                ...$rows('stock_expiries', ['expiry_date']),
+                ...$rows('stock_expiries', ['item_name', 'expiry_date']),
             ],
             'quotation_comparison' => [
                 'rfq_audience' => false,
                 ...$rows('quotations', ['supplier_name', 'quantity_offered', 'unit_price', 'quantity_available_now', 'lead_time_days', 'brand', 'manufacturer', 'country_of_origin', 'remarks']),
-                // Asked only on a row that was not considered, and then required.
+                // Kyle, 2026-11-26: the Reason for Justification, asked on the recommended quotation only, and then required.
                 'quotations.reason_accepted_excluded' => true,
                 // Kyle, 2026-11-24: Quantity to Purchase is no longer on the form.
                 // Kyle, 2026-11-23: Tender Excess only; left out of the map where hidden.
@@ -655,9 +656,10 @@ final class RequestSections
 
     /**
      * Required: at least one complete row, exactly one recommended, the quantity
-     * to purchase, and a reason on every row not considered. When optional, the
-     * rows that are entered must still be complete, with reasons, and at most
-     * one recommended.
+     * to purchase, and the Reason for Justification on the recommended row
+     * (Kyle, 2026-11-26: no Considered tick any more; every quotation is
+     * considered). When optional, the rows that are entered must still be
+     * complete, and at most one recommended.
      */
     private function quotations(CaseRequisition $r, Collection $quotations, bool $required, callable $add): void
     {
@@ -687,8 +689,8 @@ final class RequestSections
         }
 
         foreach ($quotations as $i => $q) {
-            if (! $q->considered && self::blank($q->reason_accepted_excluded)) {
-                $add("quotations.{$i}.reason_accepted_excluded", RequisitionMessages::rowLabel('quotations', (int) $i).': Reason Not Considered is required.');
+            if ($q->is_recommended && self::blank($q->reason_accepted_excluded)) {
+                $add("quotations.{$i}.reason_accepted_excluded", RequisitionMessages::rowLabel('quotations', (int) $i).': '.RequisitionMessages::columnLabel('quotations', 'reason_accepted_excluded').' is required.');
             }
         }
     }

@@ -260,7 +260,7 @@ it('saves the valid fields of an invalid payload and returns each failing field 
 
     $payload = adHocPayload();
     $payload['quotations'][0]['unit_price'] = '1.59751';
-    $payload['requisition']['din'] = '0234-5678';
+    $payload['requisition']['din'] = str_repeat('9', 33); // over the DIN's 32 characters (2026-11-26: no 8-digit rule)
 
     // FORM-SAVE-1 (6fda93f): the save succeeds; what failed comes back in the saved flash, not as errors.
     $this->actingAs($vendor)->put("/requests/{$case->id}", $payload)->assertRedirect()->assertSessionHasNoErrors();
@@ -268,7 +268,7 @@ it('saves the valid fields of an invalid payload and returns each failing field 
     $notSaved = collect($saved['not_saved'])->pluck('message', 'key');
 
     expect($notSaved->keys()->sort()->values()->all())->toBe(['quotations.0.unit_price', 'requisition.din'])
-        ->and($notSaved['requisition.din'])->toBe('Enter the DIN as exactly 8 digits, for example 02345678.')
+        ->and($notSaved['requisition.din'])->toBe('DIN needs to be 32 characters or fewer.')
         ->and($notSaved['quotations.0.unit_price'])->toStartWith('Quotation Row 1: Unit Price')
         ->and($saved['status'])->toBe('Saved. 2 fields need attention and were not saved yet.');
 

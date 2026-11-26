@@ -149,6 +149,8 @@ interface EntryTableProps {
      * ("Supplier row 1") is shown below the breakpoint and kept for screen readers.
      */
     narrowRowLabel?: boolean;
+    /** The first column's heading at the one-line width ("Row" by default; the stock table says "Item", Kyle 2026-11-26). */
+    rowHeading?: string;
     /**
      * FORM-COMPACT-1 (2): "cards" gives every entry a small card of its own
      * (EntryCardRow): no column headers, each field labelled above its input,
@@ -174,6 +176,7 @@ export function EntryTable({
     foot,
     breakpoint,
     narrowRowLabel = false,
+    rowHeading = 'Row',
     variant = 'rows',
     className,
 }: EntryTableProps) {
@@ -185,7 +188,7 @@ export function EntryTable({
             <div role="group" aria-label={caption} className={cn('bg-card @container overflow-hidden rounded-xl border shadow-xs', className)}>
                 {!cards && (
                 <div aria-hidden="true" className={cn('bg-subtle text-muted-foreground gap-3 border-b px-4 py-2 text-[13px] font-medium', layout.header)}>
-                    <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : 'Row'}</span>
+                    <span className={cn('shrink-0', narrowRowLabel ? 'w-8' : 'w-32')}>{narrowRowLabel ? '#' : rowHeading}</span>
                     {columns.map((column) => (
                         <span key={column.key} className={cn('break-words', ENTRY_WIDTH[column.width ?? 'md'])}>
                             {column.label}

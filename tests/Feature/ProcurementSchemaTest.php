@@ -81,6 +81,7 @@ const SLICE_6B_COLUMNS = [
     'case_stock_expiries' => [
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'quantity' => 'decimal(14,2)', 'expiry_date' => 'date',
         'created_at' => 'datetime', 'updated_at' => 'datetime',
+        'item_name' => 'nvarchar(200)', // 2026-11-26
     ],
     'case_variations' => [ // V2
         'id' => 'bigint', 'case_id' => 'nchar(26)', 'variation_type' => 'nvarchar(100)',

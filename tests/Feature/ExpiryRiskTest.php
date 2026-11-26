@@ -77,7 +77,7 @@ it('flags days on hand above the days until the earliest expiry, across batches'
     $result = risk('300', [riskBatch(2, '500', 200), riskBatch(1, '50', 10)]);
 
     expect($result['expiry_warnings'])->toBe([1 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '55.00']])
-        ->and($result['days_on_hand'])->toBe(55);
+        ->and($result['days_on_hand'])->toBe('55.00');
 });
 
 it('compares against the earliest expiry only, and flags the request once', function () {
@@ -109,7 +109,7 @@ it('marks a batch past its expiry date as expired', function () {
     expect($result['expiry_warnings'])->toBe([
         1 => ['state' => 'expired', 'days_until_expiry' => -1, 'cover_days' => '15.00'], // 2026-11-24: the whole stock
         2 => ['state' => 'at_risk', 'days_until_expiry' => 10, 'cover_days' => '15.00'],
-    ])->and($result['days_on_hand'])->toBe(15);
+    ])->and($result['days_on_hand'])->toBe('15.00');
 
     // With only 5 days on hand in all, only the expired batch is reported.
     expect(risk('300', [riskBatch(1, '20', -1), riskBatch(2, '30', 10)])['expiry_warnings'])
@@ -126,11 +126,13 @@ it('gives no warning and no days on hand when AMC is 0 or missing, or there is n
     'No stock on hand ticked' => ['300', true],
 ]);
 
-it('rounds days on hand down to whole days, null without stock', function (Closure $batches, ?int $expected) {
+// Kyle, 2026-11-26: (Qty on Hand / AMC) x 30 to 2 decimal places, half up (was whole days, rounded down).
+it('works out days on hand to 2 decimal places, null without stock', function (Closure $batches, ?string $expected) {
     expect(risk('500', $batches())['days_on_hand'])->toBe($expected);
 })->with([
-    '200.50 / (500 / 30) = 12.03' => [fn () => [riskBatch(1, '120', 400), riskBatch(2, '80.5', 500)], 12],
-    '16.66 rounds to 16' => [fn () => [riskBatch(1, '277.77', 400)], 16],
+    '(200.50 / 500) x 30 = 12.03' => [fn () => [riskBatch(1, '120', 400), riskBatch(2, '80.5', 500)], '12.03'],
+    '16.6662 rounds to 16.67' => [fn () => [riskBatch(1, '277.77', 400)], '16.67'],
+    '0.9954 rounds half up to 1.00' => [fn () => [riskBatch(1, '16.59', 400)], '1.00'],
     'no batches' => [fn () => [], null],
     'zero stock' => [fn () => [riskBatch(1, '0', 400)], null],
 ]);
@@ -140,7 +142,7 @@ it('never flags a batch without an expiry date', function () {
 
     // 110 units = 11 days on hand > 0 days to the earliest dated expiry.
     expect(risk('300', [$undated, riskBatch(1, '10', 0)]))
-        ->toBe(['days_on_hand' => 11, 'expiry_warnings' => [1 => ['state' => 'at_risk', 'days_until_expiry' => 0, 'cover_days' => '11.00']]]);
+        ->toBe(['days_on_hand' => '11.00', 'expiry_warnings' => [1 => ['state' => 'at_risk', 'days_until_expiry' => 0, 'cover_days' => '11.00']]]);
 
     // Only undated stock: nothing to compare against.
     expect(risk('300', [$undated])['expiry_warnings'])->toBe([]);
@@ -210,20 +212,20 @@ it('returns days on hand and the warnings with the save result and on both pages
     $batchId = (int) CaseStockExpiry::withoutGlobalScopes()->where('case_id', $case->id)->value('id');
     $expected = ['state' => 'at_risk', 'days_until_expiry' => 5, 'cover_days' => '18.00'];
 
-    expect($saved->daysOnHand)->toBe(18)
+    expect($saved->daysOnHand)->toBe('18.00')
         ->and($saved->expiryWarnings)->toBe([$batchId => $expected]);
 
     $this->actingAs($vendor)->from(route('requests.edit', $case->id))->put(route('requests.update', $case->id), $payload)
-        ->assertSessionHas('saved', fn ($flash) => $flash['days_on_hand'] === 18
+        ->assertSessionHas('saved', fn ($flash) => $flash['days_on_hand'] === '18.00'
             && $flash['expiry_warnings'] === [['batch_id' => (int) CaseStockExpiry::withoutGlobalScopes()->where('case_id', $case->id)->value('id'), ...$expected]]);
 
     $vendorView = pageProps($this->actingAs($vendor)->get(route('requests.show', $case->id))->assertOk())['case']['figures'];
     $batchId = (int) CaseStockExpiry::withoutGlobalScopes()->where('case_id', $case->id)->value('id');
-    expect($vendorView['days_on_hand'])->toBe(18)
+    expect($vendorView['days_on_hand'])->toBe('18.00')
         ->and($vendorView['expiry_warnings'])->toBe([['batch_id' => $batchId, ...$expected]]);
 
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
     $staffView = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('cases.show', $case->id))->assertOk())['case']['figures'];
-    expect($staffView['days_on_hand'])->toBe(18)
+    expect($staffView['days_on_hand'])->toBe('18.00')
         ->and($staffView['expiry_warnings'])->toBe([['batch_id' => $batchId, ...$expected]]);
 });

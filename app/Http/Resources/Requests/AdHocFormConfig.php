@@ -20,8 +20,8 @@ final class AdHocFormConfig
             // V2-3: no tender outcome options; awards and orders never depend on the outcome.
             'options' => [
                 'rfq_audience' => [
-                    ['value' => RfqAudience::ALL_REGISTERED->value, 'label' => 'All registered suppliers'],
-                    ['value' => RfqAudience::SPECIFIED->value, 'label' => 'Specified suppliers'],
+                    ['value' => RfqAudience::ALL_REGISTERED->value, 'label' => RfqAudience::ALL_REGISTERED->label()],
+                    ['value' => RfqAudience::SPECIFIED->value, 'label' => RfqAudience::SPECIFIED->label()],
                 ],
                 // 2026-11-24: the order row's Delivery Status dropdown, labelled by the enum.
                 'delivery_state' => array_map(

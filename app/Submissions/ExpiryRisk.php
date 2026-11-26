@@ -6,6 +6,7 @@ use App\Enums\CaseStatus;
 use App\Models\CaseStockExpiry;
 use App\Models\ProcurementCase;
 use App\Support\Decimal;
+use App\Support\Display;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -42,7 +43,7 @@ final class ExpiryRisk
     public const EXPIRED = 'expired';
 
     /**
-     * @return array{days_on_hand: int|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}
+     * @return array{days_on_hand: string|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}
      */
     public static function for(ProcurementCase $case): array
     {
@@ -83,10 +84,11 @@ final class ExpiryRisk
 
         $parts = [];
         if ($atRisk !== null) {
-            $parts[] = 'About '.$risk['days_on_hand'].' days of stock on hand; the earliest batch expires in '.$atRisk['days_until_expiry'].' days.';
+            // "About": whole days here (the form and summary show the 2 dp figure).
+            $parts[] = 'About '.Display::wholeDays((string) $risk['days_on_hand']).' days of stock on hand; the earliest item expires in '.$atRisk['days_until_expiry'].' days.';
         }
         if ($expired > 0) {
-            $parts[] = $expired === 1 ? '1 batch is past its expiry date.' : "{$expired} batches are past their expiry date.";
+            $parts[] = $expired === 1 ? '1 item is past its expiry date.' : "{$expired} items are past their expiry date.";
         }
 
         return [
@@ -124,7 +126,7 @@ final class ExpiryRisk
 
     /**
      * @param  Collection<int, CaseStockExpiry>  $batches
-     * @return array{days_on_hand: int|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}
+     * @return array{days_on_hand: string|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}
      */
     public static function compute(?string $amc, ?string $quantityOnHand, Collection $batches, CarbonInterface $today): array
     {
@@ -142,7 +144,10 @@ final class ExpiryRisk
 
         // Kyle, 2026-11-24: the typed quantity on hand (no longer the batch total).
         $total = $quantityOnHand;
-        $daysOnHand = (int) bcdiv(Decimal::mul($total, '30'), $amc, 0); // whole days, rounded down
+        // Kyle, 2026-11-26: Days on Hand = (Qty on Hand / Average Monthly Consumption) x 30,
+        // to 2 decimal places (half up), e.g. "12.03" (was whole days, rounded down).
+        // Worked out as Qty x 30 / AMC (the same value; no rounding before the last step).
+        $daysOnHand = Decimal::round2(Decimal::div(Decimal::mul($total, '30'), $amc));
 
         $warnings = [];
         $earliest = null;

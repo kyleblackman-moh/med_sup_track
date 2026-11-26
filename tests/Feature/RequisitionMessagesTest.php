@@ -79,7 +79,7 @@ it('uses each table\'s own row label and column header', function (string $secti
 })->with([
     'award' => ['tender_awards', 'unit_cost', 'x', 'Supplier Row 1: Unit Cost needs to be a number, for example 12.50.'],
     'order' => ['purchase_orders', 'ordered_on', '19/11/2026', 'Order Row 1: Date Ordered needs to be a date.'],
-    'batch' => ['stock_expiries', 'quantity', '-5', 'Batch 1: Quantity needs to be 0 or more, with up to 2 decimal places, for example 2800.'],
+    'stock item' => ['stock_expiries', 'quantity', '-5', 'Item 1: Quantity needs to be 0 or more, with up to 2 decimal places, for example 2800.'],
     'variation' => ['variation_rows', 'effective_detail', str_repeat('a', 101), 'Variation Row 1: Effective Date / Application P.O. needs to be 100 characters or fewer.'],
 ]);
 

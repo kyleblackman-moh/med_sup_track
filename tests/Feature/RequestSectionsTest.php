@@ -227,12 +227,14 @@ it('needs every saved row complete, whatever the type', function (string $code, 
         ['tender_awards.2.supplier_name', 'tender_awards.2.quantity_awarded', 'tender_awards.2.unit_cost']],
     'an order without supplier, PO number or quantity' => [fn ($p) => $p, ['purchase_orders.0.award_id', 'purchase_orders.0.po_number', 'purchase_orders.0.quantity_ordered', 'purchase_orders.0.delivery_state'],
         fn () => ['purchase_orders' => [['ordered_on' => '2026-06-01']]]],
-    'a partly filled batch' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '5']]], ['stock_expiries.0.expiry_date']],
+    // Kyle, 2026-11-26: a stock item needs its drug name and expiry date.
+    'a partly filled stock item' => [fn ($p) => [...$p, 'stock_expiries' => [['quantity' => '5']]], ['stock_expiries.0.item_name', 'stock_expiries.0.expiry_date']],
     'a partly filled quotation' => [fn ($p) => [...$p, 'quotations' => [...$p['quotations'], ['manufacturer' => 'Generic Manufacturer']]],
         ['quotations.2.supplier_name', 'quotations.2.unit_price', 'quotations.2.quantity_offered']],
-    'not considered without a reason' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['considered' => false]), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]],
-        ['quotations.0.reason_accepted_excluded']],
-    'two recommended' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['is_recommended' => true]), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]],
+    // Kyle, 2026-11-26: the recommended quotation needs its Reason for Justification; no reason is asked for any other.
+    'recommended without a justification' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['considered' => false]), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true])]],
+        ['quotations.1.reason_accepted_excluded']],
+    'two recommended' => [fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier C', '1.40', ['is_recommended' => true, 'reason_accepted_excluded' => 'Cheapest']), adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'reason_accepted_excluded' => 'Stock on hand'])]],
         ['quotations.recommended']],
 ]);
 
@@ -267,20 +269,20 @@ it('fails a tender cycle that ends before it starts', function (string $code) {
     expect(v2Report($case)->errors)->toBe([['key' => 'requisition.tender_cycle_end', 'message' => RequestSections::CYCLE_END_BEFORE_START]]);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('keeps the DIN as 8-digit text with its leading zeros', function () {
+it('keeps the DIN as text with its leading zeros', function () {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['requisition' => ['din' => '00012345']]);
 
     expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('00012345');
 
-    // Kyle, 2026-11-23: exactly 8 digits (this was an open length question). Optional,
-    // and never a readiness error; anything else is refused at save.
-    foreach (['12.3', '-1', '1 2', 'AB-12', '7', '000123', str_repeat('9', 9), str_repeat('9', 32), 'ABCD1234'] as $din) {
-        expect(fn () => saveDraft($case, $vendor, ['requisition' => ['din' => $din]]))
-            ->toThrow(ValidationException::class);
+    // Kyle, 2026-11-26: any text up to the column's 32 characters (the 8-digit rule is gone).
+    // Optional, and never a readiness error; only a longer DIN is refused at save.
+    foreach (['AB-12', '7', str_repeat('9', 32)] as $din) {
+        saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
+        expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe($din);
     }
-
-    expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe('00012345');
+    expect(fn () => saveDraft($case, $vendor, ['requisition' => ['din' => str_repeat('9', 33)]]))
+        ->toThrow(ValidationException::class);
 });
 
 it('asks an old AD_HOC draft to choose one of the five types first', function () {

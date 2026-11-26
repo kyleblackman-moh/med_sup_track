@@ -107,9 +107,9 @@ function pharmAllSectionsPayload(): array
 /*
  * The request form (slice F1; V2-1 fields added). A complete request for every
  * one of the five types (plus variationEntry for a Tender Variation): item,
- * contract reference and tender cycle, two award rows, stock batches, two
- * quotations (one not considered, with a reason; one recommended), quantity to
- * purchase and both reference prices.
+ * contract reference and tender cycle, two award rows, stock items, two
+ * quotations (Kyle, 2026-11-26: both considered; the recommended one with its
+ * Reason for Justification), quantity to purchase and both reference prices.
  * Orders point at award ids, so they are saved in a second step
  * (adHocOrdersFor).
  */
@@ -148,12 +148,12 @@ function adHocPayload(): array
         ],
         'stock_expiries' => [
             // Relative to today (slice V2-1), so the expiry warning never fires on the fixture.
-            ['quantity' => '120', 'expiry_date' => now('America/Port_of_Spain')->addMonths(4)->endOfMonth()->toDateString()],
-            ['quantity' => '80.5', 'expiry_date' => now('America/Port_of_Spain')->addMonths(7)->endOfMonth()->toDateString()],
+            ['item_name' => 'Infant feeding tube 6Fr', 'quantity' => '120', 'expiry_date' => now('America/Port_of_Spain')->addMonths(4)->endOfMonth()->toDateString()],
+            ['item_name' => 'Infant feeding tube 6Fr', 'quantity' => '80.5', 'expiry_date' => now('America/Port_of_Spain')->addMonths(7)->endOfMonth()->toDateString()],
         ],
         'quotations' => [
-            adHocQuoteRow('Supplier C', '1.40', ['considered' => false, 'reason_accepted_excluded' => 'No registration on file.']),
-            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'quantity_available_now' => '500', 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.']),
+            adHocQuoteRow('Supplier C', '1.40'),
+            adHocQuoteRow('Supplier D', '1.5975', ['is_recommended' => true, 'reason_accepted_excluded' => 'Stock on hand and the shortest lead time.', 'quantity_available_now' => '500', 'country_of_origin' => 'Country B', 'remarks' => 'Two-week delivery.']),
         ],
     ];
 }

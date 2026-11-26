@@ -14,6 +14,7 @@ class CaseStockExpiry extends Model
     protected $fillable = [
         'quantity',
         'expiry_date',
+        'item_name', // Kyle, 2026-11-26: the drug the row is for
     ];
 
     protected function casts(): array

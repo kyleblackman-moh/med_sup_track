@@ -261,8 +261,8 @@ class DevSampleCase extends Command
     /**
      * A complete request (every one of the five types; a Tender Variation also
      * gets variationRows()); generic supplier names only. Tender partially
-     * awarded (two award rows), a stock batch, two quotations (one not
-     * considered, with a reason; one recommended) and a quantity to purchase.
+     * awarded (two award rows), a stock item, two quotations (the recommended
+     * one with its Reason for Justification, 2026-11-26) and a quantity to purchase.
      * The order is saved separately (orders()), once the award ids exist.
      */
     public static function payload(): array
@@ -299,11 +299,11 @@ class DevSampleCase extends Command
                 ['supplier_name' => 'Supplier B', 'quantity_awarded' => '700', 'unit_cost' => '0.7000'],
             ],
             'stock_expiries' => [
-                ['quantity' => '150', 'expiry_date' => $today->addMonths(6)->toDateString()],
+                ['item_name' => 'Infant feeding tube 6Fr', 'quantity' => '150', 'expiry_date' => $today->addMonths(6)->toDateString()],
             ],
             'quotations' => [
-                $quote('Supplier C', '0.67', ['considered' => false, 'reason_accepted_excluded' => 'Dev sample: not registered.']),
-                $quote('Supplier D', '1.5975', ['is_recommended' => true]),
+                $quote('Supplier C', '0.67'),
+                $quote('Supplier D', '1.5975', ['is_recommended' => true, 'reason_accepted_excluded' => 'Dev sample: registered product with stock available.']),
             ],
         ];
     }

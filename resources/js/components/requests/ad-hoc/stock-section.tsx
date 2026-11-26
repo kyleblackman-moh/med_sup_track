@@ -1,9 +1,9 @@
 import { EntryRow, EntryTable, type EntryColumn } from '@/components/ui/entry-table';
 import { type FormExpiry } from '@/types/ad-hoc';
 import { TriangleAlert } from 'lucide-react';
-import { collectRowErrors, EntryInput } from './entry-fields';
+import { collectRowErrors, EntryInput, EntryValue } from './entry-fields';
 import { FieldGrid, Figure, GridRow, TableError, TextField } from './fields';
-import { text, type FormApi } from './form-api';
+import { rowDisplay, text, type FormApi } from './form-api';
 import { fieldId } from './form-state';
 import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
@@ -18,9 +18,13 @@ const isZero = (value: string) => /^\s*0*(\.0*)?\s*$/.test(value) && /\d/.test(v
  * - Backlog v0.4 (2026-11-25): no tick box. "No Stock on Hand" is a read-only
  *   status, shown when the quantity on hand is 0 (the server records it then,
  *   StockOnHand).
- * - A stock batch is its expiry date only.
- * Days on hand and the expiry warning are the server's; the warning never
- * blocks a submit.
+ * Kyle, 2026-11-26:
+ * - Days on Hand = (Qty on Hand / Average Monthly Consumption) x 30, to 2
+ *   decimal places (the server's, after a save), beside the Qty on Hand.
+ * - Each stock item row is its drug name and expiry date (a narrow fixed
+ *   date column), with "May expire before usage" at the end of the row when
+ *   the server finds that item at risk. Items, not batches: "Item 1", "Add Item".
+ * The expiry warning never blocks a submit.
  */
 export function StockSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
@@ -39,7 +43,12 @@ export function StockSection({ api }: { api: FormApi }) {
         optional: optional(name),
     });
 
-    const columns: EntryColumn[] = [{ key: 'expiry_date', label: 'Expiry Date', width: 'sm' }];
+    const columns: EntryColumn[] = [
+        { key: 'item_name', label: 'Drug Name' },
+        { key: 'expiry_date', label: 'Expiry Date', width: 'date' },
+        { key: 'note', label: 'Note', width: 'sm' },
+    ];
+    const inputColumns = columns.filter((column) => column.key !== 'note');
 
     return (
         <FieldGrid>
@@ -58,29 +67,30 @@ export function StockSection({ api }: { api: FormApi }) {
                 hint="Enter 0 if the item has not been used."
             />
             <TextField {...field('quantity_on_hand')} width="xs" label="Qty on Hand" inputMode="decimal" hint="Enter 0 if there is none." />
+            {/* Kyle, 2026-11-26: beside the Qty on Hand it is worked out from; the list box adds no box of its own, so the figure is a grid cell. */}
+            <dl className="contents">
+                <Figure width="xs" label="Days on Hand" value={form.expiry.days_on_hand} />
+            </dl>
             {
                 <GridRow>
                     <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">
                         <TableError message={tableError || undefined} />
                         <EntryTable
-                            caption="Stock Batches"
-                            breakpoint="32rem"
+                            caption="Stock Items"
+                            breakpoint="45rem"
                             columns={columns}
-                            empty={rows.length === 0 && <RowsNote>No batches yet.</RowsNote>}
+                            rowHeading="Item"
+                            empty={rows.length === 0 && <RowsNote>No items yet.</RowsNote>}
                             addAction={
-                                <AddRowButton
-                                    label="Add Batch"
-                                    disabled={rows.length >= cap}
-                                    cap={cap}
-                                    onClick={() => api.addRow('stock_expiries')}
-                                />
+                                <AddRowButton label="Add Item" disabled={rows.length >= cap} cap={cap} onClick={() => api.addRow('stock_expiries')} />
                             }
                         >
                             {rows.map((row, index) => {
-                                const rowLabel = `Batch ${index + 1}`;
+                                const rowLabel = `Item ${index + 1}`;
+                                const note = rowDisplay(form.display.rows.stock_expiries, row.id)?.note ?? null;
                                 // FORM-ERR-1 (A): every message of the row in one list under it, in column order.
                                 const errorsId = fieldId.rowErrors('stock_expiries', row.key);
-                                const errors = collectRowErrors(['id', ...columns.map((c) => c.key)], (name) =>
+                                const errors = collectRowErrors(['id', ...inputColumns.map((c) => c.key)], (name) =>
                                     api.cellError('stock_expiries', row, index, name),
                                 );
 
@@ -92,18 +102,19 @@ export function StockSection({ api }: { api: FormApi }) {
                                         errorsId={errorsId}
                                         remove={
                                             <RemoveRowButton
-                                                label={`Remove batch ${index + 1}`}
+                                                label={`Remove Item ${index + 1}`}
                                                 onClick={() => api.removeRow('stock_expiries', row.key)}
                                             />
                                         }
                                     >
-                                        {columns.map((column) => (
+                                        {inputColumns.map((column) => (
                                             <EntryInput
                                                 key={column.key}
                                                 id={fieldId.cell('stock_expiries', row.key, column.key)}
                                                 label={column.label}
                                                 rowLabel={rowLabel}
-                                                kind="date"
+                                                kind={column.key === 'expiry_date' ? 'date' : 'text'}
+                                                maxLength={column.key === 'item_name' ? 200 : undefined}
                                                 width={column.width}
                                                 value={text(row.values[column.key])}
                                                 onChange={(value) => api.setCell('stock_expiries', row.key, column.key, value)}
@@ -112,6 +123,18 @@ export function StockSection({ api }: { api: FormApi }) {
                                                 required={optional(`stock_expiries.${column.key}`) === false}
                                             />
                                         ))}
+                                        <EntryValue
+                                            label="Note"
+                                            rowLabel={rowLabel}
+                                            width="sm"
+                                            value={
+                                                note === null ? (
+                                                    <span className="text-base-content/70 font-normal">—</span>
+                                                ) : (
+                                                    <span className="badge badge-soft badge-warning badge-sm h-auto py-0.5 capitalize">{note}</span>
+                                                )
+                                            }
+                                        />
                                     </EntryRow>
                                 );
                             })}
@@ -122,13 +145,11 @@ export function StockSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <FieldGrid as="dl">
-                    <Figure width="xs" label="Days on Hand" value={form.expiry.days_on_hand} />
                     <Figure width="xs" label="No Stock on Hand" value={onHand.trim() === '' ? '—' : noStock ? 'Yes' : 'No'} />
                 </FieldGrid>
                 {noStock && (
                     <p role="status" className="mt-3 flex items-center gap-2 text-sm">
                         <span className="badge badge-soft badge-warning badge-sm capitalize">No stock on hand</span>
-                        <span className="text-base-content/70">The quantity on hand is 0.</span>
                     </p>
                 )}
             </GridRow>
@@ -153,11 +174,13 @@ function ExpiryBanner({ expiry }: { expiry: FormExpiry }) {
                     <ul className="space-y-0.5">
                         {expiry.at_risk.map((item) => (
                             <li key={`risk-${item.batch}`}>
-                                Batch expiring {item.expiry_date}: about {item.cover_days} days of cover, expires in {item.days_to_expiry} days
+                                {item.batch} expiring {item.expiry_date}: about {item.cover_days} days of cover, expires in {item.days_to_expiry} days
                             </li>
                         ))}
                         {expiry.expired.map((item) => (
-                            <li key={`expired-${item.batch}`}>Batch expiring {item.expiry_date} has expired</li>
+                            <li key={`expired-${item.batch}`}>
+                                {item.batch} expiring {item.expiry_date} has expired
+                            </li>
                         ))}
                     </ul>
                     <p>You can still submit this request.</p>

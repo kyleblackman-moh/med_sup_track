@@ -177,7 +177,7 @@ export const SECTIONS: Record<Section, SectionDef> = {
         rowLabel: 'Purchase Order',
         columns: [
             { name: 'supplier_name', label: 'Supplier', kind: 'text' },
-            { name: 'po_number', label: 'PO No.', kind: 'text' },
+            { name: 'po_number', label: 'P.O #', kind: 'text' },
             { name: 'quantity_ordered', label: 'Qty Ordered', kind: 'decimal' },
             { name: 'ordered_on', label: 'Ordered On', kind: 'date' },
             { name: 'quantity_delivered', label: 'Qty Delivered', kind: 'decimal' },
@@ -185,7 +185,7 @@ export const SECTIONS: Record<Section, SectionDef> = {
             { name: 'delivery_status', label: 'Delivery Status', kind: 'text' },
         ],
         summary: [
-            { key: 'po_number', label: 'PO No.' },
+            { key: 'po_number', label: 'P.O #' },
             { key: 'supplier_name', label: 'Supplier' },
             { key: 'quantity_ordered', label: 'Ordered' },
             { key: 'quantity_delivered', label: 'Delivered' },
