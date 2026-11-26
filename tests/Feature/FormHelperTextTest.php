@@ -13,12 +13,11 @@ it('describes the unit of measure under its field', function () {
         ->toMatch('/label="Unit of Measure"\s+maxLength=\{32\}\s+hint="The unit the quantity is counted in, for example: each, box of 100, vial\."/');
 });
 
-it('keeps the other item helpers', function (string $hint) {
-    expect(itemTenderSource())->toContain("hint=\"{$hint}\"");
-})->with([
-    // Kyle, 2026-11-26: decimals allowed (the server takes up to 2 decimal places).
-    'quantity requested' => ['Up to 2 decimal places, for example 2800.50.'],
-]);
+it('leaves Qty Requested a plain number field with no hint (Kyle, 2026-11-26)', function () {
+    expect(itemTenderSource())
+        ->toContain('<TextField {...field(\'quantity_requested\')} width="xs" label="Qty Requested" inputMode="decimal" />')
+        ->not->toContain('2800.50');
+});
 
 it('gives the DIN no 8-digit hint (Kyle, 2026-11-26)', function () {
     expect(itemTenderSource())->not->toContain('8 digits')->toContain('<TextField {...field(\'din\')} width="sm" label="DIN" maxLength={32} />');

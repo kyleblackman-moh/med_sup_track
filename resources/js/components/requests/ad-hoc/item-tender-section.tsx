@@ -25,13 +25,8 @@ export function ItemTenderSection({ api }: { api: FormApi }) {
             <TextField {...field('item_description')} width="lg" label="Item Name" maxLength={500} />
             <TextField {...field('strength')} width="sm" label="Strength" maxLength={100} />
             <TextField {...field('dosage_form')} width="sm" label="Dosage Form" maxLength={100} />
-            <TextField
-                {...field('quantity_requested')}
-                width="xs"
-                label="Qty Requested"
-                inputMode="decimal"
-                hint="Up to 2 decimal places, for example 2800.50."
-            />
+            {/* Kyle, 2026-11-26: a plain number field, no hint (the server still takes 2 decimal places). */}
+            <TextField {...field('quantity_requested')} width="xs" label="Qty Requested" inputMode="decimal" />
             <TextField
                 {...field('unit_of_measure')}
                 width="sm"

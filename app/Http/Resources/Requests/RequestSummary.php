@@ -323,8 +323,9 @@ final class RequestSummary
 
         // The optional price comparison, only once something is entered in it (as on the form).
         // 2026-11-23: the tender and previous price only where the type shows them (Tender Excess).
+        // Kyle, 2026-11-26: no "Quoted Price Is Acceptable" (the form no longer asks it).
         $prices = $r !== null && ! in_array('tender_price', RequestSections::hiddenFields((string) $case->procurementType?->code), true);
-        if ($r !== null && (($prices && ($r->tender_price !== null || $r->previous_price !== null)) || $r->quoted_price_acceptable !== null || filled($r->price_note))) {
+        if ($r !== null && (($prices && ($r->tender_price !== null || $r->previous_price !== null)) || filled($r->price_note))) {
             $blocks[] = self::fields([
                 ...($prices ? [
                     'Tender Price' => Display::price($r->tender_price),
@@ -332,7 +333,6 @@ final class RequestSummary
                     'Change Against Tender Price' => Display::percent($case->priceChangePercent($r->tender_price)),
                     'Change Against Previous Price' => Display::percent($case->priceChangePercent($r->previous_price)),
                 ] : []),
-                'Quoted Price Is Acceptable' => Display::yesNo($r->quoted_price_acceptable === null ? null : (bool) $r->quoted_price_acceptable),
                 'Note on the Price' => Display::text($r->price_note),
             ]);
         }

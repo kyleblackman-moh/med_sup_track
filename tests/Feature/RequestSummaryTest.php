@@ -253,8 +253,9 @@ it('computes and formats every figure on the server', function () {
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',
             'Total Cost (incl. VAT)' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
-            'Quoted Price Is Acceptable' => 'Yes',
         ])
+        // Kyle, 2026-11-26: the form no longer asks whether the quoted price is acceptable.
+        ->and(summaryFields($summary, 'quotation_comparison'))->not->toHaveKey('Quoted Price Is Acceptable')
         // 2026-11-23: the tender and previous price show for Tender Excess only.
         ->and(summaryFields($summary, 'quotation_comparison'))->not->toHaveKeys(['Tender Price', 'Change Against Tender Price', 'Change Against Previous Price']);
 });

@@ -44,7 +44,8 @@ it('gives every stacked field a width from the scale', function () {
     }
 
     // A sanity count: 2026-11-25 the Tender Excess prices became a comparison table (no stacked fields).
-    expect($found)->toBeGreaterThan(20);
+    // 2026-11-26: the Quoted Price Is Acceptable tick is gone (20 left).
+    expect($found)->toBeGreaterThanOrEqual(20);
 });
 
 it('uses no width classes of its own in the sections', function () {
