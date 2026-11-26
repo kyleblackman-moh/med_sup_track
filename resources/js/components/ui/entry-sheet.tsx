@@ -75,7 +75,9 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
                     </div>
                 </div>
 
-                <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
+                {/* Kyle, 2026-11-26 (option B): a soft primary header band with primary labels and a
+                    primary line under it, and slightly firmer outer lines, so the table reads clearly. */}
+                <div className="border-base-content/20 rounded-box max-w-full overflow-x-auto border">
                     {/* Seven columns on one line: below 56rem the block scrolls rather than squeeze them. */}
                     <table className="table-sm table min-w-[56rem] table-fixed">
                         <caption className="sr-only">{label}</caption>
@@ -91,13 +93,13 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
                                 const share = TRACKS / line.length;
 
                                 return [
-                                    <tr key={`${line[0]?.key}-head`} className="bg-base-200">
+                                    <tr key={`${line[0]?.key}-head`} className="bg-primary/8">
                                         {line.map((field) => (
                                             <th
                                                 key={field.key}
                                                 scope="col"
                                                 colSpan={field.span ?? share}
-                                                className="border-base-300 text-base-content/70 border text-xs font-medium capitalize"
+                                                className="border-base-300 border-b-primary/40 text-primary border text-xs font-semibold capitalize"
                                             >
                                                 {field.htmlFor ? <label htmlFor={field.htmlFor}>{field.label}</label> : field.label}
                                             </th>
