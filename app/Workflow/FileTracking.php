@@ -90,8 +90,9 @@ final class FileTracking
                 'id' => (string) $case->getKey(),
                 'reference' => $case->reference_no,
                 'item' => $case->requisition?->item_description !== null ? Str::limit($case->requisition->item_description, 80) : null,
-                'stage' => $case->status->label(),
-                'status_tone' => $case->status->tone(),
+                // Kyle, 2026-11-26: the pill names who acts next (ActionOwner).
+                'stage' => ($owner = ActionOwner::staff($case))['label'],
+                'status_tone' => $owner['tone'],
                 'holders' => CaseHolders::for($case),
                 'holder_label' => CaseHolders::label($case),
                 'at_stage_seconds' => $atStage,
@@ -231,8 +232,8 @@ final class FileTracking
                     'item' => $case->requisition?->item_description !== null ? Str::limit($case->requisition->item_description, 80) : null,
                     'din' => $case->requisition?->din,
                     'href' => route('cases.show', $case, false),
-                    'stage' => $case->status->label(),
-                    'status_tone' => $case->status->tone(),
+                    'stage' => ($owner = ActionOwner::staff($case))['label'],
+                    'status_tone' => $owner['tone'],
                     'holder_label' => CaseHolders::label($case),
                     ...$tracking,
                 ];

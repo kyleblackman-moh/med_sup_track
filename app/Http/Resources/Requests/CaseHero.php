@@ -7,6 +7,7 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\ProcurementTypeProfile;
 use App\Support\Display;
+use App\Workflow\ActionOwner;
 use Carbon\CarbonInterface;
 
 /**
@@ -67,8 +68,9 @@ final class CaseHero
                 'icon' => RequestDetailResource::TYPE_ICONS[$code] ?? self::DEFAULT_TYPE_ICON,
             ],
             'type_unset_label' => self::TYPE_UNSET,
-            'status_label' => $vendorView ? $case->status->vendorLabel() : $case->status->label(),
-            'status_tone' => $vendorView ? $case->status->vendorTone() : $case->status->tone(),
+            // Kyle, 2026-11-26: who acts next (ActionOwner); the vendor's stays "Under review" but for its own query.
+            'status_label' => ($owner = ActionOwner::for($case, $vendorView))['label'],
+            'status_tone' => $owner['tone'],
             'date' => $isDraft
                 ? ['label' => self::DRAFT_DATE_LABEL, 'value' => self::day($case->updated_at)]
                 : ['label' => self::SUBMITTED_DATE_LABEL, 'value' => self::day($case->submitted_at)],

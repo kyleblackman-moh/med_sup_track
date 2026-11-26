@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\Cases\StaffCaseDetail;
 use App\Models\ProcurementCase;
+use App\Workflow\ActionOwner;
 use App\Workflow\FileTracking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,8 +28,9 @@ class FileTrackingController extends Controller
 {
     public function index(Request $request): JsonResponse|Response
     {
-        $cases = ProcurementCase::query()
+        $cases = ActionOwner::withOpenVendorQuery(ProcurementCase::query())
             ->with([
+                'organisation:id,name,short_name', // the pill: "{vendor} to Action"
                 'requisition:id,case_id,item_description',
                 'transitions:id,case_id,from_status,to_status,created_at',
                 'assignments' => fn ($q) => $q->whereNull('completed_at')->whereNull('cancelled_at'),

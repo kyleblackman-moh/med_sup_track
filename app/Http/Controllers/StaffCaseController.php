@@ -18,6 +18,7 @@ use App\Models\ProcurementType;
 use App\Notifications\Bell;
 use App\Submissions\ExpiryRisk;
 use App\Support\SqlLike;
+use App\Workflow\ActionOwner;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -87,9 +88,10 @@ class StaffCaseController extends Controller
                 ->orWhereHas('requisition', fn ($r) => $r->whereRaw(...SqlLike::contains('case_requisitions.item_description', $v)))
                 ->orWhereHas('organisation', fn ($o) => $o->whereRaw(...SqlLike::contains('organisations.name', $v)))));
 
-        $page = $base()
+        // The pill (ActionOwner): the vendor's short name and the open-query flag, without a query per row.
+        $page = ActionOwner::withOpenVendorQuery($base())
             ->with([
-                'organisation:id,name', 'procurementType:id,name',
+                'organisation:id,name,short_name', 'procurementType:id,name',
                 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS),
                 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS),
                 // The current holders (CaseHolders), without a query per row.

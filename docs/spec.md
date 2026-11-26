@@ -257,6 +257,18 @@ Priority: **M** = must (Phase 1-2), **S** = should (Phase 3), **C** = could (Pha
 | `WITHDRAWN` | Withdrawn (terminal) | none |
 | `REJECTED_FINAL` | Finally rejected (terminal; see open question Q3) | none |
 
+**Status pill: who acts next [Decided 2026-11-26, Kyle].** Every status pill (case lists, case header, dashboard queue and board, File Tracking, the printed form) names the party who has to act, not the stage. `App\Workflow\ActionOwner` decides the label and tone; the stage label (`CaseStatus::label`) stays for history, filters and notification text.
+
+| Case | Staff pill | Vendor pill |
+|---|---|---|
+| A query to the vendor is open (`queries.status = OPEN`, raised to a vendor role) | "{vendor short name} to Action" | "Vendor to view" |
+| `SUBMITTED`, `CMO_INTAKE`, `READY_FOR_FILE`, `FILE_PREPARED`, `RETURNED_TO_CMO`, `NON_OBJECTION_GRANTED` | "CMO to Action" | "Under review" |
+| `IN_REVIEW`, a desk without an outcome | "Technocrats to Action", "CAB to Action", or "Technocrats and CAB to Action" | "Under review" |
+| `IN_REVIEW`, both desks recorded (the gate, or a negative outcome) | "CMO to Action" | "Under review" |
+| `WITH_LEGAL` | "Legal to Action" | "Under review" |
+| `WITH_PS` | "PS to Action / Non-Objection" | "Under review" |
+| `DRAFT`, `LETTER_ISSUED`, `CLOSED`, `WITHDRAWN`, `REJECTED_FINAL` | the stage label | the vendor label, as before |
+
 ### 6.3 State diagram
 
 ```mermaid

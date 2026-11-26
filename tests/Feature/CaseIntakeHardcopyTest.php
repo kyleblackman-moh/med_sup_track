@@ -382,7 +382,7 @@ it('gives the staff view the hardcopy record and can flags from the policy', fun
         ->and($before['hardcopy_dates']['today'])->toBe(poSToday())
         ->and($after['can'])->toMatchArray(['intake' => false, 'record_hardcopy' => true])
         ->and($after['hardcopy'])->toMatchArray(['received_on' => poSToday(), 'recorded_by' => 'Registry Officer'])
-        ->and($after['case']['status_label'])->toBe('CMO intake')
+        ->and($after['case']['status_label'])->toBe('CMO to Action') // the pill names who acts next (ActionOwner, 2026-11-26)
         ->and(collect($after['timeline'])->last()['to_label'])->toBe('CMO intake')
         ->and($tech['can'])->toMatchArray(['intake' => false, 'record_hardcopy' => false]);
 });

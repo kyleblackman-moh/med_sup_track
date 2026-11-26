@@ -7,6 +7,7 @@ use App\Enums\Permission;
 use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Submissions\ProcurementTypeProfile;
+use App\Workflow\ActionOwner;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -33,9 +34,10 @@ class RequestSummaryResource extends JsonResource
         return [
             'id' => $case->id,
             'reference_no' => $case->reference_no,
-            'status_label' => $case->status->vendorLabel(),
+            // Kyle, 2026-11-26: "Vendor to view" while a query to the vendor is open (ActionOwner).
+            'status_label' => ($owner = ActionOwner::vendor($case))['label'],
             'status_group' => $case->status->vendorGroup(),
-            'status_tone' => $case->status->vendorTone(), // UI-4: the pill's tone, decided here
+            'status_tone' => $owner['tone'], // UI-4: the pill's tone, decided here
 
             'procurement_type' => [
                 'code' => $type->code,

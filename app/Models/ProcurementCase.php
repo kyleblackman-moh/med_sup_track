@@ -160,6 +160,12 @@ class ProcurementCase extends Model
         return $this->hasMany(Document::class, 'case_id');
     }
 
+    /** Read by App\Workflow\ActionOwner (the open-query-to-the-vendor flag). */
+    public function queries(): HasMany
+    {
+        return $this->hasMany(CaseQuery::class, 'case_id');
+    }
+
     public function stockExpiries(): HasMany
     {
         return $this->hasMany(CaseStockExpiry::class, 'case_id')->orderBy('expiry_date')->orderBy('id');

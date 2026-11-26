@@ -113,7 +113,7 @@ it('lists the case with its stage, holders, times and returns', function () {
     expect($row)->toMatchArray([
         'reference' => $case->reference_no,
         'item' => 'Feeding tube',
-        'stage' => 'With Legal',
+        'stage' => 'Legal to Action',
         'holder_label' => 'Legal Unit (Leo Second)',
         'at_stage_seconds' => 86400 + 12 * 3600,
         'at_stage' => '1 d 12 h',
@@ -197,7 +197,7 @@ it('puts the File Tracking board on the dashboard for the cases the user can see
             'item' => 'Feeding tube',
             'din' => null,
             'href' => '/cases/'.$case->id,
-            'stage' => 'With Legal',
+            'stage' => 'Legal to Action',
         ])
         ->and($row['current']['key'])->toBe('legal')
         ->and(array_column($row['units'], 'days', 'key'))->toBe(['cmo' => '3 days', 'technocrats' => '2 days', 'legal' => '3 days', 'ps' => '—']);
@@ -247,7 +247,7 @@ it('renders the File Tracking page with the rows and no timeline until one is op
     $props = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('tracking.index'))->assertOk());
     $row = collect($props['rows'])->firstWhere('id', $case->id);
 
-    expect($row['stage'])->toBe('With Legal')
+    expect($row['stage'])->toBe('Legal to Action')
         ->and($row['gate'])->toBeNull() // not in review
         ->and($props)->not->toHaveKey('timeline');
 });

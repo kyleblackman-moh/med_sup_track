@@ -35,6 +35,7 @@ use App\Submissions\SaveRequisition;
 use App\Submissions\SubmissionReadiness;
 use App\Support\RequestGroups;
 use App\Support\SqlLike;
+use App\Workflow\ActionOwner;
 use App\Workflow\Actions\EndCase;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,7 +69,7 @@ class RequestController extends Controller
         $group = array_key_exists($group, RequestGroups::LABELS) ? $group : '';
 
         // The global scope keeps a vendor to its own organisation, search or not.
-        $page = ProcurementCase::query()
+        $page = ActionOwner::withOpenVendorQuery(ProcurementCase::query())
             ->with(['procurementType', 'requisition'])
             ->when($search !== '', fn ($query) => self::matching($query, $search))
             ->when($group !== '', fn ($query) => RequestGroups::apply($query, $group))

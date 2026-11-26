@@ -5,6 +5,7 @@ namespace App\Http\Resources\Cases;
 use App\Enums\Role;
 use App\Models\ProcurementCase;
 use App\Submissions\ExpiryRisk;
+use App\Workflow\ActionOwner;
 use App\Workflow\CaseHolders;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -31,8 +32,8 @@ final class StaffCaseSummary
                 ? Str::limit($case->requisition->item_description, 80)
                 : null,
             'status' => $case->status->value,
-            'status_label' => $case->status->label(),
-            'status_tone' => $case->status->tone(),
+            // Kyle, 2026-11-26: the pill names who acts next (ActionOwner), not the stage.
+            ...self::pill(ActionOwner::staff($case)),
             // Kyle, 2026-11-24: every active assignment for the current stage (both desks in review), else the stage owner.
             'holder_label' => CaseHolders::label($case),
             'holders' => CaseHolders::for($case),
@@ -43,6 +44,15 @@ final class StaffCaseSummary
             // Only when the list eager loaded the batches, so a row never costs a query per case.
             'expiry_flag' => $case->relationLoaded('stockExpiries') ? ExpiryRisk::flag($case) : null,
         ];
+    }
+
+    /**
+     * @param  array{label: string, tone: string}  $owner
+     * @return array{status_label: string, status_tone: string}
+     */
+    public static function pill(array $owner): array
+    {
+        return ['status_label' => $owner['label'], 'status_tone' => $owner['tone']];
     }
 
     public static function holderLabel(?string $role): ?string

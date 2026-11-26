@@ -304,8 +304,8 @@ it('builds each row on the server: link, type, plain waiting text and the action
         'type_label' => testProcurementType()->name,
         'action' => 'Issue Letter',
         'item_description' => 'Dash row item',
-        'status_label' => CaseStatus::NON_OBJECTION_GRANTED->label(),
-        'status_tone' => CaseStatus::NON_OBJECTION_GRANTED->tone(),
+        'status_label' => 'CMO to Action',
+        'status_tone' => 'indigo',
         'tags' => [],
     ])->and($row['waiting'])->toMatch('/^[\d,]+ days$/');
 });

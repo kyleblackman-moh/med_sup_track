@@ -207,10 +207,10 @@ it('lists the expected columns, without drafts', function () {
             'id', 'reference_no', 'organisation', 'procurement_type', 'item_description', 'status',
             'status_label', 'status_tone', 'holder_label', 'holders', 'submitted_at', 'days_since_submitted', 'expiry_flag',
         ])
-        ->and($row['status_tone'])->toBe('info') // SUBMITTED is info (CaseStatus::tone; palette in app.css)
+        ->and($row['status_tone'])->toBe('indigo') // the pill names who acts next: CMO (ActionOwner)
         ->and($row['reference_no'])->toBe($case->reference_no)
         ->and($row['organisation'])->toBe($org->name)
-        ->and($row['status_label'])->toBe('Submitted')
+        ->and($row['status_label'])->toBe('CMO to Action')
         ->and($row['holder_label'])->toBe('CMO Registry')
         ->and($row['days_since_submitted'])->toBe(3);
 });

@@ -7,6 +7,7 @@ use App\Models\ProcurementCase;
 use App\Models\User;
 use App\Support\Audit;
 use App\Support\Display;
+use App\Workflow\ActionOwner;
 use Carbon\CarbonImmutable;
 
 /**
@@ -61,7 +62,7 @@ final class PrintForm
             'header' => [
                 'reference' => $case->reference_no ?? Display::EMPTY, // a draft has none yet
                 'type' => $summary['type_label'],
-                'status' => $audience === self::VENDOR ? $case->status->vendorLabel() : $case->status->label(),
+                'status' => ActionOwner::for($case, $audience === self::VENDOR)['label'],
                 'organisation' => (string) $case->organisation?->name,
                 'printed_at' => $printed->format('j M Y, g:i a'),
                 'printed_at_iso' => $printed->toIso8601String(),

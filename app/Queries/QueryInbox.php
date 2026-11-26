@@ -8,6 +8,7 @@ use App\Http\Resources\Cases\StaffCaseSummary;
 use App\Models\CaseQuery;
 use App\Models\ProcurementCase;
 use App\Models\User;
+use App\Workflow\ActionOwner;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
@@ -44,8 +45,8 @@ final class QueryInbox
             ->limit(self::LIMIT)
             ->get();
 
-        $cases = ProcurementCase::withoutGlobalScopes()
-            ->with(['organisation:id,name', 'requisition:id,case_id,item_description'])
+        $cases = ActionOwner::withOpenVendorQuery(ProcurementCase::withoutGlobalScopes())
+            ->with(['organisation:id,name,short_name', 'requisition:id,case_id,item_description'])
             ->whereIn('id', $queries->pluck('case_id')->unique()->values()->all())
             ->get()->keyBy('id');
 

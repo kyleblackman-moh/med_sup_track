@@ -175,7 +175,7 @@ it('measures waiting time and orders the oldest first', function () {
 
     expect($items->pluck('case_id')->all())->toBe([$older->id, $newer->id])
         ->and($items[0]['days_waiting'])->toBe(12)
-        ->and($items[0]['status_tone'])->toBe('teal') // READY_FOR_FILE is teal (CaseStatus::tone; palette in app.css)
+        ->and($items[0]['status_tone'])->toBe('indigo') // READY_FOR_FILE: CMO to Action (ActionOwner)
         ->and(array_keys($items[0]))->toBe([
             'id', 'case_id', 'step', 'action', 'reference_no', 'item_description', 'organisation',
             'status_label', 'status_tone', 'waiting_since', 'days_waiting', 'expiry_flag',

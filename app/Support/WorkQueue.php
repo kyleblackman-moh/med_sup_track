@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Queries\QueryAccess;
 use App\Queries\QueryInbox;
 use App\Submissions\ExpiryRisk;
+use App\Workflow\ActionOwner;
 use App\Workflow\Actions\RecordHardcopy;
 use App\Workflow\Actions\RecordLegalDecision;
 use App\Workflow\Actions\RouteReturnedCase;
@@ -129,8 +130,8 @@ final class WorkQueue
         $statuses = collect($steps)->flatMap(fn (array $step) => array_map(fn (CaseStatus $s) => $s->value, $step[3]))->unique()->values()->all();
 
         // Visible cases only: ProcurementCase's global scope applies for the signed-in user.
-        $cases = ProcurementCase::query()
-            ->with(['organisation:id,name', 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS), 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS)])
+        $cases = ActionOwner::withOpenVendorQuery(ProcurementCase::query())
+            ->with(['organisation:id,name,short_name', 'requisition:id,case_id,item_description,'.implode(',', ExpiryRisk::REQUISITION_COLUMNS), 'stockExpiries:'.implode(',', ExpiryRisk::BATCH_COLUMNS)])
             ->whereIn('cases.status', $statuses)
             ->select('cases.*')
             ->addSelect(['entered_status_at' => CaseTransition::query()
@@ -178,8 +179,7 @@ final class WorkQueue
                         ? Str::limit($case->requisition->item_description, 80)
                         : null,
                     'organisation' => $case->organisation?->name,
-                    'status_label' => $case->status->label(),
-                    'status_tone' => $case->status->tone(),
+                    ...StaffCaseSummary::pill(ActionOwner::staff($case)),
                     'waiting_since' => $since?->toIso8601ZuluString(),
                     'days_waiting' => $since !== null
                         ? (int) $since->setTimezone(StaffCaseSummary::TIMEZONE)->startOfDay()->diffInDays($today)
@@ -247,8 +247,7 @@ final class WorkQueue
                 ? Str::limit($d['case']->requisition->item_description, 80)
                 : null,
             'organisation' => $d['case']->organisation?->name,
-            'status_label' => $d['case']->status->label(),
-            'status_tone' => $d['case']->status->tone(),
+            ...StaffCaseSummary::pill(ActionOwner::staff($d['case'])),
             'waiting_since' => $d['since']?->toIso8601ZuluString(),
             'days_waiting' => $d['since'] !== null
                 ? (int) $d['since']->setTimezone(StaffCaseSummary::TIMEZONE)->startOfDay()->diffInDays($today)

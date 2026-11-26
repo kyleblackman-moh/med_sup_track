@@ -80,7 +80,7 @@ it('lets staff who can view the case print it, and hides drafts and unassigned c
     saveDraft($draft, $vendor, adHocPayload());
 
     $this->actingAs(caseUser(Role::Cmo))->get(route('cases.print', $case))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('cases/print')->where('print.header.status', 'Submitted'));
+        ->assertInertia(fn (Assert $page) => $page->component('cases/print')->where('print.header.status', 'CMO to Action'));
     $this->actingAs(caseUser(Role::Cmo))->get(route('cases.print', $draft))->assertNotFound();
     $this->actingAs(caseUser(Role::Technocrat))->get(route('cases.print', $case))->assertNotFound(); // not assigned
 });
