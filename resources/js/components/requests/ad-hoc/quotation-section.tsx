@@ -144,6 +144,8 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                 <EntrySheet
                                     key={row.key}
                                     label={rowLabel}
+                                    // Kyle, 2026-11-26: the coloured edge; full colour on the recommended quotation.
+                                    accent={recommended ? 'strong' : 'soft'}
                                     summary={
                                         <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                                             <span className="badge badge-ghost badge-sm shrink-0 capitalize tabular-nums">Quotation {index + 1}</span>

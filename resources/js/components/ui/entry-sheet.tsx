@@ -36,6 +36,11 @@ interface EntrySheetProps {
     below?: ReactNode;
     /** Open on first render (default true). */
     defaultOpen?: boolean;
+    /**
+     * Kyle, 2026-11-26: every block has a coloured left edge, so one entry is told
+     * from the next; "strong" (the recommended quotation) in the full primary colour.
+     */
+    accent?: 'soft' | 'strong';
 }
 
 /**
@@ -47,7 +52,7 @@ interface EntrySheetProps {
  * block, never the page. A jump to a field inside a closed block opens it
  * (focusTarget). Presentational only: no data.
  */
-export function EntrySheet({ label, summary, title, controls, remove, lines, columns, below, defaultOpen = true }: EntrySheetProps) {
+export function EntrySheet({ label, summary, title, controls, remove, lines, columns, below, defaultOpen = true, accent = 'soft' }: EntrySheetProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -55,7 +60,8 @@ export function EntrySheet({ label, summary, title, controls, remove, lines, col
             open={open}
             onToggle={(e) => setOpen(e.currentTarget.open)}
             aria-label={label}
-            className="collapse-arrow bg-base-100 border-base-300 rounded-box collapse min-w-0 border"
+            data-accent={accent}
+            className="collapse-arrow bg-base-100 border-base-300 rounded-box border-s-primary/30 data-[accent=strong]:border-s-primary collapse min-w-0 border border-s-4"
         >
             <summary className="collapse-title hover:bg-base-200 min-h-0 py-3 ps-4 pe-10 motion-safe:transition-colors">{summary}</summary>
 

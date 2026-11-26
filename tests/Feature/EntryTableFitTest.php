@@ -47,8 +47,9 @@ function oneLineWidth(string $source): int
     $rowLabel = str_contains($source, 'narrowRowLabel') ? 32 : 128;
 
     $gap = str_contains($source, 'breakpoint="65rem"') ? 8 : 12;
+    $edge = preg_match('/<EntryRow[^>]*\baccent\b/s', $source) ? 4 : 0; // the 4px coloured left edge (Kyle, 2026-11-26)
 
-    return lineWidth(columnsOf($source, 'columns'), 2, $rowLabel + 36, $gap); // + the row label and the 36px remove button
+    return lineWidth(columnsOf($source, 'columns'), 2, $rowLabel + 36 + $edge, $gap); // + the row label and the 36px remove button
 }
 
 it('switches each table to one line only where every column fits at its minimum', function (string $file, int $expectedRem) {
