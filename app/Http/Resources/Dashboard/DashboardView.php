@@ -66,9 +66,10 @@ final class DashboardView
     }
 
     /** DASH-1: the queue card's empty states (server wording). */
-    public const EMPTY_QUEUE = 'No cases need your action.';
+    /** Kyle, 2026-11-26: To Do's empty state (was "No cases need your action."). */
+    public const EMPTY_QUEUE = 'No task to complete.';
 
-    public const EMPTY_MATCH = 'No cases match your search or filter.';
+    public const EMPTY_MATCH = 'No tasks match your search.';
 
     /** DASH-1: the longest queue search; longer input is cut (as the vendor Requests search). */
     public const SEARCH_MAX = 100;
@@ -94,7 +95,8 @@ final class DashboardView
         }
         $n = count($queue['items']);
 
-        return $n === 0 ? 'No items waiting on you' : number_format($n).' '.($n === 1 ? 'item' : 'items').' waiting on you';
+        // Kyle, 2026-11-26: To Do's wording (was "3 items waiting on you").
+        return $n === 0 ? 'No task to complete' : number_format($n).' '.($n === 1 ? 'task' : 'tasks').' to complete, most recent first';
     }
 
     /**
@@ -239,12 +241,15 @@ final class DashboardView
         }
 
         $total = count($queue['items']);
+        $rows = self::rows($user, $items);
 
         return [
             'filter' => $filter,
             'search' => $search,
             'filters' => $filters,
-            'items' => self::rows($user, $items),
+            'items' => $rows,
+            // Kyle, 2026-11-26: To Do's headings (WorkQueue::DESKS order), each with its rows; empty desks left out.
+            'sections' => self::sections($rows),
             'total' => $total,
             // Which empty state, if any: nothing in the queue, or nothing matching the filter and search.
             'empty' => match (true) {
@@ -307,6 +312,26 @@ final class DashboardView
                 'tags' => $case === null ? [] : self::tags($case, $returnedFrom->get($item['case_id'])),
             ];
         }, $items);
+    }
+
+    /**
+     * The rows under their desk heading, in WorkQueue::DESKS order, keeping the
+     * rows' own order (most recent first). Desks with no rows are left out.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array{key: string, label: string, items: list<array<string, mixed>>}>
+     */
+    public static function sections(array $rows): array
+    {
+        $sections = [];
+        foreach (WorkQueue::DESKS as $key => $label) {
+            $items = array_values(array_filter($rows, fn (array $row) => ($row['desk'] ?? 'cmo') === $key));
+            if ($items !== []) {
+                $sections[] = ['key' => $key, 'label' => $label, 'items' => $items];
+            }
+        }
+
+        return $sections;
     }
 
     /** Elapsed whole days as plain text (no target, no colour). */

@@ -108,6 +108,9 @@ class StaffCaseController extends Controller
         $today = CarbonImmutable::now(StaffCaseSummary::TIMEZONE)->startOfDay();
 
         return Inertia::render('cases/index', [
+            // Kyle, 2026-11-26 (moved from the dashboard): the "Hardcopy arrived?" reference box for
+            // hardcopy.confirm holders (show/hide only; the lookup and the mark authorise).
+            'hardcopyLookup' => ! $request->user()->isVendor() && $request->user()->can(Permission::HardcopyConfirm->value),
             'chips' => self::statusChips($base, $filters),
             'cases' => [
                 'data' => $page->getCollection()->map(fn (ProcurementCase $c) => StaffCaseSummary::fields($c, $today))->values()->all(),

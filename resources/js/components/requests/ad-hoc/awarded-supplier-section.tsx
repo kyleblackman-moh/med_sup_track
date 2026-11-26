@@ -99,6 +99,8 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
                     return (
                         <EntryRow
                             key={row.key}
+                            // Kyle, 2026-11-26: the coloured edge, as on the order rows.
+                            accent
                             label={rowLabel}
                             short={String(index + 1)}
                             errors={errors}

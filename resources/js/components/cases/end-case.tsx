@@ -11,10 +11,10 @@ const LABEL = 'label text-base-content text-sm font-medium capitalize';
 const REASON_MAX = 2000;
 const MESSAGE_MAX = 2000;
 
-type Mode = 'withdraw' | 'reject';
+// Kyle, 2026-11-26: staff no longer withdraw cases here; the final rejection is the one ending left.
+type Mode = 'reject';
 
 const COPY: Record<Mode, { title: string; button: string; busy: string; result: string; route: string }> = {
-    withdraw: { title: 'Withdraw this case?', button: 'Withdraw Case', busy: 'Withdrawing…', result: 'Withdrawn', route: 'cases.withdraw' },
     reject: { title: 'Reject this case?', button: 'Reject Case', busy: 'Rejecting…', result: 'Rejected', route: 'cases.reject-final' },
 };
 
@@ -41,7 +41,7 @@ function EndCaseDialog({ mode, caseId, reference, organisation, onClose }: Dialo
         on_ps_instruction: false,
     });
     const copy = mode ? COPY[mode] : null;
-    const ready = form.data.reason.trim().length > 0 && (mode !== 'reject' || form.data.on_ps_instruction);
+    const ready = form.data.reason.trim().length > 0 && form.data.on_ps_instruction;
 
     const close = () => {
         if (form.processing) return;
@@ -53,8 +53,6 @@ function EndCaseDialog({ mode, caseId, reference, organisation, onClose }: Dialo
     const submit = (e: FormEvent) => {
         e.preventDefault();
         if (!copy || !ready) return;
-        // The PS flag is sent for a rejection only; a withdrawal has none.
-        form.transform((data) => (mode === 'reject' ? data : { reason: data.reason, vendor_message: data.vendor_message }));
         form.post(route(copy.route, caseId), { preserveScroll: true, onSuccess: () => close() });
     };
 
@@ -171,19 +169,18 @@ interface PanelProps {
     caseId: string;
     reference: string | null;
     organisation: string | null;
-    canWithdraw: boolean;
     canReject: boolean;
 }
 
 /**
- * TERMINAL-1: the case's ending actions, one ActionPanel on the Overview tab
- * (shown only when the server allows one). Withdraw while the case is in
- * intake or review; reject only once the PS has instructed it.
+ * TERMINAL-1: the case's ending action, one ActionPanel in the Next Step
+ * panel (shown only when the server allows it): reject once the PS has
+ * instructed it. Kyle, 2026-11-26: no Withdraw Case button for staff.
  */
-export function EndCasePanel({ caseId, reference, organisation, canWithdraw, canReject }: PanelProps) {
+export function EndCasePanel({ caseId, reference, organisation, canReject }: PanelProps) {
     const [mode, setMode] = useState<Mode | null>(null);
 
-    if (!canWithdraw && !canReject) {
+    if (!canReject) {
         return null;
     }
 
@@ -191,26 +188,12 @@ export function EndCasePanel({ caseId, reference, organisation, canWithdraw, can
         <ActionPanel
             title="End This Case"
             icon={CircleSlash}
-            description={
-                canReject
-                    ? 'Reject the case on the instruction of the Permanent Secretary. The case closes for good.'
-                    : 'Withdraw the case if the request will not go ahead. The case closes for good.'
-            }
+            description="Reject the case on the instruction of the Permanent Secretary. The case closes for good."
             actions={
-                <>
-                    {canWithdraw && (
-                        <button type="button" className="btn btn-outline btn-error btn-sm capitalize" onClick={() => setMode('withdraw')}>
-                            <Ban className="size-4" aria-hidden="true" />
-                            Withdraw Case
-                        </button>
-                    )}
-                    {canReject && (
-                        <button type="button" className="btn btn-error btn-sm capitalize" onClick={() => setMode('reject')}>
-                            <OctagonX className="size-4" aria-hidden="true" />
-                            Reject Case
-                        </button>
-                    )}
-                </>
+                <button type="button" className="btn btn-error btn-sm capitalize" onClick={() => setMode('reject')}>
+                    <OctagonX className="size-4" aria-hidden="true" />
+                    Reject Case
+                </button>
             }
         >
             <EndCaseDialog mode={mode} caseId={caseId} reference={reference} organisation={organisation} onClose={() => setMode(null)} />

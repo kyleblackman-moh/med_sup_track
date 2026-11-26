@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
- * "Needs my action" queue for the dashboard (spec 12.2 A). Each item is one
+ * "To Do" (was "Needs my action") for the dashboard (spec 12.2 A). Each item is one
  * case and one step the user may take on it NOW: the same permission and
  * CasePolicy::act check the action routes use. Display only: the row links to
  * the case page, where the action itself is authorised again.
@@ -32,6 +32,50 @@ final class WorkQueue
 {
     /** Hard cap on candidate cases, so the dashboard stays fast. */
     public const MAX_CASES = 300;
+
+    /**
+     * Kyle, 2026-11-26: To Do groups the tasks under who acts on them, in this
+     * order. "vendor" is never a staff task (vendors land on their Requests
+     * list); its heading names the vendor organisation, never a fixed name.
+     */
+    public const DESKS = [
+        'cmo' => ActionOwner::CMO,
+        'technocrats' => ActionOwner::TECHNOCRATS,
+        'cab' => ActionOwner::CAB,
+        'legal' => ActionOwner::LEGAL,
+        'ps' => ActionOwner::PS,
+    ];
+
+    /** The desk of each step; query_answer goes to the answering user's own desk (deskOf). */
+    private const STEP_DESK = [
+        'technical' => 'technocrats',
+        'funding' => 'cab',
+        'legal_decision' => 'legal',
+        'ps_decision' => 'ps',
+    ];
+
+    /**
+     * The desk a query answer belongs to: the user's own desk, from the
+     * permissions of their decision steps (display only; never a role name).
+     * Everything else is the CMO's Office.
+     */
+    private static function deskOf(string $step, User $user): string
+    {
+        if (isset(self::STEP_DESK[$step])) {
+            return self::STEP_DESK[$step];
+        }
+        if ($step !== 'query_answer') {
+            return 'cmo';
+        }
+
+        return match (true) {
+            $user->can(Permission::NonObjectionGrant->value) => 'ps',
+            $user->can(Permission::LegalConfirm->value) => 'legal',
+            $user->can(ReviewDesk::Funding->permission()->value) => 'cab',
+            $user->can(ReviewDesk::Technical->permission()->value) => 'technocrats',
+            default => 'cmo',
+        };
+    }
 
     /**
      * key => [group label, button text, permissions (holding any one makes it a candidate), statuses, waiting measured from].
@@ -138,7 +182,7 @@ final class WorkQueue
                 ->selectRaw('MAX(case_transitions.created_at)')
                 ->whereColumn('case_transitions.case_id', 'cases.id')
                 ->whereColumn('case_transitions.to_status', 'cases.status')])
-            ->orderBy('cases.submitted_at')
+            ->orderByDesc('cases.submitted_at') // Kyle, 2026-11-26: the cap keeps the most recent.
             ->limit(self::MAX_CASES + 1)
             ->get();
 
@@ -193,8 +237,13 @@ final class WorkQueue
         // OVERNIGHT-2 (D4): query work, on any open case the user can see.
         array_push($items, ...self::queryItems($user, $today));
 
-        // Oldest first; unknown ages last.
-        usort($items, fn (array $a, array $b) => [$a['waiting_since'] === null, $a['waiting_since']] <=> [$b['waiting_since'] === null, $b['waiting_since']]);
+        // Kyle, 2026-11-26: most recent first; unknown ages last.
+        usort($items, fn (array $a, array $b) => [$a['waiting_since'] === null, $b['waiting_since']] <=> [$b['waiting_since'] === null, $a['waiting_since']]);
+        foreach ($items as &$item) {
+            $item['desk'] = self::deskOf($item['step'], $user);
+            $item['desk_label'] = self::DESKS[$item['desk']];
+        }
+        unset($item);
 
         $counts = array_count_values(array_column($items, 'step'));
         $groups = [];

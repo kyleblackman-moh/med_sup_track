@@ -86,7 +86,9 @@ it('no longer sends tiles, the pipeline or the gate tracker with the dashboard',
     expect($props)->not->toHaveKey('stats')
         ->and($props)->not->toHaveKey('pipeline')
         ->and($props)->not->toHaveKey('gateTracker')
-        ->and($props)->toHaveKeys(['workQueue', 'summary', 'requestTypes', 'queue', 'tracking', 'hardcopyLookup'])
+        ->and($props)->toHaveKeys(['workQueue', 'summary', 'requestTypes', 'queue'])
+        // Kyle, 2026-11-26: To Do only: no File Tracking board, no hardcopy box.
+        ->and($props)->not->toHaveKeys(['tracking', 'hardcopyLookup'])
         // Kyle, 2026-11-24: the greeting moved to the top bar; the drafts card left.
         ->and($props)->not->toHaveKeys(['header', 'drafts']);
 })->with([Role::Cmo->value, Role::PsOffice->value, Role::Technocrat->value]);
@@ -166,10 +168,10 @@ it('sends each tile its Title Case label and short description from the server (
     expect($technocrat)->toBe(['open' => 'Cases that are not yet closed']);
 });
 
-it('sums up the items waiting on the user under the title', function () {
-    expect(DashboardView::summary(['items' => [['id' => 'a'], ['id' => 'b']]]))->toBe('2 items waiting on you')
-        ->and(DashboardView::summary(['items' => [['id' => 'a']]]))->toBe('1 item waiting on you')
-        ->and(DashboardView::summary(['items' => []]))->toBe('No items waiting on you')
+it('sums up the tasks waiting on the user under the title', function () {
+    expect(DashboardView::summary(['items' => [['id' => 'a'], ['id' => 'b']]]))->toBe('2 tasks to complete, most recent first')
+        ->and(DashboardView::summary(['items' => [['id' => 'a']]]))->toBe('1 task to complete, most recent first')
+        ->and(DashboardView::summary(['items' => []]))->toBe('No task to complete')
         ->and(DashboardView::summary(null))->toBeNull();
 });
 

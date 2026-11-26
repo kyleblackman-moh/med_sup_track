@@ -350,23 +350,24 @@ it('tags a case still waiting for its hardcopy, and an Emergency request by its 
     expect(array_column(queueRowsOf($this, $cmo, $case)[0]['tags'], 'label'))->toBe(['Emergency']);
 });
 
-it('says "No cases need your action." when the queue is empty', function () {
+it('says "No task to complete." when the queue is empty', function () {
     // A new technocrat has no assignments, so nothing is theirs.
     $queue = queueProp($this, caseUser(Role::Technocrat));
 
     expect($queue['total'])->toBe(0)
         ->and($queue['items'])->toBe([])
-        ->and($queue['empty'])->toBe(['message' => 'No cases need your action.', 'clear' => false]);
+        ->and($queue['sections'])->toBe([])
+        ->and($queue['empty'])->toBe(['message' => 'No task to complete.', 'clear' => false]);
 });
 
-it('says "No cases match your search or filter." with a clear link when nothing matches', function () {
+it('says "No tasks match your search." with a clear link when nothing matches', function () {
     $cmo = caseUser(Role::Cmo);
     dashCase(CaseStatus::SUBMITTED);
 
     $queue = queueProp($this, $cmo, ['q' => 'no-such-text-'.Str::random(12)]);
 
     expect($queue['items'])->toBe([])
-        ->and($queue['empty'])->toBe(['message' => 'No cases match your search or filter.', 'clear' => true])
+        ->and($queue['empty'])->toBe(['message' => 'No tasks match your search.', 'clear' => true])
         ->and($queue['clear_href'])->toBe('/dashboard');
 });
 
@@ -413,7 +414,8 @@ it('sends no SLA values with the rows', function () {
 it('builds the queue table from real table cells, with a stretched row link and the same link on the action', function () {
     $source = file_get_contents(resource_path('js/components/dashboard/work-queue.tsx'));
 
-    // OVERNIGHT-3 (B2): the shared DataTable (scope="col", --subtle header, overflow-x-auto) and FilterChips (aria-current).
+    // OVERNIGHT-3 (B2): the shared DataTable (scope="col", --subtle header, overflow-x-auto).
+    // Kyle, 2026-11-26: the desk headings replace the filter chips.
     expect($source)->toContain('<DataTableHeaderCell')
         ->toContain("const HEADERS = ['Reference', 'Request', 'Status', 'Waiting', 'Action'] as const;")
         ->toContain('<DataTableRow key={item.id} linked>')
@@ -421,7 +423,8 @@ it('builds the queue table from real table cells, with a stretched row link and 
         ->toContain('h-14')
         ->toContain('cn(dataTableRefClass, rowLink)')
         ->toContain('relative z-10')
-        ->toContain('<FilterChips')
+        ->toContain('queue.sections.map')
+        ->not->toContain('<FilterChips')
         ->toContain('min-w-[52rem] lg:min-w-0')
         ->not->toContain('fetch(')->not->toContain('axios')->not->toContain('localStorage')
         ->not->toContain('item.days_waiting'); // the waiting text comes from the server

@@ -137,10 +137,16 @@ final class StaffCaseDetail
             'expiry_flag' => ExpiryRisk::flag($case),
             'timeline' => self::timeline($case),
             // Kyle, 2026-11-24: the File Tracking tab: where the file is, days per unit and every stage visit.
-            'tracking' => [
-                ...FileTracking::units(CaseTransition::query()->where('case_id', $case->getKey())->orderBy('created_at')->orderBy('id')->get()),
-                'stages' => FileTracking::timeline($case),
-            ],
+            // Kyle, 2026-11-26: "Where Is The File" adds the lanes (FileTracking::path).
+            'tracking' => (function () use ($case) {
+                $stages = FileTracking::timeline($case);
+
+                return [
+                    ...FileTracking::units(CaseTransition::query()->where('case_id', $case->getKey())->orderBy('created_at')->orderBy('id')->get()),
+                    'stages' => $stages,
+                    'path' => FileTracking::path($case, $stages),
+                ];
+            })(),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),
             // Slice 10b: the outcome forms this user may use (empty for everyone else).

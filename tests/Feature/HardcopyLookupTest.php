@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CaseStatus as S;
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Http\Controllers\HardcopyLookupController;
 use App\Models\ProcurementCase;
@@ -62,8 +63,12 @@ it('finds nothing for a partial reference or a case out of scope', function () {
         ->assertSessionHasErrors(['reference' => HardcopyLookupController::NOT_FOUND]);
 });
 
-// Backlog, 2026-11-25: the reference box is back on the dashboard, for hardcopy.confirm holders only.
-it('shows the lookup on the dashboard only for hardcopy.confirm holders', function () {
-    expect(pageProps($this->actingAs(caseUser(Role::CmoRegistry))->get(route('dashboard')))['hardcopyLookup'])->toBeTrue()
-        ->and(pageProps($this->actingAs(caseUser(Role::Technocrat))->get(route('dashboard')))['hardcopyLookup'])->toBeFalse();
+// Kyle, 2026-11-26: the reference box moved from the dashboard (now To Do) to Application Requests,
+// for hardcopy.confirm holders only.
+it('shows the lookup on Application Requests only for hardcopy.confirm holders', function () {
+    $viewer = caseUser(Role::Technocrat);
+    $viewer->givePermissionTo(Permission::CaseViewAll->value);
+
+    expect(pageProps($this->actingAs(caseUser(Role::CmoRegistry))->get(route('cases.index')))['hardcopyLookup'])->toBeTrue()
+        ->and(pageProps($this->actingAs($viewer)->get(route('cases.index')))['hardcopyLookup'])->toBeFalse();
 });

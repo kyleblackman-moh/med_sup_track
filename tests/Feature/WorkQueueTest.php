@@ -103,7 +103,7 @@ it('sends an empty queue to staff without queue permissions', function (string $
     $props = pageProps($this->actingAs(caseUser($role))->get(route('dashboard'))->assertOk());
 
     expect($props['workQueue'])->toBe(['groups' => [], 'items' => [], 'truncated' => false])
-        ->and($props['summary'])->toBe('No items waiting on you');
+        ->and($props['summary'])->toBe('No task to complete');
 })->with(['auditor', 'system_admin']);
 
 it('sends every staff role with queue steps a queue, empty when nothing is theirs', function (string $role) {
@@ -166,19 +166,22 @@ it('never queues a DRAFT case, even one assigned to the user', function (Role $r
     [Role::PsOffice, 'ps'],
 ]);
 
-it('measures waiting time and orders the oldest first', function () {
+it('measures waiting time and orders the most recent first', function () {
     $older = queueCase(['status' => CaseStatus::READY_FOR_FILE, 'submitted_at' => now()->subDays(12)]);
     $newer = queueCase(['status' => CaseStatus::READY_FOR_FILE, 'submitted_at' => now()->subDays(1)]);
 
     $items = collect(pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('dashboard')))['workQueue']['items'])
         ->whereIn('case_id', [$older->id, $newer->id])->values();
 
-    expect($items->pluck('case_id')->all())->toBe([$older->id, $newer->id])
-        ->and($items[0]['days_waiting'])->toBe(12)
-        ->and($items[0]['status_tone'])->toBe('indigo') // READY_FOR_FILE: CMO to Action (ActionOwner)
-        ->and(array_keys($items[0]))->toBe([
+    // Kyle, 2026-11-26: To Do is most recent first, each task under its desk.
+    expect($items->pluck('case_id')->all())->toBe([$newer->id, $older->id])
+        ->and($items[1]['days_waiting'])->toBe(12)
+        ->and($items[1]['status_tone'])->toBe('indigo') // READY_FOR_FILE: CMO to Action (ActionOwner)
+        ->and($items[1]['desk'])->toBe('cmo')
+        ->and($items[1]['desk_label'])->toBe('CMO to Action')
+        ->and(array_keys($items[1]))->toBe([
             'id', 'case_id', 'step', 'action', 'reference_no', 'item_description', 'organisation',
-            'status_label', 'status_tone', 'waiting_since', 'days_waiting', 'expiry_flag',
+            'status_label', 'status_tone', 'waiting_since', 'days_waiting', 'expiry_flag', 'desk', 'desk_label',
         ]);
 });
 

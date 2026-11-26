@@ -39,11 +39,35 @@ export interface TrackingStage {
     duration: string;
 }
 
-/** The case page's File Tracking tab. */
+/** Kyle, 2026-11-26: one step of the file's path (FileTracking::path), in its lane and column. */
+export interface TrackingPathStep {
+    lane: string;
+    /** start: the vendor sent it; stage: a stage visit; beside: CAB with the first review; query: a branch to the vendor; end: closed. */
+    kind: 'start' | 'stage' | 'beside' | 'query' | 'end';
+    label: string;
+    /** Index into stages: the stage this step belongs to. */
+    stage: number;
+    entered_at: string;
+    left_at: string | null;
+    duration: string | null;
+    open: boolean;
+    column: number;
+    number: number;
+}
+
+/** Kyle, 2026-11-26: "Where Is The File": the lanes top to bottom and the steps left to right. */
+export interface TrackingPath {
+    lanes: { key: string; label: string }[];
+    steps: TrackingPathStep[];
+    columns: number;
+}
+
+/** The case page's Where Is The File tab. */
 export interface CaseTracking {
     current: TrackingCurrent | null;
     units: TrackingUnit[];
     stages: TrackingStage[];
+    path: TrackingPath;
 }
 
 /** One dashboard board row (FileTracking::board). */

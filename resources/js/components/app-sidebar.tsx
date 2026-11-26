@@ -3,14 +3,15 @@ import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Activity, ChartColumn, FileText, FolderOpen, LayoutGrid, MessageSquareText, Route, ScrollText, UsersRound, X } from 'lucide-react';
+import { Activity, ChartColumn, FileText, FolderOpen, ListTodo, MessageSquareText, Route, ScrollText, UsersRound, X } from 'lucide-react';
 import { AppLogoMark, SidebarBrand } from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        // Kyle, 2026-11-26: the staff landing page is "To Do" (was Dashboard).
+        title: 'To Do',
         url: '/dashboard',
-        icon: LayoutGrid,
+        icon: ListTodo,
         section: 'dashboard',
     },
 ];
@@ -25,7 +26,8 @@ const requestsNavItem: NavItem = {
 
 // 2026-11-24: shown when the server shares nav.cases (the case register; display only).
 const casesNavItem: NavItem = {
-    title: 'Cases',
+    // Kyle, 2026-11-26: "Application Requests" (was Cases).
+    title: 'Application Requests',
     url: '/cases',
     icon: FolderOpen,
     section: 'cases',

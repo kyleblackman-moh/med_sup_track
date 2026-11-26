@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Workflow\FileTracking;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -184,27 +185,9 @@ it('gives every timeline stage its unit', function () {
         ->and(FileTracking::days(86400))->toBe('1 day');
 });
 
-it('puts the File Tracking board on the dashboard for the cases the user can see', function () {
-    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
-    [$case] = ftLoop();
-
-    $board = pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('dashboard'))->assertOk())['tracking'];
-    $row = collect($board['rows'])->firstWhere('id', $case->id);
-
-    expect($board['units'])->toBe(FileTracking::UNITS)
-        ->and($row)->toMatchArray([
-            'reference' => $case->reference_no,
-            'item' => 'Feeding tube',
-            'din' => null,
-            'href' => '/cases/'.$case->id,
-            'stage' => 'Legal to Action',
-        ])
-        ->and($row['current']['key'])->toBe('legal')
-        ->and(array_column($row['units'], 'days', 'key'))->toBe(['cmo' => '3 days', 'technocrats' => '2 days', 'legal' => '3 days', 'ps' => '—']);
-
-    // Not theirs: an unassigned technocrat's board leaves it out.
-    $techRows = pageProps($this->actingAs(caseUser(Role::Technocrat))->get(route('dashboard'))->assertOk())['tracking']['rows'];
-    expect(array_column($techRows, 'id'))->not->toContain($case->id);
+// Kyle, 2026-11-26: the dashboard is "To Do" now: no File Tracking board (the File Tracking page has it).
+it('no longer puts the File Tracking board on the dashboard', function () {
+    expect(pageProps($this->actingAs(caseUser(Role::Cmo))->get(route('dashboard'))->assertOk()))->not->toHaveKey('tracking');
 });
 
 it('sends the File Tracking tab with the case page', function () {
@@ -216,6 +199,60 @@ it('sends the File Tracking tab with the case page', function () {
     expect($tracking['current']['key'])->toBe('legal')
         ->and(count($tracking['stages']))->toBe(8)
         ->and($tracking['stages'][7]['open'])->toBeTrue();
+
+    // Kyle, 2026-11-26: Where Is The File's lanes. The vendor lane is named after the organisation;
+    // every stage visit is its own column (the loop through Legal twice), CAB once beside the review.
+    $path = $tracking['path'];
+    expect(array_column($path['lanes'], 'key'))->toBe(['vendor', 'cmo', 'technocrats', 'cab', 'legal', 'ps'])
+        ->and($path['lanes'][0]['label'])->toBe((fn ($org) => $org->short_name ?: $org->name)(ProcurementCase::withoutGlobalScopes()->with('organisation')->find($case->id)->organisation))
+        ->and(array_map(fn ($s) => [$s['lane'], $s['kind'], $s['column'], $s['number']], $path['steps']))->toBe([
+            ['vendor', 'start', 0, 1],
+            ['cmo', 'stage', 1, 2],
+            ['cmo', 'stage', 2, 3],
+            ['technocrats', 'stage', 3, 4],
+            ['cab', 'beside', 3, 5],
+            ['cmo', 'stage', 4, 6],
+            ['cmo', 'stage', 5, 7],
+            ['legal', 'stage', 6, 8],
+            ['cmo', 'stage', 7, 9],
+            ['legal', 'stage', 8, 10],
+        ])
+        ->and($path['columns'])->toBe(9)
+        ->and($path['steps'][9]['open'])->toBeTrue()
+        ->and($path['steps'][9]['stage'])->toBe(7);
+});
+
+it('branches a query to the vendor into the vendor lane, and shows CAB only once', function () {
+    CarbonImmutable::setTestNow(ftAt('2026-11-10 12:00'));
+    $case = ftCase(S::IN_REVIEW, [
+        [S::DRAFT, S::SUBMITTED, '2026-11-01 12:00'],
+        [S::SUBMITTED, S::CMO_INTAKE, '2026-11-02 12:00'],
+        [S::CMO_INTAKE, S::IN_REVIEW, '2026-11-03 12:00'],
+        [S::IN_REVIEW, S::READY_FOR_FILE, '2026-11-05 12:00'],
+        [S::READY_FOR_FILE, S::FILE_PREPARED, '2026-11-05 18:00'],
+        [S::FILE_PREPARED, S::WITH_LEGAL, '2026-11-06 12:00'],
+        [S::WITH_LEGAL, S::RETURNED_TO_CMO, '2026-11-07 12:00'],
+        [S::RETURNED_TO_CMO, S::IN_REVIEW, '2026-11-08 12:00'],
+    ]);
+    $technocrat = caseUser(Role::Technocrat);
+    foreach ([['2026-11-08 18:00', null, null], ['2026-11-04 12:00', null, '2026-11-04 13:00']] as [$raised, $answered, $cancelled]) {
+        DB::table('queries')->insert([
+            'id' => (string) Str::ulid(), 'case_id' => $case->id, 'type' => 'TECHNICAL', 'subject' => 'Shelf life',
+            'raised_by_role' => Role::Technocrat->value, 'raised_by_user_id' => $technocrat->id,
+            'raised_to_role' => Role::VendorApplicant->value, 'status' => 'OPEN',
+            'answered_at' => $answered, 'cancelled_at' => $cancelled === null ? null : ftAt($cancelled),
+            'created_at' => ftAt($raised), 'updated_at' => ftAt($raised),
+        ]);
+    }
+
+    $path = FileTracking::path($case, FileTracking::timeline($case));
+    $steps = collect($path['steps']);
+
+    // The cancelled query is left out; the open one branches out after the second review began.
+    expect($steps->where('kind', 'query')->count())->toBe(1)
+        ->and($steps->last())->toMatchArray(['lane' => 'vendor', 'kind' => 'query', 'label' => 'Query to answer', 'open' => true, 'stage' => 7])
+        ->and($steps->where('lane', 'cab')->count())->toBe(1)
+        ->and($steps->where('lane', 'technocrats')->count())->toBe(2);
 });
 
 it('hides the Dashboard item from vendors, whose home is Requests', function () {

@@ -3,7 +3,9 @@
 namespace App\Workflow;
 
 use App\Enums\CaseStatus;
+use App\Enums\Role;
 use App\Models\CaseAssignment;
+use App\Models\CaseQuery;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
 use App\Models\User;
@@ -60,6 +62,21 @@ final class FileTracking
         'NON_OBJECTION_GRANTED' => 'cmo',
         'LETTER_ISSUED' => 'cmo',
         'RETURNED_TO_CMO' => 'cmo',
+    ];
+
+    /**
+     * Kyle, 2026-11-26: the lanes of "Where Is The File", top to bottom. The
+     * vendor lane is named after the case's organisation (never a fixed name);
+     * CAB sits beside the Technocrats and is visited once (the funding check
+     * runs with the first technical review).
+     */
+    public const LANES = [
+        'vendor' => null,
+        'cmo' => "CMO's Office",
+        'technocrats' => 'Technocrats',
+        'cab' => 'CAB',
+        'legal' => 'Legal Unit',
+        'ps' => 'PS Office',
     ];
 
     /** At most this many rows on the dashboard board; the rest are on the case list. */
@@ -143,6 +160,98 @@ final class FileTracking
         }
 
         return $stages;
+    }
+
+    /**
+     * Kyle, 2026-11-26: the file's path through the lanes, left to right, for
+     * "Where Is The File". One step per stage visit (timeline()) in its unit's
+     * lane, so a file that goes back and forth shows every visit. Added to it:
+     *
+     * - the start: the vendor sending the request (the vendor lane);
+     * - CAB, once: beside the first In Review visit, in the same column (the
+     *   funding check runs at the same time as the technical review);
+     * - a branch to the vendor for each query raised to the vendor, from when
+     *   it was raised until it was answered (or still open). Cancelled
+     *   queries are left out. The file itself stays where it was.
+     *
+     * A closed, withdrawn or rejected case ends in the CMO's lane. Every step
+     * names the stage it belongs to (stage), so choosing it shows that stage.
+     *
+     * @param  list<array<string, mixed>>  $stages  timeline($case)
+     * @return array{lanes: list<array{key: string, label: string}>, steps: list<array<string, mixed>>, columns: int}
+     */
+    public static function path(ProcurementCase $case, array $stages, ?CarbonImmutable $now = null): array
+    {
+        $now ??= CarbonImmutable::now('UTC');
+        // The vendor's short name where it has one, as on the status pill (ActionOwner).
+        $vendor = trim((string) ($case->organisation?->short_name ?: $case->organisation?->name)) ?: 'Vendor';
+        $lanes = array_map(fn (string $key) => ['key' => $key, 'label' => self::LANES[$key] ?? $vendor], array_keys(self::LANES));
+
+        // [sort time, order, step]: the start first, then stages and query branches by time.
+        $events = [];
+        $first = $stages[0] ?? null;
+        if ($first !== null) {
+            $events[] = [$first['entered_at_iso'], 0, [
+                'lane' => 'vendor', 'kind' => 'start', 'label' => 'Request sent', 'stage' => 0,
+                'entered_at' => $first['entered_at'], 'left_at' => null, 'duration' => null, 'open' => false,
+            ]];
+        }
+        $cabShown = false;
+        foreach ($stages as $i => $stage) {
+            $lane = $stage['unit'] ?? 'cmo';
+            $events[] = [$stage['entered_at_iso'], 1, [
+                'lane' => $lane, 'kind' => $stage['unit'] === null ? 'end' : 'stage', 'label' => $stage['label'], 'stage' => $i,
+                'entered_at' => $stage['entered_at'], 'left_at' => $stage['left_at'], 'duration' => $stage['duration'], 'open' => $stage['open'],
+                'with_cab' => $stage['status'] === CaseStatus::IN_REVIEW->value && ! $cabShown,
+            ]];
+            if ($stage['status'] === CaseStatus::IN_REVIEW->value) {
+                $cabShown = true;
+            }
+        }
+
+        $stageAt = function (CarbonImmutable $at) use ($stages): int {
+            $index = 0;
+            foreach ($stages as $i => $stage) {
+                if (CarbonImmutable::parse($stage['entered_at_iso'])->lte($at)) {
+                    $index = $i;
+                }
+            }
+
+            return $index;
+        };
+        $queries = CaseQuery::query()->where('case_id', $case->getKey())
+            ->where('raised_to_role', Role::VendorApplicant->value)
+            ->whereNull('cancelled_at')
+            ->orderBy('created_at')->orderBy('id')
+            ->get(['id', 'created_at', 'answered_at', 'resolved_at']);
+        foreach ($queries as $query) {
+            $raised = self::utc($query->created_at);
+            if ($raised === null) {
+                continue;
+            }
+            $back = self::utc($query->answered_at ?? $query->resolved_at);
+            $events[] = [$raised->setTimezone(self::TIMEZONE)->toIso8601String(), 2, [
+                'lane' => 'vendor', 'kind' => 'query', 'label' => $back === null ? 'Query to answer' : 'Query answered', 'stage' => $stageAt($raised),
+                'entered_at' => self::local($raised), 'left_at' => $back === null ? null : self::local($back),
+                'duration' => self::duration(self::seconds($raised, $back ?? $now)), 'open' => $back === null,
+            ]];
+        }
+
+        usort($events, fn (array $a, array $b) => [CarbonImmutable::parse($a[0])->getTimestamp(), $a[1]] <=> [CarbonImmutable::parse($b[0])->getTimestamp(), $b[1]]);
+
+        $steps = [];
+        $column = 0;
+        foreach ($events as [, , $step]) {
+            $withCab = $step['with_cab'] ?? false;
+            unset($step['with_cab']);
+            $steps[] = [...$step, 'column' => $column, 'number' => count($steps) + 1];
+            if ($withCab) {
+                $steps[] = [...$step, 'lane' => 'cab', 'kind' => 'beside', 'label' => 'Funding check', 'column' => $column, 'number' => count($steps) + 1];
+            }
+            $column++;
+        }
+
+        return ['lanes' => $lanes, 'steps' => $steps, 'columns' => $column];
     }
 
     /**

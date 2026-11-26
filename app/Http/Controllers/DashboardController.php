@@ -4,13 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\Permission;
 use App\Http\Resources\Dashboard\DashboardView;
-use App\Models\ProcurementCase;
 use App\Support\WorkQueue;
-use App\Workflow\ActionOwner;
-use App\Workflow\FileTracking;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,6 +21,11 @@ use Inertia\Response;
  *   Tracking, the File Tracking board: where each open file is, when it last
  *   arrived there and its days at every unit. The greeting moved to the top
  *   bar (beside the bell, with a live clock); the hardcopy reference box left.
+ *
+ * Kyle, 2026-11-26: the page is "To Do": only the tasks waiting on the user,
+ * under their desk headings, most recent first. The File Tracking board left
+ * (the File Tracking page has it) and the hardcopy reference box moved to the
+ * Application Requests list (StaffCaseController::index).
  *
  * DASH-1: the queue card's filter (?filter=) and search (?q=) are applied on
  * the server (DashboardView::queue); the chips and the search box reload only
@@ -53,10 +54,6 @@ class DashboardController extends Controller
             'summary' => fn () => DashboardView::summary($loadQueue()['value']),
             'requestTypes' => fn () => DashboardView::requestTypes($loadQueue()['value']),
             'queue' => fn () => DashboardView::queue($user, $loadQueue()['value'], $filter, $search),
-            'tracking' => fn () => self::tracking($user),
-            // Backlog, 2026-11-25 (HARDCOPY-1 restored): the "Hardcopy received" reference box for
-            // hardcopy.confirm holders (show/hide only; the lookup and the mark authorise).
-            'hardcopyLookup' => ! $user->isVendor() && $user->can(Permission::HardcopyConfirm->value),
         ]);
     }
 
@@ -64,27 +61,5 @@ class DashboardController extends Controller
     public static function requestsHome($user): bool
     {
         return $user !== null && $user->isVendor() && $user->can(Permission::CaseSubmit->value);
-    }
-
-    /** The File Tracking board, for File Tracking holders only (the same checks as /tracking); null otherwise. */
-    private static function tracking($user): ?array
-    {
-        if ($user->isVendor() || ! Gate::forUser($user)->allows('viewStaffCases', ProcurementCase::class)
-            || ! $user->can(Permission::TrackingView->value)) {
-            return null;
-        }
-
-        // The global scope keeps it to the cases this user can see (staff never see drafts).
-        $cases = ActionOwner::withOpenVendorQuery(ProcurementCase::query())
-            ->with([
-                'organisation:id,name,short_name', // the pill: "{vendor} to Action"
-                'requisition:id,case_id,item_description,din',
-                'transitions:id,case_id,from_status,to_status,created_at',
-                'assignments' => fn ($q) => $q->whereNull('completed_at')->whereNull('cancelled_at'),
-                'assignments.user:id,name',
-            ])
-            ->get();
-
-        return FileTracking::board($cases);
     }
 }

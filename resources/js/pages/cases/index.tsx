@@ -1,5 +1,6 @@
 import { CaseFilters, hasActiveFilters } from '@/components/cases/case-filters';
 import { CaseTable } from '@/components/cases/case-table';
+import { ReferenceLookup } from '@/components/dashboard/reference-lookup';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { NewRequestButton } from '@/components/requests/new-request-button';
 import { FilterChips, type FilterChip } from '@/components/ui/filter-chips';
@@ -16,12 +17,15 @@ interface Props {
     filters: Filters;
     options: CaseListOptions;
     abilities: CaseListCan;
+    /** Kyle, 2026-11-26 (moved from the dashboard): the hardcopy reference box, for hardcopy.confirm holders; the lookup authorises itself. */
+    hardcopyLookup?: boolean;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Cases', href: '/cases' }];
+// Kyle, 2026-11-26: the staff case list is "Application Requests" (was Cases).
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Application Requests', href: '/cases' }];
 
 /** Staff case register (slice 9a). Read-only; filters, sorting and paging are server-side and live in the URL. */
-export default function CasesIndex({ chips, cases, filters, options, abilities }: Props) {
+export default function CasesIndex({ chips, cases, filters, options, abilities, hardcopyLookup = false }: Props) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [loading, setLoading] = useState(false);
 
@@ -56,22 +60,24 @@ export default function CasesIndex({ chips, cases, filters, options, abilities }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Cases" />
+            <Head title="Application Requests" />
 
             {/* Full width beside the drawer: px-4 py-4, lg:px-6 (PageContent's md:p-6 reset to p-4 first). */}
             <PageContent className="space-y-3 px-4 py-4 md:p-4 lg:px-6">
                 <PageHeader
-                    title="Cases"
+                    title="Application Requests"
                     titleClassName="capitalize"
                     subtitle={
                         <span className="tabular-nums" aria-live="polite">
-                            {cases.total} {cases.total === 1 ? 'case' : 'cases'}
+                            {cases.total} {cases.total === 1 ? 'request' : 'requests'}
                         </span>
                     }
                     actions={abilities.create && <NewRequestButton />}
                 />
 
-                <FilterChips label="Filter cases by status" chips={chips} />
+                {hardcopyLookup && <ReferenceLookup />}
+
+                <FilterChips label="Filter application requests by status" chips={chips} />
 
                 <CaseFilters filters={filters} options={options} showOrganisation={abilities.see_organisation} errors={errors} onChange={visit} />
 

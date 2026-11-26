@@ -85,7 +85,7 @@ interface Props {
     can: StaffCaseAbilities;
 }
 
-type TabId = 'overview' | 'tracking' | RequisitionTab | 'queries' | 'history';
+type TabId = 'tracking' | RequisitionTab | 'queries' | 'history';
 
 const TZ = 'America/Port_of_Spain';
 
@@ -112,7 +112,9 @@ function Card({ title, id, icon: Icon, children }: { title: string; id: string; 
 }
 
 /**
- * Tabs for this case. V2-3: a request-form case shows its request in one
+ * Tabs for this case. Kyle, 2026-11-26: no Overview tab (its notices sit
+ * above the tabs, the Gate under Where Is The File); File Tracking is now
+ * "Where Is The File", after Queries. V2-3: a request-form case shows its request in one
  * "Request Details" tab (the RequestSummary); the old types keep their tabs,
  * with Awards & orders only when the case has any. The actions are not a tab:
  * they sit in the action column beside the tabs.
@@ -124,11 +126,10 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: bool
 
     if (hasSummary) {
         return [
-            { id: 'overview', label: 'Overview' },
-            { id: 'tracking', label: 'File Tracking' },
             { id: 'details', label: 'Request Details' },
             { id: 'documents', label: 'Documents' },
             { id: 'queries', label: 'Queries' },
+            { id: 'tracking', label: 'Where Is The File' },
             { id: 'history', label: 'History' },
         ];
     }
@@ -136,8 +137,6 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: bool
     const hasOrders = detail.tender_awards.length > 0 || detail.purchase_orders.length > 0;
 
     return [
-        { id: 'overview', label: 'Overview' },
-        { id: 'tracking', label: 'File Tracking' },
         { id: 'details', label: 'Request Details' },
         { id: 'stock', label: 'Stock' },
         { id: 'tender', label: 'Tender & RFQ' },
@@ -145,6 +144,7 @@ function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: bool
         { id: 'quotations', label: 'Quotations' },
         { id: 'documents', label: 'Documents' },
         { id: 'queries', label: 'Queries' },
+        { id: 'tracking', label: 'Where Is The File' },
         { id: 'history', label: 'History' },
     ];
 }
@@ -161,10 +161,10 @@ function wantsNextStep(): boolean {
 }
 
 function tabFromUrl(ids: TabId[]): TabId {
-    // ?tab=actions (older links) opens the overview, with the Next Step panel open.
+    // ?tab=actions (older links) opens the first tab, with the Next Step panel open; ?tab=overview (gone) too.
     const wanted = new URLSearchParams(window.location.search).get('tab');
 
-    return ids.find((id) => id === wanted) ?? ids[0] ?? 'overview';
+    return ids.find((id) => id === wanted) ?? ids[0] ?? 'details';
 }
 
 /**
@@ -206,7 +206,7 @@ export default function CaseShow({
     can,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Cases', href: route('cases.index') },
+        { title: 'Application Requests', href: route('cases.index') },
         { title: detail.reference_no ?? 'Case', href: route('cases.show', detail.id) },
     ];
 
@@ -382,6 +382,66 @@ export default function CaseShow({
                                 </div>
                             )}
 
+                            {/* Kyle, 2026-11-26: the Overview tab left; its notices sit above the tabs. */}
+                            {returned && (
+                                // "Returned to CMO by <source> (<kind>): <reason>, <name>, <date>". The server
+                                // gives the source (CaseStatus::returnedBySource) and, for a PS return, the kind.
+                                <div role="status" className="alert alert-soft alert-warning items-start">
+                                    <Undo2 className="size-5" aria-hidden="true" />
+                                    <div className="text-sm">
+                                        <h2 className="font-semibold capitalize">
+                                            Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
+                                            {returned.kind ? ` (${returned.kind})` : ''}
+                                        </h2>
+                                        <p className="whitespace-pre-line">
+                                            {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
+                                                .filter((part) => part)
+                                                .join(', ')}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {granted && (
+                                // Slice 10d: staff only. "Non-objection granted by <name>, <date>", plus the note.
+                                <div role="status" className="alert alert-soft alert-success items-start">
+                                    <CircleCheck className="size-5" aria-hidden="true" />
+                                    <div className="text-sm">
+                                        <h2 className="font-semibold capitalize">Non-objection granted</h2>
+                                        <p>
+                                            {granted.by && `By ${granted.by}`}
+                                            {granted.by && granted.at && ', '}
+                                            {granted.at && formatDateTime(granted.at)}
+                                        </p>
+                                        {granted.note && <p className="whitespace-pre-line">Note: {granted.note}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {letter && (
+                                // Slice 10f: staff only. Every part comes from the server.
+                                <div role="status" className="alert alert-soft alert-info items-start">
+                                    <Mail className="size-5" aria-hidden="true" />
+                                    <div className="text-sm">
+                                        <h2 className="font-semibold capitalize">Letter issued</h2>
+                                        <p>
+                                            {[
+                                                `dated ${formatDay(letter.date)}`,
+                                                letter.reference ? `reference ${letter.reference}` : null,
+                                                letter.emailed_on ? `emailed on ${formatDay(letter.emailed_on)}` : null,
+                                                letter.hardcopy_sent_on ? `hardcopy sent on ${formatDay(letter.hardcopy_sent_on)}` : null,
+                                                letter.recorded_by ? `recorded by ${letter.recorded_by}` : null,
+                                                letter.recorded_at ? `on ${formatDateTime(letter.recorded_at)}` : null,
+                                            ]
+                                                .filter((part) => part)
+                                                .join(', ')}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {ended && <CaseEndedAlert ended={ended} />}
+
                             <Tabs tabs={tabs} active={active} onSelect={show} label="Case sections" className="border-base-300 capitalize" />
 
                             <div
@@ -391,81 +451,6 @@ export default function CaseShow({
                                 key={active}
                                 className="flex min-w-0 flex-col gap-4 motion-safe:transition-opacity motion-safe:duration-300 motion-safe:starting:opacity-0"
                             >
-                                {active === 'overview' && (
-                                    <>
-                                        {returned && (
-                                            // "Returned to CMO by <source> (<kind>): <reason>, <name>, <date>". The server
-                                            // gives the source (CaseStatus::returnedBySource) and, for a PS return, the kind.
-                                            <div role="status" className="alert alert-soft alert-warning items-start">
-                                                <Undo2 className="size-5" aria-hidden="true" />
-                                                <div className="text-sm">
-                                                    <h2 className="font-semibold capitalize">
-                                                        Returned to CMO{returned.source ? ` by ${returned.source}` : ''}
-                                                        {returned.kind ? ` (${returned.kind})` : ''}
-                                                    </h2>
-                                                    <p className="whitespace-pre-line">
-                                                        {[returned.reason, returned.by, returned.at ? formatDateTime(returned.at) : null]
-                                                            .filter((part) => part)
-                                                            .join(', ')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {granted && (
-                                            // Slice 10d: staff only. "Non-objection granted by <name>, <date>", plus the note.
-                                            <div role="status" className="alert alert-soft alert-success items-start">
-                                                <CircleCheck className="size-5" aria-hidden="true" />
-                                                <div className="text-sm">
-                                                    <h2 className="font-semibold capitalize">Non-objection granted</h2>
-                                                    <p>
-                                                        {granted.by && `By ${granted.by}`}
-                                                        {granted.by && granted.at && ', '}
-                                                        {granted.at && formatDateTime(granted.at)}
-                                                    </p>
-                                                    {granted.note && <p className="whitespace-pre-line">Note: {granted.note}</p>}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {letter && (
-                                            // Slice 10f: staff only. Every part comes from the server.
-                                            <div role="status" className="alert alert-soft alert-info items-start">
-                                                <Mail className="size-5" aria-hidden="true" />
-                                                <div className="text-sm">
-                                                    <h2 className="font-semibold capitalize">Letter issued</h2>
-                                                    <p>
-                                                        {[
-                                                            `dated ${formatDay(letter.date)}`,
-                                                            letter.reference ? `reference ${letter.reference}` : null,
-                                                            letter.emailed_on ? `emailed on ${formatDay(letter.emailed_on)}` : null,
-                                                            letter.hardcopy_sent_on ? `hardcopy sent on ${formatDay(letter.hardcopy_sent_on)}` : null,
-                                                            letter.recorded_by ? `recorded by ${letter.recorded_by}` : null,
-                                                            letter.recorded_at ? `on ${formatDateTime(letter.recorded_at)}` : null,
-                                                        ]
-                                                            .filter((part) => part)
-                                                            .join(', ')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {ended && <CaseEndedAlert ended={ended} />}
-
-                                        <Card title="Gate" id="gate-heading" icon={ShieldCheck}>
-                                            <GateTracker gate={gate} />
-                                        </Card>
-
-                                        <EndCasePanel
-                                            caseId={detail.id}
-                                            reference={detail.reference_no}
-                                            organisation={detail.organisation}
-                                            canWithdraw={can.withdraw}
-                                            canReject={can.reject_final}
-                                        />
-                                    </>
-                                )}
-
                                 {summary
                                     ? active === 'details' && <RequestSummary summary={summary} idPrefix="case" />
                                     : (active === 'details' ||
@@ -541,9 +526,15 @@ export default function CaseShow({
                                 )}
 
                                 {active === 'tracking' && tracking && (
-                                    <Card title="File Tracking" id="tracking-heading" icon={Route}>
-                                        <FileJourney tracking={tracking} />
-                                    </Card>
+                                    <>
+                                        <Card title="Where Is The File" id="tracking-heading" icon={Route}>
+                                            <FileJourney tracking={tracking} />
+                                        </Card>
+
+                                        <Card title="Gate" id="gate-heading" icon={ShieldCheck}>
+                                            <GateTracker gate={gate} />
+                                        </Card>
+                                    </>
                                 )}
 
                                 {active === 'history' && (
@@ -634,6 +625,14 @@ export default function CaseShow({
                                 />
 
                                 <CaseActions caseId={detail.id} hardcopy={hardcopy} can={can} psOutcome={ps_outcome} />
+
+                                {/* Kyle, 2026-11-26: no withdraw for staff; a final rejection on the PS's instruction stays. */}
+                                <EndCasePanel
+                                    caseId={detail.id}
+                                    reference={detail.reference_no}
+                                    organisation={detail.organisation}
+                                    canReject={can.reject_final}
+                                />
                             </div>
                         </section>
                     </div>
