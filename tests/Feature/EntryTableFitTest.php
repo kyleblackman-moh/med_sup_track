@@ -11,11 +11,11 @@
 const ENTRY_WIDTH_PX = [
     'xs' => 96, 'sm' => 144, 'md' => 112, 'lg' => 160,
     'checks' => 352, 'value' => 96,
-    'num' => 80, 'date' => 144, // Kyle, 2026-11-25: fixed short numbers and dates
+    'num' => 64, 'date' => 120, // Kyle, 2026-11-25: fixed short numbers and dates; 2026-11-26 narrower
 ];
 
-/** Gaps, padding and borders: 12px between cells, 16px row padding each side, 1px table borders. */
-function lineWidth(array $columns, int $extraItems = 0, int $extraPx = 0): int
+/** Gaps, padding and borders: 12px between cells (8px on the 65rem layout), 16px row padding each side, 1px table borders. */
+function lineWidth(array $columns, int $extraItems = 0, int $extraPx = 0, int $gap = 12): int
 {
     $sum = 0;
     foreach ($columns as $column) {
@@ -24,7 +24,7 @@ function lineWidth(array $columns, int $extraItems = 0, int $extraPx = 0): int
     }
     $items = count($columns) + $extraItems;
 
-    return $sum + $extraPx + 12 * ($items - 1) + 32 + 2;
+    return $sum + $extraPx + $gap * ($items - 1) + 32 + 2;
 }
 
 /** The columns of a `const <name> = [...]` block in the source. @return list<string> */
@@ -46,7 +46,9 @@ function oneLineWidth(string $source): int
 
     $rowLabel = str_contains($source, 'narrowRowLabel') ? 32 : 128;
 
-    return lineWidth(columnsOf($source, 'columns'), 2, $rowLabel + 36); // + the row label and the 36px remove button
+    $gap = str_contains($source, 'breakpoint="65rem"') ? 8 : 12;
+
+    return lineWidth(columnsOf($source, 'columns'), 2, $rowLabel + 36, $gap); // + the row label and the 36px remove button
 }
 
 it('switches each table to one line only where every column fits at its minimum', function (string $file, int $expectedRem) {
@@ -58,8 +60,9 @@ it('switches each table to one line only where every column fits at its minimum'
     expect((int) $m[1])->toBe($expectedRem)
         ->and(oneLineWidth($source))->toBeLessThanOrEqual($breakpointPx, "{$file}: needs ".oneLineWidth($source)."px, breaks at {$breakpointPx}px");
 })->with([
-    'awarded suppliers' => ['awarded-supplier-section.tsx', 72],
-    'orders' => ['existing-arrangement-section.tsx', 72], // Kyle, 2026-11-26: the whole order on one line
+    // Kyle, 2026-11-26: each on one line from a 65rem card (8px gaps).
+    'awarded suppliers' => ['awarded-supplier-section.tsx', 65],
+    'orders' => ['existing-arrangement-section.tsx', 65],
     'stock items' => ['stock-section.tsx', 45], // Kyle, 2026-11-26: Drug Name, Expiry Date, Note
     'variations' => ['variation-section.tsx', 45],
 ]);

@@ -48,7 +48,7 @@ export function AwardedSupplierSection({ api }: { api: FormApi }) {
             <EntryTable
                 caption="Awarded Suppliers"
                 columns={columns}
-                breakpoint="72rem"
+                breakpoint="65rem"
                 narrowRowLabel
                 empty={rows.length === 0 && <RowsNote>No awarded supplier yet.</RowsNote>}
                 foot={
