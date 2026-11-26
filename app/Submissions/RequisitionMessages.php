@@ -22,7 +22,7 @@ final class RequisitionMessages
         'quotations' => 'Quotation Row',
         'tender_awards' => 'Supplier Row',
         'purchase_orders' => 'Order Row',
-        'stock_expiries' => 'Batch',
+        'stock_expiries' => 'Item', // Kyle, 2026-11-26: "Item 1" (was "Batch 1")
         'variation_rows' => 'Variation Row',
     ];
 
@@ -31,7 +31,7 @@ final class RequisitionMessages
         'quotations' => 'Quotations',
         'tender_awards' => 'Awarded Suppliers',
         'purchase_orders' => 'Orders',
-        'stock_expiries' => 'Stock Batches',
+        'stock_expiries' => 'Stock Items', // Kyle, 2026-11-26
         'variation_rows' => 'Details of Variation Requested',
     ];
 
@@ -67,18 +67,17 @@ final class RequisitionMessages
             'lead_time_days' => 'Lead Time (Days)',
             'quantity_available_now' => 'Ex Stock',
             'is_recommended' => 'Recommended',
-            'reason_accepted_excluded' => 'Reason Not Considered',
+            'reason_accepted_excluded' => 'Reason for Justification', // Kyle, 2026-11-26: on the recommended quotation
             'vat_rate' => 'VAT Rate',
         ],
         'tender_awards' => [
             'supplier_name' => 'Supplier',
             'percentage_awarded' => '% Awarded', // 2026-11-24: typed
             'quantity_awarded' => 'Qty Awarded', // 2026-11-25: "Qty" throughout the vendor form
-            'pack_size' => 'Pack Size', // 2026-11-25
         ],
         'purchase_orders' => [
             'award_id' => 'Supplier',
-            'po_number' => 'PO No.',
+            'po_number' => 'P.O #', // Kyle, 2026-11-26
             'ordered_on' => 'Date Ordered',
             'delivery_eta' => 'Delivery Date',
             'delivery_state' => 'Delivery Status',
@@ -87,9 +86,8 @@ final class RequisitionMessages
             'delivery_status' => 'Other Delivery Status', // 2026-11-25: the description of Other
             'quantity_ordered' => 'Qty Ordered',
             'quantity_delivered' => 'Qty Delivered',
-            'pack_size' => 'Pack Size',
         ],
-        'stock_expiries' => [],
+        'stock_expiries' => ['item_name' => 'Drug Name', 'expiry_date' => 'Expiry Date'],
         'variation_rows' => [
             'existing_detail' => 'Existing Approved Detail',
             'proposed_detail' => 'Proposed Revised Detail',
@@ -206,7 +204,7 @@ final class RequisitionMessages
             ],
             'din' => [
                 "{$path}.string" => "{$name} needs to be text.",
-                "{$path}.regex" => "{$name} needs to be exactly 8 digits, for example 02345678.",
+                "{$path}.max" => "{$name} needs to be :max characters or fewer.",
             ],
 
             'qty' => [

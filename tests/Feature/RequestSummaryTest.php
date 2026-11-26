@@ -221,7 +221,10 @@ it('includes every V2-1 field', function () {
         ->and($quotes['rows'][1]['cells'])->toMatchArray([
             'ex_stock' => '500 Each', 'lead_time_days' => '30', 'remarks' => 'Two-week delivery.', 'country_of_origin' => 'Country B', 'recommended' => 'Yes',
         ])
-        ->and($quotes['rows'][0]['cells'])->toMatchArray(['considered' => 'No', 'reason' => 'No registration on file.', 'ex_stock' => Display::EMPTY]);
+        ->and($quotes['rows'][0]['cells'])->toMatchArray(['reason' => Display::EMPTY, 'ex_stock' => Display::EMPTY])
+        // Kyle, 2026-11-26: no Considered column; the recommended quotation's Reason for Justification.
+        ->and($quotes['rows'][1]['cells']['reason'])->toBe('Stock on hand and the shortest lead time.')
+        ->and(array_column($quotes['columns'], 'label'))->not->toContain('Considered')->toContain('Reason for Justification');
 });
 
 // 4. Computed values, formatted by the server ----------------------------------------------
@@ -240,13 +243,13 @@ it('computes and formats every figure on the server', function () {
         ->and(array_column(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'], 'label'))->toBe(['Order Row 1']) // 2026-11-25: every type
         // 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
         ->and(summaryFields($summary, 'stock'))->toMatchArray([
-            'Average Monthly Consumption' => '500', 'Qty on Hand' => '200.5', 'Days on Hand' => '12', 'No Stock on Hand' => 'No',
+            'Average Monthly Consumption' => '500', 'Qty on Hand' => '200.5', 'Days on Hand' => '12.03', 'No Stock on Hand' => 'No', // (200.5 / 500) x 30, 2 dp (2026-11-26)
         ])
-        ->and(summaryTable($summary, 'stock', 'Stock Batches')['columns'])->toHaveCount(1)
+        ->and(array_column(summaryTable($summary, 'stock', 'Stock Items')['columns'], 'label'))->toBe(['Drug Name', 'Expiry Date'])
         ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray([
-            'RFQ Sent To' => 'All registered suppliers',
+            'RFQ Sent To' => 'Prequalified Suppliers',
             'No. of Quotations' => '2',
-            'Quotations Considered' => '1',
+            'Quotations Considered' => '2',
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',
             'Total Cost (incl. VAT)' => '$5,032.13', // 4,473.00 + 12.5% VAT (2026-11-23)
@@ -273,12 +276,12 @@ it('words the expiry warning from the submission date once submitted', function 
     $expiry = $submitted->addDays(10); // expired today, 10 days ahead on the submission date
     saveDraft($case, $vendor, [
         'requisition' => ['average_monthly_consumption' => '30', 'quantity_on_hand' => '100'],
-        'stock_expiries' => [['expiry_date' => $expiry->toDateString()]],
+        'stock_expiries' => [['item_name' => 'Tube', 'expiry_date' => $expiry->toDateString()]],
     ]);
 
     // A DRAFT is measured from today: the batch has expired.
     $draftWarning = collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('type', 'warning');
-    expect($draftWarning['lines'])->toBe(['Batch expiring '.$expiry->format('j M Y').' has expired']);
+    expect($draftWarning['lines'])->toBe(['Item expiring '.$expiry->format('j M Y').' has expired']);
 
     // Submitted (the real flow), then dated 60 days ago (test setup: submitted_at only, not the status).
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
@@ -286,7 +289,7 @@ it('words the expiry warning from the submission date once submitted', function 
 
     $warning = collect(summarySection(summaryOf($case, $vendor), 'stock')['blocks'])->firstWhere('type', 'warning');
     expect($warning['title'])->toBe('Some stock may expire before it is used')
-        ->and($warning['lines'])->toBe(['Batch expiring '.$expiry->format('j M Y').': about 100 days of stock on hand, and it expires in 10 days (the earliest to expire)']);
+        ->and($warning['lines'])->toBe(['Item expiring '.$expiry->format('j M Y').': about 100 days of stock on hand, and it expires in 10 days (the earliest to expire)']);
 });
 
 it('states "No stock on hand" plainly when the batch total is 0, for the vendor and staff', function () {

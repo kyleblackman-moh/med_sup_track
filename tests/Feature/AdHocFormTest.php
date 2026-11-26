@@ -147,8 +147,8 @@ it('caps the clinical note at 2000 and the price note at 1000 characters', funct
     expect(adHocValidationErrors(['requisition' => ['clinical_note' => str_repeat('x', 2000), 'price_note' => str_repeat('x', 1000)]]))->toBe([]);
 });
 
-// Kyle, 2026-11-23: the DIN is always exactly 8 digits (optional; leading zeros kept).
-it('accepts a DIN of exactly 8 digits, keeping leading zeros', function (?string $din) {
+// Kyle, 2026-11-26: the DIN is free text up to 32 characters (the 8-digit rule is gone; optional; leading zeros kept).
+it('accepts any DIN up to 32 characters, keeping leading zeros', function (?string $din) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe([]);
 
     [$case, $vendor] = newDraft();
@@ -157,22 +157,17 @@ it('accepts a DIN of exactly 8 digits, keeping leading zeros', function (?string
     expect(CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din'))->toBe($din);
 })->with([
     'leading zero' => ['02345678'],
-    'all zeros but one' => ['00000007'],
-    'eight digits' => ['12345678'],
+    'seven digits' => ['0234567'],
+    'nine digits' => ['023456789'],
+    'letters and a dash' => ['DIN-ABC-1234'],
+    'thirty-two characters' => [str_repeat('9', 32)],
     'cleared' => [null],
 ]);
 
-it('refuses a DIN that is not exactly 8 digits', function (mixed $din, string $message) {
+it('refuses a DIN over 32 characters, or one that is not text', function (mixed $din, string $message) {
     expect(adHocValidationErrors(['requisition' => ['din' => $din]]))->toBe(['requisition.din' => $message]);
 })->with([
-    'space' => ['0234 5678', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'dash' => ['0234-5678', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'decimal' => ['123.4', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'negative' => ['-123', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'one digit' => ['7', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'seven digits' => ['0234567', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'nine digits' => ['023456789', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
-    'letters' => ['ABC12345', 'Enter the DIN as exactly 8 digits, for example 02345678.'],
+    'thirty-three characters' => [str_repeat('9', 33), 'DIN needs to be 32 characters or fewer.'],
     // A number would lose leading zeros, so only text is accepted.
     'number, not text' => [2345678, 'DIN needs to be text.'],
 ]);
@@ -198,7 +193,7 @@ it('keeps row ids stable across saves, updating rows in place and in the new ord
         ->and($rows[$secondId]->supplier_name)->toBe('Supplier D')
         ->and($rows[$firstId]->brand)->toBe('Other Brand')
         ->and($rows[$firstId]->supplier_name)->toBe('Supplier C')
-        ->and($rows[$firstId]->reason_accepted_excluded)->toBe('No registration on file.')
+        ->and($rows[$secondId]->reason_accepted_excluded)->toBe('Stock on hand and the shortest lead time.')
         ->and($rows[$new[0]]->supplier_name)->toBe('Supplier E');
 });
 
@@ -313,11 +308,11 @@ it('computes the AD_HOC figures on the server', function () {
     $detail = pageProps($this->actingAs($vendor)->get("/requests/{$case->id}")->assertOk())['case'];
 
     expect($detail['figures'])->toBe([
-        'days_on_hand' => 12,                               // V2-1: 200.50 / (500 / 30) = 12.03, whole days
+        'days_on_hand' => '12.03',                          // 2026-11-26: (200.50 / 500) x 30, to 2 dp
         'expiry_warnings' => [],                            // V2-1: the fixture's batches are well covered
         'suppliers_awarded' => 2,
         'quotations_received' => 2,
-        'quotations_considered' => 1,
+        'quotations_considered' => 2, // 2026-11-26: no Considered tick; every quotation is considered
         'recommended_unit_price' => '1.5975',
         'total_cost' => '5032.13',                          // 2800 x 1.5975 = 4473.00, plus 12.5% VAT 559.13
         'price_change_vs_tender_percent' => '27.80',        // (1.5975 - 1.25) / 1.25
@@ -577,7 +572,7 @@ it('renders a draft of each request type on the new page, never the old one', fu
             ->missing('readiness')
             ->has('sections', 6)
             // V2-3: the config no longer carries the tender outcome (awards never depend on it).
-            ->where('config.options.rfq_audience.0.label', 'All registered suppliers')
+            ->where('config.options.rfq_audience.0.label', 'Prequalified Suppliers')
             ->missing('config.options.tender_outcome')
             ->missing('config.not_awarded')
             ->where('hardcopy_notice', RequestReceipt::HARDCOPY_NOTICE)

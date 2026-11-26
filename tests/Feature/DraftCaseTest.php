@@ -157,7 +157,7 @@ it('saves requisition fields and child rows', function () {
         ->and($requisition->quoted_price_acceptable)->toBeTrue()
         ->and($quotations->pluck('supplier_name')->all())->toBe(['Supplier C', 'Supplier D'])
         ->and($quotations->pluck('sort_order')->all())->toBe([0, 1])
-        ->and($quotations->pluck('considered')->all())->toBe([false, true])
+        ->and($quotations->pluck('considered')->all())->toBe([true, true]) // 2026-11-26: every quotation considered
         ->and($quotations[1]->unit_price)->toBe('1.5975')
         ->and($quotations[1]->is_recommended)->toBeTrue()
         ->and($awards->pluck('supplier_name')->all())->toBe(['Supplier A', 'Supplier B'])

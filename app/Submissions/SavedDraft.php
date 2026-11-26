@@ -25,7 +25,7 @@ final readonly class SavedDraft
         public ProcurementCase $case,
         public array $idMap,
         public array $rowIds,
-        public ?int $daysOnHand = null,
+        public ?string $daysOnHand = null, // "12.03" (2 dp, Kyle 2026-11-26)
         public array $expiryWarnings = [],
         /** FORM-SAVE-1: a lenient (draft) save: key => message of what this save left out. */
         public array $dropped = [],

@@ -134,7 +134,8 @@ export interface FormDisplay {
         tender_awards: { id: number; percentage: string; line_cost: string }[];
         purchase_orders: { id: number; quantity_outstanding: string }[];
         quotations: { id: number; subtotal: string; vat: string; total_price: string }[];
-        stock_expiries: { id: number; expiry_date: string }[];
+        /** Kyle, 2026-11-26: "May expire before usage" or "Expired" at the end of the row, else null. */
+        stock_expiries: { id: number; expiry_date: string; note: string | null }[];
     };
 }
 

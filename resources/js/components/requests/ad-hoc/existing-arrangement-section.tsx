@@ -29,8 +29,7 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
 
     const columns: EntryColumn[] = [
         { key: 'award_id', label: 'Supplier', width: 'sm' },
-        { key: 'po_number', label: 'PO No.' },
-        { key: 'pack_size', label: 'Pack Size' },
+        { key: 'po_number', label: 'P.O #' },
         { key: 'quantity_ordered', label: 'Qty Ordered', width: 'num' },
         { key: 'ordered_on', label: 'Date Ordered', width: 'date' },
         { key: 'quantity_delivered', label: 'Qty Delivered', width: 'num' },
@@ -68,7 +67,6 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                     'id',
                                     'award_id',
                                     'po_number',
-                                    'pack_size',
                                     'quantity_ordered',
                                     'ordered_on',
                                     'quantity_delivered',
@@ -155,7 +153,6 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                         )}
                                     </EntryCell>
                                     {input('po_number', 'text', 64)}
-                                    {input('pack_size', 'text', 100)}
                                     {input('quantity_ordered', 'decimal')}
                                     {input('ordered_on', 'date')}
                                     {input('quantity_delivered', 'decimal')}

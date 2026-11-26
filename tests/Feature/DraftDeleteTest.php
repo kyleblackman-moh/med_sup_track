@@ -138,7 +138,7 @@ it('writes one draft.deleted audit row with ids, the type code and counts only',
     // No typed text of any kind: the description, notes, reasons, supplier names, file names.
     $typed = [
         'Infant feeding tube', 'Neonatal enteral feeding', 'delivered part of the order',
-        'Within the expected range', 'No registration on file', 'Supplier A', 'Supplier C', 'PO-1001', 'supplier_quotations.pdf',
+        'Within the expected range', 'shortest lead time', 'Supplier A', 'Supplier C', 'PO-1001', 'supplier_quotations.pdf',
     ];
     foreach ($typed as $text) {
         expect(str_contains($row->metadata, $text))->toBeFalse("audit metadata contains \"{$text}\"");

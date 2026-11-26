@@ -318,7 +318,7 @@ final class RequestLetter
                 'manufacturer' => $this->text($a->manufacturer),
                 'country' => $this->text($a->country_of_origin),
                 'brand' => $this->text($a->brand),
-                'quantity' => $this->withUnit($a->quantity_awarded, $a->pack_size),
+                'quantity' => $this->withUnit($a->quantity_awarded), // Kyle, 2026-11-26: no pack size
                 'percentage' => $a->percentage_awarded === null ? null : bcadd((string) $a->percentage_awarded, '0.5', 0).'%',
                 'unit_cost' => $this->unitCost($a->unit_cost),
                 'total' => $a->total() === null ? null : Display::money($a->total()),
@@ -345,10 +345,10 @@ final class RequestLetter
             'rows' => $orders->map(fn (CasePurchaseOrder $o) => [
                 'supplier' => $this->text($o->award?->supplier_name ?? $o->supplier_name),
                 'po' => $this->text($o->po_number),
-                'ordered' => $this->withUnit($o->quantity_ordered, $o->pack_size),
+                'ordered' => $this->withUnit($o->quantity_ordered),
                 'ordered_on' => $o->ordered_on?->format('F j, Y'),
-                'delivered' => $this->withUnit($o->quantity_delivered, $o->pack_size),
-                'outstanding' => $this->withUnit($o->quantityOutstanding(), $o->pack_size),
+                'delivered' => $this->withUnit($o->quantity_delivered),
+                'outstanding' => $this->withUnit($o->quantityOutstanding()),
                 'delivery' => $this->deliveryCell($o),
             ])->all(),
         ];
@@ -466,6 +466,11 @@ final class RequestLetter
         $recommended = $this->case->recommendedQuotation();
         if ($recommended !== null) {
             $paragraphs[] = $this->recommendation($recommended);
+
+            // Kyle, 2026-11-26: the vendor's Reason for Justification, as written.
+            if (($why = $this->text($recommended->reason_accepted_excluded)) !== null) {
+                $paragraphs[] = 'Justification for the recommendation: '.$this->sentence($why);
+            }
 
             if ($this->kind === self::EXCESS && ($comparison = $this->priceComparison()) !== null) {
                 $paragraphs[] = $comparison;
@@ -694,17 +699,17 @@ final class RequestLetter
     }
 
     /**
-     * "60,000 Each" in the tables, or "6,250 Boxes of 28 Tablets" when the row
-     * has a pack size (Kyle, 2026-11-25); "0" stays bare, as the paper letters show it.
+     * "60,000 Each" in the tables, with the unit of measure; "0" stays bare, as
+     * the paper letters show it. Kyle, 2026-11-26: no pack size any more.
      */
-    private function withUnit(?string $quantity, ?string $packSize = null): ?string
+    private function withUnit(?string $quantity): ?string
     {
         if ($quantity === null || ! is_numeric($quantity)) {
             return null;
         }
 
         $figures = Display::quantity($quantity);
-        $unit = $this->text($packSize) ?? $this->text($this->req('unit_of_measure'));
+        $unit = $this->text($this->req('unit_of_measure'));
 
         return $figures === '0' || $unit === null ? $figures : "{$figures} {$unit}";
     }

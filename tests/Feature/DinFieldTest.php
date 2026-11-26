@@ -15,8 +15,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
-// V2-5 step 1, changed 2026-11-23 (Kyle): the DIN is optional and, when given, exactly
-// 8 digits; trimmed, leading zeros kept, empty stored as null. DatabaseTransactions only.
+// V2-5 step 1, changed 2026-11-26 (Kyle): the DIN is optional and, when given, any
+// text up to 32 characters (no 8-digit rule); trimmed, leading zeros kept, empty
+// stored as null. DatabaseTransactions only.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -35,12 +36,12 @@ function dinOf(ProcurementCase $case): ?string
     return CaseRequisition::withoutGlobalScopes()->where('case_id', $case->id)->value('din');
 }
 
-it('accepts a DIN of exactly 8 digits, keeping leading zeros', function (string $din) {
+it('accepts any DIN text, keeping leading zeros', function (string $din) {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
 
     expect(dinOf($case))->toBe($din);
-})->with(['02345678', '00000001', '12345678', '99999999']);
+})->with(['02345678', '00000001', '1234567', '123456789', 'ABC-1234']);
 
 it('trims the DIN and stores an empty one as null', function (?string $din) {
     [$case, $vendor] = newDraft();
@@ -57,21 +58,18 @@ it('trims spaces around a DIN', function () {
     expect(dinOf($case))->toBe('02345678');
 });
 
-it('refuses a DIN that is not exactly 8 digits', function (string $din) {
+it('refuses a DIN over 32 characters', function () {
     [$case, $vendor] = newDraft();
 
     try {
-        saveDraft($case, $vendor, ['requisition' => ['din' => $din]]);
+        saveDraft($case, $vendor, ['requisition' => ['din' => str_repeat('9', 33)]]);
         $this->fail('The DIN was accepted.');
     } catch (ValidationException $e) {
-        expect($e->errors())->toBe(['requisition.din' => ['Enter the DIN as exactly 8 digits, for example 02345678.']]);
+        expect($e->errors())->toBe(['requisition.din' => ['DIN needs to be 32 characters or fewer.']]);
     }
-})->with([
-    'letters' => ['ABC12345'], 'letters and digits' => ['0012345A'], '7 digits' => ['1234567'], '9 digits' => ['123456789'],
-    'a dash' => ['1234-567'], 'a space inside' => ['1234 5678'], 'a decimal' => ['1234567.'], 'non-ASCII digits' => ['١٢٣٤٥٦٧٨'],
-]);
+});
 
-it('refuses a DIN that is not 8 digits on the older request form too', function () {
+it('uses the same DIN rule on the older request form', function () {
     $rules = RequisitionRules::requisitionFields('NON_PHARM');
 
     expect($rules['din'])->toBe(['type' => 'din']);

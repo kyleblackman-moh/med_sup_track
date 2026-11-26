@@ -11,8 +11,9 @@ enum RfqAudience: string
     public function label(): string
     {
         return match ($this) {
-            self::ALL_REGISTERED => 'All registered suppliers',
-            self::SPECIFIED => 'Specified suppliers',
+            // Kyle, 2026-11-26: the request form's names for them.
+            self::ALL_REGISTERED => 'Prequalified Suppliers',
+            self::SPECIFIED => 'Other Suppliers',
         };
     }
 }

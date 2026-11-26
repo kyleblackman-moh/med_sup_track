@@ -65,7 +65,6 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         unit_cost: '',
         // Kyle, 2026-11-24: typed (was the server's figure).
         percentage_awarded: '',
-        pack_size: '',
     },
     purchase_orders: {
         award_id: '',
@@ -79,10 +78,9 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         delivery_status: '',
         delivery_date: '',
         delivery_note: '',
-        pack_size: '',
     },
-    // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is one typed field).
-    stock_expiries: { expiry_date: '' },
+    // Kyle, 2026-11-26: a stock item is its drug name and expiry date (the quantity on hand is one typed field).
+    stock_expiries: { item_name: '', expiry_date: '' },
     quotations: {
         considered: true,
         is_recommended: false,
@@ -161,6 +159,10 @@ export function toPayload(state: FormState): Record<string, unknown> {
     for (const section of CHILD_SECTIONS) {
         payload[section] = state.rows[section].map((row) => {
             const values: Record<string, unknown> = Object.fromEntries(Object.entries(row.values).map(([name, value]) => [name, blankToNull(value)]));
+            // Kyle, 2026-11-26: no Considered tick any more; every quotation is considered.
+            if (section === 'quotations') {
+                values.considered = true;
+            }
             if ('award_id' in values) {
                 values.award_id = values.award_id === null ? null : Number(values.award_id);
             }

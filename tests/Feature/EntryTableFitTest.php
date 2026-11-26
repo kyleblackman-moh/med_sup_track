@@ -60,7 +60,7 @@ it('switches each table to one line only where every column fits at its minimum'
 })->with([
     'awarded suppliers' => ['awarded-supplier-section.tsx', 72],
     'orders' => ['existing-arrangement-section.tsx', 88],
-    'stock batches' => ['stock-section.tsx', 32],
+    'stock items' => ['stock-section.tsx', 45], // Kyle, 2026-11-26: Drug Name, Expiry Date, Note
     'variations' => ['variation-section.tsx', 45],
 ]);
 
@@ -91,8 +91,9 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ->and($source)->toContain("input('quantity_available_now', 'decimal')")
         ->and($source)->toContain("input('remarks', 'text', 255)")
         ->and($source)->not->toContain("'ex_stock'")
-        // The block's header: Supplier, then Considered and the one Recommended radio.
-        ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'considered\'\)\}.*?id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
+        // The block's header: Supplier, then the one Recommended radio (Kyle, 2026-11-26: no Considered tick).
+        ->and($source)->toMatch('/htmlFor=\{id\(\'supplier_name\'\)\}.*?<EntryInlineCheck\s+id=\{id\(\'is_recommended\'\)\}.*?type="radio"\s+name="recommended-quotation"/s')
+        ->and($source)->not->toContain("id('considered')")
         // The block is the shared EntrySheet: a collapsible block (details) holding a real bordered table
         // of 15 tracks (table-fixed), each field its span of them, scrolling inside the block.
         ->and($source)->toContain('<EntrySheet')
@@ -105,12 +106,12 @@ it('lays each quotation out as a supplier block of two table lines over its tota
         ->and($sheet)->toContain('scope="col"')
         ->and($sheet)->toContain('colSpan={field.span ?? share}')
         ->and($sheet)->toContain('<col key={column} style={width ? { width } : undefined} />')
-        // Kyle, 2026-11-24: Considered OR Recommended, never both ticked; Recommended is stored as considered.
-        ->and($source)->toContain('checked={considered && !recommended}')
-        ->and($source)->toMatch("/api\\.chooseRecommended\\(row\\.key\\);\\s*api\\.setCell\\('quotations', row\\.key, 'considered', true\\);/")
-        // The reason renders only for a quotation that is not considered.
-        ->and($source)->toMatch('/!considered && \(\s*<TextAreaField/')
-        ->and($source)->toContain('label="Reason Quotation Wasn\'t Considered"')
+        // Kyle, 2026-11-26: the Reason for Justification renders only for the recommended quotation;
+        // every quotation is saved as considered.
+        ->and($source)->toContain('onChange={() => api.chooseRecommended(row.key)}')
+        ->and($source)->toMatch('/recommended && \(\s*<TextAreaField/')
+        ->and($source)->toContain('label="Reason for Justification"')
+        ->and(file_get_contents(resource_path('js/components/requests/ad-hoc/form-state.ts')))->toMatch("/if \(section === 'quotations'\) \{\s*values\.considered = true;/")
         ->and($source)->toContain('label="Add Quotation"');
 });
 

@@ -11,6 +11,7 @@ use App\Submissions\ExpiryRisk;
 use App\Submissions\FormWording;
 use App\Submissions\ReadinessReport;
 use App\Submissions\RequestSections;
+use App\Submissions\RequisitionMessages;
 use App\Support\Decimal;
 use App\Support\Display;
 use App\Support\QuotationPrice;
@@ -43,6 +44,11 @@ final class RequestFormView
 
     public const BLOCKED = RequestSections::BLOCKED;
 
+    /** Kyle, 2026-11-26: the note at the end of a stock item's row. */
+    public const MAY_EXPIRE = 'May expire before usage';
+
+    public const EXPIRED_NOTE = 'Expired';
+
     /** @return array{sections: list<array<string, mixed>>, display: array<string, mixed>, expiry: array<string, mixed>} */
     public static function for(ProcurementCase $case, ReadinessReport $report): array
     {
@@ -50,7 +56,7 @@ final class RequestFormView
 
         return [
             'sections' => self::sections($case, $report),
-            'display' => self::display($case, $risk['days_on_hand']),
+            'display' => self::display($case, $risk),
             'expiry' => self::expiry($case, $risk),
             'issue_heading' => self::issueHeading($case, $report),
         ];
@@ -97,13 +103,15 @@ final class RequestFormView
     }
 
     /** @return array<string, mixed> */
-    private static function display(ProcurementCase $case, ?int $daysOnHand): array
+    /** @param  array{days_on_hand: string|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}  $risk */
+    private static function display(ProcurementCase $case, array $risk): array
     {
+        $daysOnHand = $risk['days_on_hand'];
         $awardTotals = $case->tenderAwards->map(fn (CaseTenderAward $a) => $a->total())->filter(fn ($t) => $t !== null);
 
         return [
             'stock_total' => Display::quantity($case->quantityOnHand()),
-            'days_on_hand' => $daysOnHand === null ? Display::EMPTY : (string) $daysOnHand,
+            'days_on_hand' => $daysOnHand ?? Display::EMPTY,
             'awards_total' => $awardTotals->isEmpty()
                 ? Display::EMPTY
                 : Display::money($awardTotals->reduce(fn (string $sum, string $t) => Decimal::add($sum, $t), '0')),
@@ -130,9 +138,15 @@ final class RequestFormView
                     'vat' => Display::money($q->vatAmount()),
                     'total_price' => Display::money($q->totalPrice()),
                 ])->values()->all(),
+                // Kyle, 2026-11-26: each saved item's note at the end of its row, from ExpiryRisk.
                 'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $b) => [
                     'id' => $b->getKey(),
                     'expiry_date' => Display::date($b->expiry_date),
+                    'note' => match ($risk['expiry_warnings'][(int) $b->getKey()]['state'] ?? null) {
+                        ExpiryRisk::AT_RISK => self::MAY_EXPIRE,
+                        ExpiryRisk::EXPIRED => self::EXPIRED_NOTE,
+                        default => null,
+                    },
                 ])->values()->all(),
             ],
         ];
@@ -143,7 +157,7 @@ final class RequestFormView
      * earliest expiry first (ExpiryRisk's order). "Batch N" is the batch's
      * position in the saved list.
      *
-     * @param  array{days_on_hand: int|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}  $risk
+     * @param  array{days_on_hand: string|null, expiry_warnings: array<int, array{state: string, days_until_expiry: int, cover_days: string}>}  $risk
      * @return array{days_on_hand: string, at_risk: list<array<string, string>>, expired: list<array<string, string>>}
      */
     private static function expiry(ProcurementCase $case, array $risk): array
@@ -156,7 +170,7 @@ final class RequestFormView
             $index = $batches->search(fn (CaseStockExpiry $b) => $b->getKey() === $batchId);
             $batch = $batches->get($index);
             $item = [
-                'batch' => 'Batch '.($index + 1),
+                'batch' => RequisitionMessages::rowLabel('stock_expiries', (int) $index), // "Item 1" (2026-11-26)
                 // 2026-11-24: no batch quantity (the quantity on hand is one typed field).
                 'expiry_date' => Display::date($batch?->expiry_date),
             ];
@@ -173,7 +187,7 @@ final class RequestFormView
         }
 
         return [
-            'days_on_hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
+            'days_on_hand' => $risk['days_on_hand'] ?? Display::EMPTY,
             'at_risk' => $atRisk,
             'expired' => $expired,
         ];

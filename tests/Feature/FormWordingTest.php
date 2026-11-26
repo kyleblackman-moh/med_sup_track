@@ -67,7 +67,7 @@ it('names readiness rows with the on-screen row and column labels', function () 
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, [
         'tender_awards' => [['supplier_name' => 'A']],
-        'quotations' => [['supplier_name' => 'Q', 'considered' => false]],
+        'quotations' => [['supplier_name' => 'Q', 'is_recommended' => true]],
         'stock_expiries' => [['quantity' => '5']],
     ]);
 
@@ -76,8 +76,10 @@ it('names readiness rows with the on-screen row and column labels', function () 
 
     expect($messages)->toContain('Supplier Row 1: Unit Cost is required.')
         ->and($messages)->toContain('Quotation Row 1: Unit Price is required.')
-        ->and($messages)->toContain('Quotation Row 1: Reason Not Considered is required.')
-        ->and($messages)->toContain('Batch 1: Expiry Date is required.');
+        // Kyle, 2026-11-26: the recommended quotation's justification; stock items, not batches.
+        ->and($messages)->toContain('Quotation Row 1: Reason for Justification is required.')
+        ->and($messages)->toContain('Item 1: Drug Name is required.')
+        ->and($messages)->toContain('Item 1: Expiry Date is required.');
 });
 
 it('shows one error summary at the top of the form, announced and in form order', function () {

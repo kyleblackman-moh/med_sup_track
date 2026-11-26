@@ -15,7 +15,9 @@ use Spatie\Permission\PermissionRegistrar;
 
 // Kyle, 2026-11-25: optional free text on the request form's rows: Pack size on
 // award and order rows, Delivery note on order rows (100 characters each).
-// Never required to submit. DatabaseTransactions only.
+// Never required to submit. Kyle, 2026-11-26: Pack Size left the form, the
+// summary and the letter (the column stays; still accepted, never asked).
+// DatabaseTransactions only.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -61,16 +63,17 @@ it('sends them to the form and shows them in the summary', function () {
         ->and($props['case']['purchase_orders'][0])->toMatchArray(['pack_size' => 'Boxes of 28 Tablets', 'delivery_note' => 'Variation of tender in progress']);
 
     $summary = json_encode(RequestSummary::for($case, $vendor), JSON_UNESCAPED_UNICODE);
-    expect($summary)->toContain('Pack Size')->toContain('Delivery Note No.')->toContain('Variation of tender in progress');
+    expect($summary)->not->toContain('Pack Size')->not->toContain('Boxes of 28 Tablets')
+        ->toContain('Delivery Note No.')->toContain('Variation of tender in progress');
 });
 
 it('never requires them', function () {
     [$case] = pdDraft([], []);
 
     expect(app(SubmissionReadiness::class)->evaluate($case)->errors)->toBe([])
-        ->and(RequestSections::requiredFields('AD_HOC_TENDER_UNABLE')['awarded_supplier']['tender_awards.pack_size'])->toBeFalse()
-        ->and(RequestSections::requiredFields('AD_HOC_TENDER_UNABLE')['existing_arrangement'])
-        ->toMatchArray(['purchase_orders.pack_size' => false, 'purchase_orders.delivery_note' => false]);
+        ->and(RequestSections::requiredFields('AD_HOC_TENDER_UNABLE')['awarded_supplier'])->not->toHaveKey('tender_awards.pack_size')
+        ->and(RequestSections::requiredFields('AD_HOC_TENDER_UNABLE')['existing_arrangement'])->not->toHaveKey('purchase_orders.pack_size')
+        ->toMatchArray(['purchase_orders.delivery_note' => false]);
 });
 
 it('refuses more than 100 characters', function (string $section, string $field) {
@@ -84,3 +87,10 @@ it('refuses more than 100 characters', function (string $section, string $field)
     ['purchase_orders', 'pack_size'],
     ['purchase_orders', 'delivery_note'],
 ]);
+
+it('asks for no pack size on the form (Kyle, 2026-11-26)', function () {
+    foreach (['awarded-supplier-section.tsx', 'existing-arrangement-section.tsx'] as $file) {
+        expect(file_get_contents(resource_path("js/components/requests/ad-hoc/{$file}")))->not->toContain('pack_size')->not->toContain('Pack Size');
+    }
+    expect(file_get_contents(resource_path('js/components/requests/ad-hoc/form-state.ts')))->not->toContain('pack_size');
+});

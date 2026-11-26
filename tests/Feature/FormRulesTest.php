@@ -376,7 +376,9 @@ it('needs an expiry date on every batch, and no batch quantity', function () {
     });
 
     expect(frErrors($case))
-        ->toHaveKey('stock_expiries.0.expiry_date', 'Batch 1: Expiry Date is required.')
+        ->toHaveKey('stock_expiries.0.expiry_date', 'Item 1: Expiry Date is required.')
+        // Kyle, 2026-11-26: each stock item names its drug.
+        ->toHaveKey('stock_expiries.1.item_name', 'Item 2: Drug Name is required.')
         ->not->toHaveKey('stock_expiries.1.quantity');
 });
 

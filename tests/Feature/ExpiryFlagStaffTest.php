@@ -37,7 +37,7 @@ function flaggedCase(string $quantity, int $days): ProcurementCase
     $today = CarbonImmutable::now('America/Port_of_Spain')->startOfDay();
     saveDraft($case, $vendor, [
         'requisition' => ['average_monthly_consumption' => '30', 'quantity_on_hand' => $quantity],
-        'stock_expiries' => [['expiry_date' => $today->addDays($days)->toDateString()]],
+        'stock_expiries' => [['item_name' => 'Tube', 'expiry_date' => $today->addDays($days)->toDateString()]],
     ]);
     app(SubmitCase::class)->handle(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor);
 
@@ -55,7 +55,7 @@ it('flags the case page for the CMO, the assigned Technocrat and the PS', functi
         expect($flag)->toBe([
             'label' => 'Stock may expire before use',
             'tone' => 'danger',
-            'detail' => 'About 100 days of stock on hand; the earliest batch expires in 10 days.',
+            'detail' => 'About 100 days of stock on hand; the earliest item expires in 10 days.',
         ]);
     }
 });
@@ -86,7 +86,7 @@ it('reports expired stock on its own', function () {
     expect(ExpiryRisk::flag(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id)))->toBe([
         'label' => 'Expired stock reported',
         'tone' => 'danger',
-        'detail' => '1 batch is past its expiry date.',
+        'detail' => '1 item is past its expiry date.',
     ]);
 });
 

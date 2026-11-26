@@ -93,9 +93,9 @@ function rlChlorpromazine(bool $submit = true): array
         'tender_awards' => [
             ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Remedica Ltd.', 'country_of_origin' => 'Cyprus', 'brand' => 'Chlorpromazine', 'quantity_awarded' => '800000', 'unit_cost' => '0.2200', 'percentage_awarded' => '100'],
         ],
-        'stock_expiries' => [['expiry_date' => '2027-06-30']],
+        'stock_expiries' => [['item_name' => 'Chlorpromazine HCL 25mg', 'expiry_date' => '2027-06-30']],
         'quotations' => [
-            adHocQuoteRow('Alstons Marketing Company Limited', '0.22', ['quantity_offered' => '800000', 'is_recommended' => true, 'lead_time_days' => 60, 'manufacturer' => 'Remedica Ltd.', 'country_of_origin' => 'Cyprus']),
+            adHocQuoteRow('Alstons Marketing Company Limited', '0.22', ['quantity_offered' => '800000', 'is_recommended' => true, 'reason_accepted_excluded' => 'The only quotation received', 'lead_time_days' => 60, 'manufacturer' => 'Remedica Ltd.', 'country_of_origin' => 'Cyprus']),
         ],
     ], submit: $submit);
 }
@@ -145,12 +145,12 @@ function rlRivaroxaban(): array
             'rfq_audience' => 'ALL_REGISTERED',
         ],
         'tender_awards' => [
-            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'pack_size' => 'Boxes of 28 Tablets', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
-            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'pack_size' => 'Boxes of 30 Tablets', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
+            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
+            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
         ],
-        'stock_expiries' => [['expiry_date' => '2027-03-31']],
+        'stock_expiries' => [['item_name' => 'Rivaroxaban 20mg Tablet', 'expiry_date' => '2027-03-31']],
         'quotations' => [
-            adHocQuoteRow('Alstons Marketing Company Limited', '2.30', ['quantity_offered' => '29988', 'is_recommended' => true, 'lead_time_days' => 30, 'quantity_available_now' => '500', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
+            adHocQuoteRow('Alstons Marketing Company Limited', '2.30', ['quantity_offered' => '29988', 'is_recommended' => true, 'reason_accepted_excluded' => 'Registered product with stock available', 'lead_time_days' => 30, 'quantity_available_now' => '500', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
             adHocQuoteRow('Supplier X Limited', '1.90', ['quantity_offered' => '29988', 'considered' => false, 'reason_accepted_excluded' => 'Product not registered with the Drug Inspectorate']),
         ],
     ]);
@@ -177,7 +177,7 @@ it('writes the Tender Excess letter (Chlorpromazine)', function () {
         ->toContain('Remedica Ltd.<br>(Cyprus)')
         ->toContain('800,000 Each')->toContain('100%')->toContain('$0.22 Each')->toContain('$176,000.00')
         ->toContain('At present, there are eighty thousand (80,000) each in stock at the Central Stores. The average monthly consumption is approximately 70,000 each per month.')
-        ->toContain('a Request for Quotations (RFQ) was issued to all registered suppliers, and one (1) quotation was received.')
+        ->toContain('a Request for Quotations (RFQ) was issued to prequalified suppliers, and one (1) quotation was received.')
         ->toContain('To mitigate the risk of a stock-out and ensure continuity of supply, it is recommended that approval be granted to purchase 800,000 each of Chlorpromazine HCL 25mg – DIN 90000195 from Alstons Marketing Company Limited at a unit cost of $0.22 and a total cost of $198,000.00 (VAT inclusive).')
         ->toContain('For comparison, the tender unit cost was $0.22 and the previous purchase unit cost was $0.24.')
         ->toContain('The anticipated lead time for this request is sixty (60) days.')
@@ -229,8 +229,10 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
         ->toContain('The quotation from Supplier X Limited was not considered: Product not registered with the Drug Inspectorate.')
         ->toContain('Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure twenty-nine thousand nine hundred eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95 (VAT inclusive). The unit cost is $2.30.')
         ->toContain('The anticipated lead time for this request is thirty (30) days.')
-        // Pack size with the quantity (2026-11-25); Ex Stock is the quantity available from stock.
-        ->toContain('6,250 Boxes of 28 Tablets')->toContain('2,500 Boxes of 30 Tablets')->toContain('<td>500 Each</td>')
+        // Kyle, 2026-11-26: no pack size, the unit of measure only; Ex Stock is the quantity available from stock.
+        ->toContain('6,250 Each')->toContain('2,500 Each')->not->toContain('Boxes of')->toContain('<td>500 Each</td>')
+        // Kyle, 2026-11-26: the recommended quotation's Reason for Justification, after the recommendation.
+        ->toContain('Justification for the recommendation: Registered product with stock available.')
         ->toContain('Quotation Comparison Sheet')->toContain('$68,972.40')
         // The documents follow as pages (2026-11-25): no /Attach list.
         ->not->toContain('/Attach')->not->toContain('bids.pdf')

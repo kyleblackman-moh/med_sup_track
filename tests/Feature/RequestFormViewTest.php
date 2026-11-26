@@ -158,13 +158,15 @@ it('sends the field-level required flags of each type from the section rules', f
         ->and($sections['stock']['required']['average_monthly_consumption'])->toBe($r['stock'])
         ->and($sections['stock']['required']['stock_location'])->toBeFalse()
         ->and($sections['stock']['required']['quantity_on_order'])->toBeFalse()
+        // Kyle, 2026-11-26: a stock item needs its drug name and expiry date.
+        ->and($sections['stock']['required'])->toMatchArray(['stock_expiries.item_name' => true, 'stock_expiries.expiry_date' => true])
+        ->and($sections['quotation_comparison']['required']['quotations.reason_accepted_excluded'])->toBeTrue()
         ->and($sections['quotation_comparison']['required'])->not->toHaveKey('quantity_to_purchase')
         ->and($sections['quotation_comparison']['required']['rfq_audience'])->toBeFalse()
         // A row that is entered must be complete, whatever the type.
         ->and($sections['awarded_supplier']['required'])->toBe([
             'tender_awards.supplier_name' => true, 'tender_awards.manufacturer' => false, 'tender_awards.brand' => false,
             'tender_awards.country_of_origin' => false, 'tender_awards.quantity_awarded' => true,
-            'tender_awards.pack_size' => false, // 2026-11-25: optional
             'tender_awards.unit_cost' => true,
             'tender_awards.percentage_awarded' => false, // 2026-11-24: typed, optional
         ])
@@ -185,7 +187,7 @@ it('formats the computed values on the server', function () {
     $awards = $case->tenderAwards->values();
 
     expect($display['stock_total'])->toBe('200.5')
-        ->and($display['days_on_hand'])->toBe('12') // 200.5 x 30 / 500, rounded down
+        ->and($display['days_on_hand'])->toBe('12.03') // (200.5 / 500) x 30, 2 dp (Kyle, 2026-11-26)
         ->and($display['awards_total'])->toBe('$3,535.00')
         ->and($display['total_cost'])->toBe('$5,032.13') // 2800 x 1.5975 = 4,473.00, plus 12.5% VAT 559.13
         // V2-3: the "%" is added by the server: (1.5975 - 1.25) / 1.25 and (1.5975 - 1.50) / 1.50.
@@ -246,15 +248,15 @@ it('sends the at-risk and expired batches as structured items', function () {
     $expiry = formProp($this, $case, $vendor)['expiry'];
 
     expect($expiry)->toBe([
-        'days_on_hand' => '115', // 115 x 30 / 30
+        'days_on_hand' => '115.00', // 115 x 30 / 30, 2 dp
         'at_risk' => [[
-            'batch' => 'Batch 2', // batches are listed earliest expiry first, as on the form
+            'batch' => 'Item 2', // 2026-11-26: "Item"; items are listed earliest expiry first, as on the form
             'expiry_date' => $today->addDays(10)->format('j M Y'),
             'cover_days' => '115', // days on hand (all stock), Kyle 2026-11-23
             'days_to_expiry' => '10',
         ]],
         'expired' => [[
-            'batch' => 'Batch 1',
+            'batch' => 'Item 1',
             'expiry_date' => $today->subDay()->format('j M Y'),
         ]],
     ]);
@@ -263,7 +265,7 @@ it('sends the at-risk and expired batches as structured items', function () {
 it('sends no expiry items when nothing is at risk', function () {
     [$case, $vendor] = v2DraftForForm('AD_HOC_EMERGENCY');
 
-    expect(formProp($this, $case, $vendor)['expiry'])->toBe(['days_on_hand' => '12', 'at_risk' => [], 'expired' => []]);
+    expect(formProp($this, $case, $vendor)['expiry'])->toBe(['days_on_hand' => '12.03', 'at_risk' => [], 'expired' => []]);
 });
 
 it('is built from the same report as request_sections', function () {

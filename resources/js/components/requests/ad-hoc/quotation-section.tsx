@@ -21,6 +21,10 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
  * table as the block's totals (QuotationTotals), read-only and worked out live
  * (lib/quotation-price.ts). The layout is EntrySheet
  * (components/ui/entry-sheet.tsx); the test reads SHEET_LINES.
+ *
+ * Kyle, 2026-11-26: no Considered tick (every quotation is considered; the
+ * save sends it so). The recommended quotation asks for its Reason for
+ * Justification under its totals, required by the server.
  */
 const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
@@ -45,7 +49,6 @@ const SHEET_COLUMNS = ['7rem', '8rem', '7rem', '6rem', undefined, undefined, und
 const ERROR_ORDER = [
     'id',
     'supplier_name',
-    'considered',
     'is_recommended',
     'quantity_offered',
     'unit_price',
@@ -60,11 +63,10 @@ const ERROR_ORDER = [
 
 /**
  * V2-2 section "Quotation comparison": who received the RFQ, one supplier
- * block per quotation (a reason under its table only when the quotation was
- * not considered), the quantity to purchase and the server's total cost.
- * The optional price comparison (fields of this section on the server)
- * follows. Presentation only: the server still requires the reason on a
- * row that is not considered, and one recommended quotation.
+ * block per quotation (the Reason for Justification under the recommended
+ * one's table), and the server's total cost. The optional price comparison
+ * (fields of this section on the server) follows. Presentation only: the
+ * server requires one recommended quotation and its justification.
  */
 export function QuotationSection({ api }: { api: FormApi }) {
     const { state, config, form } = api;
@@ -88,10 +90,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
 
             <GridRow>
                 <div id={fieldId.table('quotations')} tabIndex={-1} className="grid gap-2 outline-none">
-                    <FieldHint>
-                        One block per supplier. Mark each quotation Considered or Recommended (one recommended in all); give a reason for any that is
-                        neither.
-                    </FieldHint>
+                    <FieldHint>One block per supplier. Choose the recommended quotation and give the reason for recommending it.</FieldHint>
                     <TableError message={tableError || undefined} />
                     <div role="group" aria-label="Quotations Received" className="grid gap-3">
                         {rows.length === 0 && (
@@ -126,11 +125,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     />
                                 );
                             };
-                            const considered = row.values.considered === true;
                             const recommended = row.values.is_recommended === true;
-                            // Kyle, 2026-11-24: Considered OR Recommended, never both ticked. Recommended is stored as
-                            // considered too (the server counts it as considered and asks no reason for it).
-                            const status = recommended ? 'Recommended' : considered ? 'Considered' : 'Not Considered';
                             const supplier = text(row.values.supplier_name).trim();
                             // Live as the vendor types: the server's rule and rate (quotation-price.ts, form.display.vat_rate).
                             const price = quotationPrice(text(row.values.quantity_offered), text(row.values.unit_price), form.display.vat_rate);
@@ -163,15 +158,9 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                                 {errors.length > 0 && (
                                                     <span className="badge badge-soft badge-error badge-sm capitalize">{errors.length} to fix</span>
                                                 )}
-                                                <span
-                                                    className={
-                                                        recommended
-                                                            ? 'badge badge-soft badge-primary badge-sm capitalize'
-                                                            : 'badge badge-ghost badge-sm capitalize'
-                                                    }
-                                                >
-                                                    {status}
-                                                </span>
+                                                {recommended && (
+                                                    <span className="badge badge-soft badge-primary badge-sm capitalize">Recommended</span>
+                                                )}
                                                 {price && <span className="tabular-nums">Total {money(price.total)}</span>}
                                             </span>
                                         </span>
@@ -187,30 +176,13 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                     controls={
                                         <div role="group" aria-label={`Choices, ${rowLabel}`} className="flex flex-wrap items-center gap-x-4">
                                             <EntryInlineCheck
-                                                id={id('considered')}
-                                                label="Considered"
-                                                rowLabel={rowLabel}
-                                                type="checkbox"
-                                                checked={considered && !recommended}
-                                                onChange={(checked) => {
-                                                    // Ticking Considered on the recommended quotation takes the recommendation off it.
-                                                    if (checked && recommended) {
-                                                        api.setCell('quotations', row.key, 'is_recommended', false);
-                                                    }
-                                                    api.setCell('quotations', row.key, 'considered', checked);
-                                                }}
-                                            />
-                                            <EntryInlineCheck
                                                 id={id('is_recommended')}
                                                 label="Recommended"
                                                 rowLabel={rowLabel}
                                                 type="radio"
                                                 name="recommended-quotation"
                                                 checked={recommended}
-                                                onChange={() => {
-                                                    api.chooseRecommended(row.key);
-                                                    api.setCell('quotations', row.key, 'considered', true);
-                                                }}
+                                                onChange={() => api.chooseRecommended(row.key)}
                                             />
                                         </div>
                                     }
@@ -232,12 +204,12 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                         <>
                                             <QuotationTotals label={rowLabel} price={price} />
                                             {
-                                                // Only for a quotation that was not considered; no space otherwise.
-                                                !considered && (
+                                                // Kyle, 2026-11-26: only for the recommended quotation; no space otherwise.
+                                                recommended && (
                                                     <TextAreaField
                                                         width="full"
                                                         id={id('reason_accepted_excluded')}
-                                                        label="Reason Quotation Wasn't Considered"
+                                                        label="Reason for Justification"
                                                         srLabelSuffix={`, ${rowLabel}`}
                                                         rows={2}
                                                         maxLength={config.max_lengths.reason_accepted_excluded}
@@ -246,7 +218,7 @@ export function QuotationSection({ api }: { api: FormApi }) {
                                                         error={api.cellError('quotations', row, index, 'reason_accepted_excluded')}
                                                         errorListId={errorsId}
                                                         optional={optional('quotations.reason_accepted_excluded')}
-                                                        hint={`Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
+                                                        hint={`Why this quotation is recommended. Up to ${config.max_lengths.reason_accepted_excluded} characters.`}
                                                     />
                                                 )
                                             }

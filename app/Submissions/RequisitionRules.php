@@ -41,7 +41,6 @@ final class RequisitionRules
 
     /** Plain messages for rules whose default message would be unclear. */
     public const MESSAGES = [
-        'requisition.din.regex' => 'Enter the DIN as exactly 8 digits, for example 02345678.',
     ];
 
     /**
@@ -198,7 +197,7 @@ final class RequisitionRules
             'request_date' => ['type' => 'date'],
             'need_classification' => ['type' => 'enum', 'enum' => NeedClassification::class],
             'item_description' => self::str(500),
-            'din' => ['type' => 'din'], // Kyle, 2026-11-23: exactly 8 digits, as on the Ad Hoc form
+            'din' => ['type' => 'din'], // Kyle, 2026-11-26: free text up to 32 characters (no 8-digit rule), as on the Ad Hoc form
             'item_code' => self::str(64),
             'unit_of_measure' => self::str(32),
             'purpose' => ['type' => 'text'],
@@ -281,7 +280,7 @@ final class RequisitionRules
             'item_description' => self::str(500),
             'strength' => self::str(100),
             'dosage_form' => self::str(100),
-            // V2-5: optional. Kyle, 2026-11-23: exactly 8 digits (a string, so leading zeros are kept).
+            // V2-5: optional. Kyle, 2026-11-26: free text up to the column's 32 characters (the 8-digit rule is gone).
             'din' => ['type' => 'din'],
             'quantity_requested' => ['type' => 'qty'],
             'unit_of_measure' => self::str(32),
@@ -397,6 +396,7 @@ final class RequisitionRules
                 'country_of_origin' => self::str(100), // V2-1
                 // Kyle, 2026-11-24: typed, optional; 0 to 100 with up to 2 decimals.
                 'percentage_awarded' => ['type' => 'rate'],
+                // Kyle, 2026-11-26: the form no longer asks for a pack size; still accepted, never required.
                 'pack_size' => self::str(100), // Kyle, 2026-11-25: optional
             ],
             'purchase_orders' => [
@@ -422,6 +422,7 @@ final class RequisitionRules
                 // batch is its expiry date. Still accepted so the current screen saves; never read.
                 'quantity' => ['type' => 'qty'],
                 'expiry_date' => ['type' => 'date'],
+                'item_name' => self::str(200), // Kyle, 2026-11-26: the drug the row is for
             ],
             // V2-5: Details of Variation Requested. The effective date or application
             // P.O. is one free-text field (assumption, see the V2-5 report).
@@ -455,8 +456,9 @@ final class RequisitionRules
             'text' => isset($spec['max']) ? ['string', 'max:'.$spec['max']] : ['string'],
             // A string, so leading zeros are kept.
             'digits' => ['string', 'max:'.$spec['max'], 'regex:/^\d+$/'],
-            // DIN: exactly 8 digits; trimmed, and empty stored as null (RequisitionData).
-            'din' => ['string', 'regex:/^\d{8}$/'],
+            // DIN: Kyle, 2026-11-26: any text up to the column's 32 characters (was exactly 8 digits);
+            // trimmed, and empty stored as null (RequisitionData).
+            'din' => ['string', 'max:32'],
             'rowid' => ['integer', 'min:1'],
             'date' => ['date_format:Y-m-d'],
             'enum' => [Rule::enum($spec['enum'])],

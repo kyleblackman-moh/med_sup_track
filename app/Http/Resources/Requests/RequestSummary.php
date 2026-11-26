@@ -159,7 +159,6 @@ final class RequestSummary
             'brand' => 'Brand',
             'country_of_origin' => 'Country of Origin',
             'quantity_awarded' => 'Qty Awarded',
-            'pack_size' => 'Pack Size', // 2026-11-25
             'unit_cost' => 'Unit Cost',
             'percentage' => '% awarded',
             'line_cost' => 'Total Cost',
@@ -169,7 +168,6 @@ final class RequestSummary
             'brand' => Display::text($a->brand),
             'country_of_origin' => Display::text($a->country_of_origin),
             'quantity_awarded' => Display::quantity($a->quantity_awarded),
-            'pack_size' => Display::text($a->pack_size),
             'unit_cost' => Display::price($a->unit_cost),
             'percentage' => Display::percent($a->percentage_awarded), // typed by the vendor (2026-11-24)
             'line_cost' => Display::money($a->total()),
@@ -193,9 +191,8 @@ final class RequestSummary
         return [
             self::table('Orders', 'Order Row', [
                 'supplier' => 'Supplier',
-                'po_number' => 'PO No.',
+                'po_number' => 'P.O #', // Kyle, 2026-11-26
                 'quantity_ordered' => 'Qty Ordered',
-                'pack_size' => 'Pack Size', // 2026-11-25
                 'ordered_on' => 'Date Ordered',
                 'quantity_delivered' => 'Qty Delivered',
                 'delivery_status' => 'Delivery Status',
@@ -206,7 +203,6 @@ final class RequestSummary
                 'supplier' => Display::text($suppliers[$po->award_id] ?? null),
                 'po_number' => Display::text($po->po_number),
                 'quantity_ordered' => Display::quantity($po->quantity_ordered),
-                'pack_size' => Display::text($po->pack_size),
                 'delivery_note' => Display::text($po->delivery_note),
                 'ordered_on' => self::date($po->ordered_on),
                 'quantity_delivered' => Display::quantity($po->quantity_delivered),
@@ -237,7 +233,7 @@ final class RequestSummary
             'Qty on Order' => self::withUnit(Display::quantity($r?->quantity_on_order), $unit),
             'No Stock on Hand' => Display::yesNo($noStock),
             'Qty on Hand' => Display::quantity($case->quantityOnHand()),
-            'Days on Hand' => $risk['days_on_hand'] === null ? Display::EMPTY : (string) $risk['days_on_hand'],
+            'Days on Hand' => $risk['days_on_hand'] ?? Display::EMPTY, // 2 dp (Kyle, 2026-11-26)
         ])];
 
         // v0.4: stated plainly on the review page and staff pages, not only as a Yes/No field.
@@ -246,10 +242,12 @@ final class RequestSummary
         }
 
         if (! $noStock) {
-            $blocks[] = self::table('Stock Batches', 'Batch', [
-                // Kyle, 2026-11-24: a batch is its expiry date (the quantity on hand is typed above).
+            $blocks[] = self::table('Stock Items', 'Item', [
+                // Kyle, 2026-11-26: a stock item is its drug name and expiry date (the quantity on hand is typed above).
+                'item_name' => 'Drug Name',
                 'expiry_date' => 'Expiry Date',
             ], $case->stockExpiries->map(fn (CaseStockExpiry $b) => [
+                'item_name' => Display::text($b->item_name),
                 'expiry_date' => self::date($b->expiry_date),
             ])->values()->all());
         }
@@ -258,8 +256,8 @@ final class RequestSummary
         foreach ($risk['expiry_warnings'] as $batchId => $warning) {
             $date = self::date($case->stockExpiries->firstWhere('id', $batchId)?->expiry_date);
             $lines[] = $warning['state'] === ExpiryRisk::EXPIRED
-                ? "Batch expiring {$date} has expired"
-                : "Batch expiring {$date}: about ".Display::wholeDays($warning['cover_days'])." days of stock on hand, and it expires in {$warning['days_until_expiry']} days (the earliest to expire)";
+                ? "Item expiring {$date} has expired"
+                : "Item expiring {$date}: about ".Display::wholeDays($warning['cover_days'])." days of stock on hand, and it expires in {$warning['days_until_expiry']} days (the earliest to expire)";
         }
         if ($lines !== []) {
             $blocks[] = ['type' => 'warning', 'title' => 'Some stock may expire before it is used', 'lines' => $lines];
@@ -285,7 +283,7 @@ final class RequestSummary
                 'Total Cost (incl. VAT)' => Display::money($case->totalCost()),
             ]),
             self::table('Quotations', 'Quotation Row', [
-                'considered' => 'Considered',
+                // Kyle, 2026-11-26: no Considered column (the form no longer asks it).
                 'recommended' => 'Recommended',
                 'supplier_name' => 'Supplier',
                 'quantity_offered' => 'Qty',
@@ -300,9 +298,8 @@ final class RequestSummary
                 'manufacturer' => 'Manufacturer',
                 'country_of_origin' => 'Country of Origin',
                 'remarks' => 'Remarks',
-                'reason' => 'Reason Not Considered',
+                'reason' => 'Reason for Justification',
             ], $case->quotations->map(fn (CaseQuotation $q) => [
-                'considered' => Display::yesNo((bool) $q->considered),
                 'recommended' => $q->is_recommended ? 'Yes' : Display::EMPTY,
                 'supplier_name' => Display::text($q->supplier_name),
                 'quantity_offered' => Display::quantity($q->quantity_offered),
@@ -319,7 +316,8 @@ final class RequestSummary
                 'manufacturer' => Display::text($q->manufacturer),
                 'country_of_origin' => Display::text($q->country_of_origin),
                 'remarks' => Display::text($q->remarks),
-                'reason' => $q->considered ? Display::EMPTY : Display::text($q->reason_accepted_excluded),
+                // The recommended quotation's justification (a row saved before 2026-11-26 as not considered keeps its reason in the letter).
+                'reason' => $q->is_recommended ? Display::text($q->reason_accepted_excluded) : Display::EMPTY,
             ])->values()->all()),
         ];
 

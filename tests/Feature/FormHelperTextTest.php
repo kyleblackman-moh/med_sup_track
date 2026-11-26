@@ -16,9 +16,13 @@ it('describes the unit of measure under its field', function () {
 it('keeps the other item helpers', function (string $hint) {
     expect(itemTenderSource())->toContain("hint=\"{$hint}\"");
 })->with([
-    'quantity requested' => ['In figures, for example 2800.'],
-    'DIN' => ['Exactly 8 digits, for example 02345678.'],
+    // Kyle, 2026-11-26: decimals allowed (the server takes up to 2 decimal places).
+    'quantity requested' => ['Up to 2 decimal places, for example 2800.50.'],
 ]);
+
+it('gives the DIN no 8-digit hint (Kyle, 2026-11-26)', function () {
+    expect(itemTenderSource())->not->toContain('8 digits')->toContain('<TextField {...field(\'din\')} width="sm" label="DIN" maxLength={32} />');
+});
 
 it('renders helper text as 13px muted text', function () {
     $fields = file_get_contents(resource_path('js/components/requests/ad-hoc/fields.tsx'));
