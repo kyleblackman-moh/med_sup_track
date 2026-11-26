@@ -308,7 +308,8 @@ final class RequestSections
             'awarded_supplier' => $rows('tender_awards', ['supplier_name', 'manufacturer', 'brand', 'country_of_origin', 'quantity_awarded', 'pack_size', 'unit_cost', 'percentage_awarded']),
             'existing_arrangement' => [
                 // The delivery date is required unless the status is Not delivered (false here: conditional).
-                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'pack_size', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_date', 'delivery_note']),
+                // The Other status's description is required for Other only (false here: conditional).
+                ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'pack_size', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_status', 'delivery_date', 'delivery_note']),
                 'tender_issue_explanation' => false,
             ],
             'stock' => [
@@ -603,7 +604,12 @@ final class RequestSections
                 $add("{$row}.quantity_delivered", $label.self::DELIVERED_OVER_ORDERED);
             }
 
-            if ($state !== null && $state !== DeliveryState::NOT_DELIVERED && $po->delivery_date === null) {
+            // Kyle, 2026-11-25: Other needs its description, and no delivery date (it may not have been delivered).
+            if ($state === DeliveryState::OTHER && trim((string) $po->delivery_status) === '') {
+                $add("{$row}.delivery_status", $label.RequisitionMessages::columnLabel('purchase_orders', 'delivery_status').' is required.');
+            }
+
+            if ($state !== null && ! in_array($state, [DeliveryState::NOT_DELIVERED, DeliveryState::OTHER], true) && $po->delivery_date === null) {
                 $add("{$row}.delivery_date", $label.RequisitionMessages::columnLabel('purchase_orders', 'delivery_date').' is required.');
             }
 
@@ -623,6 +629,7 @@ final class RequestSections
                 DeliveryState::PARTIALLY_DELIVERED => Decimal::compare($delivered, '0') <= 0 || Decimal::compare($delivered, $po->quantity_ordered) >= 0
                     ? self::PARTIALLY_DELIVERED_MISMATCH : null,
                 DeliveryState::NOT_DELIVERED => Decimal::compare($delivered, '0') !== 0 ? self::NOT_DELIVERED_MISMATCH : null,
+                DeliveryState::OTHER => null, // described in words, so not checked against the quantities
             };
             if ($mismatch !== null) {
                 $add("{$row}.delivery_state", $label.$mismatch);

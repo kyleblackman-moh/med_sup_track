@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 /**
  * FORM-ERR-1 (C): the validation messages for a request save, in the words the
- * form shows. A field is named by its label ("Quantity Requested"); a row
+ * form shows. A field is named by its label ("Qty Requested"); a row
  * column by the row and the column header exactly as the table shows them
  * ("Quotation Row 1: Quantity needs to be a number, for example 2800."). No
  * dotted key and no snake_case reaches the user (RequisitionMessagesTest).
@@ -39,19 +39,19 @@ final class RequisitionMessages
     public const FIELD_LABELS = [
         'din' => 'DIN',
         'item_description' => 'Item Name', // Kyle, 2026-11-24 (the column keeps its name)
-        'quantity_requested' => 'Quantity Requested',
+        'quantity_requested' => 'Qty Requested',
         'unit_of_measure' => 'Unit of Measure',
-        'clinical_note' => 'Clinical Importance',
+        'clinical_note' => 'Clinical Importance (Purpose of Drugs)',
         'tender_reference' => 'Contract Reference',
-        'tender_issue_explanation' => 'Issues Affecting the Tender Quantity',
+        'tender_issue_explanation' => 'Issues Affecting the Tender Qty',
         'tender_cycle_start' => 'Tender Cycle Start',
         'tender_cycle_end' => 'Tender Cycle End',
-        'quantity_on_order' => 'Quantity on Order',
-        'quantity_on_hand' => 'Quantity on Hand', // Kyle, 2026-11-24: typed (was the batch total)
+        'quantity_on_order' => 'Qty on Order',
+        'quantity_on_hand' => 'Qty on Hand', // Kyle, 2026-11-24: typed (was the batch total)
         'stock_location' => 'Location',
         'average_monthly_consumption' => 'Average Monthly Consumption',
         'rfq_audience' => 'RFQ Sent To',
-        'quantity_to_purchase' => 'Quantity to Purchase',
+        'quantity_to_purchase' => 'Qty to Purchase',
         'quoted_price_acceptable' => 'Quoted Price Is Acceptable',
         'price_note' => 'Note on the Price',
         'rha_stock' => 'RHA Stock',
@@ -62,7 +62,7 @@ final class RequisitionMessages
     public const COLUMN_LABELS = [
         'quotations' => [
             'supplier_name' => 'Supplier',
-            'quantity_offered' => 'Quantity',
+            'quantity_offered' => 'Qty',
             'unit_price' => 'Unit Price',
             'lead_time_days' => 'Lead Time (Days)',
             'quantity_available_now' => 'Ex Stock',
@@ -73,16 +73,20 @@ final class RequisitionMessages
         'tender_awards' => [
             'supplier_name' => 'Supplier',
             'percentage_awarded' => '% Awarded', // 2026-11-24: typed
+            'quantity_awarded' => 'Qty Awarded', // 2026-11-25: "Qty" throughout the vendor form
             'pack_size' => 'Pack Size', // 2026-11-25
         ],
         'purchase_orders' => [
             'award_id' => 'Supplier',
-            'po_number' => 'PO Number',
+            'po_number' => 'PO No.',
             'ordered_on' => 'Date Ordered',
             'delivery_eta' => 'Delivery Date',
             'delivery_state' => 'Delivery Status',
             'delivery_date' => 'Delivery Date',
-            'delivery_note' => 'Delivery Note', // 2026-11-25
+            'delivery_note' => 'Delivery Note No.', // 2026-11-25
+            'delivery_status' => 'Other Delivery Status', // 2026-11-25: the description of Other
+            'quantity_ordered' => 'Qty Ordered',
+            'quantity_delivered' => 'Qty Delivered',
             'pack_size' => 'Pack Size',
         ],
         'stock_expiries' => [],

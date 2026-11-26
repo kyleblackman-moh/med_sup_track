@@ -88,6 +88,20 @@ export function priceChange(quoted: string | null | undefined, reference: string
     return `${negative && hundredths > 0n ? '-' : ''}${format(hundredths)}`;
 }
 
+/**
+ * Kyle, 2026-11-25: the awarded suppliers' % Awarded added up, live, to 2 dp ("90.00").
+ * Entries that are not plain numbers are left out (the server reports them); null when
+ * there is none to add.
+ */
+export function sumPercent(values: (string | null | undefined)[]): string | null {
+    const parsed = values.map(parse).filter((value): value is Scaled => value !== null);
+    if (parsed.length === 0) {
+        return null;
+    }
+
+    return format(parsed.reduce((sum, value) => sum + toCents(value), 0n));
+}
+
 /** "1234.5" to "$1,234.5": the dollar sign and thousands commas on an amount as given. */
 export function money(amount: string): string {
     const [whole, fraction] = amount.split('.');

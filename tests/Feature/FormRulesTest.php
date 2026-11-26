@@ -2,6 +2,8 @@
 
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
+use App\Enums\DeliveryState;
+use App\Models\CasePurchaseOrder;
 use App\Models\CaseRequisition;
 use App\Models\CaseTenderAward;
 use App\Models\ProcurementCase;
@@ -84,7 +86,7 @@ it('accepts a quotation row quantity equal to the quantity requested', function 
     expect(frErrors($case))->not->toHaveKey('quotations.0.quantity_offered')->not->toHaveKey('quotations.1.quantity_offered');
 });
 
-// Kyle, 2026-11-24: Quantity to Purchase left the form; it is never checked now.
+// Kyle, 2026-11-24: Qty to Purchase left the form; it is never checked now.
 it('does not check the quantity to purchase', function () {
     [$case] = frDraft(mutate: function ($p) {
         $p['requisition']['quantity_to_purchase'] = '3000';
@@ -231,6 +233,25 @@ it('requires the delivery date unless the status is Not delivered', function () 
 
     frOrder($case, $vendor, ['delivery_state' => 'NOT_DELIVERED', 'quantity_delivered' => '0', 'delivery_date' => null]);
     expect(frErrors($case))->not->toHaveKey('purchase_orders.0.delivery_date');
+});
+
+it('asks for the description of an Other delivery status, and no delivery date or quantity check', function () {
+    [$case, $vendor] = frDraft('TENDER_VARIATION');
+
+    // Kyle, 2026-11-25: Other is described in words (the older delivery_status column).
+    frOrder($case, $vendor, ['delivery_state' => 'OTHER', 'delivery_status' => '', 'delivery_date' => null, 'quantity_ordered' => '3000', 'quantity_delivered' => '0']);
+    expect(frErrors($case))->toHaveKey('purchase_orders.0.delivery_status', 'Order Row 1: Other Delivery Status is required.')
+        ->not->toHaveKey('purchase_orders.0.delivery_date')
+        ->not->toHaveKey('purchase_orders.0.delivery_state');
+
+    frOrder($case, $vendor, ['delivery_state' => 'OTHER', 'delivery_status' => 'Variation of tender in progress', 'delivery_date' => null]);
+    expect(frErrors($case))->not->toHaveKey('purchase_orders.0.delivery_status')
+        ->and(CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->id)->value('delivery_status'))->toBe('Variation of tender in progress');
+});
+
+it('lists the delivery statuses in the agreed order', function () {
+    expect(array_map(fn (DeliveryState $s) => $s->label(), DeliveryState::cases()))
+        ->toBe(['Partial Delivery', 'Delivered', 'Not Delivered', 'Other']);
 });
 
 it('refuses a delivery date after today (Port of Spain) and accepts today', function () {

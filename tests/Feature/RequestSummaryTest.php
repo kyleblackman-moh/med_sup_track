@@ -214,7 +214,7 @@ it('includes every V2-1 field', function () {
             'Contract Reference' => 'TENDER-2026-14 (2026-2027)',
         ])
         ->and($item)->not->toHaveKey('Tender Cycle Start')
-        ->and(summaryFields($summary, 'stock')['Quantity on Order'])->toBe('1,800 Each')
+        ->and(summaryFields($summary, 'stock')['Qty on Order'])->toBe('1,800 Each')
         ->and($awards['rows'][0]['cells']['country_of_origin'])->toBe('Country A')
         ->and($awards['rows'][1]['cells']['country_of_origin'])->toBe(Display::EMPTY)
         ->and(array_column($quotes['columns'], 'label'))->toContain('Ex Stock', 'Lead Time (Days)', 'Remarks', 'Country of Origin')
@@ -232,7 +232,7 @@ it('computes and formats every figure on the server', function () {
     $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
 
     expect(summaryFields($summary, 'awarded_supplier'))->toBe([
-        'Number of Suppliers Awarded' => '2',
+        'No. of Suppliers Awarded' => '2',
         'Total Cost of the Awards' => '$3,535.00',
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
@@ -240,12 +240,12 @@ it('computes and formats every figure on the server', function () {
         ->and(array_column(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'], 'label'))->toBe(['Order Row 1']) // 2026-11-25: every type
         // 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
         ->and(summaryFields($summary, 'stock'))->toMatchArray([
-            'Average Monthly Consumption' => '500', 'Quantity on Hand' => '200.5', 'Days on Hand' => '12', 'No Stock on Hand' => 'No',
+            'Average Monthly Consumption' => '500', 'Qty on Hand' => '200.5', 'Days on Hand' => '12', 'No Stock on Hand' => 'No',
         ])
         ->and(summaryTable($summary, 'stock', 'Stock Batches')['columns'])->toHaveCount(1)
         ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray([
             'RFQ Sent To' => 'All registered suppliers',
-            'Number of Quotations' => '2',
+            'No. of Quotations' => '2',
             'Quotations Considered' => '1',
             'Recommended Quotation' => 'Supplier D',
             'Recommended Unit Price' => '$1.5975',

@@ -42,7 +42,7 @@ export const FIELD_WIDTH: Record<FieldWidth, string> = {
  * input with its picker icon, a select), md 112px and lg 160px (both grow;
  * lg takes twice the share). EntryTableFitTest mirrors these numbers.
  */
-export type EntryWidth = Exclude<FieldWidth, 'full'> | 'checks' | 'value';
+export type EntryWidth = Exclude<FieldWidth, 'full'> | 'checks' | 'value' | 'num' | 'date';
 
 export const ENTRY_WIDTH: Record<EntryWidth, string> = {
     'xs': 'flex-1 min-w-24', // 96px minimum
@@ -51,4 +51,8 @@ export const ENTRY_WIDTH: Record<EntryWidth, string> = {
     'lg': 'flex-[2] min-w-40', // 160px minimum, twice the share of the rest
     'checks': 'flex-none basis-88', // 352px in the one-line layout only (no minimum, so the wrapped grid never overflows): Considered, Recommended and Ex Stock
     'value': 'flex-none basis-24 min-w-24', // 96px: a server figure (a dash until saved)
+    // Kyle, 2026-11-25: fixed, so the text columns get the room. A short number (a quantity, a %).
+    'num': 'flex-none basis-20 min-w-20', // 80px
+    // A date picker: its day, month and year and the calendar icon, and no wider.
+    'date': 'flex-none basis-36 min-w-36', // 144px
 };

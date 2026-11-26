@@ -10,7 +10,7 @@ const AD_HOC_DIR = 'js/components/requests/ad-hoc/';
 it('gives every number-like request field a numeric keyboard hint', function (string $file, string $pattern) {
     expect(file_get_contents(resource_path(AD_HOC_DIR.$file)))->toMatch($pattern);
 })->with([
-    'Quantity Requested' => ['item-tender-section.tsx', "/field\\('quantity_requested'\\)\\}[^>]*inputMode=\"decimal\"/s"],
+    'Qty Requested' => ['item-tender-section.tsx', "/field\\('quantity_requested'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     'Average Monthly Consumption' => ['stock-section.tsx', "/field\\('average_monthly_consumption'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     // Kyle, 2026-11-25: both prices are lines of the comparison table (priceLine), one decimal input.
     'Tender Price' => ['price-section.tsx', "/const priceLine = .*?<input\\s+id=\\{id\\}\\s+inputMode=\"decimal\".*?priceLine\\('tender_price'/s"],
@@ -19,11 +19,11 @@ it('gives every number-like request field a numeric keyboard hint', function (st
     'Quotation Unit Price' => ['quotation-section.tsx', "/input\\('unit_price', 'decimal'\\)/"],
     'Quotation Lead Time (Days)' => ['quotation-section.tsx', "/input\\('lead_time_days', 'integer'\\)/"],
     'Quotation Ex Stock' => ['quotation-section.tsx', "/input\\('quantity_available_now', 'decimal'\\)/"],
-    'Quantity Awarded' => ['awarded-supplier-section.tsx', "/input\\('quantity_awarded', 'decimal'\\)/"],
+    'Qty Awarded' => ['awarded-supplier-section.tsx', "/input\\('quantity_awarded', 'decimal'\\)/"],
     'Unit Cost' => ['awarded-supplier-section.tsx', "/input\\('unit_cost', 'decimal'\\)/"],
-    'Quantity Ordered' => ['existing-arrangement-section.tsx', "/input\\('quantity_ordered', 'decimal'\\)/"],
-    'Quantity Delivered' => ['existing-arrangement-section.tsx', "/input\\('quantity_delivered', 'decimal'\\)/"],
-    'Quantity on Hand' => ['stock-section.tsx', "/field\\('quantity_on_hand'\\)\\}[^>]*inputMode=\"decimal\"/s"],
+    'Qty Ordered' => ['existing-arrangement-section.tsx', "/input\\('quantity_ordered', 'decimal'\\)/"],
+    'Qty Delivered' => ['existing-arrangement-section.tsx', "/input\\('quantity_delivered', 'decimal'\\)/"],
+    'Qty on Hand' => ['stock-section.tsx', "/field\\('quantity_on_hand'\\)\\}[^>]*inputMode=\"decimal\"/s"],
     '% Awarded' => ['awarded-supplier-section.tsx', "/input\\('percentage_awarded', 'decimal'\\)/"],
 ]);
 

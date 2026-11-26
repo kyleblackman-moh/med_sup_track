@@ -61,7 +61,7 @@ it('sends them to the form and shows them in the summary', function () {
         ->and($props['case']['purchase_orders'][0])->toMatchArray(['pack_size' => 'Boxes of 28 Tablets', 'delivery_note' => 'Variation of tender in progress']);
 
     $summary = json_encode(RequestSummary::for($case, $vendor), JSON_UNESCAPED_UNICODE);
-    expect($summary)->toContain('Pack Size')->toContain('Delivery Note')->toContain('Variation of tender in progress');
+    expect($summary)->toContain('Pack Size')->toContain('Delivery Note No.')->toContain('Variation of tender in progress');
 });
 
 it('never requires them', function () {

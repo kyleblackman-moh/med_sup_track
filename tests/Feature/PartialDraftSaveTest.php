@@ -59,7 +59,7 @@ it('saves the valid fields and leaves out one bad number, with its message', fun
             'key' => 'requisition.quantity_requested',
             'section' => 'item_tender',
             'section_label' => 'Item and Tender Details',
-            'message' => 'Quantity Requested needs to be a number, for example 2800.',
+            'message' => 'Qty Requested needs to be a number, for example 2800.',
         ]])
         ->and($saved['status'])->toBe('Saved. 1 field needs attention and was not saved yet.');
 });

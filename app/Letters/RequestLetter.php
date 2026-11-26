@@ -355,13 +355,14 @@ final class RequestLetter
     }
 
     /**
-     * The delivery note when entered (Kyle, 2026-11-25, e.g. "Variation of tender in
-     * progress"); else "Delivered" (with the date) when fully delivered; else the status label.
+     * Kyle, 2026-11-25: Other prints what the vendor wrote for it (e.g. "Variation of tender
+     * in progress"); "Delivered" (with the date) when delivered; else the status label. The
+     * delivery note is now its number (Delivery Note No.), so it is not a status.
      */
     private function deliveryCell(CasePurchaseOrder $o): ?string
     {
-        if (($note = $this->text($o->delivery_note)) !== null) {
-            return $note;
+        if ($o->delivery_state === DeliveryState::OTHER) {
+            return $this->text($o->delivery_status) ?? $o->delivery_state->label();
         }
 
         if ($o->delivery_state === DeliveryState::FULLY_DELIVERED) {

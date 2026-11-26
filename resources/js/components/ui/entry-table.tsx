@@ -15,7 +15,7 @@ export { ENTRY_WIDTH, type EntryWidth };
  * FORM-COMPACT-1 (2): a card table (variant "cards") needs each of its LINES
  * to fit instead (EntryCardRow).
  */
-export type EntryBreakpoint = '32rem' | '45rem' | '54rem' | '66rem' | '88rem' | '90rem';
+export type EntryBreakpoint = '32rem' | '45rem' | '54rem' | '66rem' | '72rem' | '88rem' | '90rem';
 
 // Static class strings per breakpoint, so Tailwind can see every class. The
 // table's root is the @container. Below the breakpoint an entry wraps into a
@@ -80,6 +80,17 @@ const LAYOUT: Record<
         shortOnly: 'hidden tabular-nums @min-[66rem]:inline',
         remove: 'absolute top-2 right-3 @min-[66rem]:static',
         checks: '@min-[66rem]:pt-7',
+    },
+    '72rem': {
+        header: 'hidden @min-[72rem]:flex',
+        row: 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3 @min-[72rem]:flex @min-[72rem]:flex-row @min-[72rem]:items-start',
+        cellLabel: '@min-[72rem]:sr-only',
+        rowLabel: 'col-span-full pr-12 @min-[72rem]:w-32 @min-[72rem]:shrink-0 @min-[72rem]:pt-2 @min-[72rem]:pr-0',
+        rowLabelNarrow: 'col-span-full pr-12 @min-[72rem]:w-8 @min-[72rem]:shrink-0 @min-[72rem]:pt-2 @min-[72rem]:pr-0',
+        fullOnly: '@min-[72rem]:sr-only',
+        shortOnly: 'hidden tabular-nums @min-[72rem]:inline',
+        remove: 'absolute top-2 right-3 @min-[72rem]:static',
+        checks: '@min-[72rem]:pt-7',
     },
     '88rem': {
         header: 'hidden @min-[88rem]:flex',

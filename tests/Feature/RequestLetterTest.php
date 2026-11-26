@@ -124,8 +124,9 @@ function rlBimatoprost(): array
         ['award_id' => $ids[0], 'po_number' => '076547', 'quantity_ordered' => '7000', 'ordered_on' => '2024-01-31', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-03-01'],
         ['award_id' => $ids[0], 'po_number' => '077439', 'quantity_ordered' => '7000', 'ordered_on' => '2024-06-04', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-07-15'],
         ['award_id' => $ids[0], 'po_number' => '078421', 'quantity_ordered' => '10000', 'ordered_on' => '2024-07-03', 'quantity_delivered' => '10000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-08-20'],
-        // The paper letter's "Variation of tender in progress" is the delivery note (2026-11-25); 079209 has none.
-        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'PARTIALLY_DELIVERED', 'delivery_date' => '2026-07-10', 'delivery_note' => 'Variation of tender in progress'],
+        // The paper letter's "Variation of tender in progress" is the Other delivery status's description
+        // (2026-11-25: the delivery note is now its number, Delivery Note No., and not printed as a status).
+        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'OTHER', 'delivery_status' => 'Variation of tender in progress', 'delivery_date' => '2026-07-10', 'delivery_note' => 'DN-4471'],
         ['award_id' => $ids[0], 'po_number' => '079209', 'quantity_ordered' => '10000', 'ordered_on' => '2026-06-18', 'quantity_delivered' => '0', 'delivery_state' => 'NOT_DELIVERED'],
     ]);
 }
@@ -203,8 +204,8 @@ it('writes the Tender Variation letter (Bimatoprost) with its orders', function 
         ->toContain('60,000 Each')->toContain('100%')->toContain('$95.00 Each')->toContain('$5,700,000.00')
         ->toContain('Orders were placed with the awarded supplier. The details are summarized in the table below:')
         ->toContain('076547')->toContain('January 31, 2024')->toContain('Delivered March 1, 2024')
-        ->toContain('079128')->toContain('8,000 Each')->toContain('4,000 Each')->toContain('Variation of tender in progress')->not->toContain('Partially delivered')
-        ->toContain('079209')->toContain('10,000 Each')->toContain('Not delivered')
+        ->toContain('079128')->toContain('8,000 Each')->toContain('4,000 Each')->toContain('Variation of tender in progress')->not->toContain('Partial Delivery')->not->toContain('DN-4471')
+        ->toContain('079209')->toContain('10,000 Each')->toContain('Not Delivered')
         ->toContain('Bimatoprost is used for the reduction of elevated intraocular pressure')
         ->toContain('Variation Type')->toContain('AbbVie Ltd. (Ireland)')->toContain('PO 079128 and PO 079209')
         // Stock, RFQ, recommendation and the annex are Ad Hoc and Tender Excess only.

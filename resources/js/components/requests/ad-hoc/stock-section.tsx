@@ -57,7 +57,7 @@ export function StockSection({ api }: { api: FormApi }) {
                 inputMode="decimal"
                 hint="Enter 0 if the item has not been used."
             />
-            <TextField {...field('quantity_on_hand')} width="xs" label="Quantity on Hand" inputMode="decimal" hint="Enter 0 if there is none." />
+            <TextField {...field('quantity_on_hand')} width="xs" label="Qty on Hand" inputMode="decimal" hint="Enter 0 if there is none." />
             {
                 <GridRow>
                     <div id={fieldId.table('stock_expiries')} tabIndex={-1} className="grid gap-2 outline-none">

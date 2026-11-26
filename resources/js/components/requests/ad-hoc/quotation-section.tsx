@@ -13,7 +13,7 @@ import { AddRowButton, RemoveRowButton, RowsNote } from './row-controls';
 
 const SHEET_LINES: { key: string; label: string; span: number }[][] = [
     [
-        { key: 'quantity_offered', label: 'Quantity', span: 1 },
+        { key: 'quantity_offered', label: 'Qty', span: 1 },
         { key: 'unit_price', label: 'Unit Price', span: 1 },
         { key: 'quantity_available_now', label: 'Ex Stock', span: 1 },
         { key: 'lead_time_days', label: 'Lead Time (Days)', span: 1 },

@@ -615,7 +615,7 @@ it('groups readiness by section, in form order, with plain-English issues and fi
             'key' => 'tender_awards.0.quantity_awarded',
             'field' => 'tender_awards.quantity_awarded',
             'row_id' => $awardId,
-            'message' => 'Supplier Row 1: Quantity Awarded is required.',
+            'message' => 'Supplier Row 1: Qty Awarded is required.',
         ]);
 });
 

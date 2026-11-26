@@ -56,8 +56,8 @@ export function PrintForm({ print, backHref, backLabel }: { print: PrintFormView
                                 <p className="font-medium">{header.type}</p>
                             </div>
 
-                            <section aria-label="Reference Number" className="border-base-content rounded-box border-2 px-5 py-3 text-center">
-                                <p className="text-sm capitalize">Reference Number</p>
+                            <section aria-label="Reference No." className="border-base-content rounded-box border-2 px-5 py-3 text-center">
+                                <p className="text-sm capitalize">Reference No.</p>
                                 <p className="font-mono text-3xl font-bold tracking-wide">{header.reference}</p>
                             </section>
                         </header>

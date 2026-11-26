@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mailbox, Printer } from 'lucide-react';
+import { ArrowLeft, Mailbox, Printer, QrCode } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface ReceiptDocument {
@@ -52,10 +52,17 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         Back to Request
                     </Link>
-                    <button type="button" className="btn btn-primary btn-sm capitalize" onClick={() => window.print()}>
-                        <Printer className="size-4" aria-hidden="true" />
-                        Print
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* FR-03: the cover sheet to attach to the hardcopy (QR of the reference). */}
+                        <Link href={route('requests.cover-sheet', receipt.id)} className="btn btn-sm capitalize">
+                            <QrCode className="size-4" aria-hidden="true" />
+                            Cover Sheet
+                        </Link>
+                        <button type="button" className="btn btn-primary btn-sm capitalize" onClick={() => window.print()}>
+                            <Printer className="size-4" aria-hidden="true" />
+                            Print
+                        </button>
+                    </div>
                 </nav>
 
                 <article className="card bg-base-100 border-base-300 border print:border-0">
@@ -66,8 +73,8 @@ export default function ReceiptPage({ receipt }: { receipt: Receipt }) {
                                 <h1 className="text-2xl font-semibold capitalize">Submission Receipt</h1>
                             </div>
 
-                            <section aria-label="Reference Number" className="border-base-content rounded-box border-2 px-5 py-3 text-center">
-                                <p className="text-sm capitalize">Reference Number</p>
+                            <section aria-label="Reference No." className="border-base-content rounded-box border-2 px-5 py-3 text-center">
+                                <p className="text-sm capitalize">Reference No.</p>
                                 <p className="font-mono text-3xl font-bold tracking-wide">{receipt.reference_no}</p>
                             </section>
                         </header>
