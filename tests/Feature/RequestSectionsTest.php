@@ -96,7 +96,7 @@ function withRequisition(array $payload, array $fields): array
 
 // 1. Visible sections ------------------------------------------------------------
 
-it('shows Details of Variation Requested when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
+it('shows Subsequently Approved by MoH when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
     // 2026-11-25: Existing Approved Arrangement shows for every type; a Tender Variation
     // always shows its variation details, whatever the answer.
     $variation = $answer === true || $code === 'TENDER_VARIATION';
@@ -108,7 +108,7 @@ it('shows Details of Variation Requested when the answer is Yes, and always for 
 
     expect(array_column(RequestSections::visible($code, true, $answer), 'key'))->toBe($expected)
         ->and(RequestSections::discardedAtSubmit($code, $answer))->toBe($discarded)
-        ->and(RequestSections::LABELS['variation_details'])->toBe('Details of Variation Requested');
+        ->and(RequestSections::LABELS['variation_details'])->toBe('Subsequently Approved by MoH');
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
 
 it('marks a section optional exactly when the type requires nothing in it', function (string $code) {
@@ -143,7 +143,7 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
         ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
         ->and($byKey['existing_arrangement']['state'])->toBe('optional');
 
-    // Unanswered: Details of Variation Requested is hidden, except on a Tender Variation (always shown).
+    // Unanswered: Subsequently Approved by MoH is hidden, except on a Tender Variation (always shown).
     expect($byKey->has('variation_details'))->toBe($code === 'TENDER_VARIATION');
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 

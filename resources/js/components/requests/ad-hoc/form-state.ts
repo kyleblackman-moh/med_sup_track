@@ -95,7 +95,7 @@ export const ROW_COLUMNS: Record<ChildSection, Record<string, Value>> = {
         remarks: '',
         reason_accepted_excluded: '',
     },
-    // V2-5: Details of Variation Requested.
+    // V2-5: Subsequently Approved by MoH.
     variation_rows: { variation_type: '', existing_detail: '', proposed_detail: '', effective_detail: '' },
 };
 

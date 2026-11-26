@@ -32,7 +32,7 @@ final class RequisitionMessages
         'tender_awards' => 'Awarded Suppliers',
         'purchase_orders' => 'Orders',
         'stock_expiries' => 'Stock Items', // Kyle, 2026-11-26
-        'variation_rows' => 'Details of Variation Requested',
+        'variation_rows' => 'Subsequently Approved by MoH',
     ];
 
     /** Request field labels, as the form shows them. Anything not listed is named from its key (label()). */

@@ -162,7 +162,7 @@ it('renders section 1 with the type cards, then the cycle dates and the question
         ->toContain('value={answer}')
         ->toContain('tabIndex={-1}')
         ->not->toContain('defaultChecked')
-        ->toContain('Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.');
+        ->toContain('Changing the answer to No hides the Subsequently Approved by MoH section. What you entered there is kept until you submit.');
 
     // The cycle fields left Item and Tender Details; their names and the end-not-before-start rule are unchanged.
     $item = file_get_contents(resource_path('js/components/requests/ad-hoc/item-tender-section.tsx'));

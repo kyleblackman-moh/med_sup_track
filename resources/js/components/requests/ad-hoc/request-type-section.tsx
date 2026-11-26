@@ -37,7 +37,7 @@ interface RequestTypeSectionProps {
  * V2-5 section 1 "Request Type": the five type cards (unchanged), then the
  * tender cycle start and end and the Yes/No question, in one row once the
  * card is 56rem wide (FORM-COMPACT-1, FieldGrid), stacked below. Every value is saved by the form's autosave; the server decides
- * what the answer shows (Details of Variation Requested only when Yes).
+ * what the answer shows (Subsequently Approved by MoH only when Yes).
  */
 export function RequestTypeSection({ api, typeChoice, showVariationHiddenNote }: RequestTypeSectionProps) {
     const field = (name: string) => ({
@@ -112,7 +112,7 @@ function PreviousRequestQuestion({ value, onChange, error, required, showHiddenN
             {showHiddenNote && (
                 <div role="status">
                     <FieldHint hintId={noteId}>
-                        Changing the answer to No hides Details of Variation Requested. What you entered there is kept until you submit.
+                        Changing the answer to No hides the Subsequently Approved by MoH section. What you entered there is kept until you submit.
                     </FieldHint>
                 </div>
             )}

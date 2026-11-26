@@ -200,7 +200,7 @@ export default function AdHocEdit({ case: detail, request_sections, form, config
                 setVariationHidden(true);
             }
             update((current) => ({ ...current, previousRequest: value }));
-            // Save now, so the server shows or hides Details of Variation Requested straight away.
+            // Save now, so the server shows or hides Subsequently Approved by MoH straight away.
             // Immediate: without it the save waited out the 5-second gap after the last autosave.
             window.setTimeout(() => void autosave.flush({ immediate: true }), 0);
         },

@@ -46,7 +46,7 @@ it('lists every section in form order, numbering only the visible ones', functio
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer]);
     $form = formProp($this, $case, $vendor);
 
-    // V2-5: Details of Variation Requested shows when the answer is Yes; Kyle, 2026-11-25: always
+    // V2-5: Subsequently Approved by MoH shows when the answer is Yes; Kyle, 2026-11-25: always
     // on a Tender Variation. Existing Approved Arrangement shows for every type.
     $variation = $answer === true || $code === 'TENDER_VARIATION';
     $visible = [

@@ -87,12 +87,12 @@ it('lists the type\'s visible sections in form order, numbered among the visible
         ->and($summary['type_label'])->toBe(procurementTypeByCode($code)->name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('shows Details of Variation Requested only when the answer is Yes (a complete Tender Variation here)', function (string $code) {
+it('shows Subsequently Approved by MoH only when the answer is Yes (a complete Tender Variation here)', function (string $code) {
     [$case, $vendor] = summaryDraft($code);
     $summary = summaryOf($case, $vendor);
 
     if ($code === 'TENDER_VARIATION') {
-        $table = summaryTable($summary, 'variation_details', 'Details of Variation Requested');
+        $table = summaryTable($summary, 'variation_details', 'Subsequently Approved by MoH');
         expect(summarySection($summary, 'variation_details')['number'])->toBe(3)
             ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1'])
             ->and($table['rows'][0]['cells'])->toBe([
@@ -106,7 +106,7 @@ it('shows Details of Variation Requested only when the answer is Yes (a complete
     }
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-// V2-5: section 1 and Details of Variation Requested ----------------------------------------
+// V2-5: section 1 and Subsequently Approved by MoH ----------------------------------------
 
 it('shows the previous-request answer in section 1 as Yes, No or a dash', function (?bool $answer, string $shown) {
     [$case, $vendor] = newDraft('TENDER_EXCESS');
@@ -131,7 +131,7 @@ it('shows the variation rows as a table when the answer is Yes, with a dash for 
         variationEntry(),
         ['variation_type' => 'Quantity', 'proposed_detail' => '3,600 units'],
     ]]);
-    $table = summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested');
+    $table = summaryTable(summaryOf($case, $vendor), 'variation_details', 'Subsequently Approved by MoH');
 
     expect(array_column($table['columns'], 'label'))->toBe(['Variation Type', 'Existing Approved Detail', 'Proposed Revised Detail', 'Effective Date / Application P.O.'])
         ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1', 'Variation Row 2'])
@@ -146,7 +146,7 @@ it('says "None entered" for a Yes with no variation rows', function () {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['previous_request_in_cycle' => true]);
 
-    expect(summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested'))
+    expect(summaryTable(summaryOf($case, $vendor), 'variation_details', 'Subsequently Approved by MoH'))
         ->toMatchArray(['rows' => [], 'empty' => RequestSummary::NONE]);
 });
 
@@ -359,7 +359,7 @@ it('gives the staff case page and the vendor page the same summary of a submitte
     // NEXT part 5: neither page repeats the documents (each has its own list), so the two are identical.
     expect($staffSummary)->toBe($vendorSummary)
         ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(3)
-        ->and(summaryTable($staffSummary, 'variation_details', 'Details of Variation Requested')['rows'][0]['label'])->toBe('Variation Row 1')
+        ->and(summaryTable($staffSummary, 'variation_details', 'Subsequently Approved by MoH')['rows'][0]['label'])->toBe('Variation Row 1')
         ->and(summaryFields($staffSummary, 'request_type')[RequestSummary::PREVIOUS_REQUEST_LABEL])->toBe('Yes');
 });
 

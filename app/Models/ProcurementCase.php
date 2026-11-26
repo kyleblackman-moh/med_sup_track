@@ -166,7 +166,7 @@ class ProcurementCase extends Model
     }
 
     /** Tender Variation details (slice V2-1); at most one row. */
-    /** V2-5: Details of Variation Requested, in saved order (as the award rows). */
+    /** V2-5: Subsequently Approved by MoH, in saved order (as the award rows). */
     public function variationRows(): HasMany
     {
         return $this->hasMany(CaseVariationRow::class, 'case_id')->orderBy('sort_order')->orderBy('id');

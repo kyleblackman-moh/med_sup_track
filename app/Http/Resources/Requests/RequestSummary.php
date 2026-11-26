@@ -130,13 +130,13 @@ final class RequestSummary
     }
 
     /**
-     * V2-5: Details of Variation Requested as a table ("Variation Row N"; an
+     * V2-5: Subsequently Approved by MoH as a table ("Variation Row N"; an
      * empty value is a dash; no rows is "None entered"). Only reached when the
      * section is visible (the answer is Yes): hidden rows are never shown.
      */
     private static function variation(ProcurementCase $case): array
     {
-        return [self::table('Details of Variation Requested', 'Variation Row', [
+        return [self::table('Subsequently Approved by MoH', 'Variation Row', [
             'variation_type' => 'Variation Type',
             'existing_detail' => 'Existing Approved Detail',
             'proposed_detail' => 'Proposed Revised Detail',

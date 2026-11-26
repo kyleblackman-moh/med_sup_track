@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
-// V2-5 step 4: Details of Variation Requested, one row per variation, saved
+// V2-5 step 4: Subsequently Approved by MoH, one row per variation, saved
 // like the award rows (upsert on row id, the same route, cap and throttle).
 // Shown and required only when the previous-request answer is Yes.
 // DatabaseTransactions only.
@@ -198,7 +198,7 @@ it('shows the section when the answer is Yes, and always for a Tender Variation'
 
     expect($section['visible'])->toBe($shown)
         ->and($section['number'])->toBe($shown ? 3 : null)
-        ->and($section['label'])->toBe('Details of Variation Requested')
+        ->and($section['label'])->toBe('Subsequently Approved by MoH')
         ->and(collect($props['request_sections'])->pluck('key')->contains('variation_details'))->toBe($shown)
         // The rows are kept in the draft while hidden.
         ->and($props['case']['variation_rows'])->toHaveCount(1);

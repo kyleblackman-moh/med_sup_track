@@ -424,7 +424,7 @@ final class RequisitionRules
                 'expiry_date' => ['type' => 'date'],
                 'item_name' => self::str(200), // Kyle, 2026-11-26: the drug the row is for
             ],
-            // V2-5: Details of Variation Requested. The effective date or application
+            // V2-5: Subsequently Approved by MoH. The effective date or application
             // P.O. is one free-text field (assumption, see the V2-5 report).
             'variation_rows' => [
                 'id' => $id,

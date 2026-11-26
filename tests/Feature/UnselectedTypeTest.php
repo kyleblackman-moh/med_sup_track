@@ -237,7 +237,7 @@ it('reloads the form sections for the new type after a change', function () {
     expect($sections()['stock']['note'])->toBe('Choose a request type');
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_VARIATION'])->assertRedirect(route('requests.edit', $case->id));
     expect($sections()['stock']['optional'])->toBeTrue() // a Tender Variation does not require stock
-        // Kyle, 2026-11-25: a Tender Variation always shows Details of Variation Requested.
+        // Kyle, 2026-11-25: a Tender Variation always shows Subsequently Approved by MoH.
         ->and($sections()->has('variation_details'))->toBeTrue();
     $this->actingAs($vendor)->put(route('requests.type', $case->id), ['procurement_type' => 'TENDER_EXCESS']);
     expect($sections()['stock']['optional'])->toBeFalse();
@@ -309,7 +309,7 @@ it('applies the Emergency rules once chosen: stock, quotations and documents are
 it('applies the Tender Variation rules once chosen', function () {
     [$case, $vendor] = unselectedDraft();
     app(ChangeRequestType::class)->handle($case, $vendor, 'TENDER_VARIATION');
-    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]); // V2-5: shows Details of Variation Requested
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]); // V2-5: shows Subsequently Approved by MoH
     [$request] = sectionStates($this, $case, $vendor);
 
     expect($request['variation_details']['complete'])->toBeFalse()
