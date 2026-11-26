@@ -264,15 +264,17 @@ interface EntryRowProps {
     errorsId?: string;
     /** The cells (EntryCell). */
     children: ReactNode;
+    /** Kyle, 2026-11-26: a 4px coloured left edge, so one entry is told from the next (the orders). */
+    accent?: boolean;
 }
 
-export function EntryRow({ label, short, remove, below, errors = [], errorsId, children }: EntryRowProps) {
+export function EntryRow({ label, short, remove, below, errors = [], errorsId, children, accent = false }: EntryRowProps) {
     const { breakpoint, narrowRowLabel } = useContext(TableContext);
     const layout = LAYOUT[breakpoint];
     const narrow = narrowRowLabel && short !== undefined;
 
     return (
-        <div className="relative space-y-3 px-4 py-3">
+        <div className={cn('relative space-y-3 px-4 py-3', accent && 'border-s-primary/30 border-s-4')}>
             <div className={layout.row}>
                 <div className={cn('flex items-center justify-between gap-2 text-sm font-medium', narrow ? layout.rowLabelNarrow : layout.rowLabel)}>
                     {narrow ? (

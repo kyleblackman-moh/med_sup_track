@@ -119,6 +119,8 @@ export function ExistingArrangementSection({ api }: { api: FormApi }) {
                                 <EntryRow
                                     key={row.key}
                                     label={rowLabel}
+                                    // Kyle, 2026-11-26: a coloured left edge per order, to tell one from the next.
+                                    accent
                                     short={String(index + 1)}
                                     errors={errors}
                                     errorsId={errorsId}
