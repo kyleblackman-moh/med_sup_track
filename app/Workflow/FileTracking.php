@@ -255,6 +255,69 @@ final class FileTracking
     }
 
     /**
+     * Kyle, 2026-11-26: "they [the role] can see how long the file is there
+     * for but not others". For a viewer limited to some lanes (ViewerScope),
+     * every stage, step and unit outside them loses its times and holders
+     * here, on the server, so they never reach the page. A stage or step is
+     * the viewer's own when its lane is theirs; CAB's own part is the first
+     * review (the funding check runs beside it). Every stage and step gets
+     * `mine`; `restricted` says whether anything was held back.
+     *
+     * @param  array<string, mixed>  $tracking  units() plus stages and path
+     * @param  list<string>|null  $lanes  null: everything
+     * @return array<string, mixed>
+     */
+    public static function forViewer(array $tracking, ?array $lanes): array
+    {
+        $stageMine = function (array $stage) use ($lanes): bool {
+            if ($lanes === null) {
+                return true;
+            }
+
+            return in_array($stage['unit'], $lanes, true)
+                || (in_array('cab', $lanes, true) && $stage['status'] === CaseStatus::IN_REVIEW->value && $stage['visit'] === 1);
+        };
+
+        $stages = [];
+        foreach ($tracking['stages'] as $stage) {
+            $mine = $stageMine($stage);
+            $stages[] = $mine ? [...$stage, 'mine' => true] : [
+                ...$stage,
+                'mine' => false,
+                'holders' => [],
+                'entered_at' => null, 'entered_at_iso' => null,
+                'left_at' => null, 'left_at_iso' => null,
+                'duration_seconds' => 0, 'duration' => null,
+            ];
+        }
+
+        $steps = [];
+        foreach ($tracking['path']['steps'] as $step) {
+            $mine = $lanes === null || in_array($step['lane'], $lanes, true);
+            $steps[] = $mine ? [...$step, 'mine' => true] : [...$step, 'mine' => false, 'entered_at' => null, 'left_at' => null, 'duration' => null];
+        }
+
+        $current = $tracking['current'];
+        $last = $stages === [] ? null : $stages[count($stages) - 1];
+        if ($current !== null && $lanes !== null && ! ($last['mine'] ?? false)) {
+            $current = [...$current, 'received_at' => null, 'received_at_iso' => null, 'seconds' => null, 'days' => null];
+        }
+
+        $units = array_map(fn (array $unit) => $lanes === null || in_array($unit['key'], $lanes, true)
+            ? $unit
+            : [...$unit, 'seconds' => 0, 'days' => '—'], $tracking['units']);
+
+        return [
+            ...$tracking,
+            'restricted' => $lanes !== null,
+            'current' => $current,
+            'units' => $units,
+            'stages' => $stages,
+            'path' => [...$tracking['path'], 'steps' => $steps],
+        ];
+    }
+
+    /**
      * Kyle, 2026-11-24: where the file is and how long it spent at each unit,
      * from case_transitions (the open stage runs to now). For the dashboard
      * board and the case page's File Tracking tab.

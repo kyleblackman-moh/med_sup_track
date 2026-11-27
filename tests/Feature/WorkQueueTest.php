@@ -143,6 +143,24 @@ it('queues the review and decision steps for the assigned officer only', functio
     'legal decision' => [CaseStatus::WITH_LEGAL, Role::LegalOfficer, 'legal', 'legal_decision'],
 ]);
 
+// Kyle, 2026-11-26: a reviewer's To Do says only their own desk, and the task leaves once they record it.
+it('labels a review task with the reviewer\'s own desk and drops it once recorded', function (Role $role, string $purpose, string $label, string $outcome) {
+    $reviewer = caseUser($role);
+    $case = queueCase(['status' => CaseStatus::IN_REVIEW, 'technical_track' => TrackStatus::PENDING, 'funding_track' => TrackStatus::PENDING, ...withHardcopy()]);
+    queueAssign($case, $reviewer, $purpose, $role);
+
+    $item = collect(pageProps($this->actingAs($reviewer)->get(route('dashboard')))['workQueue']['items'])->firstWhere('case_id', $case->id);
+    expect($item['status_label'])->toBe($label)
+        ->and($item['desk_label'])->toBe($label);
+
+    $this->actingAs($reviewer)->post(route($purpose === 'technical' ? 'cases.technical' : 'cases.funding', $case), ['outcome' => $outcome])
+        ->assertRedirect(route('dashboard'))->assertSessionHasNoErrors();
+    expect(queueSteps($reviewer, $case))->toBe([]);
+})->with([
+    'technocrat' => [Role::Technocrat, 'technical', 'Technocrats to Action', 'favourable'],
+    'CAB officer' => [Role::CabOfficer, 'funding', 'CAB to Action', 'confirmed'],
+]);
+
 it('queues every case with the PS for the PS office', function () {
     $case = queueCase(['status' => CaseStatus::WITH_PS]);
 

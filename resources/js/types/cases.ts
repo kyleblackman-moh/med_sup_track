@@ -316,6 +316,8 @@ export interface NextStepItem {
     key: string;
     label: string;
     done: boolean;
+    /** Kyle, 2026-11-26: the desk recorded an outcome (or the hardcopy is in): a green tick, whatever the outcome. */
+    finished?: boolean;
     state: string;
     holder: string;
     people: string[];

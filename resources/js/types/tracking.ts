@@ -15,11 +15,11 @@ export interface TrackingUnit {
 export interface TrackingCurrent {
     key: string;
     label: string;
-    /** "23 Nov 2026": when it last arrived at this unit. */
-    received_at: string;
-    received_at_iso: string;
+    /** "23 Nov 2026": when it last arrived at this unit. Null when the viewer may not see this unit's times (FileTracking::forViewer). */
+    received_at: string | null;
+    received_at_iso: string | null;
     seconds: number | null;
-    days: string;
+    days: string | null;
 }
 
 /** One stage visit of the case page's timeline (FileTracking::timeline). */
@@ -30,13 +30,16 @@ export interface TrackingStage {
     label: string;
     visit: number;
     holders: { role: string; label: string; name: string | null }[];
-    entered_at: string;
-    entered_at_iso: string;
+    /** Null, with the duration, when the viewer may not see this stage's times (FileTracking::forViewer). */
+    entered_at: string | null;
+    entered_at_iso: string | null;
     left_at: string | null;
     left_at_iso: string | null;
     open: boolean;
     duration_seconds: number;
-    duration: string;
+    duration: string | null;
+    /** Kyle, 2026-11-26: the viewer's own part (always true for the CMO's and PS Offices). */
+    mine?: boolean;
 }
 
 /** Kyle, 2026-11-26: one step of the file's path (FileTracking::path), in its lane and column. */
@@ -47,12 +50,15 @@ export interface TrackingPathStep {
     label: string;
     /** Index into stages: the stage this step belongs to. */
     stage: number;
-    entered_at: string;
+    /** Null when the viewer may not see this step's times. */
+    entered_at: string | null;
     left_at: string | null;
     duration: string | null;
     open: boolean;
     column: number;
     number: number;
+    /** Kyle, 2026-11-26: the viewer's own part; only these show their times. */
+    mine?: boolean;
 }
 
 /** Kyle, 2026-11-26: "Where Is The File": the lanes top to bottom and the steps left to right. */
@@ -68,6 +74,8 @@ export interface CaseTracking {
     units: TrackingUnit[];
     stages: TrackingStage[];
     path: TrackingPath;
+    /** Kyle, 2026-11-26: true when the viewer sees the times of their own part only. */
+    restricted?: boolean;
 }
 
 /** One dashboard board row (FileTracking::board). */

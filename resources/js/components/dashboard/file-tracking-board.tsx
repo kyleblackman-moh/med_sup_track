@@ -136,7 +136,7 @@ export function FileTrackingBoard({ board }: { board: TrackingBoard }) {
                                     <DataTableCell className={cn(cell, 'whitespace-nowrap')}>
                                         {row.current ? (
                                             <span className="grid">
-                                                <time dateTime={row.current.received_at_iso} className="tabular-nums">
+                                                <time dateTime={row.current.received_at_iso ?? undefined} className="tabular-nums">
                                                     {row.current.received_at}
                                                 </time>
                                                 <span className="text-base-content/60 text-xs">{row.current.days} there</span>

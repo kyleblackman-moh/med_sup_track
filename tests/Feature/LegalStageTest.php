@@ -190,7 +190,9 @@ it('prepares the file: trims and stores the number, one transition, audited with
     $cmo = caseUser(Role::Cmo);
 
     $this->actingAs($cmo)->post(route('cases.prepare', $case), ['file_no' => '  HE:8/2/50/142  '])
-        ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('success', 'File prepared.');
+        // Kyle, 2026-11-26: straight on to Send to Legal.
+        ->assertRedirect(route('cases.show', ['procurementCase' => $case, 'next' => 'send_to_legal']))
+        ->assertSessionHasNoErrors()->assertSessionHas('success', 'File prepared. Now send it to the Legal Unit.');
 
     $row = row10c($case);
     $transition = DB::table('case_transitions')->where('case_id', $case->id)->first();
@@ -398,6 +400,8 @@ it('moves a confirmed case to WITH_PS where the PS office sees it', function () 
     legalRow10c($case, $officer);
 
     $this->actingAs($officer)->post(route('cases.legal.decide', $case), ['decision' => 'confirmed', 'reason' => 'All clauses fine.'])
+        // Kyle, 2026-11-26: Legal's part is done, so back to To Do.
+        ->assertRedirect(route('dashboard'))
         ->assertSessionHasNoErrors()->assertSessionHas('success', 'Contract confirmed. The case is now with the PS office.');
 
     $transition = DB::table('case_transitions')->where('case_id', $case->id)->first();

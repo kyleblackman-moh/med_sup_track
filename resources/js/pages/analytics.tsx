@@ -1,7 +1,7 @@
 import { OutcomesCard, WeeklyTrendCard, type OutcomeSeries, type WeeklySeries } from '@/components/analytics/trend-charts';
 import { KpiBand, type DashboardStat } from '@/components/dashboard/kpi-band';
 import { RISE } from '@/components/dashboard/motion';
-import { GateTrackerPanel, PipelinePanel, type GateTrackerData, type PipelineStage } from '@/components/dashboard/pipeline-panels';
+import { PipelinePanel, type GateTrackerData, type PipelineStage } from '@/components/dashboard/pipeline-panels';
 import { PageHeader } from '@/components/page-header';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -23,7 +23,7 @@ interface Props {
  * stat row, the weekly received/granted trend beside the monthly outcomes,
  * then Cases By Stage beside the Gate Tracker. Charts are client-only.
  */
-export default function Analytics({ stats, pipeline, gateTracker, charts }: Props) {
+export default function Analytics({ stats, pipeline, charts }: Props) {
     const { can } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Analytics', href: route('analytics') }];
     const casesHref = can?.cases ? route('cases.index') : null;
@@ -50,10 +50,10 @@ export default function Analytics({ stats, pipeline, gateTracker, charts }: Prop
                     <OutcomesCard outcomes={charts.outcomes} />
                 </div>
 
-                {(pipeline || gateTracker) && (
+                {/* Kyle, 2026-11-26: the gate tracker is no longer shown. */}
+                {pipeline && (
                     <div className={RISE[5]}>
-                        {pipeline && <PipelinePanel stages={pipeline} />}
-                        {gateTracker && <GateTrackerPanel tracker={gateTracker} />}
+                        <PipelinePanel stages={pipeline} />
                     </div>
                 )}
             </div>

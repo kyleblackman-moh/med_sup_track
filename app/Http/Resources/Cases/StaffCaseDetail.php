@@ -22,6 +22,7 @@ use App\Models\ProcurementTypeDocument;
 use App\Models\User;
 use App\Queries\QueryView;
 use App\Submissions\ExpiryRisk;
+use App\Support\Display;
 use App\Workflow\Actions\EndCase;
 use App\Workflow\Actions\MarkReadyForFile;
 use App\Workflow\Actions\RecordHardcopy;
@@ -35,6 +36,7 @@ use App\Workflow\NextStep;
 use App\Workflow\StageWording;
 use App\Workflow\TrackCalculator;
 use App\Workflow\TransitionRules;
+use App\Workflow\ViewerScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -133,19 +135,22 @@ final class StaffCaseDetail
             // null for the old Pharm and Non-Pharm types, which keep RequisitionView.
             // NEXT part 5: without Documents; the case page has its own document list with actions.
             'summary' => RequestSummary::for($case, $user, forStaff: true, withDocuments: false),
+            // Kyle, 2026-11-26: the figures CAB confirms funding on, at the top of Request Details.
+            'funding_summary' => $user->can(ReviewDesk::Funding->permission()->value) ? self::fundingSummary($case) : null,
             // Kyle, 2026-11-23: stock may expire before use (advisory; ExpiryRisk::flag). Null when nothing to flag.
             'expiry_flag' => ExpiryRisk::flag($case),
             'timeline' => self::timeline($case),
             // Kyle, 2026-11-24: the File Tracking tab: where the file is, days per unit and every stage visit.
             // Kyle, 2026-11-26: "Where Is The File" adds the lanes (FileTracking::path).
-            'tracking' => (function () use ($case) {
+            // Kyle, 2026-11-26: a Technocrat, CAB or Legal officer sees the times of their own part only (ViewerScope).
+            'tracking' => (function () use ($case, $user) {
                 $stages = FileTracking::timeline($case);
 
-                return [
+                return FileTracking::forViewer([
                     ...FileTracking::units(CaseTransition::query()->where('case_id', $case->getKey())->orderBy('created_at')->orderBy('id')->get()),
                     'stages' => $stages,
                     'path' => FileTracking::path($case, $stages),
-                ];
+                ], ViewerScope::lanes($user));
             })(),
             'assignments' => self::assignments($case),
             'gate' => self::gate($case),
@@ -252,6 +257,7 @@ final class StaffCaseDetail
             'hardcopy_dates' => null,
             'documents' => [],
             'summary' => null,
+            'funding_summary' => null,
             'timeline' => [],
             'tracking' => null,
             'assignments' => [],
@@ -278,6 +284,37 @@ final class StaffCaseDetail
      * RETURNED_TO_CMO. From the latest transition into that status; the source
      * comes from its from_status (CaseStatus::returnedBySource). Staff only.
      */
+    /**
+     * Kyle, 2026-11-26: what CAB needs to confirm funding, in one place: the
+     * drug, its DIN, the recommended supplier, quantity and unit price, and the
+     * money (QuotationPrice, never typed). The total is the case's total cost
+     * (every recommended quotation, VAT included). Null without a recommended
+     * quotation.
+     *
+     * @return array{fields: list<array{label: string, value: string}>, total: array{label: string, value: string}}|null
+     */
+    private static function fundingSummary(ProcurementCase $case): ?array
+    {
+        $case->loadMissing(['requisition', 'quotations']);
+        $q = $case->recommendedQuotation();
+        if ($q === null) {
+            return null;
+        }
+
+        return [
+            'fields' => [
+                ['label' => 'Drug', 'value' => Display::text($case->requisition?->item_description)],
+                ['label' => 'DIN', 'value' => Display::text($case->requisition?->din)],
+                ['label' => 'Recommended Supplier', 'value' => Display::text($q->supplier_name)],
+                ['label' => 'Quantity', 'value' => Display::quantity($q->quantity_offered)],
+                ['label' => 'Unit Price', 'value' => Display::price($q->unit_price)],
+                ['label' => 'Subtotal', 'value' => Display::money($q->subtotal())],
+                ['label' => 'VAT', 'value' => Display::money($q->vatAmount())],
+            ],
+            'total' => ['label' => 'Total Cost Incl. VAT', 'value' => Display::money($case->totalCost())],
+        ];
+    }
+
     private static function returned(ProcurementCase $case): ?array
     {
         if ($case->status !== CaseStatus::RETURNED_TO_CMO) {

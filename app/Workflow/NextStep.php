@@ -50,7 +50,26 @@ final class NextStep
     private function __construct(private readonly ProcurementCase $case, private readonly User $user)
     {
         $this->vendor = (string) ($case->organisation?->name ?? 'the vendor');
-        $this->reference = (string) ($case->reference_no ?? 'this case');
+        $this->reference = self::subject($case);
+    }
+
+    /**
+     * Kyle, 2026-11-26: how the case is named in the step titles: drug, DIN and
+     * reference ("Paracetamol 500 mg – DIN 02345678 – NR-2026-000012"), each
+     * part only when known; "this case" with none.
+     */
+    public static function subject(ProcurementCase $case): string
+    {
+        $case->loadMissing('requisition:id,case_id,item_description,din');
+        $drug = trim((string) $case->requisition?->item_description);
+        $din = trim((string) $case->requisition?->din);
+        $parts = array_filter([
+            $drug !== '' ? mb_strimwidth($drug, 0, 80, '…') : null,
+            $din !== '' ? 'DIN '.$din : null,
+            $case->reference_no,
+        ]);
+
+        return $parts === [] ? 'this case' : implode(' – ', $parts);
     }
 
     /** @return array<string, mixed> */
@@ -62,7 +81,7 @@ final class NextStep
     }
 
     /**
-     * OVERNIGHT-2 (C2): the checklist alone (the In Review gate items, each
+     * OVERNIGHT-2 (C2): the checklist alone (every item, whoever asks) (the In Review gate items, each
      * with done, state, holder and people), for the dashboard's Gate Tracker.
      * The same code as the card, so the two never disagree.
      *
@@ -84,14 +103,29 @@ final class NextStep
         $actions = $this->actions($checklist);
         $since = $this->since();
 
+        // Kyle, 2026-11-26: a Technocrat or CAB officer sees only their own desk in review.
+        $desks = ViewerScope::desks($this->user);
+        $holder = $words['holder'];
+        $assigned = $this->assigned();
+        $instruction = $this->instruction($words['instruction']);
+        if ($status === S::IN_REVIEW && $desks !== null && $desks !== []) {
+            $holder = implode(' and ', array_map(fn (ReviewDesk $d) => $d === ReviewDesk::Technical ? StageWording::TECHNOCRATS : StageWording::CAB, $desks));
+            $assigned = collect($desks)->flatMap(fn (ReviewDesk $d) => TrackCalculator::reviewers($this->case, $d)
+                ->map(fn (array $r) => $r['assignment']->user?->name))->filter()->unique()->values()->all();
+            $instruction = implode(' ', array_map(fn (ReviewDesk $d) => $d === ReviewDesk::Technical
+                ? 'The Technocrats consider the request.'
+                : 'CAB confirms funding. The figures are at the top of Request Details.', $desks));
+        }
+
         return [
             'stage' => $words['stage'],
-            'holder' => $words['holder'],
-            'assigned' => $this->assigned(),
+            'holder' => $holder,
+            'assigned' => $assigned,
             'since' => $since?->toDateString(),
             'since_label' => $since?->format('j M Y'),
-            'instruction' => $this->instruction($words['instruction']),
-            'checklist' => $checklist,
+            'instruction' => $instruction,
+            // Kyle, 2026-11-26: only the items this user is concerned with (all for the CMO's Office and the PS Office).
+            'checklist' => $this->visible($checklist),
             'actions' => $actions,
             // OVERNIGHT-2 (D4): open queries, an overlay on the stage (they block no transition).
             'queries' => QueryView::forCard($this->case, $this->user),
@@ -148,6 +182,24 @@ final class NextStep
 
     // Checklist -----------------------------------------------------------------
 
+    /**
+     * The checklist items this user sees: every item for the CMO's Office and
+     * the PS Office; a reviewer sees their own desk's item only; others none.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private function visible(array $items): array
+    {
+        $desks = ViewerScope::desks($this->user);
+        if ($desks === null) {
+            return $items;
+        }
+        $keys = array_map(fn (ReviewDesk $d) => $d->value, $desks);
+
+        return array_values(array_filter($items, fn (array $item) => in_array($item['key'], $keys, true)));
+    }
+
     /** @return list<array<string, mixed>> */
     private function checklist(): array
     {
@@ -162,18 +214,22 @@ final class NextStep
             $missing = TransitionRules::gateMissing($this->case);
             foreach ([ReviewDesk::Technical, ReviewDesk::Funding] as $desk) {
                 $track = $this->case->{$desk->track()};
+                $outcome = TrackCalculator::latestOutcome($this->case, $desk);
                 $items[] = [
                     'key' => $desk->value,
-                    'label' => $desk === ReviewDesk::Technical ? 'Technical Consideration' : 'Funding Confirmed',
+                    'label' => $desk === ReviewDesk::Technical ? 'Technical Consideration' : 'Funding',
                     'done' => ! in_array($desk->value, $missing, true),
-                    'state' => $track?->label() ?? 'Not started',
+                    // Kyle, 2026-11-26: the desk finished once an officer recorded an outcome (a green tick),
+                    // whatever the outcome; the state names it ("Availability of Funds", "Virement Required").
+                    'finished' => $outcome !== null || ! in_array($desk->value, $missing, true),
+                    'state' => $outcome?->label() ?? $track?->label() ?? 'Not started',
                     'holder' => $desk === ReviewDesk::Technical ? StageWording::TECHNOCRATS : StageWording::CAB,
                     'people' => TrackCalculator::reviewers($this->case, $desk)
                         ->map(fn (array $r) => $r['assignment']->user?->name)->filter()->values()->all(),
                     'hardcopy_form' => null,
                 ];
             }
-            $items[0]['done'] = ! in_array('hardcopy', $missing, true);
+            $items[0]['finished'] = $items[0]['done'] = ! in_array('hardcopy', $missing, true);
         }
 
         return $items;
@@ -191,6 +247,7 @@ final class NextStep
             'key' => 'hardcopy',
             'label' => 'Hardcopy Received',
             'done' => $received,
+            'finished' => $received,
             'state' => $received ? 'Received on '.$on.($by ? ' by '.$by : '') : 'Not received yet',
             'holder' => StageWording::CMO_OFFICE,
             'people' => [],
@@ -218,7 +275,8 @@ final class NextStep
                 "The case moves to CMO intake in the CMO's Office and is assigned to you. Other registry officers will no longer see it in their list.")],
             S::CMO_INTAKE => [$this->transition('forward_for_review', S::IN_REVIEW, null, StageWording::TECHNOCRATS_AND_CAB,
                 "Send {$r} to the Technocrats and CAB?",
-                'The Technocrats you choose consider the request and the CAB officers you choose confirm funding, at the same time. The case moves to In Review.')],
+                // Kyle, 2026-11-26: no choosing; it goes to both desks.
+                'It goes to the Technocrats, who consider the request, and to CAB, who confirm funding, at the same time. The case moves to In Review.')],
             S::IN_REVIEW => [
                 ...$this->reviewActions(),
                 $this->transition('mark_ready_for_file', S::READY_FOR_FILE, 'Mark Ready for File', null,

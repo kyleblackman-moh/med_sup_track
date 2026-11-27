@@ -1,12 +1,11 @@
 import { actionTextareaClass } from '@/components/cases/action-panel';
 import { CaseTimeline } from '@/components/cases/case-timeline';
-import { GateTracker } from '@/components/cases/gate-tracker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { type GateState, type ReturnedBanner, type RouteDestination, type RoutePanel } from '@/types/cases';
+import { type ReturnedBanner, type RouteDestination, type RoutePanel } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { Undo2 } from 'lucide-react';
 import { FormEvent, type ReactNode, useState } from 'react';
@@ -43,7 +42,6 @@ interface Props {
     itemDescription: string | null;
     statusLabel: string;
     returned: ReturnedBanner | null;
-    gate: GateState | null;
     panel: RoutePanel;
     /** NEXT-STEP-1: the destination chosen on the Next Step card; the server's suggestion otherwise. */
     initialDestination?: RouteDestination['value'] | null;
@@ -53,7 +51,7 @@ type FormData = { destination: string; reviewers: number[]; note: string };
 
 /**
  * Send a returned case onward (slice 10e): a right-hand sheet with why the case
- * came back, recent history, the gate, and the destinations the server allows.
+ * came back, recent history and the destinations the server allows.
  * The suggestion, the sentences and the reviewer list all come from the server;
  * the server checks everything again. A confirm step restates the choice.
  */
@@ -66,7 +64,6 @@ export function SendOnwardPanel({
     itemDescription,
     statusLabel,
     returned,
-    gate,
     panel,
     initialDestination = null,
 }: Props) {
@@ -157,10 +154,6 @@ export function SendOnwardPanel({
 
                     <Block title="Recent History">
                         <CaseTimeline entries={panel.timeline} />
-                    </Block>
-
-                    <Block title="Gate">
-                        <GateTracker gate={gate} />
                     </Block>
 
                     <div className="divider my-0" role="none" />

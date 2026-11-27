@@ -1,6 +1,7 @@
 import { RISE } from '@/components/dashboard/motion';
 import { WorkQueue, type DashboardQueue, type WorkQueueData } from '@/components/dashboard/work-queue';
 import { PageHeader } from '@/components/page-header';
+import { FlashMessages } from '@/components/requests/flash-messages';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
@@ -34,6 +35,9 @@ export default function Dashboard({ summary, queue }: Props) {
             <Head title="To Do" />
             <div className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-6">
                 <PageHeader className={RISE[0]} title="To Do" titleClassName="capitalize" subtitle={summary ?? undefined} />
+
+                {/* Kyle, 2026-11-26: a reviewer or Legal officer lands here after recording their part. */}
+                <FlashMessages />
 
                 {queue && (
                     <div className={RISE[1]}>

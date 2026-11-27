@@ -25,6 +25,11 @@ use Illuminate\Validation\ValidationException;
  * tracks to PENDING), give each reviewer one active assignment, and audit.
  * Any failure, including an audit write, rolls back all of it (fail closed).
  *
+ * Kyle, 2026-11-26: the CMO no longer chooses the reviewers. With no ids
+ * given, every eligible Technocrat and every eligible CAB officer is assigned
+ * (it is understood the case goes to both desks); a desk with nobody eligible
+ * stops the send with a message. Ids, when given, are checked as before.
+ *
  * The intake assignment from slice 9b is left as it is. Hardcopy is not
  * required here; it only gates READY_FOR_FILE (T4).
  *
@@ -71,8 +76,8 @@ final class ForwardForReview
             }
 
             $chosen = [
-                ReviewDesk::Technical->value => $this->chosen(ReviewDesk::Technical, $technocratIds),
-                ReviewDesk::Funding->value => $this->chosen(ReviewDesk::Funding, $cabIds),
+                ReviewDesk::Technical->value => $technocratIds === [] ? $this->everyone(ReviewDesk::Technical) : $this->chosen(ReviewDesk::Technical, $technocratIds),
+                ReviewDesk::Funding->value => $cabIds === [] ? $this->everyone(ReviewDesk::Funding) : $this->chosen(ReviewDesk::Funding, $cabIds),
             ];
 
             $this->transitions->transition($locked, CaseStatus::IN_REVIEW, $actor, $instruction);
@@ -111,6 +116,24 @@ final class ForwardForReview
             ->first();
 
         return $row ? ForwardResult::alreadyForwarded($case, $row->actor?->name, $row->created_at) : null;
+    }
+
+    /**
+     * Every eligible user of the desk (EligibleReviewers), or a message when there is none.
+     *
+     * @return list<User>
+     *
+     * @throws ValidationException
+     */
+    private function everyone(ReviewDesk $desk): array
+    {
+        $ids = array_column($this->reviewers->for($desk), 'id');
+        $eligible = $ids === [] ? [] : $this->reviewers->among($desk, $ids);
+        if ($eligible === []) {
+            throw ValidationException::withMessages([$desk->field() => "No {$desk->people()} can take this review yet. Ask ICT to give an officer the role."]);
+        }
+
+        return array_values($eligible);
     }
 
     /**

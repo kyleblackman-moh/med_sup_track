@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Enums\CaseStatus;
 use App\Enums\Permission;
 use App\Enums\ReviewDesk;
+use App\Enums\TrackStatus;
 use App\Http\Resources\Cases\StaffCaseSummary;
 use App\Models\CaseTransition;
 use App\Models\ProcurementCase;
@@ -242,6 +243,10 @@ final class WorkQueue
         foreach ($items as &$item) {
             $item['desk'] = self::deskOf($item['step'], $user);
             $item['desk_label'] = self::DESKS[$item['desk']];
+            // Kyle, 2026-11-26: a reviewer's own task says only their desk ("CAB to Action"), not both.
+            if (in_array($item['step'], ['technical', 'funding'], true) && ($item['status_label'] ?? null) === ActionOwner::TECHNOCRATS_AND_CAB) {
+                $item['status_label'] = $item['desk_label'];
+            }
         }
         unset($item);
 
@@ -315,8 +320,9 @@ final class WorkQueue
      */
     private static function reviewPending(ProcurementCase $case, User $user, ReviewDesk $desk): bool
     {
+        // Kyle, 2026-11-26: one officer's outcome completes the desk, so the task leaves every officer's To Do.
         return TrackCalculator::canRecordReview($case, $user, $desk)
-            && TrackCalculator::reviewers($case, $desk)[(int) $user->getKey()]['latest'] === null;
+            && TrackCalculator::compute($case, $desk) === TrackStatus::PENDING;
     }
 
     /**

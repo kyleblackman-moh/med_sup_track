@@ -88,9 +88,15 @@ function connectors(path: TrackingPath): Map<string, Segments> {
  *
  * Choosing a bar segment or a step shows its details below; the open stage
  * is chosen at first.
+ *
+ * Kyle, 2026-11-26: the steps are coloured circles, no numbers; the one where
+ * the file is now pulses. Hovering a step names it and, for the viewer's own
+ * part only, how long the file was there. A Technocrat, CAB or Legal officer
+ * gets no times for the other offices: the server leaves them out
+ * (FileTracking::forViewer, `mine`), and the bar is then evenly divided.
  */
 export function FileJourney({ tracking }: { tracking: CaseTracking }) {
-    const { current, units, stages, path } = tracking;
+    const { current, units, stages, path, restricted = false } = tracking;
     const firstChosen = () => {
         const open = path.steps.findIndex((s) => s.open && s.kind === 'stage');
         return open >= 0 ? open : Math.max(0, path.steps.length - 1);
@@ -133,12 +139,12 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
                         </p>
                     </div>
                 </div>
-                {current && (
+                {current && current.received_at && (
                     <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                         <div>
                             <dt className="text-base-content/60 text-xs capitalize">Received</dt>
                             <dd className="font-medium tabular-nums">
-                                <time dateTime={current.received_at_iso}>{current.received_at}</time>
+                                <time dateTime={current.received_at_iso ?? undefined}>{current.received_at}</time>
                             </dd>
                         </div>
                         <div>
@@ -157,17 +163,19 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
             <div className="grid gap-2">
                 <div className="flex items-baseline justify-between gap-3">
                     <h3 className="text-sm font-semibold capitalize">Journey</h3>
-                    <p className="text-base-content/60 text-xs">Choose a part of the bar to see that stage</p>
+                    <p className="text-base-content/60 text-xs">
+                        {restricted ? 'Choose a part of the bar to see that stage' : 'Each part is as long as the time taken. Choose one to see it.'}
+                    </p>
                 </div>
                 <div className="bg-base-200 rounded-box flex h-8 w-full gap-0.5 overflow-hidden p-0.5" role="group" aria-label="Stages by time taken">
                     {stages.map((s, i) => (
                         <button
-                            key={`${s.status}-${s.entered_at_iso}`}
+                            key={`${s.status}-${i}`}
                             type="button"
                             onClick={() => chooseStage(i)}
                             aria-pressed={step?.kind === 'stage' && step.stage === i}
-                            aria-label={`${s.label}${s.unit_label ? `, ${s.unit_label}` : ''}: ${s.duration}${s.open ? ', still open' : ''}`}
-                            title={`${s.label}: ${s.duration}`}
+                            aria-label={`${s.label}${s.unit_label ? `, ${s.unit_label}` : ''}${s.duration ? `: ${s.duration}` : ''}${s.open ? ', still open' : ''}`}
+                            title={s.duration ? `${s.label}: ${s.duration}` : s.label}
                             className={cn(
                                 'rounded-field min-w-2 basis-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-1 motion-safe:transition-opacity',
                                 s.unit ? UNIT_FILL[s.unit] : NO_UNIT_FILL,
@@ -175,7 +183,8 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
                                 // The open stage breathes (and its label says "still open"); still for reduced motion.
                                 s.open && 'motion-safe:animate-pulse',
                             )}
-                            style={{ flexGrow: total > 0 ? Math.max(s.duration_seconds, total * 0.01) : 1 }}
+                            // Evenly divided when the viewer may not see every office's times.
+                            style={{ flexGrow: !restricted && total > 0 ? Math.max(s.duration_seconds, total * 0.01) : 1 }}
                         />
                     ))}
                 </div>
@@ -193,7 +202,7 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
             <div className="grid gap-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
                     <h3 className="text-sm font-semibold capitalize">Route Between Offices</h3>
-                    <p className="text-base-content/60 text-xs">Numbered in order. Choose a step to see it.</p>
+                    <p className="text-base-content/60 text-xs">In order, left to right. Hover or choose a step to see it.</p>
                 </div>
                 <div className="border-base-300 rounded-box max-w-full overflow-x-auto border">
                     <div role="group" aria-label="The file's route between offices" className="w-max min-w-full">
@@ -213,7 +222,7 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
                                     const here = index >= 0 ? path.steps[index] : undefined;
 
                                     return (
-                                        <div key={column} className="relative h-20 w-28 shrink-0">
+                                        <div key={column} className="relative h-24 w-28 shrink-0">
                                             {seg.left && (
                                                 <span className={cn(LINE, 'top-1/2 left-0 h-0.5 w-1/2 -translate-y-1/2')} aria-hidden="true" />
                                             )}
@@ -228,27 +237,36 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
                                             )}
                                             {here && (
                                                 <div className="contents">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setChosen(index)}
-                                                        aria-pressed={index === chosen}
-                                                        aria-label={`Step ${here.number}: ${here.label}, ${lane.label}, ${here.entered_at}${here.open ? ', open now' : ''}`}
-                                                        title={`${here.label}: ${here.entered_at}`}
+                                                    <div
                                                         className={cn(
-                                                            'text-base-100 absolute top-1/2 left-1/2 z-10 flex size-7 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-xs font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-safe:transition-transform motion-safe:hover:scale-110',
-                                                            UNIT_FILL[here.lane] ?? NO_UNIT_FILL,
-                                                            index === chosen && 'ring-base-content ring-2 ring-offset-2',
-                                                            here.kind === 'query' && 'rounded-field',
+                                                            'tooltip absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2',
+                                                            laneIdx === 0 ? 'tooltip-bottom' : 'tooltip-top',
                                                         )}
+                                                        data-tip={stepTip(here)}
                                                     >
-                                                        {here.number}
-                                                    </button>
-                                                    {here.open && (
-                                                        <span
-                                                            className="bg-primary/30 absolute top-1/2 left-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full motion-safe:animate-ping"
-                                                            aria-hidden="true"
+                                                        {here.open && (
+                                                            <span
+                                                                className={cn(
+                                                                    'absolute inset-0 rounded-full opacity-60 motion-safe:animate-ping',
+                                                                    UNIT_FILL[here.lane] ?? NO_UNIT_FILL,
+                                                                )}
+                                                                aria-hidden="true"
+                                                            />
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setChosen(index)}
+                                                            aria-pressed={index === chosen}
+                                                            aria-label={`${stepTip(here)}, ${lane.label}`}
+                                                            className={cn(
+                                                                'relative block size-7 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-safe:transition-transform motion-safe:hover:scale-110',
+                                                                UNIT_FILL[here.lane] ?? NO_UNIT_FILL,
+                                                                index === chosen && 'ring-base-content ring-2 ring-offset-2',
+                                                                here.kind === 'query' && 'rounded-field',
+                                                                here.open && 'motion-safe:animate-pulse',
+                                                            )}
                                                         />
-                                                    )}
+                                                    </div>
                                                     <span
                                                         className="text-base-content/70 absolute inset-x-1 bottom-0.5 truncate text-center text-xs"
                                                         aria-hidden="true"
@@ -271,48 +289,60 @@ export function FileJourney({ tracking }: { tracking: CaseTracking }) {
                 <div className="border-base-300 rounded-box grid gap-3 border p-4" aria-live="polite">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className={cn('rounded-field size-2.5 shrink-0', UNIT_FILL[step.lane] ?? NO_UNIT_FILL)} aria-hidden="true" />
-                        <h3 className="text-base font-semibold">
-                            {step.number}. {step.label}
-                        </h3>
+                        <h3 className="text-base font-semibold">{step.label}</h3>
                         <span className="badge badge-ghost badge-sm">{laneLabel(step.lane)}</span>
                         {step.open && <span className="badge badge-primary badge-soft badge-sm capitalize">Current</span>}
                     </div>
-                    <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                        <div>
-                            <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
-                                <Building2 className="size-3.5" aria-hidden="true" />
-                                {step.kind === 'query' ? 'Raised' : 'Arrived'}
-                            </dt>
-                            <dd className="font-medium tabular-nums">{step.entered_at}</dd>
-                        </div>
-                        <div>
-                            <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
-                                <Building2 className="size-3.5" aria-hidden="true" />
-                                {step.kind === 'query' ? 'Answered' : 'Left'}
-                            </dt>
-                            <dd className="font-medium tabular-nums">
-                                {step.kind === 'start' ? '—' : (step.left_at ?? (step.kind === 'query' ? 'Not yet' : 'Still there'))}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
-                                <Clock className="size-3.5" aria-hidden="true" />
-                                Time Taken
-                            </dt>
-                            <dd className="font-medium tabular-nums">{step.duration ?? '—'}</dd>
-                        </div>
-                        <div className="min-w-0">
-                            <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
-                                <Users className="size-3.5" aria-hidden="true" />
-                                Held By
-                            </dt>
-                            <dd className="font-medium">
-                                {step.kind === 'start' || step.kind === 'query' ? laneLabel(step.lane) : stage ? holdersText(stage) : '—'}
-                            </dd>
-                        </div>
-                    </dl>
+                    {step.mine === false ? (
+                        <p className="text-base-content/70 text-sm">The times of this step are for the {laneLabel(step.lane)} to see.</p>
+                    ) : (
+                        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
+                                    <Building2 className="size-3.5" aria-hidden="true" />
+                                    {step.kind === 'query' ? 'Raised' : 'Arrived'}
+                                </dt>
+                                <dd className="font-medium tabular-nums">{step.entered_at ?? '—'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
+                                    <Building2 className="size-3.5" aria-hidden="true" />
+                                    {step.kind === 'query' ? 'Answered' : 'Left'}
+                                </dt>
+                                <dd className="font-medium tabular-nums">
+                                    {step.kind === 'start' ? '—' : (step.left_at ?? (step.kind === 'query' ? 'Not yet' : 'Still there'))}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
+                                    <Clock className="size-3.5" aria-hidden="true" />
+                                    Time Taken
+                                </dt>
+                                <dd className="font-medium tabular-nums">{step.duration ?? '—'}</dd>
+                            </div>
+                            <div className="min-w-0">
+                                <dt className="text-base-content/60 flex items-center gap-1 text-xs capitalize">
+                                    <Users className="size-3.5" aria-hidden="true" />
+                                    Held By
+                                </dt>
+                                <dd className="font-medium">
+                                    {step.kind === 'start' || step.kind === 'query' ? laneLabel(step.lane) : stage ? holdersText(stage) : '—'}
+                                </dd>
+                            </div>
+                        </dl>
+                    )}
                 </div>
             )}
         </div>
     );
+}
+
+/** What hovering a step says: its name, and how long the file was there when the viewer may see that ("With Technocrats: 2 days, still there"). */
+function stepTip(step: TrackingPathStep): string {
+    const where = step.open ? (step.kind === 'query' ? ', not answered yet' : ', the file is here now') : '';
+    if (step.mine === false || !step.duration || step.kind === 'start') {
+        return `${step.label}${where}`;
+    }
+
+    return `${step.label}: ${step.duration}${where}`;
 }

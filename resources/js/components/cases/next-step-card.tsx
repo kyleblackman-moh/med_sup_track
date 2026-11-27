@@ -54,14 +54,16 @@ interface Props {
 
 /** "Received on ...", "Favourable", plus who holds the item. All text from the server. */
 function ChecklistRow({ item }: { item: NextStepItem }) {
-    const Icon = item.done ? CircleCheck : Circle;
+    // Kyle, 2026-11-26: a green tick once the desk has finished (recorded its outcome), whatever the outcome.
+    const finished = item.finished ?? item.done;
+    const Icon = finished ? CircleCheck : Circle;
 
     return (
         <li className="list-row items-start gap-3 px-3 py-2.5">
-            <Icon aria-hidden="true" className={item.done ? 'text-primary mt-0.5 size-4 shrink-0' : 'text-base-content/50 mt-0.5 size-4 shrink-0'} />
+            <Icon aria-hidden="true" className={finished ? 'text-success mt-0.5 size-4 shrink-0' : 'text-base-content/50 mt-0.5 size-4 shrink-0'} />
             <div className="list-col-grow min-w-0 space-y-0.5 text-sm">
                 <p>
-                    <span className="sr-only">{item.done ? 'Done: ' : 'Not done: '}</span>
+                    <span className="sr-only">{finished ? 'Done: ' : 'Not done: '}</span>
                     <span className="font-medium">{item.label}</span>
                     <span className="text-base-content/70"> · {item.state}</span>
                 </p>
@@ -136,7 +138,11 @@ export function NextStepCard({
     onRoute,
     onOpenQueries,
 }: Props) {
-    const [dialog, setDialog] = useState<string | null>(null);
+    // Kyle, 2026-11-26: ?next=<action> (Prepare File sends ?next=send_to_legal) opens that step's dialog at once.
+    const [dialog, setDialog] = useState<string | null>(() => {
+        const wanted = new URLSearchParams(window.location.search).get('next');
+        return wanted !== null && next.actions.some((a) => a.key === wanted && a.enabled) ? wanted : null;
+    });
     const [expanded, setExpanded] = useState<string | null>(null);
 
     // Buttons at the end of the panel: secondary first, the primary step last.

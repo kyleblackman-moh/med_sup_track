@@ -1,7 +1,6 @@
 import { actionTextareaClass } from '@/components/cases/action-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { type ActionConfirm, type EligibleReviewers, type ReviewerOption } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
@@ -19,71 +18,35 @@ interface Props {
     confirm: ActionConfirm;
 }
 
-type Field = 'technocrats' | 'cab_officers';
-
 /** First error for a field or any of its items (technocrats, technocrats.0, ...). */
 function fieldError(errors: Record<string, string>, field: string): string | undefined {
     return errors[field] ?? Object.entries(errors).find(([key]) => key.startsWith(`${field}.`))?.[1];
 }
 
-function ReviewerList({
-    field,
-    legend,
-    options,
-    selected,
-    onToggle,
-    error,
-}: {
-    field: Field;
-    legend: string;
-    options: ReviewerOption[];
-    selected: number[];
-    onToggle: (id: number, on: boolean) => void;
-    error?: string;
-}) {
+/** Kyle, 2026-11-26: who receives it, read-only (no choosing: it goes to both desks). */
+function Recipients({ legend, options, error }: { legend: string; options: ReviewerOption[]; error?: string }) {
     return (
-        <fieldset className="fieldset gap-2 py-0" aria-describedby={`${field}-hint ${field}-error`}>
-            <legend className="fieldset-legend pt-0 capitalize">{legend}</legend>
-            <p id={`${field}-hint`} className="label">
-                Choose 1 to 3.
-            </p>
+        <div className="grid gap-1 text-sm">
+            <p className="font-medium capitalize">{legend}</p>
             {options.length === 0 ? (
-                <p className="text-base-content/70 text-sm">No eligible officers are available.</p>
+                <p className="text-warning">No one can take this yet. Ask ICT to give an officer the role.</p>
             ) : (
-                <ul className="border-base-300 rounded-box grid max-h-48 gap-2 overflow-y-auto border p-3 sm:grid-cols-2">
-                    {options.map((o) => {
-                        const id = `${field}-${o.id}`;
-                        return (
-                            <li key={o.id}>
-                                <label htmlFor={id} className="label text-base-content cursor-pointer gap-2 text-sm">
-                                    <Checkbox id={id} checked={selected.includes(o.id)} onCheckedChange={(v) => onToggle(o.id, v === true)} />
-                                    {o.name}
-                                </label>
-                            </li>
-                        );
-                    })}
-                </ul>
+                <p className="text-base-content/70">{options.map((o) => o.name).join(', ')}</p>
             )}
-            <InputError id={`${field}-error`} message={error} />
-        </fieldset>
+            <InputError message={error} />
+        </div>
     );
 }
 
 /**
  * Send for review (slice 10a, T3), opened from the Next Step card. The dialog
- * is the confirmation: it names the destination and what happens, in the
- * server's words. The server checks every chosen reviewer again.
+ * is the confirmation: it names the case (drug, DIN and reference), the
+ * destination and what happens, in the server's words. Kyle, 2026-11-26: no
+ * reviewer choice; the server assigns every eligible Technocrat and CAB officer.
  */
 export function ForwardForReview({ caseId, reviewers, open, onOpenChange: setOpen, confirm }: Props) {
-    const form = useForm<{ technocrats: number[]; cab_officers: number[]; instruction: string }>({
-        technocrats: [],
-        cab_officers: [],
-        instruction: '',
-    });
+    const form = useForm<{ instruction: string }>({ instruction: '' });
     const errors = form.errors as Record<string, string>;
-
-    const toggle = (field: Field) => (id: number, on: boolean) =>
-        form.setData(field, on ? [...form.data[field].filter((x) => x !== id), id] : form.data[field].filter((x) => x !== id));
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -105,22 +68,10 @@ export function ForwardForReview({ caseId, reviewers, open, onOpenChange: setOpe
                         <DialogDescription>{confirm.body}</DialogDescription>
                     </DialogHeader>
 
-                    <ReviewerList
-                        field="technocrats"
-                        legend="Technocrats"
-                        options={reviewers.technocrats}
-                        selected={form.data.technocrats}
-                        onToggle={toggle('technocrats')}
-                        error={fieldError(errors, 'technocrats')}
-                    />
-                    <ReviewerList
-                        field="cab_officers"
-                        legend="CAB Officers"
-                        options={reviewers.cab_officers}
-                        selected={form.data.cab_officers}
-                        onToggle={toggle('cab_officers')}
-                        error={fieldError(errors, 'cab_officers')}
-                    />
+                    <div className="border-base-300 rounded-box grid gap-3 border p-3 sm:grid-cols-2">
+                        <Recipients legend="Technocrats" options={reviewers.technocrats} error={fieldError(errors, 'technocrats')} />
+                        <Recipients legend="CAB Officers" options={reviewers.cab_officers} error={fieldError(errors, 'cab_officers')} />
+                    </div>
 
                     <fieldset className="fieldset py-0">
                         <label className={LABEL} htmlFor="forward-instruction">

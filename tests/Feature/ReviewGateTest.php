@@ -175,8 +175,10 @@ it('refuses a reviewer whose assignment is completed, even with the permission',
 it('records an outcome, inserts a history row and recalculates the track', function () {
     [$case, $tech] = reviewCase10b();
 
+    // Kyle, 2026-11-26: the reviewer goes back to To Do.
     $this->actingAs($tech)->post(route('cases.technical', $case), ['outcome' => 'favourable', 'reason' => 'Specs match.'])
-        ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('success', 'Technical review recorded.');
+        ->assertRedirect(route('dashboard'))->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Technical review recorded for '.$case->reference_no.'.');
 
     $event = DB::table('case_track_events')->where('case_id', $case->id)->first();
     expect($event->track)->toBe('technical')
@@ -282,13 +284,15 @@ it('derives the track from each reviewer\'s latest outcome', function (string $d
     'one reviewer, nothing yet' => ['technical', 1, [], 'PENDING'],
     'two, both favourable' => ['technical', 2, [[0, 'favourable'], [1, 'favourable']], 'FAVOURABLE'],
     'two, one not favourable' => ['technical', 2, [[0, 'favourable'], [1, 'not_favourable']], 'NOT_FAVOURABLE'],
-    'two, one still pending' => ['technical', 2, [[0, 'favourable']], 'PENDING'],
+    // Kyle, 2026-11-26: the whole desk gets the case, and one officer's outcome completes it (the latest decides).
+    'two, one recorded' => ['technical', 2, [[0, 'favourable']], 'FAVOURABLE'],
+    'two, the later outcome decides' => ['technical', 2, [[0, 'not_favourable'], [1, 'favourable']], 'FAVOURABLE'],
     'two, a negative while the other is pending' => ['technical', 2, [[0, 'not_favourable']], 'NOT_FAVOURABLE'],
     'two, one flips negative to positive' => ['technical', 2, [[0, 'not_favourable'], [1, 'favourable'], [0, 'favourable']], 'FAVOURABLE'],
     'two, one flips positive to negative' => ['technical', 2, [[0, 'favourable'], [1, 'favourable'], [1, 'not_favourable']], 'NOT_FAVOURABLE'],
     'funding, two confirmed' => ['funding', 2, [[0, 'confirmed'], [1, 'confirmed']], 'CONFIRMED'],
     'funding, one not confirmed' => ['funding', 2, [[0, 'confirmed'], [1, 'not_confirmed']], 'NOT_CONFIRMED'],
-    'funding, three, one pending' => ['funding', 3, [[0, 'confirmed'], [2, 'confirmed']], 'PENDING'],
+    'funding, three, one recorded' => ['funding', 3, [[2, 'confirmed']], 'CONFIRMED'],
 ]);
 
 it('ignores the outcome of a reviewer who is no longer actively assigned', function () {

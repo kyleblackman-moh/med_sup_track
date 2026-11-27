@@ -237,6 +237,21 @@ it('lets the chosen reviewers see the case and nobody else new', function () {
         ->and($listed($otherTech))->not->toContain($case->id);
 });
 
+// Kyle, 2026-11-26: the dialog no longer picks reviewers; an empty choice goes to every eligible officer.
+it('sends the review to every eligible Technocrat and CAB officer when none are chosen', function () {
+    [$case] = intakeCase10a();
+    $tech = reviewer10a(Role::Technocrat);
+    $cab = reviewer10a(Role::CabOfficer);
+    $inactive = reviewer10a(Role::Technocrat, ['status' => User::STATUS_DISABLED]);
+
+    forward10a(caseUser(Role::Cmo), $case, [])->assertRedirect()->assertSessionHasNoErrors();
+
+    $assigned = fn (string $purpose) => DB::table('case_assignments')->where('case_id', $case->id)->where('purpose', $purpose)->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+    expect(caseRow10a($case)->status)->toBe('IN_REVIEW')
+        ->and($assigned('technical'))->toContain($tech->id)->not->toContain($inactive->id)
+        ->and($assigned('funding'))->toContain($cab->id);
+});
+
 // 3. Validation ------------------------------------------------------------------
 
 it('refuses invalid reviewer choices with field errors and no state change', function (Closure $build, string $errorKey) {
@@ -248,9 +263,6 @@ it('refuses invalid reviewer choices with field errors and no state change', fun
 
     expect(snapshot10a($case))->toBe($before);
 })->with([
-    'no technocrats' => [fn () => payload10a([], [reviewer10a(Role::CabOfficer)]), 'technocrats'],
-    'no CAB officers' => [fn () => payload10a([reviewer10a(Role::Technocrat)], []), 'cab_officers'],
-    'technocrats missing' => [fn () => ['cab_officers' => [reviewer10a(Role::CabOfficer)->id]], 'technocrats'],
     'four technocrats' => [fn () => payload10a(
         [reviewer10a(Role::Technocrat), reviewer10a(Role::Technocrat), reviewer10a(Role::Technocrat), reviewer10a(Role::Technocrat)],
         [reviewer10a(Role::CabOfficer)],

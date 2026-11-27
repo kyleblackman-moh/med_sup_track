@@ -62,11 +62,12 @@ class StaffCaseActionController extends Controller
             }
         }
 
+        // Kyle, 2026-11-26: no choice needed; empty lists send it to every eligible officer of each desk.
         $max = ForwardForReview::MAX_PER_DESK;
         $validated = $this->validateForm($request, [
-            'technocrats' => ['required', 'array', 'min:1', "max:{$max}"],
+            'technocrats' => ['nullable', 'array', "max:{$max}"],
             'technocrats.*' => ['integer', 'exists:users,id'],
-            'cab_officers' => ['required', 'array', 'min:1', "max:{$max}"],
+            'cab_officers' => ['nullable', 'array', "max:{$max}"],
             'cab_officers.*' => ['integer', 'exists:users,id'],
             'instruction' => ['nullable', 'string', 'max:'.ForwardForReview::INSTRUCTION_MAX],
         ], [
@@ -86,8 +87,8 @@ class StaffCaseActionController extends Controller
             $result = $forward->handle(
                 $procurementCase,
                 $request->user(),
-                $validated['technocrats'],
-                $validated['cab_officers'],
+                $validated['technocrats'] ?? [],
+                $validated['cab_officers'] ?? [],
                 $validated['instruction'] ?? null,
             );
         } catch (InvalidTransition|StaleTransition) {
@@ -110,7 +111,8 @@ class StaffCaseActionController extends Controller
 
         $record->handle($procurementCase, $request->user(), $validated['outcome'], $validated['reason'] ?? null);
 
-        return back()->with('success', 'Technical review recorded.');
+        // Kyle, 2026-11-26: their part is done, so back to To Do (the task has left it).
+        return redirect()->route('dashboard')->with('success', 'Technical review recorded for '.($procurementCase->reference_no ?? 'the case').'.');
     }
 
     /** A CAB officer records Availability of Funds | Verified by Accounts | Virement Required (Kyle, 2026-11-24). */
@@ -124,7 +126,8 @@ class StaffCaseActionController extends Controller
 
         $record->handle($procurementCase, $request->user(), $validated['outcome'], $validated['reason'] ?? null);
 
-        return back()->with('success', 'Funding outcome recorded.');
+        // Kyle, 2026-11-26: their part is done, so back to To Do (the task has left it).
+        return redirect()->route('dashboard')->with('success', 'Funding outcome recorded for '.($procurementCase->reference_no ?? 'the case').'.');
     }
 
     /** Slice 10b: T4. The gate guard decides; failures come back as the 'gate' error. */
@@ -151,7 +154,9 @@ class StaffCaseActionController extends Controller
             return back()->with('info', 'The file was already prepared'.($result->detail ? " as {$result->detail}" : '').' by '.$result->byLine().'.');
         }
 
-        return back()->with('success', 'File prepared.');
+        // Kyle, 2026-11-26: straight on to Send to Legal (the case page opens that step).
+        return redirect()->route('cases.show', ['procurementCase' => $procurementCase, 'next' => 'send_to_legal'])
+            ->with('success', 'File prepared. Now send it to the Legal Unit.');
     }
 
     /** Slice 10c: T6. The service re-checks each officer's eligibility by permission. */
@@ -207,7 +212,8 @@ class StaffCaseActionController extends Controller
             return back()->with('info', 'The Legal decision was already recorded ('.$result->detail.') by '.$result->byLine().'.');
         }
 
-        return back()->with('success', $validated['decision'] === RecordLegalDecision::CONFIRMED
+        // Kyle, 2026-11-26: Legal's part is done, so back to To Do.
+        return redirect()->route('dashboard')->with('success', $validated['decision'] === RecordLegalDecision::CONFIRMED
             ? 'Contract confirmed. The case is now with the PS office.'
             : 'Case returned to the CMO with a query.');
     }

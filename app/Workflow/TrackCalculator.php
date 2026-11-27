@@ -4,6 +4,7 @@ namespace App\Workflow;
 
 use App\Enums\CaseStatus;
 use App\Enums\ReviewDesk;
+use App\Enums\ReviewOutcome;
 use App\Enums\TrackStatus;
 use App\Models\CaseAssignment;
 use App\Models\CaseTrackEvent;
@@ -20,10 +21,13 @@ use Illuminate\Support\Facades\Gate;
  * never by role name. For each of them only their LATEST event counts, and only
  * an event created at or after that reviewer's active assignment's assigned_at
  * (slice 10e: a new review round starts blank, so an outcome from an earlier
- * round never counts). Then:
- *   - negative if ANY reviewer's latest outcome is negative;
- *   - positive only if EVERY reviewer's latest outcome is positive;
- *   - pending otherwise (including a track with no active reviewers).
+ * round never counts).
+ *
+ * Kyle, 2026-11-26: the case now goes to the whole desk (every eligible
+ * officer), so ONE officer's outcome completes the desk: the most recent
+ * outcome among the active reviewers decides the track (positive or
+ * negative); pending while none has recorded (or with no active reviewers).
+ * Was: negative if any was negative, positive only if every one was.
  * An event by someone who is no longer an active reviewer is ignored.
  *
  * Precision: case_assignments.assigned_at and case_track_events.created_at are
@@ -84,6 +88,12 @@ final class TrackCalculator
             && Gate::forUser($user)->allows('act', [$case, $desk->permission()->value]);
     }
 
+    /** Kyle, 2026-11-26: the desk's most recent outcome (the one that decides the track), or null while none is recorded. */
+    public static function latestOutcome(ProcurementCase $case, ReviewDesk $desk): ?ReviewOutcome
+    {
+        return self::reviewers($case, $desk)->pluck('latest')->filter()->sortBy(fn ($e) => (int) $e->getKey())->last()?->outcome;
+    }
+
     public static function compute(ProcurementCase $case, ReviewDesk $desk): TrackStatus
     {
         $reviewers = self::reviewers($case, $desk);
@@ -92,16 +102,13 @@ final class TrackCalculator
             return TrackStatus::PENDING;
         }
 
-        $outcomes = $reviewers->map(fn (array $r) => $r['latest']?->outcome);
+        // The most recent outcome of the desk (event ids only grow).
+        $latest = $reviewers->pluck('latest')->filter()->sortBy(fn ($e) => (int) $e->getKey())->last();
 
-        if ($outcomes->contains(fn ($o) => $o !== null && ! $o->isPositive())) {
-            return $desk->negativeTrack();
+        if ($latest === null || $latest->outcome === null) {
+            return TrackStatus::PENDING;
         }
 
-        if ($outcomes->every(fn ($o) => $o !== null && $o->isPositive())) {
-            return $desk->positiveTrack();
-        }
-
-        return TrackStatus::PENDING;
+        return $latest->outcome->isPositive() ? $desk->positiveTrack() : $desk->negativeTrack();
     }
 }

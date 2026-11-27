@@ -386,7 +386,7 @@ it('keeps the first-round Technocrat read-only: sees the case, cannot record an 
         ->and(row10e($case)->technical_track)->toBe('PENDING');
 });
 
-it('does not count a stale FAVOURABLE; the round waits for every new reviewer', function () {
+it('does not count a stale FAVOURABLE; a new reviewer\'s outcome completes the round', function () {
     ['case' => $case, 'tech' => $tech] = returned10e('legal');
     $x = caseUser(Role::Technocrat);
 
@@ -394,8 +394,9 @@ it('does not count a stale FAVOURABLE; the round waits for every new reviewer', 
     $this->travel(1)->hours();
     app(RecordTechnicalReview::class)->handle(fresh10e($case), $x, 'favourable');
 
-    // The re-chosen reviewer's round-one FAVOURABLE does not count.
-    expect(row10e($case)->technical_track)->toBe('PENDING');
+    // Kyle, 2026-11-26: one officer's outcome completes the desk; the re-chosen
+    // reviewer's round-one FAVOURABLE still does not count for them.
+    expect(row10e($case)->technical_track)->toBe('FAVOURABLE');
 
     $panel = StaffCaseDetail::for(fresh10e($case), caseUser(Role::Cmo))['gate']['rows'][0]['reviewers'];
     expect(collect($panel)->firstWhere('name', $tech->name)['outcome'])->toBeNull();

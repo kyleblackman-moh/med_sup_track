@@ -241,10 +241,15 @@ it('blocks Mark Ready for File until hardcopy, technical and funding are all don
         // The CMO may record the hardcopy, so the inline form is there.
         ->and($checklist['hardcopy']['hardcopy_form'])->not->toBeNull();
 
-    // A Technocrat sees the same checklist but no form and no CMO button.
+    // Kyle, 2026-11-26: a Technocrat sees only their own item (no hardcopy, no funding) and no CMO button;
+    // CAB sees only theirs, ticked once recorded.
     $tech = NextStep::for($case, $actors['technocrat']);
-    expect(collect($tech['checklist'])->firstWhere('key', 'hardcopy')['hardcopy_form'])->toBeNull()
-        ->and(nsKeys($tech))->toBe(['record_technical']);
+    $cab = NextStep::for($case, $actors['cab']);
+    expect(array_column($tech['checklist'], 'key'))->toBe(['technical'])
+        ->and(nsKeys($tech))->toBe(['record_technical'])
+        ->and(array_column($cab['checklist'], 'key'))->toBe(['funding'])
+        ->and($cab['checklist'][0]['finished'])->toBeTrue()
+        ->and($cab['holder'])->toBe('CAB');
 
     // All three done: enabled, no reason.
     $done = nsCase(S::IN_REVIEW, $actors);

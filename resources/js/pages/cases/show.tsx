@@ -3,7 +3,7 @@ import { CaseTimeline } from '@/components/cases/case-timeline';
 import { CaseEndedAlert, EndCasePanel } from '@/components/cases/end-case';
 import { ExpiryFlag } from '@/components/cases/expiry-flag';
 import { FileJourney } from '@/components/cases/file-journey';
-import { GateTracker } from '@/components/cases/gate-tracker';
+import { FundingFigures, type FundingSummary } from '@/components/cases/funding-figures';
 import { NextStepCard } from '@/components/cases/next-step-card';
 import { QueriesPanel } from '@/components/cases/queries-panel';
 import { SendOnwardPanel } from '@/components/cases/send-onward';
@@ -42,7 +42,7 @@ import {
 import { type RequestSummaryView } from '@/types/summary';
 import { type CaseTracking } from '@/types/tracking';
 import { Head, Link } from '@inertiajs/react';
-import { CircleCheck, FileText, History, Info, Mail, Printer, Route, ShieldCheck, Signpost, Undo2, Users, X } from 'lucide-react';
+import { CircleCheck, FileText, History, Info, Mail, Printer, Route, Signpost, Undo2, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface Props {
@@ -80,6 +80,8 @@ interface Props {
     ended: CaseEnded | null;
     /** V2-3: the one RequestSummary for a request-form case; null for the old Pharm and Non-Pharm types. */
     summary: RequestSummaryView | null;
+    /** Kyle, 2026-11-26: the funding figures, for a funding reviewer only (null otherwise). */
+    funding_summary?: FundingSummary | null;
     /** OVERNIGHT-2 (D2): the queries this user may see, and the routes they may raise one on. */
     queries: StaffQueries;
     can: StaffCaseAbilities;
@@ -157,7 +159,10 @@ const NEXT_STEP_PANEL = 'next-step-panel';
 function wantsNextStep(): boolean {
     const hash = window.location.hash;
 
-    return new URLSearchParams(window.location.search).get('tab') === 'actions' || hash === '#next-step' || hash === '#case-actions';
+    const params = new URLSearchParams(window.location.search);
+
+    // Kyle, 2026-11-26: ?next=send_to_legal (after Prepare File) opens the panel on that step.
+    return params.get('tab') === 'actions' || params.has('next') || hash === '#next-step' || hash === '#case-actions';
 }
 
 function tabFromUrl(ids: TabId[]): TabId {
@@ -187,7 +192,6 @@ export default function CaseShow({
     timeline,
     tracking,
     assignments,
-    gate,
     review_forms,
     reviewers,
     file_no_default,
@@ -202,6 +206,7 @@ export default function CaseShow({
     letter_dates,
     ended,
     summary,
+    funding_summary: fundingSummary = null,
     queries,
     can,
 }: Props) {
@@ -451,6 +456,8 @@ export default function CaseShow({
                                 key={active}
                                 className="flex min-w-0 flex-col gap-4 motion-safe:transition-opacity motion-safe:duration-300 motion-safe:starting:opacity-0"
                             >
+                                {active === 'details' && fundingSummary && <FundingFigures summary={fundingSummary} />}
+
                                 {summary
                                     ? active === 'details' && <RequestSummary summary={summary} idPrefix="case" />
                                     : (active === 'details' ||
@@ -525,16 +532,11 @@ export default function CaseShow({
                                     </>
                                 )}
 
+                                {/* Kyle, 2026-11-26: no Gate card; the Next Step checklist says what is outstanding. */}
                                 {active === 'tracking' && tracking && (
-                                    <>
-                                        <Card title="Where Is The File" id="tracking-heading" icon={Route}>
-                                            <FileJourney tracking={tracking} />
-                                        </Card>
-
-                                        <Card title="Gate" id="gate-heading" icon={ShieldCheck}>
-                                            <GateTracker gate={gate} />
-                                        </Card>
-                                    </>
+                                    <Card title="Where Is The File" id="tracking-heading" icon={Route}>
+                                        <FileJourney tracking={tracking} />
+                                    </Card>
                                 )}
 
                                 {active === 'history' && (
@@ -649,7 +651,6 @@ export default function CaseShow({
                     itemDescription={detail.item_description}
                     statusLabel={detail.status_label}
                     returned={returned}
-                    gate={gate}
                     panel={route_panel}
                     initialDestination={routeTo}
                     key={routeTo ?? 'suggested'}

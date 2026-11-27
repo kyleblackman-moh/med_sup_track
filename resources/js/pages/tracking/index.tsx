@@ -5,9 +5,9 @@ import { StatusPill } from '@/components/ui/status-pill';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
-import { type FileTrackingRow, type FileTrackingTimeline, type GateTick } from '@/types/tracking';
+import { type FileTrackingRow, type FileTrackingTimeline } from '@/types/tracking';
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, ChevronDown, Minus } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Fragment, useState } from 'react';
 
 interface Props {
@@ -20,32 +20,6 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'File Tracking', href: '/tracking' }];
 
 const HEADERS = ['Reference', 'Item', 'Current Stage', 'Current Holder(s)', 'Time at Current Stage', 'Total Time', 'Times Returned'] as const;
-
-/** The gate's three ticks for a case in review: a filled tick is done; each says its state in words too. */
-function GateTicks({ ticks }: { ticks: GateTick[] }) {
-    return (
-        <ul aria-label="Gate" className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {ticks.map((tick) => (
-                <li key={tick.key} className="flex items-center gap-1.5">
-                    <span
-                        aria-hidden="true"
-                        className={cn(
-                            'flex size-4 shrink-0 items-center justify-center rounded-full',
-                            tick.done ? 'bg-primary text-primary-content' : 'border-base-300 text-base-content/50 border',
-                        )}
-                    >
-                        {tick.done ? <Check className="size-3" /> : <Minus className="size-3" />}
-                    </span>
-                    <span className="capitalize">{tick.label}</span>
-                    <span className="text-base-content/70">
-                        <span className="sr-only">{tick.done ? 'done' : 'not done'}: </span>
-                        {tick.state}
-                    </span>
-                </li>
-            ))}
-        </ul>
-    );
-}
 
 /** Every stage visit of one case, repeats included ("With Legal (2nd time)"), as the server sends them. */
 function StageTimeline({ timeline }: { timeline: FileTrackingTimeline | null | undefined }) {
@@ -85,7 +59,7 @@ function StageTimeline({ timeline }: { timeline: FileTrackingTimeline | null | u
                             <td className="whitespace-nowrap">{stage.unit_label ?? '—'}</td>
                             <td>{holdersText(stage)}</td>
                             <td className="whitespace-nowrap tabular-nums">
-                                <time dateTime={stage.entered_at_iso}>{stage.entered_at}</time>
+                                <time dateTime={stage.entered_at_iso ?? undefined}>{stage.entered_at}</time>
                             </td>
                             <td className="whitespace-nowrap tabular-nums">
                                 {stage.left_at && stage.left_at_iso ? <time dateTime={stage.left_at_iso}>{stage.left_at}</time> : 'Now'}
@@ -182,11 +156,6 @@ export default function FileTrackingIndex({ rows, timeline }: Props) {
                                                     </td>
                                                     <td className="min-w-48">
                                                         <span className="block">{row.item ?? '—'}</span>
-                                                        {row.gate && (
-                                                            <div className="mt-1">
-                                                                <GateTicks ticks={row.gate} />
-                                                            </div>
-                                                        )}
                                                     </td>
                                                     <td className="whitespace-nowrap">
                                                         <StatusPill label={row.stage} tone={row.status_tone} inColumn className="capitalize" />

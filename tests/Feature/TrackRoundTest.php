@@ -97,12 +97,11 @@ it('ignores a stale FAVOURABLE from an earlier round', function () {
     expect(techTrack($case))->toBe('FAVOURABLE');
 
     newRound($case, $a, $b);
+    // A's round-one FAVOURABLE no longer counts; the new round starts blank.
+    expect(TrackCalculator::compute(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), ReviewDesk::Technical))->toBe(TrackStatus::PENDING);
+
+    // Kyle, 2026-11-26: one officer's outcome completes the desk.
     recordTech($case, $b, 'favourable');
-
-    // A's round-one FAVOURABLE no longer counts, so the track waits for A.
-    expect(techTrack($case))->toBe('PENDING');
-
-    recordTech($case, $a, 'favourable');
     expect(techTrack($case))->toBe('FAVOURABLE');
 });
 
@@ -129,10 +128,10 @@ it('does not count a NOT_FAVOURABLE from round one in round two', function () {
 
     $b = caseUser(Role::Technocrat);
     newRound($case, $a, $b);
-    recordTech($case, $b, 'favourable');
-    expect(techTrack($case))->toBe('PENDING');
+    expect(TrackCalculator::compute(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), ReviewDesk::Technical))->toBe(TrackStatus::PENDING);
 
-    recordTech($case, $a, 'favourable');
+    // Kyle, 2026-11-26: one officer's outcome completes the desk.
+    recordTech($case, $b, 'favourable');
     expect(techTrack($case))->toBe('FAVOURABLE');
 });
 
