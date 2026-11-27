@@ -306,7 +306,8 @@ final class DashboardView
 
             return [
                 ...$item,
-                'href' => route('cases.show', $item['case_id'], false),
+                // Kyle, 2026-11-27: a query task opens the case on its Queries tab.
+                'href' => route('cases.show', str_starts_with($item['step'], 'query_') ? [$item['case_id'], 'tab' => 'queries'] : $item['case_id'], false),
                 'type_label' => $case?->procurementType?->name,
                 'waiting' => self::waiting($item['days_waiting']),
                 'tags' => $case === null ? [] : self::tags($case, $returnedFrom->get($item['case_id'])),
