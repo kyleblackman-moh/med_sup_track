@@ -1,11 +1,14 @@
+import { MessageField } from '@/components/cases/queries-panel';
+import InputError from '@/components/input-error';
 import { PageContent, PageHeader } from '@/components/page-header';
 import { FlashMessages } from '@/components/requests/flash-messages';
 import AppLayout from '@/layouts/app-layout';
 import { fullTime } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowRight, FilterX, MessageSquareText } from 'lucide-react';
+import { FormEvent } from 'react';
 
 type QueryFilter = 'all' | 'answer' | 'forward';
 
@@ -21,6 +24,14 @@ interface QueryInboxRow {
     waiting_since: string | null;
     days_waiting: number | null;
     url: string;
+    /** Kyle, 2026-11-27: staff answer or forward here (QueryView::inbox); null for vendors, who use the link. */
+    respond: QueryRespond | null;
+}
+
+interface QueryRespond {
+    messages: { id: string; from_label: string; author: string | null; to_label: string; body: string; sent_on: string | null; held: boolean }[];
+    answer: { url: string; label: string } | null;
+    forward: { url: string; label: string; to: string } | null;
 }
 
 interface Props {
@@ -41,6 +52,86 @@ const EMPTY: Record<QueryFilter, string> = {
     answer: 'No queries are waiting for your answer.',
     forward: 'No queries are waiting to be forwarded.',
 };
+
+/**
+ * Kyle, 2026-11-27: answer or forward a query without leaving the page. The
+ * latest messages, then the answer box or the forward confirmation, buttons
+ * at the end. The server checks everything again and brings the user back
+ * here (from: 'queries').
+ */
+function RespondHere({ row, respond }: { row: QueryInboxRow; respond: QueryRespond }) {
+    const answer = useForm({ body: '', from: 'queries' });
+    const forward = useForm({ from: 'queries' });
+    const errors = Object.values({ ...(answer.errors as Record<string, string>), ...(forward.errors as Record<string, string>) }).filter(
+        (m) => m !== answer.errors.body,
+    );
+    const fieldId = `inbox-answer-${row.id}`;
+    const label = respond.forward?.label ?? respond.answer?.label ?? row.action;
+
+    const submitAnswer = (e: FormEvent) => {
+        e.preventDefault();
+        if (respond.answer) answer.post(respond.answer.url, { preserveScroll: true });
+    };
+
+    return (
+        <details
+            className="collapse-arrow border-base-300 bg-base-100 rounded-box collapse min-w-0 border"
+            open={Boolean(answer.errors.body) || undefined}
+        >
+            <summary className="collapse-title hover:bg-base-200 min-h-0 py-2.5 ps-4 pe-10 text-sm font-medium capitalize motion-safe:transition-colors">
+                {respond.answer ? 'Answer Here' : 'Forward Here'}
+            </summary>
+            <form onSubmit={submitAnswer} noValidate className="collapse-content min-w-0 space-y-3 px-4">
+                <ol className="list bg-base-200 rounded-box" aria-label={`Latest messages, ${row.reference_no ?? row.title}`}>
+                    {respond.messages.map((m) => (
+                        <li key={m.id} className="list-row block space-y-1 py-2.5">
+                            <p className="text-xs">
+                                <span className="font-medium">{m.from_label}</span>
+                                {m.author && <span className="text-base-content/70"> ({m.author})</span>}
+                                <span className="text-base-content/70"> to {m.to_label}</span>
+                                {m.sent_on && <span className="text-base-content/70 tabular-nums"> · {m.sent_on}</span>}
+                            </p>
+                            <p className="text-sm whitespace-pre-line">{m.body}</p>
+                        </li>
+                    ))}
+                </ol>
+
+                {respond.answer && (
+                    <MessageField id={fieldId} value={answer.data.body} onChange={(v) => answer.setData('body', v)} error={answer.errors.body} />
+                )}
+                {respond.forward && (
+                    <p className="text-sm">The message goes to {respond.forward.to} as written. You are recorded as the person who forwarded it.</p>
+                )}
+                {errors.map((m) => (
+                    <InputError key={m} message={m} />
+                ))}
+
+                <div className="border-base-300 flex flex-wrap justify-end gap-2 border-t pt-3">
+                    {respond.answer ? (
+                        <button
+                            type="submit"
+                            className="btn btn-sm capitalize active:scale-[0.97]"
+                            disabled={answer.processing || answer.data.body.trim() === ''}
+                        >
+                            {answer.processing ? 'Sending…' : label}
+                        </button>
+                    ) : (
+                        respond.forward && (
+                            <button
+                                type="button"
+                                className="btn btn-sm capitalize active:scale-[0.97]"
+                                disabled={forward.processing}
+                                onClick={() => respond.forward && forward.post(respond.forward.url, { preserveScroll: true })}
+                            >
+                                {forward.processing ? 'Forwarding…' : label}
+                            </button>
+                        )
+                    )}
+                </div>
+            </form>
+        </details>
+    );
+}
 
 function waitingText(days: number | null): string {
     if (days === null) return 'Waiting';
@@ -143,12 +234,17 @@ export default function QueriesIndex({ queries, filter, counts, forward_desk }: 
                                     </div>
                                     <Link
                                         href={row.url}
-                                        className="btn btn-sm capitalize"
-                                        aria-label={`${row.action}: ${row.reference_no ?? row.title}`}
+                                        className={cn('btn btn-sm capitalize', row.respond && 'btn-ghost')}
+                                        aria-label={`${row.respond ? 'Open Case' : row.action}: ${row.reference_no ?? row.title}`}
                                     >
-                                        {row.action}
+                                        {row.respond ? 'Open Case' : row.action}
                                         <ArrowRight className="size-4" aria-hidden="true" />
                                     </Link>
+                                    {row.respond && (
+                                        <div className="list-col-wrap min-w-0">
+                                            <RespondHere row={row} respond={row.respond} />
+                                        </div>
+                                    )}
                                 </li>
                             ))}
                         </ul>

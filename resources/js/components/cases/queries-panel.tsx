@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { StatusPill } from '@/components/ui/status-pill';
+import { cn } from '@/lib/utils';
 import { type StaffQueries, type StaffQuery, type StaffQueryMessage } from '@/types/cases';
 import { useForm } from '@inertiajs/react';
 import { MessageCircleQuestion, MessageSquarePlus, Reply } from 'lucide-react';
@@ -11,8 +12,8 @@ import { FormEvent, useState } from 'react';
 
 const BODY_MAX = 2000;
 
-/** The message box shared by Raise, Answer and Add a Message. */
-function MessageField({
+/** The message box shared by Raise, Answer and Add a Message (and the Queries page). */
+export function MessageField({
     id,
     value,
     onChange,
@@ -170,13 +171,15 @@ function QueryCard({ caseId, query }: { caseId: string; query: StaffQuery }) {
     const reply = useForm({ body: '' });
     const close = useForm({});
     const [confirmClose, setConfirmClose] = useState(false);
-    const [replying, setReplying] = useState(false);
+    // Kyle, 2026-11-27: a query waiting on this user's answer opens with the answer box ready.
+    const [replying, setReplying] = useState(query.needs_my_answer);
     const replyId = `query-${query.id}-reply`;
     const forwards = query.messages.filter((m) => m.forward);
     const replyError = reply.errors.body ?? (reply.errors as Record<string, string>).reply;
     const showReply = query.can_reply && (replying || Boolean(replyError));
     const hasActions = query.can_close || query.can_reply || forwards.length > 0;
-    const actionNeeded = query.can_reply || forwards.length > 0;
+    // Kyle, 2026-11-27: only what waits on this user (the server's rule), not every query they could add to.
+    const actionNeeded = query.needs_my_answer || query.needs_my_forward;
 
     const submitReply = (e: FormEvent) => {
         e.preventDefault();
@@ -196,7 +199,13 @@ function QueryCard({ caseId, query }: { caseId: string; query: StaffQuery }) {
     };
 
     return (
-        <details className="collapse-arrow border-base-300 rounded-box bg-base-100 collapse min-w-0 border">
+        <details
+            className={cn(
+                'collapse-arrow rounded-box bg-base-100 collapse min-w-0 border',
+                actionNeeded ? 'border-warning border-s-4' : 'border-base-300',
+            )}
+            open={actionNeeded || undefined}
+        >
             <summary className="collapse-title hover:bg-base-200 min-h-0 py-3 ps-4 pe-10 motion-safe:transition-colors">
                 <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -325,7 +334,7 @@ function QueryCard({ caseId, query }: { caseId: string; query: StaffQuery }) {
  * QueryView DTO; the server authorises every request again.
  */
 export function QueriesPanel({ caseId, data }: { caseId: string; data: StaffQueries }) {
-    const waiting = data.queries.filter((q) => q.can_reply || q.messages.some((m) => m.forward)).length;
+    const waiting = data.queries.filter((q) => q.needs_my_answer || q.needs_my_forward).length;
 
     return (
         <section aria-labelledby="queries-heading" className="flex flex-col gap-2">

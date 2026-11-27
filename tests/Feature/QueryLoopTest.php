@@ -15,6 +15,7 @@ use App\Notifications\Queries\QueryAnswered;
 use App\Notifications\Queries\QueryRaised;
 use App\Notifications\Vendor\VendorQueryReceived;
 use App\Queries\QueryAccess;
+use App\Queries\QueryInbox;
 use App\Queries\QueryService;
 use App\Queries\QueryView;
 use App\Support\WorkQueue;
@@ -144,6 +145,40 @@ it('holds a Legal query for the CMO, then delivers it once forwarded', function 
         ->and($forwarded->body)->toBe('Legal words for the Technocrats')
         ->and(qlFresh($query)->status)->toBe(QueryStatus::OPEN)
         ->and(qlSees($this->a['technocrat'], $this->case))->toBe([$query->id]);
+});
+
+// Kyle, 2026-11-27: forwarding and answering are each a part done: back to To Do, and the
+// counts drop. Once the answer is back with the raiser, nothing waits on anyone.
+it('goes back to To Do after a forward and an answer, and clears every count once answered', function () {
+    $query = qlRaise($this->a['legal'], $this->case, qlRoute('legal_officer', 'technocrat'));
+    // This query only (a shared database may hold other open queries).
+    $due = fn (User $u) => collect(QueryInbox::due($u))->filter(fn (array $d) => (string) $d['query']->getKey() === (string) $query->id)->count();
+    $needs = fn (User $u) => collect(QueryView::forStaff($this->case, $u)['queries'])->firstWhere('id', (string) $query->id);
+
+    expect($due($this->a['cmo']))->toBe(1);
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]))
+        ->assertRedirect(route('dashboard'))->assertSessionHasNoErrors();
+    expect($due($this->a['cmo']))->toBe(0)
+        ->and($due($this->a['technocrat']))->toBe(1);
+
+    $this->actingAs($this->a['technocrat']);
+    expect($needs($this->a['technocrat'])['needs_my_answer'])->toBeTrue();
+    $this->post(route('cases.queries.reply', [$this->case, $query->id]), ['body' => 'The technical answer'])
+        ->assertRedirect(route('dashboard'))->assertSessionHasNoErrors();
+    expect($due($this->a['technocrat']))->toBe(0);
+
+    $this->actingAs($this->a['cmo'])->post(route('cases.queries.forward', [$this->case, $query->id, qlHeld($query)->id]))->assertSessionHasNoErrors();
+
+    expect(qlFresh($query)->status)->toBe(QueryStatus::ANSWERED);
+    foreach (['cmo', 'technocrat', 'legal'] as $who) {
+        $this->actingAs($this->a[$who]);
+        $view = $needs($this->a[$who]);
+        expect($due($this->a[$who]))->toBe(0)
+            ->and($view['needs_my_answer'])->toBeFalse()
+            ->and($view['needs_my_forward'])->toBeFalse();
+    }
+    // The raiser can still reply to the answer, without that counting as waiting work.
+    expect($needs($this->a['legal'])['can_reply'])->toBeTrue();
 });
 
 it('returns the answer by the reverse route, held for the CMO again', function () {

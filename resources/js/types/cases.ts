@@ -369,6 +369,10 @@ export interface StaffQuery {
     waiting_on: string | null;
     read_only: boolean;
     can_reply: boolean;
+    /** D4: the query waits on this user's answer (the same rule as To Do and the sidebar count). */
+    needs_my_answer: boolean;
+    /** D4: this user (the CMO's desk) has a held message to forward. */
+    needs_my_forward: boolean;
     reply_label: string;
     can_close: boolean;
     /** WORKFLOW-2 (Step 4): the thread stated plainly, worded on the server. */

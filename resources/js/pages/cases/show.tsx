@@ -121,7 +121,17 @@ function Card({ title, id, icon: Icon, children }: { title: string; id: string; 
  * with Awards & orders only when the case has any. The actions are not a tab:
  * they sit in the action column beside the tabs.
  */
-function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: boolean): TabItem<TabId>[] {
+function buildTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: boolean, queryWaiting: boolean): TabItem<TabId>[] {
+    const tabs = baseTabs(detail, hasSummary, queryOnly);
+    if (!queryWaiting) {
+        return tabs;
+    }
+
+    // Kyle, 2026-11-27: a query waiting on this user puts Queries first (and opens it).
+    return [...tabs.filter((t) => t.id === 'queries'), ...tabs.filter((t) => t.id !== 'queries')];
+}
+
+function baseTabs(detail: StaffCaseDetail, hasSummary: boolean, queryOnly: boolean): TabItem<TabId>[] {
     if (queryOnly) {
         return [{ id: 'queries', label: 'Queries' }];
     }
@@ -218,7 +228,8 @@ export default function CaseShow({
     const din = typeof detail.requisition?.din === 'string' ? detail.requisition.din : null;
     const itemName = typeof detail.requisition?.item_description === 'string' ? detail.requisition.item_description : detail.item_description;
     const title = queryOnly ? (detail.reference_no ?? 'Case') : caseTitle(itemName, din, detail.reference_no);
-    const tabs = buildTabs(detail, summary !== null, queryOnly);
+    const queryWaiting = queries.queries.some((q) => q.needs_my_answer || q.needs_my_forward);
+    const tabs = buildTabs(detail, summary !== null, queryOnly, queryWaiting);
     const [active, setActive] = useState<TabId>(() => tabFromUrl(tabs.map((t) => t.id)));
     const isPharm = detail.category === 'PHARM';
     const [routeOpen, setRouteOpen] = useState(false);

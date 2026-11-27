@@ -119,6 +119,8 @@ final class QueryInbox
                 'url' => $vendor
                     ? route('requests.show', $case->getKey()).'#vendor-query-'.$query->getKey()
                     : route('cases.show', [$case->getKey(), 'tab' => 'queries']),
+                // Kyle, 2026-11-27: staff answer or forward right here. Vendors keep the link (no message text on this page).
+                'respond' => $vendor ? null : QueryView::inbox($case, $query, $user, $d['step']),
             ];
         }, self::due($user));
 

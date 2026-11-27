@@ -7,6 +7,7 @@ use App\Models\ProcurementCase;
 use App\Models\QueryMessage;
 use App\Queries\QueryAccess;
 use App\Queries\QueryService;
+use App\Queries\QueryWording;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -75,7 +76,8 @@ class CaseQueryController extends Controller
 
         $service->forward($case, $caseQuery, $queryMessage, $request->user(), isset($validated['officer_id']) ? (int) $validated['officer_id'] : null);
 
-        return back()->with('success', 'Query forwarded.');
+        // Kyle, 2026-11-27: the forward is the CMO's part done, so back to To Do (or the Queries page it came from).
+        return redirect()->route(self::doneRoute($request))->with('success', 'Query on '.($case->reference_no ?? 'the case').' forwarded to '.QueryWording::office($queryMessage->recipient_role, $case).'.');
     }
 
     public function close(Request $request, ProcurementCase $queryCase, string $query, QueryService $service): RedirectResponse
@@ -98,7 +100,15 @@ class CaseQueryController extends Controller
             'body' => ['required', 'string', 'min:'.QueryService::BODY_MIN, 'max:'.QueryService::BODY_MAX],
         ], self::messages());
 
+        // Kyle, 2026-11-27: a staff answer is that officer's part done, so back to To Do.
+        // A follow-up message (and every vendor reply) stays on the page.
+        $answering = ! $request->user()->isVendor() && QueryAccess::needsAnswer($request->user(), $case, $caseQuery);
+
         $service->reply($case, $caseQuery, $request->user(), $validated['body']);
+
+        if ($answering) {
+            return redirect()->route(self::doneRoute($request))->with('success', 'Answer sent on '.($case->reference_no ?? 'the case').'.');
+        }
 
         return back()->with('success', 'Message sent.');
     }
@@ -110,6 +120,12 @@ class CaseQueryController extends Controller
         abort_if($query === null || QueryAccess::visibleMessages($request->user(), $case, $query)->isEmpty(), 404);
 
         return $query;
+    }
+
+    /** Where a finished forward or answer lands: the Queries page when sent from it, otherwise To Do. */
+    private static function doneRoute(Request $request): string
+    {
+        return $request->input('from') === 'queries' ? 'queries.index' : 'dashboard';
     }
 
     /** @return array<string, string> */
