@@ -37,6 +37,40 @@ final class QueryView
         return ['queries' => $queries, 'raise' => $routes === [] ? null : ['routes' => $routes]];
     }
 
+    /**
+     * Kyle, 2026-11-27: what the Queries page needs to answer or forward a
+     * query in place (staff only): the latest messages this user may see, and
+     * the one thing they do: answer (the reply route) or forward (the held
+     * message's route and where it goes). The server checks both again.
+     *
+     * @return array{messages: list<array<string, mixed>>, answer: array{url: string, label: string}|null, forward: array{url: string, label: string, to: string}|null}
+     */
+    public static function inbox(ProcurementCase $case, CaseQuery $query, User $user, string $step): array
+    {
+        $held = $step === QueryInbox::FORWARD ? QueryAccess::forwardable($user, $case, $query) : null;
+
+        return [
+            'messages' => QueryAccess::visibleMessages($user, $case, $query)->take(-3)->map(fn (QueryMessage $m) => [
+                'id' => (string) $m->getKey(),
+                'from_label' => QueryWording::office($m->author_role, $case),
+                'author' => $m->author?->name,
+                'to_label' => QueryWording::office($m->recipient_role, $case),
+                'body' => $m->body,
+                'sent_on' => self::day($m->created_at),
+                'held' => $m->isHeld(),
+            ])->values()->all(),
+            'answer' => $step === QueryInbox::ANSWER ? [
+                'url' => route('cases.queries.reply', [$case->getKey(), $query->getKey()]),
+                'label' => 'Answer Query',
+            ] : null,
+            'forward' => $held === null ? null : [
+                'url' => route('cases.queries.forward', [$case->getKey(), $query->getKey(), $held->getKey()]),
+                'label' => QueryWording::forwardLabel($held->recipient_role, $case),
+                'to' => QueryWording::office($held->recipient_role, $case),
+            ],
+        ];
+    }
+
     /** @return array<string, mixed> */
     private static function staffQuery(ProcurementCase $case, CaseQuery $query, User $user): array
     {

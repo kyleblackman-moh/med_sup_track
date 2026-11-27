@@ -12,8 +12,8 @@ import { FormEvent, useState } from 'react';
 
 const BODY_MAX = 2000;
 
-/** The message box shared by Raise, Answer and Add a Message. */
-function MessageField({
+/** The message box shared by Raise, Answer and Add a Message (and the Queries page). */
+export function MessageField({
     id,
     value,
     onChange,

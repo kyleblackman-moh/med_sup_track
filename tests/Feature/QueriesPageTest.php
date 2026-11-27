@@ -111,6 +111,32 @@ it('gives the CMO a held query to forward, and the recipients nothing until it i
         ->and(qpRows($this->legal, $this->case))->toBe([]);
 });
 
+// Kyle, 2026-11-27: forward and answer right on the Queries page, and land back on it.
+it('forwards and answers a query from the Queries page and comes back to it', function () {
+    $query = qpRaise($this->legal, $this->case, 'legal_officer', 'technocrat', 'Legal words for the Technocrats');
+
+    $forward = qpRows($this->cmo, $this->case)[0]['respond'];
+    expect($forward['answer'])->toBeNull()
+        ->and($forward['forward']['to'])->toBe('Technocrats')
+        ->and(array_column($forward['messages'], 'body'))->toBe(['Legal words for the Technocrats']);
+    $this->actingAs($this->cmo)->post($forward['forward']['url'], ['from' => 'queries'])
+        ->assertRedirect(route('queries.index'))->assertSessionHasNoErrors();
+
+    $answer = qpRows($this->tech, $this->case)[0]['respond'];
+    expect($answer['forward'])->toBeNull()
+        ->and($answer['answer']['label'])->toBe('Answer Query');
+    $this->actingAs($this->tech)->post($answer['answer']['url'], ['body' => 'The technical answer', 'from' => 'queries'])
+        ->assertRedirect(route('queries.index'))->assertSessionHasNoErrors();
+
+    expect(qpRows($this->tech, $this->case))->toBe([]);
+});
+
+it('never sends the vendor the respond block', function () {
+    qpRaise($this->tech, $this->case, 'technocrat', 'vendor_applicant', 'Please send the batch certificate.');
+
+    expect(qpRows($this->vendor, $this->case)[0]['respond'])->toBeNull();
+});
+
 it('drops a query from the page once it is answered', function () {
     $query = qpRaise($this->tech, $this->case, 'technocrat', 'vendor_applicant', 'Please send the batch certificate.');
     expect(qpRows($this->vendor, $this->case))->toHaveCount(1);

@@ -76,8 +76,8 @@ class CaseQueryController extends Controller
 
         $service->forward($case, $caseQuery, $queryMessage, $request->user(), isset($validated['officer_id']) ? (int) $validated['officer_id'] : null);
 
-        // Kyle, 2026-11-27: the forward is the CMO's part done, so back to To Do.
-        return redirect()->route('dashboard')->with('success', 'Query on '.($case->reference_no ?? 'the case').' forwarded to '.QueryWording::office($queryMessage->recipient_role, $case).'.');
+        // Kyle, 2026-11-27: the forward is the CMO's part done, so back to To Do (or the Queries page it came from).
+        return redirect()->route(self::doneRoute($request))->with('success', 'Query on '.($case->reference_no ?? 'the case').' forwarded to '.QueryWording::office($queryMessage->recipient_role, $case).'.');
     }
 
     public function close(Request $request, ProcurementCase $queryCase, string $query, QueryService $service): RedirectResponse
@@ -107,7 +107,7 @@ class CaseQueryController extends Controller
         $service->reply($case, $caseQuery, $request->user(), $validated['body']);
 
         if ($answering) {
-            return redirect()->route('dashboard')->with('success', 'Answer sent on '.($case->reference_no ?? 'the case').'.');
+            return redirect()->route(self::doneRoute($request))->with('success', 'Answer sent on '.($case->reference_no ?? 'the case').'.');
         }
 
         return back()->with('success', 'Message sent.');
@@ -120,6 +120,12 @@ class CaseQueryController extends Controller
         abort_if($query === null || QueryAccess::visibleMessages($request->user(), $case, $query)->isEmpty(), 404);
 
         return $query;
+    }
+
+    /** Where a finished forward or answer lands: the Queries page when sent from it, otherwise To Do. */
+    private static function doneRoute(Request $request): string
+    {
+        return $request->input('from') === 'queries' ? 'queries.index' : 'dashboard';
     }
 
     /** @return array<string, string> */
