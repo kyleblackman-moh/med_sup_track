@@ -59,6 +59,12 @@ final class RequestFormView
             'display' => self::display($case, $risk),
             'expiry' => self::expiry($case, $risk),
             'issue_heading' => self::issueHeading($case, $report),
+            // Kyle, 2026-11-27: whether Existing Approved Arrangement shows the Approved Tender Excesses
+            // table (Tender Excess, or a Yes to the previous-request question). The server decides.
+            'shows_previous_orders' => RequestSections::showsPreviousOrders(
+                (string) $case->procurementType?->code,
+                $case->previous_request_in_cycle,
+            ),
         ];
     }
 
@@ -128,6 +134,11 @@ final class RequestFormView
                     'line_cost' => Display::money($a->total()),
                 ])->values()->all(),
                 'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
+                    'id' => $po->getKey(),
+                    'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
+                ])->values()->all(),
+                // Kyle, 2026-11-27: Approved Tender Excesses, the same computed column.
+                'previous_orders' => $case->previousOrders->map(fn (CasePurchaseOrder $po) => [
                     'id' => $po->getKey(),
                     'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
                 ])->values()->all(),

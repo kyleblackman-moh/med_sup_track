@@ -22,6 +22,7 @@ final class RequisitionMessages
         'quotations' => 'Quotation Row',
         'tender_awards' => 'Supplier Row',
         'purchase_orders' => 'Order Row',
+        'previous_orders' => 'Tender Excess Order Row', // Kyle, 2026-11-27
         'stock_expiries' => 'Item', // Kyle, 2026-11-26: "Item 1" (was "Batch 1")
         'variation_rows' => 'Variation Row',
     ];
@@ -30,9 +31,10 @@ final class RequisitionMessages
     public const SECTION_LABELS = [
         'quotations' => 'Quotations',
         'tender_awards' => 'Awarded Suppliers',
-        'purchase_orders' => 'Orders',
+        'purchase_orders' => 'Purchase Orders Under the Original Tender', // Kyle, 2026-11-27 (was Orders)
+        'previous_orders' => 'Approved Tender Excesses', // Kyle, 2026-11-27
         'stock_expiries' => 'Stock Items', // Kyle, 2026-11-26
-        'variation_rows' => 'Subsequently Approved by MoH',
+        'variation_rows' => 'Details of Variation Requested', // Kyle, 2026-11-27: Tender Variation only again
     ];
 
     /** Request field labels, as the form shows them. Anything not listed is named from its key (label()). */
@@ -56,6 +58,12 @@ final class RequisitionMessages
         'price_note' => 'Note on the Price',
         'rha_stock' => 'RHA Stock',
         'rfq_date' => 'RFQ Date',
+        // Kyle, 2026-11-27: printed by the request letter.
+        'purpose_of_request' => 'Purpose of Request',
+        'purpose_summary' => 'Purpose Summary',
+        'outstanding_order_note' => 'Outstanding Order Note',
+        'basis_of_recommendation' => 'Basis of Recommendation',
+        'rfq_number' => 'RFQ Number',
     ];
 
     /** Row column headers per section, exactly as each table shows them. */
@@ -164,7 +172,10 @@ final class RequisitionMessages
 
     public static function columnLabel(string $section, string $column): string
     {
-        return self::COLUMN_LABELS[$section][$column] ?? self::fieldLabel($column);
+        // Kyle, 2026-11-27: the Approved Tender Excesses table has the original tender orders' columns.
+        $columns = self::COLUMN_LABELS[$section === 'previous_orders' ? 'purchase_orders' : $section] ?? [];
+
+        return $columns[$column] ?? self::fieldLabel($column);
     }
 
     /** "average_monthly_consumption" => "Average Monthly Consumption"; acronyms stay capitals, small words lowercase. */

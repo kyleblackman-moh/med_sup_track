@@ -47,13 +47,14 @@ final class RequisitionRules
      * V2-5: row sections of the request form only (not in ProcurementTypeProfile::SECTIONS,
      * so the old types never accept them). Saved exactly like the award rows.
      */
-    public const FORM_SECTIONS = ['variation_rows'];
+    public const FORM_SECTIONS = ['variation_rows', 'previous_orders']; // Kyle, 2026-11-27: Approved Tender Excesses
 
     public const ROW_CAPS = [
         'quotations' => 50,
         'tender_awards' => 20,
         'variation_rows' => 20, // V2-5: the award rows' cap
         'purchase_orders' => 20,
+        'previous_orders' => 20, // Kyle, 2026-11-27: as the original tender orders
         'stock_expiries' => 20,
     ];
 
@@ -285,6 +286,9 @@ final class RequisitionRules
             'quantity_requested' => ['type' => 'qty'],
             'unit_of_measure' => self::str(32),
             'clinical_note' => ['type' => 'text', 'max' => 2000],
+            // Kyle, 2026-11-27: the letter's section 1 paragraph and section 6 "Purpose" row. Optional.
+            'purpose_of_request' => self::str(1000),
+            'purpose_summary' => self::str(200),
             // 2 Tender. tender_reference is the contract reference (V2-1, label only).
             'tender_reference' => self::str(120),
             // Read by nothing since V2-1; still accepted so the old screen can save until V2-2.
@@ -293,6 +297,7 @@ final class RequisitionRules
             'tender_cycle_start' => ['type' => 'date'], // V2-1
             'tender_cycle_end' => ['type' => 'date'],   // V2-1; not before the start (checked at submit)
             'quantity_on_order' => ['type' => 'qty'],   // V2-1: existing arrangement
+            'outstanding_order_note' => self::str(300), // Kyle, 2026-11-27: the letter's section 6 lead-in. Optional.
             // 3 Stock
             'stock_location' => self::str(200),
             'average_monthly_consumption' => ['type' => 'qty'],
@@ -301,6 +306,9 @@ final class RequisitionRules
             // no_stock_on_hand is set by the server from the quantity on hand (StockOnHand); never sent.
             // 4 Quotations
             'rfq_audience' => ['type' => 'enum', 'enum' => RfqAudience::class],
+            // Kyle, 2026-11-27: the letter's section 5 and the annex header. Optional.
+            'basis_of_recommendation' => self::str(200),
+            'rfq_number' => self::str(50),
             // Kyle, 2026-11-24: no longer on the form or checked; still accepted so an older
             // payload (or the dev sample) saves. The column keeps its value.
             'quantity_to_purchase' => ['type' => 'qty'],
@@ -399,7 +407,8 @@ final class RequisitionRules
                 // Kyle, 2026-11-26: the form no longer asks for a pack size; still accepted, never required.
                 'pack_size' => self::str(100), // Kyle, 2026-11-25: optional
             ],
-            'purchase_orders' => [
+            // Kyle, 2026-11-27: Approved Tender Excesses (previous_orders) has the same columns.
+            'purchase_orders', 'previous_orders' => [
                 'id' => $id,
                 'award_id' => ['type' => 'rowid'],
                 'po_number' => self::str(64),
@@ -424,7 +433,7 @@ final class RequisitionRules
                 'expiry_date' => ['type' => 'date'],
                 'item_name' => self::str(200), // Kyle, 2026-11-26: the drug the row is for
             ],
-            // V2-5: Subsequently Approved by MoH. The effective date or application
+            // V2-5: Details of Variation Requested. The effective date or application
             // P.O. is one free-text field (assumption, see the V2-5 report).
             'variation_rows' => [
                 'id' => $id,

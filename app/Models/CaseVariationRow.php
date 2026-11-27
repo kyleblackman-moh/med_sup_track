@@ -6,8 +6,8 @@ use App\Models\Concerns\BelongsToCase;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Slice V2-5: one row of Subsequently Approved by MoH (shown when the
- * previous-request answer is Yes). Mirrors CaseTenderAward: saved row by row
+ * Slice V2-5: one row of Details of Variation Requested (Kyle, 2026-11-27:
+ * Tender Variation only). Mirrors CaseTenderAward: saved row by row
  * on the row id (SaveRequisition), ordered by sort_order.
  */
 class CaseVariationRow extends Model

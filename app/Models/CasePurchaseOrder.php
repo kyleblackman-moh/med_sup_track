@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DeliveryState;
+use App\Enums\OrderKind;
 use App\Models\Concerns\BelongsToCase;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Model;
@@ -16,9 +17,13 @@ class CasePurchaseOrder extends Model
     /** Mirrors the database default. */
     protected $attributes = [
         'quantity_delivered' => '0',
+        'order_kind' => 'ORIGINAL_TENDER',
     ];
 
-    /** Applicant-supplied columns only. case_id is set through the case relation. */
+    /**
+     * Applicant-supplied columns only. case_id is set through the case relation;
+     * order_kind (Kyle, 2026-11-27) by the payload section the row was saved in.
+     */
     protected $fillable = [
         'sort_order',
         'award_id', // AD_HOC: checked against the case's award rows by SaveRequisition
@@ -46,6 +51,7 @@ class CasePurchaseOrder extends Model
             'delivery_eta' => 'date',
             'delivery_state' => DeliveryState::class,
             'delivery_date' => 'date',
+            'order_kind' => OrderKind::class,
         ];
     }
 

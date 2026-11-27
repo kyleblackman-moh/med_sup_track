@@ -46,20 +46,15 @@ final class RequestSections
     public const LABELS = [
         'request_type' => 'Request Type',
         'item_tender' => 'Item and Tender Details',
-        'variation_details' => 'Subsequently Approved by MoH', // Kyle, 2026-11-26: was Details of Variation Requested
+        // Kyle, 2026-11-27: Tender Variation only, so its first name again (2026-11-26 it was "Subsequently
+        // Approved by MoH"; those approvals are now the Approved Tender Excesses table).
+        'variation_details' => 'Details of Variation Requested',
         'awarded_supplier' => 'Awarded Supplier',
         'existing_arrangement' => 'Existing Approved Arrangement',
         'stock' => 'Stock',
         'quotation_comparison' => 'Quotation Comparison',
         'documents' => 'Documents',
     ];
-
-    /**
-     * V2-5: shown only when the previous-request question is answered Yes, for
-     * any type (no longer tied to Tender Variation). Every other section is
-     * shown for every type.
-     */
-    private const ONLY_WHEN_PREVIOUS_REQUEST = ['variation_details'];
 
     /**
      * Kyle, 2026-11-24: sections shown only for some types. Hidden ones are not
@@ -70,10 +65,22 @@ final class RequestSections
      */
     public const SECTIONS_FOR_TYPES = [
         // Kyle, 2026-11-25: Existing Approved Arrangement shows for every type again (as the spec).
+        // Kyle, 2026-11-27: the variation details are Tender Variation only (always shown and required
+        // there, whatever the previous-request answer). For the other types a Yes now shows the
+        // Approved Tender Excesses table (showsPreviousOrders).
+        'variation_details' => [ProcurementTypeProfile::TENDER_VARIATION],
     ];
 
-    /** Kyle, 2026-11-25: types whose variation details are always shown and required, whatever the previous-request answer. */
-    private const ALWAYS_VARIATION_DETAILS = [ProcurementTypeProfile::TENDER_VARIATION];
+    /**
+     * Kyle, 2026-11-27: types that always show the Approved Tender Excesses
+     * table in Existing Approved Arrangement; every other type shows it when
+     * the previous-request answer is Yes. Its rows are optional, like the
+     * original tender orders.
+     */
+    private const PREVIOUS_ORDERS_FOR_TYPES = [ProcurementTypeProfile::TENDER_EXCESS];
+
+    /** The Approved Tender Excesses table's payload section, as discardedAtSubmit() names it. */
+    public const PREVIOUS_ORDERS = 'previous_orders';
 
     /**
      * What each type requires beyond the rules every type shares.
@@ -99,15 +106,17 @@ final class RequestSections
         'item_tender' => [
             'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
             'clinical_note', 'tender_reference', 'tender_issue_explanation',
+            'purpose_of_request', 'purpose_summary', // Kyle, 2026-11-27
             'tender_outcome', // unused since V2-1; the old screen still shows it until V2-2
         ],
         'variation_details' => ['variation_rows'],
         'awarded_supplier' => ['tender_awards'],
-        'existing_arrangement' => ['purchase_orders', 'quantity_on_order'],
+        'existing_arrangement' => ['purchase_orders', 'previous_orders', 'quantity_on_order', 'outstanding_order_note'],
         'stock' => ['stock_location', 'average_monthly_consumption', 'quantity_on_hand', 'no_stock_on_hand', 'stock_expiries'],
         'quotation_comparison' => [
             'rfq_audience', 'quotations', 'quantity_to_purchase',
             'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
+            'basis_of_recommendation', 'rfq_number', // Kyle, 2026-11-27
         ],
         'documents' => ['documents'],
     ];
@@ -126,6 +135,13 @@ final class RequestSections
         // Kyle, 2026-11-23: the delivery status too (the delivery date is required unless
         // the status is Not delivered: orders()).
         'purchase_orders' => ['Order row', [
+            'award_id' => 'choose the supplier from the award rows',
+            'po_number' => 'enter the P.O #',
+            'quantity_ordered' => 'enter the quantity ordered',
+            'delivery_state' => 'choose the delivery status',
+        ]],
+        // Kyle, 2026-11-27: Approved Tender Excesses, the same columns.
+        'previous_orders' => ['Tender excess order row', [
             'award_id' => 'choose the supplier from the award rows',
             'po_number' => 'enter the P.O #',
             'quantity_ordered' => 'enter the quantity ordered',
@@ -238,7 +254,8 @@ final class RequestSections
      * from procurement_type_documents: see documentsRequired()).
      *
      * V2-5: $previousRequest is the case's previous-request answer (null =
-     * not answered); Subsequently Approved by MoH shows only when it is true.
+     * not answered). Kyle, 2026-11-27: Details of Variation Requested shows for
+     * Tender Variation only; the answer decides the Approved Tender Excesses table.
      *
      * @return list<array{key: string, label: string, optional: bool, note: string|null}>
      */
@@ -303,6 +320,8 @@ final class RequestSections
                 'unit_of_measure' => true,
                 'tender_reference' => $byType('contract_reference'),
                 'clinical_note' => false,
+                'purpose_of_request' => false, // Kyle, 2026-11-27
+                'purpose_summary' => false,
             ],
             // V2-5: shown only when the answer is Yes; every column of an entered row is required.
             'variation_details' => $rows('variation_rows', ['variation_type', 'existing_detail', 'proposed_detail', 'effective_detail']),
@@ -311,7 +330,10 @@ final class RequestSections
                 // The delivery date is required unless the status is Not delivered (false here: conditional).
                 // The Other status's description is required for Other only (false here: conditional).
                 ...$rows('purchase_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_status', 'delivery_date', 'delivery_note']),
+                // Kyle, 2026-11-27: Approved Tender Excesses, the same rule (shown per showsPreviousOrders).
+                ...$rows('previous_orders', ['award_id', 'po_number', 'quantity_ordered', 'ordered_on', 'quantity_delivered', 'delivery_state', 'delivery_status', 'delivery_date', 'delivery_note']),
                 'tender_issue_explanation' => false,
+                'outstanding_order_note' => false,
             ],
             'stock' => [
                 'stock_location' => false,
@@ -329,6 +351,8 @@ final class RequestSections
                 // Kyle, 2026-11-23: Tender Excess only; left out of the map where hidden.
                 ...array_fill_keys(array_values(array_diff(['tender_price', 'previous_price'], self::hiddenFields($code))), false),
                 'price_note' => false,
+                'basis_of_recommendation' => false, // Kyle, 2026-11-27
+                'rfq_number' => false,
             ],
             'documents' => [],
         ];
@@ -341,10 +365,10 @@ final class RequestSections
     }
 
     /**
-     * V2-5: the variation section shows when the previous-request answer is Yes.
-     * Kyle, 2026-11-25: a Tender Variation always shows it (and so always
-     * requires it), whatever the answer. Existing Approved Arrangement shows for
-     * every type again (SECTIONS_FOR_TYPES is empty).
+     * Kyle, 2026-11-27: the variation details show for Tender Variation only
+     * (always, whatever the previous-request answer). Every other section shows
+     * for every type. $previousRequest now decides the Approved Tender Excesses
+     * table (showsPreviousOrders), not a section; kept for the callers.
      */
     public static function isVisible(string $code, string $section, ?bool $previousRequest = null): bool
     {
@@ -352,11 +376,18 @@ final class RequestSections
             return in_array($code, self::SECTIONS_FOR_TYPES[$section], true);
         }
 
-        if (in_array($section, self::ONLY_WHEN_PREVIOUS_REQUEST, true)) {
-            return $previousRequest === true || in_array($code, self::ALWAYS_VARIATION_DETAILS, true);
-        }
-
         return true;
+    }
+
+    /**
+     * Kyle, 2026-11-27: the Approved Tender Excesses table (in Existing Approved
+     * Arrangement) shows for Tender Excess, and for any type when the
+     * previous-request answer is Yes. Hidden rows stay in the draft and are
+     * discarded at submit, like a hidden section.
+     */
+    public static function showsPreviousOrders(string $code, ?bool $previousRequest): bool
+    {
+        return $previousRequest === true || in_array($code, self::PREVIOUS_ORDERS_FOR_TYPES, true);
     }
 
     /**
@@ -367,10 +398,10 @@ final class RequestSections
      */
     public static function discardedAtSubmit(string $code, ?bool $previousRequest = null): array
     {
-        return array_values(array_filter(
-            [...self::ONLY_WHEN_PREVIOUS_REQUEST, ...array_keys(self::SECTIONS_FOR_TYPES)],
-            fn (string $s) => ! self::isVisible($code, $s, $previousRequest),
-        ));
+        return [
+            ...array_values(array_filter(array_keys(self::SECTIONS_FOR_TYPES), fn (string $s) => ! self::isVisible($code, $s, $previousRequest))),
+            ...(self::showsPreviousOrders($code, $previousRequest) ? [] : [self::PREVIOUS_ORDERS]),
+        ];
     }
 
     /**
@@ -441,16 +472,18 @@ final class RequestSections
                 || $case->previous_request_in_cycle !== null || $filled(['tender_cycle_start', 'tender_cycle_end']),
             'item_tender' => $filled([
                 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure',
-                'clinical_note', 'tender_reference',
+                'clinical_note', 'tender_reference', 'purpose_of_request', 'purpose_summary',
             ]),
             'variation_details' => $case->variationRows->isNotEmpty(),
             'awarded_supplier' => $case->tenderAwards->isNotEmpty(),
-            'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $filled(['tender_issue_explanation']),
+            'existing_arrangement' => $case->purchaseOrders->isNotEmpty() || $case->previousOrders->isNotEmpty()
+                || $filled(['tender_issue_explanation', 'outstanding_order_note']),
             // Not no_stock_on_hand: the server sets it from the batch total (an empty draft has it).
             'stock' => $case->stockExpiries->isNotEmpty()
                 || $filled(['stock_location', 'average_monthly_consumption', 'quantity_on_hand', 'quantity_on_order']),
             'quotation_comparison' => $case->quotations->isNotEmpty() || $filled([
                 'rfq_audience', 'tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note',
+                'basis_of_recommendation', 'rfq_number',
             ]),
             'documents' => Document::withoutGlobalScopes()->current()
                 ->where('case_id', $case->getKey())
@@ -501,8 +534,8 @@ final class RequestSections
         $this->requestType($r, $previousRequest, $add);
         $this->itemAndTender($r, $requires['contract_reference'], $add);
 
-        // V2-5: when the answer is Yes (any type), at least one row, and every saved row
-        // complete; hidden and ignored otherwise (and discarded at submit).
+        // Tender Variation (Kyle, 2026-11-27: whatever the answer): at least one row, and every
+        // saved row complete; hidden and ignored for the other types (and discarded at submit).
         if (self::isVisible($code, 'variation_details', $previousRequest)) {
             if ($rows['variation_rows']->isEmpty()) {
                 $add('variation_rows', self::VARIATION_ROW_NEEDED);
@@ -522,7 +555,13 @@ final class RequestSections
         if (self::isVisible($code, 'existing_arrangement', $previousRequest)) {
             $today = now(self::LOCAL_TIMEZONE)->toDateString();
             self::checkRows('purchase_orders', $rows['purchase_orders'], $add);
-            $this->orders($rows['purchase_orders'], $today, $add);
+            $this->orders('purchase_orders', $rows['purchase_orders'], $today, $add);
+
+            // Kyle, 2026-11-27: Approved Tender Excesses, optional and checked the same way while shown.
+            if (self::showsPreviousOrders($code, $previousRequest)) {
+                self::checkRows('previous_orders', $rows['previous_orders'] ?? collect(), $add);
+                $this->orders('previous_orders', $rows['previous_orders'] ?? collect(), $today, $add);
+            }
         }
 
         $this->stock($r, $rows['stock_expiries'], $requires['stock'], $add);
@@ -587,11 +626,11 @@ final class RequestSections
      * quantity delivered (blank = 0) is not above the quantity ordered and agrees
      * with the status. Missing values are left to checkRows.
      */
-    private function orders(Collection $orders, string $today, callable $add): void
+    private function orders(string $section, Collection $orders, string $today, callable $add): void
     {
         foreach ($orders as $i => $po) {
-            $row = 'purchase_orders.'.$i;
-            $label = RequisitionMessages::rowLabel('purchase_orders', (int) $i).': ';
+            $row = $section.'.'.$i;
+            $label = RequisitionMessages::rowLabel($section, (int) $i).': ';
             $ordered = $po->ordered_on?->toDateString();
             $delivered = $po->quantity_delivered ?? '0';
             $state = $po->delivery_state;
@@ -607,11 +646,11 @@ final class RequestSections
 
             // Kyle, 2026-11-25: Other needs its description, and no delivery date (it may not have been delivered).
             if ($state === DeliveryState::OTHER && trim((string) $po->delivery_status) === '') {
-                $add("{$row}.delivery_status", $label.RequisitionMessages::columnLabel('purchase_orders', 'delivery_status').' is required.');
+                $add("{$row}.delivery_status", $label.RequisitionMessages::columnLabel($section, 'delivery_status').' is required.');
             }
 
             if ($state !== null && ! in_array($state, [DeliveryState::NOT_DELIVERED, DeliveryState::OTHER], true) && $po->delivery_date === null) {
-                $add("{$row}.delivery_date", $label.RequisitionMessages::columnLabel('purchase_orders', 'delivery_date').' is required.');
+                $add("{$row}.delivery_date", $label.RequisitionMessages::columnLabel($section, 'delivery_date').' is required.');
             }
 
             $date = $po->delivery_date?->toDateString();

@@ -4,6 +4,7 @@ namespace App\Submissions;
 
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
+use App\Enums\OrderKind;
 use App\Enums\Permission;
 use App\Enums\TechnicalStatus;
 use App\Models\CasePurchaseOrder;
@@ -45,9 +46,11 @@ final class SaveRequisition
     private const SECTIONS = [
         'tender_awards' => [CaseTenderAward::class, true],
         'purchase_orders' => [CasePurchaseOrder::class, true],
+        // Kyle, 2026-11-27: Approved Tender Excesses, the same table (order_kind PREVIOUS_REQUEST).
+        'previous_orders' => [CasePurchaseOrder::class, true],
         'quotations' => [CaseQuotation::class, true],
         'stock_expiries' => [CaseStockExpiry::class, false],
-        // V2-5: Subsequently Approved by MoH, saved exactly like the award rows.
+        // V2-5: Details of Variation Requested, saved exactly like the award rows.
         'variation_rows' => [CaseVariationRow::class, true],
     ];
 
@@ -185,8 +188,12 @@ final class SaveRequisition
     /** @param  array<string, string>  $dropped  (lenient) key => message of what was left out */
     private function saveSection(string $caseId, string $section, string $model, bool $hasSortOrder, array $rows, array &$idMap, bool $lenient = false, array &$dropped = []): array
     {
-        $existing = $model::withoutGlobalScopes()->where('case_id', $caseId)->get()->keyBy(fn (Model $m) => (int) $m->getKey());
-        $awardIds = $section === 'purchase_orders'
+        // Kyle, 2026-11-27: the two order sections share a table; each owns the rows of its kind.
+        $kind = OrderKind::forSection($section);
+        $existing = $model::withoutGlobalScopes()->where('case_id', $caseId)
+            ->when($kind !== null, fn ($q) => $q->where('order_kind', $kind->value))
+            ->get()->keyBy(fn (Model $m) => (int) $m->getKey());
+        $awardIds = $kind !== null
             ? CaseTenderAward::withoutGlobalScopes()->where('case_id', $caseId)->pluck('id')->map(fn ($id) => (int) $id)->all()
             : [];
         $kept = [];
@@ -215,7 +222,7 @@ final class SaveRequisition
                 unset($values['award_id']);
             }
 
-            $row = $id !== null ? $existing->get($id) : (new $model)->forceFill(['case_id' => $caseId]);
+            $row = $id !== null ? $existing->get($id) : (new $model)->forceFill(['case_id' => $caseId, ...($kind !== null ? ['order_kind' => $kind] : [])]);
             $row->fill($values);
 
             // Judged on the row as it would be saved (an id-only row keeps its values):

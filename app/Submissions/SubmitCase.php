@@ -4,6 +4,7 @@ namespace App\Submissions;
 
 use App\Enums\AuditAction;
 use App\Enums\CaseStatus;
+use App\Enums\OrderKind;
 use App\Enums\Permission;
 use App\Models\CaseAssignment;
 use App\Models\CasePurchaseOrder;
@@ -109,8 +110,9 @@ final class SubmitCase
         foreach (RequestSections::discardedAtSubmit($code, SubmissionReadiness::previousRequest($case)) as $section) {
             $counts[$section] = match ($section) {
                 'variation_details' => CaseVariationRow::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
-                // Kyle, 2026-11-24: Existing Approved Arrangement is Tender Variation only.
-                'existing_arrangement' => CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->getKey())->delete(),
+                // Kyle, 2026-11-27: the Approved Tender Excesses rows while that table is hidden.
+                RequestSections::PREVIOUS_ORDERS => CasePurchaseOrder::withoutGlobalScopes()->where('case_id', $case->getKey())
+                    ->where('order_kind', OrderKind::PREVIOUS_REQUEST->value)->delete(),
             };
         }
 

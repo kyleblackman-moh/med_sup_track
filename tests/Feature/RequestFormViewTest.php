@@ -46,9 +46,9 @@ it('lists every section in form order, numbering only the visible ones', functio
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer]);
     $form = formProp($this, $case, $vendor);
 
-    // V2-5: Subsequently Approved by MoH shows when the answer is Yes; Kyle, 2026-11-25: always
-    // on a Tender Variation. Existing Approved Arrangement shows for every type.
-    $variation = $answer === true || $code === 'TENDER_VARIATION';
+    // Kyle, 2026-11-27: Details of Variation Requested shows on a Tender Variation only, whatever
+    // the answer. Existing Approved Arrangement shows for every type.
+    $variation = $code === 'TENDER_VARIATION';
     $visible = [
         'request_type' => true, 'item_tender' => true, 'variation_details' => $variation, 'awarded_supplier' => true, 'existing_arrangement' => true,
         'stock' => true, 'quotation_comparison' => true, 'documents' => true,
@@ -152,8 +152,13 @@ it('sends the field-level required flags of each type from the section rules', f
         'item_description' => true, 'strength' => false, 'dosage_form' => false, 'din' => false,
         'quantity_requested' => true, 'unit_of_measure' => true, 'tender_reference' => $r['contract'],
         'clinical_note' => false,
+        'purpose_of_request' => false, 'purpose_summary' => false, // Kyle, 2026-11-27: optional
     ])
-        // V2-5: required whenever it is shown (the answer is Yes), for every type.
+        // V2-5: required whenever it is shown (Kyle, 2026-11-27: a Tender Variation only).
+        ->and($sections['existing_arrangement']['required'])->toMatchArray([
+            'previous_orders.award_id' => true, 'previous_orders.delivery_state' => true, 'outstanding_order_note' => false,
+        ])
+        ->and($sections['quotation_comparison']['required'])->toMatchArray(['basis_of_recommendation' => false, 'rfq_number' => false])
         ->and(array_values(array_unique($sections['variation_details']['required'])))->toBe([true])
         ->and($sections['stock']['required']['average_monthly_consumption'])->toBe($r['stock'])
         ->and($sections['stock']['required']['stock_location'])->toBeFalse()
@@ -210,7 +215,7 @@ it('shows a dash for values that cannot be worked out yet', function () {
         ->and($display['days_on_hand'])->toBe(Display::EMPTY)
         ->and($display['awards_total'])->toBe(Display::EMPTY)
         ->and($display['total_cost'])->toBe(Display::EMPTY)
-        ->and($display['rows'])->toBe(['tender_awards' => [], 'purchase_orders' => [], 'quotations' => [], 'stock_expiries' => []]);
+        ->and($display['rows'])->toBe(['tender_awards' => [], 'purchase_orders' => [], 'previous_orders' => [], 'quotations' => [], 'stock_expiries' => []]);
 });
 
 it('formats quantities, money, percentages and dates as text', function () {

@@ -20,9 +20,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
-// V2-5 step 4: Subsequently Approved by MoH, one row per variation, saved
+// V2-5 step 4: Details of Variation Requested, one row per variation, saved
 // like the award rows (upsert on row id, the same route, cap and throttle).
-// Shown and required only when the previous-request answer is Yes.
+// Kyle, 2026-11-27: shown and required on a Tender Variation only.
 // DatabaseTransactions only.
 
 beforeEach(function () {
@@ -186,19 +186,19 @@ it('saves the rows through the same route and throttle as the award rows', funct
     expect($route->gatherMiddleware())->toContain('throttle:30,1');
 });
 
-// 4. Shown only when the answer is Yes ------------------------------------------------------------
+// 4. Kyle, 2026-11-27: shown on a Tender Variation only, whatever the answer ---------------------
 
-it('shows the section when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
+it('shows the section on a Tender Variation only, whatever the answer', function (string $code, ?bool $answer) {
     [$case, $vendor] = newDraft($code);
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'variation_rows' => [variationEntry()]]);
 
     $props = pageProps($this->actingAs($vendor)->get(route('requests.edit', $case->id))->assertOk());
     $section = collect($props['form']['sections'])->firstWhere('key', 'variation_details');
-    $shown = $answer === true || $code === 'TENDER_VARIATION'; // Kyle, 2026-11-25
+    $shown = $code === 'TENDER_VARIATION'; // Kyle, 2026-11-27: Tender Variation only
 
     expect($section['visible'])->toBe($shown)
         ->and($section['number'])->toBe($shown ? 3 : null)
-        ->and($section['label'])->toBe('Subsequently Approved by MoH')
+        ->and($section['label'])->toBe('Details of Variation Requested')
         ->and(collect($props['request_sections'])->pluck('key')->contains('variation_details'))->toBe($shown)
         // The rows are kept in the draft while hidden.
         ->and($props['case']['variation_rows'])->toHaveCount(1);
@@ -216,8 +216,8 @@ it('sends the column requirements of an entered row', function () {
 
 // 5. Readiness and submit -----------------------------------------------------------------------
 
-it('needs at least one complete row when the answer is Yes', function (array $rows, array $keys) {
-    [$case, $vendor] = newDraft();
+it('needs at least one complete row on a Tender Variation', function (array $rows, array $keys) {
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
     saveDraft($case, $vendor, ['previous_request_in_cycle' => true, 'variation_rows' => $rows]);
 
     expect(variationKeys($case))->toBe($keys);
@@ -230,15 +230,15 @@ it('needs at least one complete row when the answer is Yes', function (array $ro
         ['variation_rows.1.existing_detail', 'variation_rows.1.proposed_detail', 'variation_rows.1.effective_detail']],
 ]);
 
-it('ignores the rows, complete or not, when the answer is No or unanswered', function (?bool $answer) {
+it('ignores the rows, complete or not, on any other type, whatever the answer', function (?bool $answer) {
     [$case, $vendor] = newDraft();
     saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'variation_rows' => [['variation_type' => 'Price']]]);
 
     expect(variationKeys($case))->toBe([]);
-})->with(['no' => false, 'unanswered' => null]);
+})->with(['no' => false, 'unanswered' => null, 'yes' => true]);
 
 it('words a partial row\'s issues with its row number and one full stop', function () {
-    [$case, $vendor] = newDraft();
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
     saveDraft($case, $vendor, ['previous_request_in_cycle' => true, 'variation_rows' => [variationEntry(), ['variation_type' => 'Price']]]);
 
     $errors = collect(app(SubmissionReadiness::class)->evaluate(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->errors);
@@ -246,8 +246,8 @@ it('words a partial row\'s issues with its row number and one full stop', functi
         ->and($errors->firstWhere('key', 'variation_rows.1.effective_detail')['message'])->toBe('Variation Row 2: Effective Date / Application P.O. is required.');
 });
 
-it('blocks the submit when the answer is Yes and no row is complete', function () {
-    [$case, $vendor] = readyWithAnswer('AD_HOC_EMERGENCY', true, [['variation_type' => 'Price']]);
+it('blocks the submit of a Tender Variation when no row is complete', function () {
+    [$case, $vendor] = readyWithAnswer('TENDER_VARIATION', true, [['variation_type' => 'Price']]);
 
     expect(fn () => app(SubmitCase::class)->handle($case, $vendor))->toThrow(SubmissionNotReady::class);
     expect(DB::table('cases')->where('id', $case->id)->value('status'))->toBe('DRAFT')
@@ -290,14 +290,15 @@ it('discards hidden rows at submit when the answer is No, and audits the count o
         ->and(DB::table('case_tender_awards')->where('case_id', $case->id)->count())->toBe(2);
 });
 
-it('always needs the variation details on a Tender Variation, and on any type that answers Yes', function () {
-    // Kyle, 2026-11-25: a Tender Variation needs a row whatever the answer; an Excess only when it answers Yes.
+it('always needs the variation details on a Tender Variation, and never on another type', function () {
+    // Kyle, 2026-11-25: a Tender Variation needs a row whatever the answer. Kyle, 2026-11-27: a Yes on
+    // another type shows Approved Tender Excesses instead, which is optional.
     [$variation] = readyWithAnswer('TENDER_VARIATION', false, []);
     [$excessYes] = readyWithAnswer('TENDER_EXCESS', true, []);
     [$excessNo] = readyWithAnswer('TENDER_EXCESS', false, []);
 
     expect(variationKeys($variation))->toBe(['variation_rows'])
-        ->and(variationKeys($excessYes))->toBe(['variation_rows'])
+        ->and(variationKeys($excessYes))->toBe([])
         ->and(variationKeys($excessNo))->toBe([]);
 });
 

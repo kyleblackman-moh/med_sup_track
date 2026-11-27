@@ -57,6 +57,12 @@ class CaseRequisition extends Model
         'tender_cycle_end',
         'quantity_on_order',
         'quantity_on_hand', // Kyle, 2026-11-24: typed by the vendor (was the batch total)
+        // Kyle, 2026-11-27: printed by the request letter (sections 1, 5, 6 and the annex).
+        'purpose_of_request',
+        'purpose_summary',
+        'outstanding_order_note',
+        'basis_of_recommendation',
+        'rfq_number',
     ];
 
     /** Mirrors the database default. */

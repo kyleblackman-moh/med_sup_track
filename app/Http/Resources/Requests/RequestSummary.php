@@ -22,6 +22,7 @@ use App\Support\Display;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -65,7 +66,7 @@ final class RequestSummary
     /** @return array{type_label: string, sections: list<array{key: string, number: int, label: string, blocks: list<array<string, mixed>>}>}|null */
     public static function for(ProcurementCase $case, User $viewer, bool $forStaff = false, bool $withDocuments = true, bool $forPrint = false): ?array
     {
-        $case->loadMissing(['procurementType', 'requisition', 'variationRows', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries']);
+        $case->loadMissing(['procurementType', 'requisition', 'variationRows', 'quotations', 'tenderAwards', 'purchaseOrders', 'previousOrders', 'stockExpiries']);
         $code = (string) $case->procurementType?->code;
 
         if (! ProcurementTypeProfile::for($code)->isAdHocForm()) {
@@ -126,17 +127,20 @@ final class RequestSummary
             'Unit of Measure' => Display::text($r?->unit_of_measure),
             'Contract Reference' => Display::text($r?->tender_reference),
             'Clinical Importance (Purpose of Drugs)' => Display::text($r?->clinical_note),
+            // Kyle, 2026-11-27: printed by the request letter.
+            'Purpose of Request' => Display::text($r?->purpose_of_request),
+            'Purpose Summary' => Display::text($r?->purpose_summary),
         ])];
     }
 
     /**
-     * V2-5: Subsequently Approved by MoH as a table ("Variation Row N"; an
+     * V2-5: Details of Variation Requested as a table ("Variation Row N"; an
      * empty value is a dash; no rows is "None entered"). Only reached when the
      * section is visible (the answer is Yes): hidden rows are never shown.
      */
     private static function variation(ProcurementCase $case): array
     {
-        return [self::table('Subsequently Approved by MoH', 'Variation Row', [
+        return [self::table('Details of Variation Requested', 'Variation Row', [
             'variation_type' => 'Variation Type',
             'existing_detail' => 'Existing Approved Detail',
             'proposed_detail' => 'Proposed Revised Detail',
@@ -184,39 +188,59 @@ final class RequestSummary
         ];
     }
 
+    /**
+     * Kyle, 2026-11-27: the orders under the original tender, then the Approved
+     * Tender Excesses table where the form shows it (Tender Excess, or a Yes to
+     * the previous-request question), then the two notes.
+     */
     private static function orders(ProcurementCase $case): array
+    {
+        $code = (string) $case->procurementType?->code;
+        $r = $case->requisition;
+
+        return [
+            self::orderTable($case, $case->purchaseOrders, 'Purchase Orders Under the Original Tender', 'Order Row'),
+            ...(RequestSections::showsPreviousOrders($code, $case->previous_request_in_cycle)
+                ? [self::orderTable($case, $case->previousOrders, 'Approved Tender Excesses', 'Tender Excess Order Row')]
+                : []),
+            self::fields([
+                'Issues Affecting the Tender Qty' => Display::text($r?->tender_issue_explanation),
+                'Outstanding Order Note' => Display::text($r?->outstanding_order_note),
+            ]),
+        ];
+    }
+
+    /** @param  Collection<int, CasePurchaseOrder>  $orders */
+    private static function orderTable(ProcurementCase $case, Collection $orders, string $title, string $rowLabel): array
     {
         $suppliers = $case->tenderAwards->pluck('supplier_name', 'id');
 
-        return [
-            self::table('Orders', 'Order Row', [
-                'supplier' => 'Supplier',
-                'po_number' => 'P.O #', // Kyle, 2026-11-26
-                'quantity_ordered' => 'Qty Ordered',
-                'ordered_on' => 'Date Ordered',
-                'quantity_delivered' => 'Qty Delivered',
-                'delivery_status' => 'Delivery Status',
-                'delivery_date' => 'Delivery Date',
-                'delivery_note' => 'Delivery Note No.', // 2026-11-25
-                'quantity_outstanding' => 'Qty Outstanding',
-            ], $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
-                'supplier' => Display::text($suppliers[$po->award_id] ?? null),
-                'po_number' => Display::text($po->po_number),
-                'quantity_ordered' => Display::quantity($po->quantity_ordered),
-                'delivery_note' => Display::text($po->delivery_note),
-                'ordered_on' => self::date($po->ordered_on),
-                'quantity_delivered' => Display::quantity($po->quantity_delivered),
-                // 2026-11-23: the status dropdown and delivery date; a row saved before them
-                // (and not mapped by the migration) shows its old values instead.
-                // 2026-11-25: Other shows what the vendor wrote for it.
-                'delivery_status' => $po->delivery_state === DeliveryState::OTHER
-                    ? Display::text($po->delivery_status)
-                    : ($po->delivery_state?->label() ?? Display::text($po->delivery_status)),
-                'delivery_date' => self::date($po->delivery_date ?? $po->delivery_eta),
-                'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
-            ])->values()->all()),
-            self::fields(['Issues Affecting the Tender Qty' => Display::text($case->requisition?->tender_issue_explanation)]),
-        ];
+        return self::table($title, $rowLabel, [
+            'supplier' => 'Supplier',
+            'po_number' => 'P.O #', // Kyle, 2026-11-26
+            'quantity_ordered' => 'Qty Ordered',
+            'ordered_on' => 'Date Ordered',
+            'quantity_delivered' => 'Qty Delivered',
+            'delivery_status' => 'Delivery Status',
+            'delivery_date' => 'Delivery Date',
+            'delivery_note' => 'Delivery Note No.', // 2026-11-25
+            'quantity_outstanding' => 'Qty Outstanding',
+        ], $orders->map(fn (CasePurchaseOrder $po) => [
+            'supplier' => Display::text($suppliers[$po->award_id] ?? null),
+            'po_number' => Display::text($po->po_number),
+            'quantity_ordered' => Display::quantity($po->quantity_ordered),
+            'delivery_note' => Display::text($po->delivery_note),
+            'ordered_on' => self::date($po->ordered_on),
+            'quantity_delivered' => Display::quantity($po->quantity_delivered),
+            // 2026-11-23: the status dropdown and delivery date; a row saved before them
+            // (and not mapped by the migration) shows its old values instead.
+            // 2026-11-25: Other shows what the vendor wrote for it.
+            'delivery_status' => $po->delivery_state === DeliveryState::OTHER
+                ? Display::text($po->delivery_status)
+                : ($po->delivery_state?->label() ?? Display::text($po->delivery_status)),
+            'delivery_date' => self::date($po->delivery_date ?? $po->delivery_eta),
+            'quantity_outstanding' => Display::quantity($po->quantityOutstanding()),
+        ])->values()->all());
     }
 
     private static function stock(ProcurementCase $case): array
@@ -274,6 +298,7 @@ final class RequestSummary
 
         $blocks = [
             self::fields([
+                'RFQ Number' => Display::text($r?->rfq_number), // Kyle, 2026-11-27
                 'RFQ Sent To' => self::enumLabel($r?->rfq_audience),
                 'No. of Quotations' => (string) $case->quotationsReceived(),
                 'Quotations Considered' => (string) $case->quotationsConsidered(),
@@ -281,6 +306,7 @@ final class RequestSummary
                 'Recommended Unit Price' => Display::price($recommended?->unit_price),
                 // v0.4: the recommended quotations' Total Price, which includes VAT.
                 'Total Cost (incl. VAT)' => Display::money($case->totalCost()),
+                'Basis of Recommendation' => Display::text($r?->basis_of_recommendation), // Kyle, 2026-11-27
             ]),
             self::table('Quotations', 'Quotation Row', [
                 // Kyle, 2026-11-26: no Considered column (the form no longer asks it).

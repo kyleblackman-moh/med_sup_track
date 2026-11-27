@@ -87,12 +87,12 @@ it('lists the type\'s visible sections in form order, numbered among the visible
         ->and($summary['type_label'])->toBe(procurementTypeByCode($code)->name);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-it('shows Subsequently Approved by MoH only when the answer is Yes (a complete Tender Variation here)', function (string $code) {
+it('shows Details of Variation Requested on a Tender Variation only (Kyle, 2026-11-27)', function (string $code) {
     [$case, $vendor] = summaryDraft($code);
     $summary = summaryOf($case, $vendor);
 
     if ($code === 'TENDER_VARIATION') {
-        $table = summaryTable($summary, 'variation_details', 'Subsequently Approved by MoH');
+        $table = summaryTable($summary, 'variation_details', 'Details of Variation Requested');
         expect(summarySection($summary, 'variation_details')['number'])->toBe(3)
             ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1'])
             ->and($table['rows'][0]['cells'])->toBe([
@@ -106,7 +106,7 @@ it('shows Subsequently Approved by MoH only when the answer is Yes (a complete T
     }
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
-// V2-5: section 1 and Subsequently Approved by MoH ----------------------------------------
+// V2-5: section 1 and Details of Variation Requested ----------------------------------------
 
 it('shows the previous-request answer in section 1 as Yes, No or a dash', function (?bool $answer, string $shown) {
     [$case, $vendor] = newDraft('TENDER_EXCESS');
@@ -125,13 +125,13 @@ it('shows the previous-request answer in section 1 as Yes, No or a dash', functi
         ]);
 })->with(['yes' => [true, 'Yes'], 'no' => [false, 'No'], 'unanswered' => [null, Display::EMPTY]]);
 
-it('shows the variation rows as a table when the answer is Yes, with a dash for an empty value', function () {
-    [$case, $vendor] = newDraft('AD_HOC_EMERGENCY');
+it('shows the variation rows of a Tender Variation as a table, with a dash for an empty value', function () {
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
     saveDraft($case, $vendor, ['previous_request_in_cycle' => true, 'variation_rows' => [
         variationEntry(),
         ['variation_type' => 'Quantity', 'proposed_detail' => '3,600 units'],
     ]]);
-    $table = summaryTable(summaryOf($case, $vendor), 'variation_details', 'Subsequently Approved by MoH');
+    $table = summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested');
 
     expect(array_column($table['columns'], 'label'))->toBe(['Variation Type', 'Existing Approved Detail', 'Proposed Revised Detail', 'Effective Date / Application P.O.'])
         ->and(array_column($table['rows'], 'label'))->toBe(['Variation Row 1', 'Variation Row 2'])
@@ -142,13 +142,34 @@ it('shows the variation rows as a table when the answer is Yes, with a dash for 
         ->and($table['empty'])->toBeNull();
 });
 
-it('says "None entered" for a Yes with no variation rows', function () {
-    [$case, $vendor] = newDraft();
-    saveDraft($case, $vendor, ['previous_request_in_cycle' => true]);
+it('says "None entered" for a Tender Variation with no variation rows', function () {
+    [$case, $vendor] = newDraft('TENDER_VARIATION');
 
-    expect(summaryTable(summaryOf($case, $vendor), 'variation_details', 'Subsequently Approved by MoH'))
+    expect(summaryTable(summaryOf($case, $vendor), 'variation_details', 'Details of Variation Requested'))
         ->toMatchArray(['rows' => [], 'empty' => RequestSummary::NONE]);
 });
+
+it('shows the Approved Tender Excesses table for a Yes or a Tender Excess, with the new fields (Kyle, 2026-11-27)', function (string $code, ?bool $answer, bool $shown) {
+    [$case, $vendor] = newDraft($code);
+    saveDraft($case, $vendor, ['previous_request_in_cycle' => $answer, 'requisition' => [
+        'outstanding_order_note' => 'no confirmed delivery date', 'purpose_of_request' => 'Interim supply.',
+        'rfq_number' => 'RFQ 142/2026', 'basis_of_recommendation' => 'availability and lead time',
+    ]]);
+    $summary = summaryOf($case, $vendor);
+
+    $table = summaryTable($summary, 'existing_arrangement', 'Approved Tender Excesses');
+    expect($table === null)->toBe(! $shown);
+    if ($shown) {
+        expect($table)->toMatchArray(['rows' => [], 'empty' => RequestSummary::NONE]);
+    }
+    expect(summaryFields($summary, 'existing_arrangement')['Outstanding Order Note'])->toBe('no confirmed delivery date')
+        ->and(summaryFields($summary, 'item_tender')['Purpose of Request'])->toBe('Interim supply.')
+        ->and(summaryFields($summary, 'quotation_comparison'))->toMatchArray(['RFQ Number' => 'RFQ 142/2026', 'Basis of Recommendation' => 'availability and lead time']);
+})->with([
+    'ad hoc, yes' => ['AD_HOC_EMERGENCY', true, true],
+    'ad hoc, no' => ['AD_HOC_EMERGENCY', false, false],
+    'tender excess, no' => ['TENDER_EXCESS', false, true],
+]);
 
 it('never shows the variation rows when the answer is not Yes, even if hidden rows exist', function (?bool $answer) {
     [$case, $vendor] = newDraft('TENDER_EXCESS'); // a Tender Variation always shows them (2026-11-25)
@@ -173,7 +194,7 @@ it('shows awards and orders without a tender outcome, and never the outcome', fu
 
     $summary = summaryOf($case, $vendor);
     $awards = summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers');
-    $orders = summaryTable($summary, 'existing_arrangement', 'Orders');
+    $orders = summaryTable($summary, 'existing_arrangement', 'Purchase Orders Under the Original Tender');
 
     expect(array_column($awards['rows'], 'label'))->toBe(['Supplier Row 1', 'Supplier Row 2'])
         ->and($awards['empty'])->toBeNull()
@@ -187,7 +208,7 @@ it('says "None entered" for a table with no rows and a dash for empty optional v
     $summary = summaryOf($case, $vendor);
 
     expect(summaryTable($summary, 'awarded_supplier', 'Awarded Suppliers')['empty'])->toBe(RequestSummary::NONE)
-        ->and(summaryTable($summary, 'existing_arrangement', 'Orders')['empty'])->toBe(RequestSummary::NONE) // 2026-11-25: every type
+        ->and(summaryTable($summary, 'existing_arrangement', 'Purchase Orders Under the Original Tender')['empty'])->toBe(RequestSummary::NONE) // 2026-11-25: every type
         ->and(summaryTable($summary, 'quotation_comparison', 'Quotations')['rows'])->toBe([])
         ->and(summaryFields($summary, 'item_tender')['Strength'])->toBe(Display::EMPTY)
         ->and(summaryFields($summary, 'stock')['Days on Hand'])->toBe(Display::EMPTY);
@@ -240,7 +261,7 @@ it('computes and formats every figure on the server', function () {
     ])
         ->and(array_map(fn ($row) => [$row['cells']['percentage'], $row['cells']['line_cost'], $row['cells']['unit_cost']], $awards['rows']))
         ->toBe([['75.00%', '$2,625.00', '$1.25'], ['25.00%', '$910.00', '$1.30']])
-        ->and(array_column(summaryTable($summary, 'existing_arrangement', 'Orders')['rows'], 'label'))->toBe(['Order Row 1']) // 2026-11-25: every type
+        ->and(array_column(summaryTable($summary, 'existing_arrangement', 'Purchase Orders Under the Original Tender')['rows'], 'label'))->toBe(['Order Row 1']) // 2026-11-25: every type
         // 2026-11-24: the consumption and the quantity on hand are quantities only (no unit of measure).
         ->and(summaryFields($summary, 'stock'))->toMatchArray([
             'Average Monthly Consumption' => '500', 'Qty on Hand' => '200.5', 'Days on Hand' => '12.03', 'No Stock on Hand' => 'No', // (200.5 / 500) x 30, 2 dp (2026-11-26)
@@ -359,7 +380,7 @@ it('gives the staff case page and the vendor page the same summary of a submitte
     // NEXT part 5: neither page repeats the documents (each has its own list), so the two are identical.
     expect($staffSummary)->toBe($vendorSummary)
         ->and(summarySection($staffSummary, 'variation_details')['number'])->toBe(3)
-        ->and(summaryTable($staffSummary, 'variation_details', 'Subsequently Approved by MoH')['rows'][0]['label'])->toBe('Variation Row 1')
+        ->and(summaryTable($staffSummary, 'variation_details', 'Details of Variation Requested')['rows'][0]['label'])->toBe('Variation Row 1')
         ->and(summaryFields($staffSummary, 'request_type')[RequestSummary::PREVIOUS_REQUEST_LABEL])->toBe('Yes');
 });
 

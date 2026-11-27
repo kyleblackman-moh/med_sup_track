@@ -2,6 +2,7 @@
 
 namespace App\Submissions;
 
+use App\Enums\OrderKind;
 use App\Enums\ProcurementCategory;
 use App\Enums\ScanStatus;
 use App\Enums\TechnicalStatus;
@@ -50,7 +51,9 @@ final class SubmissionReadiness
         $rows = [
             'quotations' => $this->rows(CaseQuotation::class, $caseId),
             'tender_awards' => $this->rows(CaseTenderAward::class, $caseId),
-            'purchase_orders' => $this->rows(CasePurchaseOrder::class, $caseId),
+            // Kyle, 2026-11-27: the two order tables, by order_kind.
+            'purchase_orders' => $this->rows(CasePurchaseOrder::class, $caseId, OrderKind::ORIGINAL_TENDER),
+            'previous_orders' => $this->rows(CasePurchaseOrder::class, $caseId, OrderKind::PREVIOUS_REQUEST),
             'stock_expiries' => CaseStockExpiry::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('expiry_date')->orderBy('id')->get(),
             'variation_rows' => $this->rows(CaseVariationRow::class, $caseId), // V2-5
         ];
@@ -250,9 +253,11 @@ final class SubmissionReadiness
     }
 
     /** Rows ordered as saved, re-indexed from 0 so keys match the payload positions. */
-    private function rows(string $model, string $caseId): Collection
+    private function rows(string $model, string $caseId, ?OrderKind $kind = null): Collection
     {
-        return $model::withoutGlobalScopes()->where('case_id', $caseId)->orderBy('sort_order')->orderBy('id')->get()->values();
+        return $model::withoutGlobalScopes()->where('case_id', $caseId)
+            ->when($kind !== null, fn ($q) => $q->where('order_kind', $kind->value))
+            ->orderBy('sort_order')->orderBy('id')->get()->values();
     }
 
     private function requirePresent(CaseRequisition $r, string $field, string $message): void

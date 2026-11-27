@@ -149,25 +149,33 @@ class RequestDetailResource extends JsonResource
                     'percentage' => $a->percentage_awarded, // Kyle, 2026-11-24: typed by the vendor, not calculated
                 ],
             ])->values()->all(),
-            'purchase_orders' => $case->purchaseOrders->map(fn (CasePurchaseOrder $po) => [
-                ...self::row($po, 'purchase_orders', $code),
-                'derived' => [
-                    'quantity_outstanding' => $po->quantityOutstanding(),
-                    // AD_HOC: the supplier comes from the linked award row (typed once).
-                    ...($adHoc ? ['supplier_name' => $case->tenderAwards->firstWhere('id', $po->award_id)?->supplier_name] : []),
-                ],
-            ])->values()->all(),
+            'purchase_orders' => self::orderRows($case, $case->purchaseOrders, 'purchase_orders', $code, $adHoc),
+            // Kyle, 2026-11-27: Approved Tender Excesses (request form only), the same shape.
+            'previous_orders' => $adHoc ? self::orderRows($case, $case->previousOrders, 'previous_orders', $code, $adHoc) : [],
             'stock_expiries' => $case->stockExpiries->map(fn (CaseStockExpiry $e) => self::row($e, 'stock_expiries', $code))
                 ->values()->all(),
             // V2-5: the previous-request answer (request form only); null = not answered.
             'previous_request_in_cycle' => $adHoc ? $case->previous_request_in_cycle : null,
-            // V2-5: Subsequently Approved by MoH (request form only), in saved order.
+            // V2-5: Details of Variation Requested (request form only), in saved order.
             'variation_rows' => $adHoc
                 ? $case->variationRows->map(fn (CaseVariationRow $v) => self::row($v, 'variation_rows', $code))->values()->all()
                 : [],
             'totals' => self::totals($case),
             'figures' => $adHoc ? self::adHocFigures($case) : null,
         ];
+    }
+
+    /** @param  Collection<int, CasePurchaseOrder>  $orders */
+    private static function orderRows(ProcurementCase $case, $orders, string $section, ?string $code, bool $adHoc): array
+    {
+        return $orders->map(fn (CasePurchaseOrder $po) => [
+            ...self::row($po, $section, $code),
+            'derived' => [
+                'quantity_outstanding' => $po->quantityOutstanding(),
+                // AD_HOC: the supplier comes from the linked award row (typed once).
+                ...($adHoc ? ['supplier_name' => $case->tenderAwards->firstWhere('id', $po->award_id)?->supplier_name] : []),
+            ],
+        ])->values()->all();
     }
 
     /**

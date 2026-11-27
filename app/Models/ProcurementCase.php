@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CaseStatus;
+use App\Enums\OrderKind;
 use App\Enums\TrackStatus;
 use App\Models\Scopes\VisibleToUserScope;
 use App\Support\Decimal;
@@ -150,9 +151,20 @@ class ProcurementCase extends Model
         return $this->hasMany(CaseTenderAward::class, 'case_id')->orderBy('sort_order')->orderBy('id');
     }
 
+    /** Orders under the original tender (Kyle, 2026-11-27: order_kind ORIGINAL_TENDER). */
     public function purchaseOrders(): HasMany
     {
-        return $this->hasMany(CasePurchaseOrder::class, 'case_id')->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(CasePurchaseOrder::class, 'case_id')
+            ->where('order_kind', OrderKind::ORIGINAL_TENDER->value)
+            ->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Kyle, 2026-11-27: orders of tender excesses already approved (Approved Tender Excesses). */
+    public function previousOrders(): HasMany
+    {
+        return $this->hasMany(CasePurchaseOrder::class, 'case_id')
+            ->where('order_kind', OrderKind::PREVIOUS_REQUEST->value)
+            ->orderBy('sort_order')->orderBy('id');
     }
 
     public function documents(): HasMany
@@ -172,7 +184,7 @@ class ProcurementCase extends Model
     }
 
     /** Tender Variation details (slice V2-1); at most one row. */
-    /** V2-5: Subsequently Approved by MoH, in saved order (as the award rows). */
+    /** V2-5: Details of Variation Requested, in saved order (as the award rows). */
     public function variationRows(): HasMany
     {
         return $this->hasMany(CaseVariationRow::class, 'case_id')->orderBy('sort_order')->orderBy('id');

@@ -44,6 +44,9 @@ const SLICE_6B_COLUMNS = [
         'stock_location' => 'nvarchar(200)', 'no_stock_on_hand' => 'bit', 'quantity_to_purchase' => 'decimal(14,2)',
         'tender_price' => 'decimal(14,4)', 'previous_price' => 'decimal(14,4)', 'quoted_price_acceptable' => 'bit',
         'price_note' => 'nvarchar(max)',
+        // Kyle, 2026-11-27: the letter fields
+        'purpose_of_request' => 'nvarchar(1000)', 'purpose_summary' => 'nvarchar(200)', 'outstanding_order_note' => 'nvarchar(300)',
+        'basis_of_recommendation' => 'nvarchar(200)', 'rfq_number' => 'nvarchar(50)',
         // V2
         'tender_cycle_start' => 'date', 'tender_cycle_end' => 'date', 'quantity_on_order' => 'decimal(14,2)',
         'quantity_on_hand' => 'decimal(14,2)', // 2026-11-24
@@ -75,6 +78,7 @@ const SLICE_6B_COLUMNS = [
         'quantity_delivered' => 'decimal(14,2)', 'delivery_eta' => 'date', 'delivery_status' => 'nvarchar(120)',
         'delivery_state' => 'nvarchar(32)', 'delivery_date' => 'date', // 2026-11-23
         'pack_size' => 'nvarchar(100)', 'delivery_note' => 'nvarchar(100)', // 2026-11-25
+        'order_kind' => 'nvarchar(20)', // 2026-11-27
         'created_at' => 'datetime', 'updated_at' => 'datetime',
         'award_id' => 'bigint', // F1
     ],

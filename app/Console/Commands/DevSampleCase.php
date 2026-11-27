@@ -308,7 +308,7 @@ class DevSampleCase extends Command
         ];
     }
 
-    /** The two rows of Subsequently Approved by MoH of a Tender Variation sample (V2-5). */
+    /** The two rows of Details of Variation Requested of a Tender Variation sample (V2-5). */
     public static function variationRows(): array
     {
         $from = CarbonImmutable::now('America/Port_of_Spain')->addMonth()->startOfMonth()->format('j M Y');

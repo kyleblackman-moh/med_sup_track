@@ -56,7 +56,7 @@ final class StaffCaseDetail
     {
         $case->loadMissing([
             'organisation:id,name', 'procurementType',
-            'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'stockExpiries',
+            'requisition', 'quotations', 'tenderAwards', 'purchaseOrders', 'previousOrders', 'stockExpiries',
         ]);
 
         $canForward = $case->status === CaseStatus::CMO_INTAKE

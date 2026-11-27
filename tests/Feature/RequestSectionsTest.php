@@ -41,15 +41,15 @@ afterEach(function () {
 
 /**
  * The rules per type, as agreed for V2-1 (interim, CMO's office to confirm):
- * contract reference, awarded supplier, stock, quotations, Bids file. V2-5: the
- * variation details are required whenever the previous-request answer is Yes.
+ * contract reference, awarded supplier, stock, quotations, Bids file. Kyle,
+ * 2026-11-27: the variation details are required on a Tender Variation only.
  */
 const V2_REQUIRES = [
-    'AD_HOC_EMERGENCY' => ['contract' => false, 'awards' => false, 'stock' => true, 'quotes' => true, 'bids' => true],
-    'AD_HOC_TENDER_UNABLE' => ['contract' => true, 'awards' => true, 'stock' => true, 'quotes' => true, 'bids' => true],
-    'AD_HOC_NOT_AWARDED' => ['contract' => false, 'awards' => false, 'stock' => true, 'quotes' => true, 'bids' => true],
-    'TENDER_EXCESS' => ['contract' => true, 'awards' => true, 'stock' => true, 'quotes' => true, 'bids' => false],
-    'TENDER_VARIATION' => ['contract' => true, 'awards' => true, 'stock' => false, 'quotes' => false, 'bids' => false],
+    'AD_HOC_EMERGENCY' => ['contract' => false, 'awards' => false, 'stock' => true, 'quotes' => true, 'bids' => true, 'variation' => false],
+    'AD_HOC_TENDER_UNABLE' => ['contract' => true, 'awards' => true, 'stock' => true, 'quotes' => true, 'bids' => true, 'variation' => false],
+    'AD_HOC_NOT_AWARDED' => ['contract' => false, 'awards' => false, 'stock' => true, 'quotes' => true, 'bids' => true, 'variation' => false],
+    'TENDER_EXCESS' => ['contract' => true, 'awards' => true, 'stock' => true, 'quotes' => true, 'bids' => false, 'variation' => false],
+    'TENDER_VARIATION' => ['contract' => true, 'awards' => true, 'stock' => false, 'quotes' => false, 'bids' => false, 'variation' => true],
 ];
 
 /**
@@ -96,19 +96,22 @@ function withRequisition(array $payload, array $fields): array
 
 // 1. Visible sections ------------------------------------------------------------
 
-it('shows Subsequently Approved by MoH when the answer is Yes, and always for a Tender Variation', function (string $code, ?bool $answer) {
-    // 2026-11-25: Existing Approved Arrangement shows for every type; a Tender Variation
-    // always shows its variation details, whatever the answer.
-    $variation = $answer === true || $code === 'TENDER_VARIATION';
+it('shows Details of Variation Requested for a Tender Variation only, and Approved Tender Excesses for a Yes or a Tender Excess', function (string $code, ?bool $answer) {
+    // 2026-11-25: Existing Approved Arrangement shows for every type. Kyle, 2026-11-27: the
+    // variation details are Tender Variation only (whatever the answer); for the other types a
+    // Yes shows the Approved Tender Excesses table, which a Tender Excess always shows.
+    $variation = $code === 'TENDER_VARIATION';
+    $previousOrders = $answer === true || $code === 'TENDER_EXCESS';
     $expected = array_values(array_filter([
         'request_type', 'item_tender', $variation ? 'variation_details' : null, 'awarded_supplier',
         'existing_arrangement', 'stock', 'quotation_comparison', 'documents',
     ]));
-    $discarded = $variation ? [] : ['variation_details'];
+    $discarded = [...($variation ? [] : ['variation_details']), ...($previousOrders ? [] : ['previous_orders'])];
 
     expect(array_column(RequestSections::visible($code, true, $answer), 'key'))->toBe($expected)
         ->and(RequestSections::discardedAtSubmit($code, $answer))->toBe($discarded)
-        ->and(RequestSections::LABELS['variation_details'])->toBe('Subsequently Approved by MoH');
+        ->and(RequestSections::showsPreviousOrders($code, $answer))->toBe($previousOrders)
+        ->and(RequestSections::LABELS['variation_details'])->toBe('Details of Variation Requested');
 })->with(ProcurementTypeProfile::REQUEST_TYPES)->with(['unanswered' => null, 'no' => false, 'yes' => true]);
 
 it('marks a section optional exactly when the type requires nothing in it', function (string $code) {
@@ -121,9 +124,10 @@ it('marks a section optional exactly when the type requires nothing in it', func
         ->and($optional['existing_arrangement'])->toBeTrue() // 2026-11-25: every type, always optional
         ->and($optional['stock'])->toBe(! $r['stock'])
         ->and($optional['quotation_comparison'])->toBe(! $r['quotes'])
-        // Hidden until the answer is Yes; always shown (and required) for a Tender Variation.
+        // Kyle, 2026-11-27: shown (and required) for a Tender Variation only, whatever the answer.
         ->and($optional['variation_details'] ?? null)->toBe($code === 'TENDER_VARIATION' ? false : null)
-        ->and(collect(RequestSections::visible($code, true, true))->pluck('optional', 'key')['variation_details'])->toBeFalse();
+        ->and(collect(RequestSections::visible($code, true, true))->pluck('optional', 'key')['variation_details'] ?? null)
+        ->toBe($code === 'TENDER_VARIATION' ? false : null);
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
 it('sends the visible sections, in order, with anchors and issues to the form', function (string $code) {
@@ -143,7 +147,7 @@ it('sends the visible sections, in order, with anchors and issues to the form', 
         ->and($byKey['existing_arrangement']['complete'])->toBeFalse()
         ->and($byKey['existing_arrangement']['state'])->toBe('optional');
 
-    // Unanswered: Subsequently Approved by MoH is hidden, except on a Tender Variation (always shown).
+    // Details of Variation Requested: Tender Variation only (Kyle, 2026-11-27).
     expect($byKey->has('variation_details'))->toBe($code === 'TENDER_VARIATION');
 })->with(ProcurementTypeProfile::REQUEST_TYPES);
 
@@ -161,6 +165,10 @@ it('puts every readiness key in a section', function (string $key, string $secti
     ['tender_awards', 'awarded_supplier'],
     ['tender_awards.0.unit_cost', 'awarded_supplier'],
     ['purchase_orders.1.po_number', 'existing_arrangement'],
+    ['previous_orders.0.delivery_state', 'existing_arrangement'], // Kyle, 2026-11-27
+    ['requisition.outstanding_order_note', 'existing_arrangement'],
+    ['requisition.purpose_of_request', 'item_tender'],
+    ['requisition.rfq_number', 'quotation_comparison'],
     ['requisition.quantity_on_order', 'existing_arrangement'],
     ['requisition.average_monthly_consumption', 'stock'],
     ['stock_expiries', 'stock'],
@@ -196,8 +204,8 @@ dataset('requirements', [
     // 2026-11-23: no "a batch or no stock" item: a batch total of 0 is no stock on hand (FormRulesTest).
     'a quotation' => ['quotes', fn ($p) => [...$p, 'quotations' => []], true, true, ['quotations', 'quotations.recommended'], 'quotation_comparison'],
     'a recommended quotation' => ['quotes', fn ($p) => [...$p, 'quotations' => [adHocQuoteRow('Supplier D', '1.5975')]], true, true, ['quotations.recommended'], 'quotation_comparison'],
-    // V2-5: every type, once the answer is Yes.
-    'variation details' => [null, fn ($p) => [...$p, 'previous_request_in_cycle' => true], false, true, ['variation_rows'], 'variation_details'],
+    // Kyle, 2026-11-27: Tender Variation only (a Yes on another type shows Approved Tender Excesses, optional).
+    'variation details' => ['variation', fn ($p) => [...$p, 'previous_request_in_cycle' => true], false, true, ['variation_rows'], 'variation_details'],
     'Bids file' => ['bids', null, true, false, ['documents.bids'], 'documents'],
 ]);
 

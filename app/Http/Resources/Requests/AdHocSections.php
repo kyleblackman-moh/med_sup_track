@@ -41,13 +41,13 @@ final class AdHocSections
 
     /** The current screen's sections: field => section (V2-1 fields included). */
     private const SCREEN_FIELDS = [
-        'item' => ['request_type', 'previous_request_in_cycle', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note'],
+        'item' => ['request_type', 'previous_request_in_cycle', 'item_description', 'strength', 'dosage_form', 'din', 'quantity_requested', 'unit_of_measure', 'clinical_note', 'purpose_of_request', 'purpose_summary'],
         'tender' => [
             'tender_reference', 'tender_cycle_start', 'tender_cycle_end', 'tender_outcome', 'tender_issue_explanation',
-            'tender_awards', 'purchase_orders', 'quantity_on_order', 'variation_rows',
+            'tender_awards', 'purchase_orders', 'previous_orders', 'quantity_on_order', 'variation_rows', 'outstanding_order_note',
         ],
         'stock' => ['stock_location', 'average_monthly_consumption', 'no_stock_on_hand', 'stock_expiries'],
-        'quotations' => ['rfq_audience', 'quotations', 'quantity_to_purchase'],
+        'quotations' => ['rfq_audience', 'quotations', 'quantity_to_purchase', 'basis_of_recommendation', 'rfq_number'],
         'price' => ['tender_price', 'previous_price', 'quoted_price_acceptable', 'price_note'],
         'documents' => ['documents'],
     ];
@@ -187,6 +187,7 @@ final class AdHocSections
             $relation = match ($parts[0]) {
                 'tender_awards' => $case->tenderAwards,
                 'purchase_orders' => $case->purchaseOrders,
+                'previous_orders' => $case->previousOrders, // Kyle, 2026-11-27
                 'stock_expiries' => $case->stockExpiries,
                 'quotations' => $case->quotations,
                 'variation_rows' => $case->variationRows, // V2-5
