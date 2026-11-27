@@ -219,7 +219,7 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
 
     expect($html)
         ->toContain('Re: Request for the Approval of an Ad Hoc Purchase of Rivaroxaban 20mg Tablet - DIN 90008557')
-        ->toContain('Your approval is sought for the Ad Hoc Purchase of twenty-nine thousand nine hundred eighty-eight (29,988) each of Rivaroxaban 20mg Tablet - DIN 90008557.')
+        ->toContain('Your approval is sought for the Ad Hoc Purchase of twenty-nine thousand nine hundred and eighty-eight (29,988) each of Rivaroxaban 20mg Tablet - DIN 90008557.')
         ->toContain('At the 2023/2025 Tender, Rivaroxaban 20mg Tablet was awarded to two (2) suppliers. The details of this award are summarized in the table below:')
         ->toContain('Bayer AG<br>(Germany)')->toContain('70%')->toContain('$368.20 Each')->toContain('$2,301,250.00')
         ->toContain('Macleods Pharmaceutical Ltd<br>(India)')->toContain('30%')->toContain('$65.23 Each')->toContain('$163,075.00')
@@ -227,7 +227,7 @@ it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function
         ->toContain('March 31, 2027')
         ->toContain('and two (2) quotations were received. The details are summarised in the quotation comparison sheet.')
         ->toContain('The quotation from Supplier X Limited was not considered: Product not registered with the Drug Inspectorate.')
-        ->toContain('Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure twenty-nine thousand nine hundred eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95 (VAT inclusive). The unit cost is $2.30.')
+        ->toContain('Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure twenty-nine thousand nine hundred and eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95 (VAT inclusive). The unit cost is $2.30.')
         ->toContain('The anticipated lead time for this request is thirty (30) days.')
         // Kyle, 2026-11-26: no pack size, the unit of measure only; Ex Stock is the quantity available from stock.
         ->toContain('6,250 Each')->toContain('2,500 Each')->not->toContain('Boxes of')->toContain('<td>500 Each</td>')

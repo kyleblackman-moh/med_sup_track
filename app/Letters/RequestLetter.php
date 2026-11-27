@@ -674,7 +674,7 @@ final class RequestLetter
         return $this->item().($din === '' ? '' : "{$dash}DIN {$din}");
     }
 
-    /** "twenty-nine thousand nine hundred eighty-eight (29,988) each of ", or "" without a quantity. */
+    /** "twenty-nine thousand nine hundred and eighty-eight (29,988) each of ", or "" without a quantity. */
     private function quantityPhrase(?string $quantity): string
     {
         $words = $this->quantityWords($quantity);
@@ -682,7 +682,7 @@ final class RequestLetter
         return $words === null ? '' : $words.' of ';
     }
 
-    /** "twenty-nine thousand nine hundred eighty-eight (29,988) each"; null without a quantity. */
+    /** "twenty-nine thousand nine hundred and eighty-eight (29,988) each"; null without a quantity. */
     private function quantityWords(?string $quantity): ?string
     {
         $words = NumberWords::withFigures($quantity);

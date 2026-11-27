@@ -6,9 +6,11 @@ use InvalidArgumentException;
 
 /**
  * Whole numbers in lowercase English words, as the request letters write them
- * ("twenty-nine thousand nine hundred eighty-eight"): hyphenated tens, no
- * "and". The intl extension is not installed on the server, so this does the
- * spelling itself. Supports 0 to 999,999,999,999.
+ * ("twenty-nine thousand nine hundred and eighty-eight"): hyphenated tens and
+ * the British "and" (Kyle, 2026-11-27): after "hundred", and before a last
+ * group below one hundred ("two thousand and fifty", "one million and one").
+ * The intl extension is not installed on the server, so this does the spelling
+ * itself. Supports 0 to 999,999,999,999.
  */
 final class NumberWords
 {
@@ -40,7 +42,7 @@ final class NumberWords
         }
 
         if ($number > 0) {
-            $words[] = self::belowThousand($number);
+            $words[] = ($words !== [] && $number < 100 ? 'and ' : '').self::belowThousand($number);
         }
 
         return implode(' ', $words);
@@ -48,7 +50,7 @@ final class NumberWords
 
     /**
      * A decimal string as "words (figures)": "twenty-nine thousand nine hundred
-     * eighty-eight (29,988)". A quantity with a fraction has no words, only
+     * and eighty-eight (29,988)". A quantity with a fraction has no words, only
      * the figures ("200.5"). Null for a missing or non-numeric value.
      */
     public static function withFigures(?string $value): ?string
@@ -72,7 +74,7 @@ final class NumberWords
         $words = [];
 
         if ($number >= 100) {
-            $words[] = self::ONES[intdiv($number, 100)].' hundred';
+            $words[] = self::ONES[intdiv($number, 100)].' hundred'.($number % 100 === 0 ? '' : ' and');
             $number %= 100;
         }
 
