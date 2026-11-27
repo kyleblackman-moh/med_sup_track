@@ -22,11 +22,11 @@ use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\Process\Process;
 
-// Kyle, 2026-11-24: the request letter PDF (App\Letters\RequestLetter), in the
-// wording of NIPDEC's paper letters. Three fixtures match the reference letters:
-// Chlorpromazine (Tender Excess), Bimatoprost (Tender Variation) and
-// Rivaroxaban (Ad Hoc). The HTML is asserted before it becomes a PDF.
-// DatabaseTransactions only.
+// Kyle, 2026-11-27: the request letter PDF (App\Letters\RequestLetter) in the new
+// section order of the "Reorganised Rivaroxaban Approval Letter". Rivaroxaban (Ad
+// Hoc) is that letter's case; Chlorpromazine (Tender Excess) and Bimatoprost
+// (Tender Variation) are the other two kinds. The HTML is asserted before it
+// becomes a PDF. DatabaseTransactions only.
 
 beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -58,7 +58,11 @@ function rlVendor(): User
     return vendorUser($org, ['name' => 'Jane Applicant', 'job_title' => 'Procurement Officer']);
 }
 
-/** Saves $payload, then the orders against the saved award ids, attaches documents and submits (unless $submit is false). */
+/**
+ * Saves $payload, then the order sections $orders returns for the saved award ids
+ * (['purchase_orders' => [...], 'previous_orders' => [...]]), attaches documents and
+ * submits (unless $submit is false).
+ */
 function rlCase(string $code, array $payload, ?callable $orders = null, bool $submit = true): array
 {
     [$case, $vendor] = newDraft($code, rlVendor());
@@ -66,7 +70,7 @@ function rlCase(string $code, array $payload, ?callable $orders = null, bool $su
 
     if ($orders !== null) {
         $ids = CaseTenderAward::withoutGlobalScopes()->where('case_id', $case->id)->orderBy('sort_order')->pluck('id')->all();
-        saveDraft($case, $vendor, ['purchase_orders' => $orders($ids)]);
+        saveDraft($case, $vendor, $orders($ids));
     }
 
     if ($submit) {
@@ -75,6 +79,12 @@ function rlCase(string $code, array $payload, ?callable $orders = null, bool $su
     }
 
     return [ProcurementCase::withoutGlobalScopes()->findOrFail($case->id), $vendor];
+}
+
+/** A delivered order row against award $awardId. */
+function rlDelivered(int $awardId, string $po, string $quantity, string $orderedOn, string $deliveredOn): array
+{
+    return ['award_id' => $awardId, 'po_number' => $po, 'quantity_ordered' => $quantity, 'ordered_on' => $orderedOn, 'quantity_delivered' => $quantity, 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => $deliveredOn];
 }
 
 function rlChlorpromazine(bool $submit = true): array
@@ -86,9 +96,10 @@ function rlChlorpromazine(bool $submit = true): array
             'quantity_requested' => '800000', 'unit_of_measure' => 'Each',
             'tender_reference' => 'NIPDEC Tender 2023/2025',
             'tender_cycle_start' => '2023-10-01', 'tender_cycle_end' => '2025-09-30',
-            'stock_location' => 'the Central Stores', 'average_monthly_consumption' => '70000', 'quantity_on_hand' => '80000',
-            'rfq_audience' => 'ALL_REGISTERED',
+            'stock_location' => 'Central Stores', 'average_monthly_consumption' => '70000', 'quantity_on_hand' => '80000',
+            'rfq_audience' => 'ALL_REGISTERED', 'rfq_number' => 'RFQ 118/2026',
             'tender_price' => '0.2200', 'previous_price' => '0.2400',
+            'purpose_summary' => 'Continuity of supply until the next tender',
         ],
         'tender_awards' => [
             ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Remedica Ltd.', 'country_of_origin' => 'Cyprus', 'brand' => 'Chlorpromazine', 'quantity_awarded' => '800000', 'unit_cost' => '0.2200', 'percentage_awarded' => '100'],
@@ -97,6 +108,10 @@ function rlChlorpromazine(bool $submit = true): array
         'quotations' => [
             adHocQuoteRow('Alstons Marketing Company Limited', '0.22', ['quantity_offered' => '800000', 'is_recommended' => true, 'reason_accepted_excluded' => 'The only quotation received', 'lead_time_days' => 60, 'manufacturer' => 'Remedica Ltd.', 'country_of_origin' => 'Cyprus']),
         ],
+    ], fn (array $ids) => [
+        'purchase_orders' => [rlDelivered($ids[0], '076120', '400000', '2024-01-15', '2024-03-01')],
+        // Tender Excess shows Approved Tender Excesses whatever the previous-request answer.
+        'previous_orders' => [rlDelivered($ids[0], '078010', '400000', '2025-02-10', '2025-04-02')],
     ], submit: $submit);
 }
 
@@ -120,126 +135,213 @@ function rlBimatoprost(): array
         'tender_awards' => [
             ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Allergan Inc.', 'country_of_origin' => 'United States', 'brand' => 'Lumigan', 'quantity_awarded' => '60000', 'unit_cost' => '95.00', 'percentage_awarded' => '100'],
         ],
-    ], fn (array $ids) => [
-        ['award_id' => $ids[0], 'po_number' => '076547', 'quantity_ordered' => '7000', 'ordered_on' => '2024-01-31', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-03-01'],
-        ['award_id' => $ids[0], 'po_number' => '077439', 'quantity_ordered' => '7000', 'ordered_on' => '2024-06-04', 'quantity_delivered' => '7000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-07-15'],
-        ['award_id' => $ids[0], 'po_number' => '078421', 'quantity_ordered' => '10000', 'ordered_on' => '2024-07-03', 'quantity_delivered' => '10000', 'delivery_state' => 'FULLY_DELIVERED', 'delivery_date' => '2024-08-20'],
-        // The paper letter's "Variation of tender in progress" is the Other delivery status's description
-        // (2026-11-25: the delivery note is now its number, Delivery Note No., and not printed as a status).
-        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'OTHER', 'delivery_status' => 'Variation of tender in progress', 'delivery_date' => '2026-07-10', 'delivery_note' => 'DN-4471'],
+    ], fn (array $ids) => ['purchase_orders' => [
+        rlDelivered($ids[0], '076547', '7000', '2024-01-31', '2024-03-01'),
+        rlDelivered($ids[0], '077439', '7000', '2024-06-04', '2024-07-15'),
+        rlDelivered($ids[0], '078421', '10000', '2024-07-03', '2024-08-20'),
+        // Other prints what the vendor wrote for it; the delivery note is its number and is not printed.
+        ['award_id' => $ids[0], 'po_number' => '079128', 'quantity_ordered' => '8000', 'ordered_on' => '2026-05-28', 'quantity_delivered' => '4000', 'delivery_state' => 'OTHER', 'delivery_status' => 'Variation of tender in progress', 'delivery_note' => 'DN-4471'],
         ['award_id' => $ids[0], 'po_number' => '079209', 'quantity_ordered' => '10000', 'ordered_on' => '2026-06-18', 'quantity_delivered' => '0', 'delivery_state' => 'NOT_DELIVERED'],
-    ]);
+    ]]);
 }
 
-function rlRivaroxaban(): array
+/**
+ * The case of the Word letter: two awards (70/30, with pack sizes), three original
+ * tender orders all delivered, four approved tender excesses (078830 outstanding,
+ * no confirmed ETA), nil stock, five quotations (bids 1, 2, 3 and 5 not considered
+ * for their lead times), Pharmtech Caribbean Ltd recommended. The letter's
+ * $359,856.00 is 29,988 x $12.00 with no VAT, so the rate is 0 here.
+ */
+function rlRivaroxaban(bool $previousRequest = true, bool $submit = true): array
 {
+    config(['procurement.vat_rate' => '0']);
+    $notConsidered = ['considered' => false, 'reason_accepted_excluded' => 'their respective lead times', 'quantity_offered' => '29988'];
+
     return rlCase('AD_HOC_TENDER_UNABLE', [
-        'previous_request_in_cycle' => false,
+        'previous_request_in_cycle' => $previousRequest,
         'requisition' => [
             'item_description' => 'Rivaroxaban', 'strength' => '20mg', 'dosage_form' => 'Tablet', 'din' => '90008557',
-            'quantity_requested' => '29988', 'unit_of_measure' => 'Each',
+            'quantity_requested' => '29988', 'unit_of_measure' => 'Tablets',
+            'clinical_note' => implode("\n", [
+                'Prevention of venous thromboembolic events (VTE) in patients who have undergone total hip replacement and total knee replacement surgery.',
+                'Prevention of stroke and systemic embolism in patients with non-valvular atrial fibrillation.',
+                'Treatment of deep vein thrombosis (DVT) and pulmonary embolism (PE).',
+                'Reduction of the risk of recurrent DVT and/or PE.',
+                'In combination with aspirin, reduction of the risk of major cardiovascular events in patients with chronic coronary artery disease or peripheral artery disease.',
+                'Treatment and prevention of VTE in paediatric patients (from birth to 18 years of age).',
+                'Thromboprophylaxis in paediatric patients aged two (2) years and older with congenital heart disease following the Fontan procedure.',
+            ]),
+            'purpose_of_request' => 'This purchase is required to provide an interim supply of the medication pending delivery of an outstanding purchase order.',
+            'purpose_summary' => 'Interim supply pending delivery of Purchase Order No. 078830',
             'tender_reference' => 'NIPDEC Tender 2023/2025',
             'tender_cycle_start' => '2023-10-01', 'tender_cycle_end' => '2025-09-30',
-            'tender_issue_explanation' => 'The awarded suppliers were unable to supply the full tender quantity.',
-            'stock_location' => 'the Central Stores', 'average_monthly_consumption' => '2499', 'quantity_on_hand' => '1200',
-            'rfq_audience' => 'ALL_REGISTERED',
+            'outstanding_order_note' => 'the absence of a confirmed delivery date for the outstanding purchase order',
+            'stock_location' => 'Central Stores', 'average_monthly_consumption' => '10417', 'quantity_on_hand' => '0',
+            'rfq_audience' => 'ALL_REGISTERED', 'rfq_number' => 'RFQ 142/2026',
+            'basis_of_recommendation' => 'availability and lead time',
         ],
         'tender_awards' => [
-            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
-            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
+            ['supplier_name' => 'Smith Robertson & Co. Ltd', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany', 'brand' => 'Xarelto 20mg Tab', 'quantity_awarded' => '6250', 'pack_size' => 'Boxes of 28 Tablets', 'unit_cost' => '368.20', 'percentage_awarded' => '70'],
+            ['supplier_name' => 'Alstons Marketing Company Limited', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India', 'brand' => 'Rivaroxaban 20mg Tab', 'quantity_awarded' => '2500', 'pack_size' => 'Boxes of 30 Tablets', 'unit_cost' => '65.23', 'percentage_awarded' => '30'],
         ],
-        'stock_expiries' => [['item_name' => 'Rivaroxaban 20mg Tablet', 'expiry_date' => '2027-03-31']],
         'quotations' => [
-            adHocQuoteRow('Alstons Marketing Company Limited', '2.30', ['quantity_offered' => '29988', 'is_recommended' => true, 'reason_accepted_excluded' => 'Registered product with stock available', 'lead_time_days' => 30, 'quantity_available_now' => '500', 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
-            adHocQuoteRow('Supplier X Limited', '1.90', ['quantity_offered' => '29988', 'considered' => false, 'reason_accepted_excluded' => 'Product not registered with the Drug Inspectorate']),
+            adHocQuoteRow('Smith Robertson & Co. Ltd', '13.15', [...$notConsidered, 'lead_time_days' => 120, 'brand' => 'Xarelto', 'manufacturer' => 'Bayer AG', 'country_of_origin' => 'Germany']),
+            adHocQuoteRow('Alstons Marketing Company Limited', '2.17', [...$notConsidered, 'lead_time_days' => 150, 'manufacturer' => 'Macleods Pharmaceutical Ltd', 'country_of_origin' => 'India']),
+            adHocQuoteRow('Medi-Supplies Limited', '9.80', [...$notConsidered, 'lead_time_days' => 90]),
+            adHocQuoteRow('Pharmtech Caribbean Ltd', '12.00', ['quantity_offered' => '29988', 'is_recommended' => true, 'reason_accepted_excluded' => 'Available ex stock', 'lead_time_days' => 7, 'quantity_available_now' => '29988', 'brand' => 'Rivaroxaban Pharmtech', 'manufacturer' => 'Pharmtech Laboratories', 'country_of_origin' => 'India', 'remarks' => 'Ex stock']),
+            adHocQuoteRow('Caribbean Health Distributors', '11.40', [...$notConsidered, 'lead_time_days' => 75]),
         ],
-    ]);
+    ], fn (array $ids) => [
+        'purchase_orders' => [
+            rlDelivered($ids[1], '076232', '1167', '2023-12-28', '2024-02-15'),
+            rlDelivered($ids[0], '076310', '6250', '2024-05-09', '2024-06-20'),
+            rlDelivered($ids[1], '077691', '1333', '2024-09-11', '2024-10-30'),
+        ],
+        'previous_orders' => [
+            rlDelivered($ids[0], '077353', '6250', '2024-05-09', '2024-06-20'),
+            rlDelivered($ids[0], '077754', '6250', '2024-09-18', '2024-11-05'),
+            rlDelivered($ids[0], '078239', '6250', '2025-03-20', '2025-05-12'),
+            ['award_id' => $ids[1], 'po_number' => '078830', 'quantity_ordered' => '8666', 'ordered_on' => '2026-01-20', 'quantity_delivered' => '0', 'delivery_state' => 'OTHER', 'delivery_status' => 'No confirmed ETA provided by supplier; no confirmed shipping date'],
+        ],
+    ], $submit);
 }
 
 function rlHtml(ProcurementCase $case): string
 {
-    // Blade escapes "&"; the assertions read the text as printed.
+    // Blade escapes "&" and "’"; the assertions read the text as printed.
     return html_entity_decode(RequestLetter::for($case)->html(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
-it('writes the Tender Excess letter (Chlorpromazine)', function () {
-    [$case] = rlChlorpromazine();
+it('writes the Ad Hoc letter (Rivaroxaban) in the new section order', function () {
+    [$case] = rlRivaroxaban();
     $html = rlHtml($case);
 
+    $headings = [
+        '1. Purpose of Request', '2. Current Stock Position', '3. Procurement Background',
+        '3.1 Original Tender Awards (2023–2025)', '3.2 Purchase Orders Issued Under the Original Tender',
+        '3.3 Approved Tender Excesses and Delivery Status', '4. Clinical Importance of Rivaroxaban',
+        '5. Request for Quotations and Evaluation', '6. Recommendation and Approval Requested',
+    ];
+    $at = array_map(fn (string $h) => strpos($html, $h), $headings);
+    expect($at)->not->toContain(false);
+    expect($at)->toBe(collect($at)->sort()->values()->all()); // in this order
+
     expect($html)
-        ->toContain('October 21, 2026')
-        ->toContain('Dr. Jeanine St. Bernard')->toContain('Chief Medical Officer (Ag)')->toContain('4-6 Queen\'s Park East')
-        ->toContain('Dear Dr. St. Bernard,')
-        ->toContain('Re: Request for the Approval to Purchase in Excess of Tender- Chlorpromazine HCL 25mg – DIN 90000195')
-        // No full stop, as the paper letter (2026-11-25).
-        ->toContain('Your approval is sought to purchase in excess of tender eight hundred thousand (800,000) each of Chlorpromazine HCL 25mg – DIN 90000195</p>')
-        ->toContain('At the 2023/2025 Tender, Chlorpromazine HCL 25mg was awarded to one (1) supplier. The details of this award are summarized in the table below:')
-        ->toContain('Remedica Ltd.<br>(Cyprus)')
-        ->toContain('800,000 Each')->toContain('100%')->toContain('$0.22 Each')->toContain('$176,000.00')
-        ->toContain('At present, there are eighty thousand (80,000) each in stock at the Central Stores. The average monthly consumption is approximately 70,000 each per month.')
-        ->toContain('a Request for Quotations (RFQ) was issued to prequalified suppliers, and one (1) quotation was received.')
-        ->toContain('To mitigate the risk of a stock-out and ensure continuity of supply, it is recommended that approval be granted to purchase 800,000 each of Chlorpromazine HCL 25mg – DIN 90000195 from Alstons Marketing Company Limited at a unit cost of $0.22 and a total cost of $198,000.00 (VAT inclusive).')
-        ->toContain('For comparison, the tender unit cost was $0.22 and the previous purchase unit cost was $0.24.')
-        ->toContain('The anticipated lead time for this request is sixty (60) days.')
-        ->toContain('| Pharmaceutical Division |') // the footer's fallback while the submitter has no division
-        ->toContain('Quotation Comparison Sheet')
+        ->toContain('October 21, 2026')->toContain('Dear Dr. St. Bernard,')
+        ->toContain('Re: Request for the Approval of an Ad Hoc Purchase of Rivaroxaban 20mg Tablet - DIN 90008557')
+        // 1
+        ->toContain('<p>The National Insurance Property Development Company Limited (NIPDEC) seeks the Ministry of Health’s approval for the ad hoc purchase of twenty-nine thousand nine hundred and eighty-eight (29,988) tablets of Rivaroxaban 20mg Tablet (DIN 90008557) from Pharmtech Caribbean Ltd at a total cost of $359,856.00.</p>')
+        ->toContain('<p>This purchase is required to provide an interim supply of the medication pending delivery of an outstanding purchase order.</p>')
+        // 2
+        ->toContain('At present, there is nil stock of Rivaroxaban 20mg Tablet at Central Stores, with an average monthly consumption of approximately 10,417 tablets.')
+        // 3.1, with the pack sizes
+        ->toContain('Under the 2023–2025 tender, Rivaroxaban 20mg Tablet was awarded to two (2) suppliers. The details are outlined below.')
+        ->toContain('<td>Smith Robertson & Co. Ltd</td><td>Bayer AG (Germany)</td><td>Xarelto 20mg Tab</td><td>6,250 boxes of 28 tablets</td><td>70%</td><td>$368.20 per box of 28 tablets</td><td>$2,301,250.00</td>')
+        ->toContain('<td>2,500 boxes of 30 tablets</td><td>30%</td><td>$65.23 per box of 30 tablets</td><td>$163,075.00</td>')
+        // 3.2: every original order delivered
+        ->toContain('Purchase orders were subsequently issued to the awarded suppliers. All quantities ordered under the original tender were delivered, as detailed below.')
+        ->toContain('<td>Alstons Marketing Company Limited</td><td>076232</td><td>1,167 boxes of 30 tablets</td><td>December 28, 2023</td><td>1,167 boxes of 30 tablets</td><td>0</td><td>Delivered</td>')
+        // 3.3
+        ->toContain('To maintain a continuous supply of Rivaroxaban 20mg Tablet to the public health system, four (4) tender excesses were submitted to and subsequently approved by the Ministry of Health. The corresponding purchase orders and delivery statuses are outlined below.')
+        ->toContain('<td>078830</td><td>8,666 boxes of 30 tablets</td><td>January 20, 2026</td><td>0</td><td>8,666 boxes of 30 tablets</td><td>No confirmed ETA provided by supplier; no confirmed shipping date</td>')
+        // 4
+        ->toContain('<p>Rivaroxaban is indicated for the following:</p>')
+        ->toContain('<li>Prevention of stroke and systemic embolism in patients with non-valvular atrial fibrillation.</li>')
+        ->toContain('<li>Thromboprophylaxis in paediatric patients aged two (2) years and older with congenital heart disease following the Fontan procedure.</li>')
+        // 5
+        ->toContain('Given the current stock position, a Request for Quotations (RFQ) was issued to prequalified suppliers to provide the system with stock. Five (5) quotations were received, with the details presented in the attached comparison sheet.')
+        ->toContain('<p>Following consideration of the quotations, Bids 1, 2, 3 and 5 were not considered due to their respective lead times.</p>')
+        ->toContain('<p>Based on availability and lead time, and subject to the quotation fulfilling the requirements of the Ministry of Health, the proposed purchase is recommended from Pharmtech Caribbean Ltd.</p>')
+        // 6
+        ->toContain('<p>In light of the nil stock position at Central Stores, the average monthly consumption of approximately 10,417 tablets, and the absence of a confirmed delivery date for the outstanding purchase order, approval is requested for the following ad hoc purchase:</p>')
+        ->toContain('<th>Description</th><th>Details</th>')
+        ->toContain('<td>Item</td><td>Rivaroxaban 20mg Tablet</td>')
+        ->toContain('<td>DIN</td><td>90008557</td>')
+        ->toContain('<td>Recommended Supplier</td><td>Pharmtech Caribbean Ltd</td>')
+        ->toContain('<td>Quantity</td><td>29,988 tablets</td>')
+        ->toContain('<td>Total Cost</td><td>$359,856.00</td>')
+        ->toContain('<td>Purpose</td><td>Interim supply pending delivery of Purchase Order No. 078830</td>')
         ->toContain('Submitted for your consideration and approval.')->toContain('Yours faithfully,')
-        ->toContain('NATIONAL INSURANCE PROPERTY DEVELOPMENT COMPANY LIMITED')
+        ->toContain('<p class="organisation">NATIONAL INSURANCE PROPERTY DEVELOPMENT COMPANY LIMITED</p>')
         ->toContain('Jane Applicant')->toContain('Procurement Officer')
-        // Tender Excess has no required documents in the fixture: no attachment list.
-        ->not->toContain('/Attach')
-        ->not->toContain('DRAFT – NOT SUBMITTED')
-        ->not->toContain('Variation Type');
+        // The annex: the RFQ number and the recommended row marked.
+        ->toContain('Quotation Comparison')->toContain('<th>RFQ No.</th><td>RFQ 142/2026</td>')
+        ->toContain('<th>Required Quantity</th><td>29,988 tablets</td>')
+        ->toContain('<tr class="recommended">')
+        // Gone with the old layout.
+        ->not->toContain('Your approval is sought')->not->toContain('Justification for the recommendation')
+        ->not->toContain('/Attach')->not->toContain('DRAFT – NOT SUBMITTED')
+        ->not->toContain('—')->not->toContain('[');
 });
 
-it('writes the Tender Variation letter (Bimatoprost) with its orders', function () {
+it('shows 3.3 for a Yes answer or a Tender Excess, and leaves it out for an Ad Hoc No', function () {
+    [$no] = rlRivaroxaban(previousRequest: false, submit: false); // a draft keeps the hidden rows
+    [$excess] = rlChlorpromazine();
+
+    expect(rlHtml($no))->toContain('3.2 Purchase Orders Issued Under the Original Tender')
+        ->not->toContain('Approved Tender Excesses')->not->toContain('<td>078830</td>')->not->toContain('tender excesses were submitted');
+
+    expect(rlHtml($excess))
+        ->toContain('3.3 Approved Tender Excesses and Delivery Status')
+        ->toContain('To maintain a continuous supply of Chlorpromazine HCL 25mg to the public health system, one (1) tender excess was submitted to and subsequently approved by the Ministry of Health.')
+        ->toContain('<td>078010</td>');
+});
+
+it('says all original orders were delivered only when they were', function () {
+    [$case] = rlBimatoprost();
+
+    expect(rlHtml($case))
+        ->toContain('Purchase orders were subsequently issued to the awarded supplier. The details are outlined below.')
+        ->not->toContain('All quantities ordered')
+        // Other prints its description; the delivery note number is never a status.
+        ->toContain('<td>079128</td><td>8,000 each</td><td>May 28, 2026</td><td>4,000 each</td><td>4,000 each</td><td>Variation of tender in progress</td>')
+        ->toContain('<td>Not Delivered</td>')->not->toContain('DN-4471');
+});
+
+it('writes the Tender Excess letter (Chlorpromazine)', function () {
+    [$case] = rlChlorpromazine();
+
+    expect(rlHtml($case))
+        ->toContain('Re: Request for the Approval to Purchase in Excess of Tender- Chlorpromazine HCL 25mg – DIN 90000195')
+        ->toContain('seeks the Ministry of Health’s approval for the purchase in excess of tender of eight hundred thousand (800,000) each of Chlorpromazine HCL 25mg (DIN 90000195) from Alstons Marketing Company Limited at a total cost of $198,000.00.')
+        ->toContain('At present, there are eighty thousand (80,000) each in stock at Central Stores, with an average monthly consumption of approximately 70,000 each.')
+        ->toContain('<th>Item</th><th>Expiry Date</th>')->toContain('June 30, 2027')
+        ->toContain('<td>800,000 each</td><td>100%</td><td>$0.22 each</td><td>$176,000.00</td>')
+        ->toContain('a Request for Quotations (RFQ) was issued to prequalified suppliers to provide the system with stock. One (1) quotation was received')
+        ->toContain('<p>Subject to the quotation fulfilling the requirements of the Ministry of Health, the proposed purchase is recommended from Alstons Marketing Company Limited.</p>')
+        ->toContain('In light of the current stock position at Central Stores and the average monthly consumption of approximately 70,000 each, approval is requested for the following purchase in excess of tender:')
+        ->toContain('<td>Purpose</td><td>Continuity of supply until the next tender</td>')
+        ->toContain('| Pharmaceutical Division |') // the footer's fallback while the submitter has no division
+        // No clinical note: section 4 is left out and the rest close up.
+        ->not->toContain('Clinical Importance')
+        ->toContain('4. Request for Quotations and Evaluation')->toContain('5. Recommendation and Approval Requested')
+        ->not->toContain('Variation Requested');
+});
+
+it('writes the Tender Variation letter (Bimatoprost) with Variation Requested', function () {
     [$case] = rlBimatoprost();
     $html = rlHtml($case);
 
     expect($html)
         ->toContain('Re: Request for Variation of Tender – Change of Manufacturer and Country of Origin for Bimatoprost Opth. 0.01%/2.5ml Dro – DIN 90006473')
-        ->toContain('Your approval is sought for the Request for Variation of Tender – Change of Manufacturer and Country of Origin for Bimatoprost Opth. 0.01%/2.5ml Dro – DIN 90006473')
-        ->toContain('At the 2023/2025 Tender, Bimatoprost Opth. 0.01%/2.5ml Dro was awarded to one (1) supplier.')
-        ->toContain('Smith Robertson & Co. Ltd')->toContain('Allergan Inc.<br>(United States)')->toContain('Lumigan')
-        ->toContain('60,000 Each')->toContain('100%')->toContain('$95.00 Each')->toContain('$5,700,000.00')
-        ->toContain('Orders were placed with the awarded supplier. The details are summarized in the table below:')
-        ->toContain('076547')->toContain('January 31, 2024')->toContain('Delivered March 1, 2024')
-        ->toContain('079128')->toContain('8,000 Each')->toContain('4,000 Each')->toContain('Variation of tender in progress')->not->toContain('Partial Delivery')->not->toContain('DN-4471')
-        ->toContain('079209')->toContain('10,000 Each')->toContain('Not Delivered')
-        ->toContain('Bimatoprost is used for the reduction of elevated intraocular pressure')
-        ->toContain('Variation Type')->toContain('AbbVie Ltd. (Ireland)')->toContain('PO 079128 and PO 079209')
-        // Stock, RFQ, recommendation and the annex are Ad Hoc and Tender Excess only.
-        ->not->toContain('At present')->not->toContain('Request for Quotations')->not->toContain('recommended')
-        ->not->toContain('Quotation Comparison Sheet')->not->toContain('tender unit cost');
-});
-
-it('writes the Ad Hoc letter (Rivaroxaban) with two awarded suppliers', function () {
-    [$case] = rlRivaroxaban();
-    $html = rlHtml($case);
-
-    expect($html)
-        ->toContain('Re: Request for the Approval of an Ad Hoc Purchase of Rivaroxaban 20mg Tablet - DIN 90008557')
-        ->toContain('Your approval is sought for the Ad Hoc Purchase of twenty-nine thousand nine hundred and eighty-eight (29,988) each of Rivaroxaban 20mg Tablet - DIN 90008557.')
-        ->toContain('At the 2023/2025 Tender, Rivaroxaban 20mg Tablet was awarded to two (2) suppliers. The details of this award are summarized in the table below:')
-        ->toContain('Bayer AG<br>(Germany)')->toContain('70%')->toContain('$368.20 Each')->toContain('$2,301,250.00')
-        ->toContain('Macleods Pharmaceutical Ltd<br>(India)')->toContain('30%')->toContain('$65.23 Each')->toContain('$163,075.00')
-        ->toContain('At present, there are one thousand two hundred (1,200) each in stock at the Central Stores.')
-        ->toContain('March 31, 2027')
-        ->toContain('and two (2) quotations were received. The details are summarised in the quotation comparison sheet.')
-        ->toContain('The quotation from Supplier X Limited was not considered: Product not registered with the Drug Inspectorate.')
-        ->toContain('Once the quotation fulfils the requirements of the Ministry of Health, it is recommended to procure twenty-nine thousand nine hundred and eighty-eight (29,988) each of Rivaroxaban 20mg Tablet – DIN 90008557 from Alstons Marketing Company Limited at a total cost of $77,593.95 (VAT inclusive). The unit cost is $2.30.')
-        ->toContain('The anticipated lead time for this request is thirty (30) days.')
-        // Kyle, 2026-11-26: no pack size, the unit of measure only; Ex Stock is the quantity available from stock.
-        ->toContain('6,250 Each')->toContain('2,500 Each')->not->toContain('Boxes of')->toContain('<td>500 Each</td>')
-        // Kyle, 2026-11-26: the recommended quotation's Reason for Justification, after the recommendation.
-        ->toContain('Justification for the recommendation: Registered product with stock available.')
-        ->toContain('Quotation Comparison Sheet')->toContain('$68,972.40')
-        // The documents follow as pages (2026-11-25): no /Attach list.
-        ->not->toContain('/Attach')->not->toContain('bids.pdf')
-        // The issues text shows for every type (2026-11-25). No orders entered: no orders table.
-        // Hidden for Ad Hoc: the variation table and the tender price.
-        ->toContain('The awarded suppliers were unable to supply the full tender quantity.')->not->toContain('Orders were placed')
-        ->not->toContain('Variation Type')->not->toContain('tender unit cost');
+        ->toContain('seeks the Ministry of Health’s approval for a variation of tender (Change of Manufacturer and Country of Origin) of sixty thousand (60,000) each of Bimatoprost Opth. 0.01%/2.5ml Dro (DIN 90006473).</p>')
+        // No stock entered: Current Stock Position is left out, so Background is section 2.
+        ->toContain('2. Procurement Background')->toContain('2.1 Original Tender Awards (2023–2025)')->toContain('2.2 Purchase Orders Issued Under the Original Tender')
+        ->toContain('<p>Bimatoprost Opth. is indicated for the following:</p>')
+        ->toContain('<li>Bimatoprost is used for the reduction of elevated intraocular pressure')
+        ->toContain('4. Variation Requested')
+        ->toContain('<th>Variation Type</th><th>Existing Approved Detail</th><th>Proposed Revised Detail</th><th>Effective Date</th>')
+        ->toContain('5. Recommendation and Approval Requested')
+        ->toContain('<p>Approval is requested for the following variation of tender:</p>')
+        ->toContain('<td>Variation Type</td><td>Change of Manufacturer and Country of Origin</td>')
+        ->toContain('<td>Existing Approved Detail</td><td>Allergan Inc. (United States)</td>')
+        ->toContain('<td>Proposed Revised Detail</td><td>AbbVie Ltd. (Ireland)</td>')
+        ->toContain('<td>Effective Date</td><td>PO 079128 and PO 079209</td>')
+        // No stock entered, no quotations: no section 2, no RFQ, no supplier or cost, no annex.
+        ->not->toContain('Current Stock Position')->not->toContain('Request for Quotations')
+        ->not->toContain('at a total cost')->not->toContain('Recommended Supplier')->not->toContain('Quotation Comparison')
+        // The answer is Yes, but a Tender Variation shows no Approved Tender Excesses table without rows.
+        ->not->toContain('Approved Tender Excesses');
 });
 
 it('watermarks a draft and dates it today', function () {
@@ -253,9 +355,13 @@ it('leaves out what was not entered, never a placeholder', function () {
     saveDraft($case, $vendor, ['requisition' => ['item_description' => 'Paracetamol', 'quantity_requested' => '10', 'unit_of_measure' => 'Each']]);
     $html = rlHtml($case->fresh());
 
-    expect($html)->toContain('Ad Hoc Purchase of ten (10) each of Paracetamol.')
-        ->not->toContain('DIN')->not->toContain('At the')->not->toContain('At present')
-        ->not->toContain('Quotation Comparison Sheet')->not->toContain('[')->not->toContain('—');
+    expect($html)->toContain('approval for the ad hoc purchase of ten (10) each of Paracetamol.</p>')
+        ->toContain('1. Purpose of Request')->toContain('2. Recommendation and Approval Requested')
+        ->toContain('<p>Approval is requested for the following ad hoc purchase:</p>')
+        ->toContain('<td>Quantity</td><td>10 each</td>')
+        ->not->toContain('DIN')->not->toContain('Stock Position')->not->toContain('Procurement Background')
+        ->not->toContain('Recommended Supplier')->not->toContain('Purpose</td>')
+        ->not->toContain('Quotation Comparison')->not->toContain('[')->not->toContain('—');
 });
 
 it('downloads a PDF for the vendor at any status and audits it', function () {
@@ -400,27 +506,62 @@ it('has no letter for the old Pharm / Non-Pharm types', function () {
     expect(RequestLetter::for($case))->toBeNull();
 });
 
-// Writes one PDF per fixture for Kyle to compare with the paper letters.
+/** [width, height] of each page of $bytes, from the pages' MediaBox (qpdf QDF form). */
+function rlPageSizes(string $bytes): array
+{
+    preg_match_all('/\/MediaBox\s*\[\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)\s*\]/', rlQdf($bytes), $m, PREG_SET_ORDER);
+
+    return array_map(fn (array $match) => [(float) $match[1], (float) $match[2]], $m);
+}
+
+it('puts the Quotation Comparison on a landscape page after the letter, only with quotations', function () {
+    [$withQuotes] = rlRivaroxaban();
+    [$variation] = rlBimatoprost();
+
+    $sizes = rlPageSizes(RequestLetter::for($withQuotes)->pdf());
+    $landscape = array_keys(array_filter($sizes, fn (array $s) => $s[0] > $s[1]));
+    $portrait = array_keys(array_filter($sizes, fn (array $s) => $s[0] < $s[1]));
+    expect($landscape)->not->toBeEmpty()
+        // After the letter's pages, before the appended documents (portrait one-page PDFs here).
+        ->and(min($landscape))->toBeGreaterThan(0)
+        ->and(min($landscape))->toBeGreaterThan(min($portrait));
+    expect(rlQdf(RequestLetter::for($withQuotes)->pdf()))->toContain('Quotation Comparison');
+
+    $variationSizes = rlPageSizes(RequestLetter::for($variation)->pdf());
+    expect(array_filter($variationSizes, fn (array $s) => $s[0] > $s[1]))->toBeEmpty();
+    expect(rlHtml($variation))->not->toContain('Quotation Comparison');
+})->skip(rlNoQpdf(...), 'qpdf is not installed (QPDF_PATH).');
+
+it('keeps the annex as a portrait page of the letter without qpdf', function () {
+    [$case] = rlRivaroxaban();
+    config(['procurement.letter.qpdf' => 'C:/not-installed/qpdf.exe']);
+
+    $bytes = RequestLetter::for(ProcurementCase::withoutGlobalScopes()->findOrFail($case->id))->pdf();
+
+    expect($bytes)->toStartWith('%PDF')
+        ->and(preg_match('/\/MediaBox\s*\[\s*0\s+0\s+792(\.0+)?\s+612(\.0+)?\s*\]/', $bytes))->toBe(0);
+});
+
+// Writes one PDF per kind for Kyle to compare with the reference letters.
 // Run with: LETTER_SAMPLES=1 php artisan test --filter=RequestLetterTest
 it('saves the sample PDFs', function () {
     $dir = base_path('storage/app/letter-samples');
     File::ensureDirectoryExists($dir);
+    foreach (File::files($dir) as $old) {
+        File::delete($old->getPathname()); // the samples of the old layout
+    }
 
     $fixtures = [
+        'rivaroxaban-ad-hoc' => rlRivaroxaban(...),
         'chlorpromazine-tender-excess' => rlChlorpromazine(...),
         'bimatoprost-tender-variation' => rlBimatoprost(...),
-        'rivaroxaban-ad-hoc' => rlRivaroxaban(...),
-        'chlorpromazine-draft' => fn () => rlChlorpromazine(submit: false),
     ];
 
     foreach ($fixtures as $name => $fixture) {
         [$case] = $fixture();
-        if ($name === 'chlorpromazine-draft') { // a submitted fixture carries its required documents already
-            makeDocument($case, requiredPurposes($case)[0] ?? DocumentPurpose::cases()[0]->value, ['_bytes' => onePagePdfBytes('Uploaded document'), 'original_name' => 'bid.pdf']);
-        }
         file_put_contents("{$dir}/{$name}.pdf", RequestLetter::for($case)->pdf());
         file_put_contents("{$dir}/{$name}.html", RequestLetter::for($case)->html());
     }
 
-    expect(File::files($dir))->not->toBeEmpty();
+    expect(File::files($dir))->toHaveCount(6);
 })->skip(fn () => ! getenv('LETTER_SAMPLES'), 'Set LETTER_SAMPLES=1 to write the sample PDFs.');

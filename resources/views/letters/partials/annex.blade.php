@@ -1,21 +1,23 @@
-{{-- Ad Hoc and Tender Excess: the Quotation Comparison Sheet, on its own page. --}}
-<div class="annex">
-    <h2>Quotation Comparison Sheet</h2>
-    <table class="grid small">
-        <thead>
-            <tr>
-                <th>Supplier</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th><th>VAT</th><th>Total Price Incl. VAT</th><th>Ex Stock</th>
-                <th>Lead Time</th><th>Brand</th><th>Manufacturer</th><th>Country of Origin</th><th>Remarks</th><th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($letter['annex'] as $row)
-                <tr>
-                    @foreach (['supplier', 'quantity', 'unit_price', 'subtotal', 'vat', 'total', 'ex_stock', 'lead_time', 'brand', 'manufacturer', 'country', 'remarks', 'status'] as $key)
-                        <td>{{ $row[$key] }}</td>
-                    @endforeach
-                </tr>
+{{-- The Quotation Comparison sheet (RequestLetter::annex): header rows, then one row per quotation, the recommended one highlighted. --}}
+<h2 class="annex-title">Quotation Comparison</h2>
+<table class="annex-header">
+    @foreach ($letter['annex']['header'] as [$label, $value])
+        <tr><th>{{ $label }}</th><td>{{ $value }}</td></tr>
+    @endforeach
+</table>
+<table class="grid small">
+    <thead>
+        <tr>
+            @foreach (['No.', 'Supplier', 'Qty', 'Unit Price', 'Subtotal', 'VAT', 'Total Price', 'Ex Stock', 'Lead Time', 'Brand', 'Manufacturer', 'Country of Origin', 'Remarks'] as $heading)
+                <th>{{ $heading }}</th>
             @endforeach
-        </tbody>
-    </table>
-</div>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($letter['annex']['rows'] as $row)
+            <tr class="{{ $row['recommended'] ? 'recommended' : 'quoted' }}">
+                @foreach ($row['cells'] as $cell)<td>{{ $cell }}</td>@endforeach
+            </tr>
+        @endforeach
+    </tbody>
+</table>

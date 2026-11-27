@@ -73,6 +73,41 @@ final class Qpdf
         }
     }
 
+    /** Whether the qpdf binary runs. */
+    public static function available(): bool
+    {
+        return self::run(['--version']) !== null;
+    }
+
+    /**
+     * Kyle, 2026-11-27: several generated PDFs (bytes) as one, in order; the
+     * letter and its landscape annex. Null when qpdf is missing or the merge fails.
+     *
+     * @param  list<string>  $pdfs
+     */
+    public static function concat(array $pdfs): ?string
+    {
+        $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'qpdf-'.Str::lower((string) Str::ulid());
+        File::ensureDirectoryExists($dir);
+
+        try {
+            $files = [];
+            foreach (array_values($pdfs) as $i => $bytes) {
+                file_put_contents($files[] = "{$dir}/part{$i}.pdf", $bytes);
+            }
+
+            if (self::run(['--warning-exit-0', '--empty', "{$dir}/merged.pdf", '--pages', ...$files, '--']) === null) {
+                return null;
+            }
+
+            $bytes = file_get_contents("{$dir}/merged.pdf");
+
+            return $bytes === false ? null : $bytes;
+        } finally {
+            File::deleteDirectory($dir);
+        }
+    }
+
     /** @param  list<string>  $arguments */
     private static function run(array $arguments): ?string
     {
